@@ -217,16 +217,30 @@
 <body>
 
 <!-- Auth Screen -->
+<!-- Login Screen -->
 <div class="auth-screen" id="authScreen">
-  <div class="auth-box">
+  <!-- Login Page -->
+  <div class="auth-box" id="loginBox">
     <div class="auth-ornament">⚔ ✦ ⚔</div>
     <div class="auth-title">MixelParse</div>
     <div class="auth-sub">Project 1999 Guild Inventory Tool</div>
-    <input type="email" class="auth-input" id="authEmail" placeholder="Email address" autocomplete="email">
-    <input type="password" class="auth-input" id="authPassword" placeholder="Password" autocomplete="current-password">
-    <button class="auth-btn" id="authBtn">Sign In</button>
-    <div id="authMsg" class="auth-msg"></div>
-    <div style="margin-top:.75rem;font-size:.8rem;color:var(--text-muted)">No account? <span id="authToggle" class="auth-toggle">Create one</span></div>
+    <input type="text" class="auth-input" id="loginUsername" placeholder="Username" autocomplete="username">
+    <input type="password" class="auth-input" id="loginPassword" placeholder="Password" autocomplete="current-password">
+    <button class="auth-btn" id="loginBtn">Sign In</button>
+    <div id="loginMsg" class="auth-msg"></div>
+    <div style="margin-top:.75rem;font-size:.8rem;color:var(--text-muted)">No account? <span class="auth-toggle" id="showRegister">Create one</span></div>
+  </div>
+  <!-- Register Page -->
+  <div class="auth-box" id="registerBox" style="display:none">
+    <div class="auth-ornament">⚔ ✦ ⚔</div>
+    <div class="auth-title">Create Account</div>
+    <div class="auth-sub">MixelParse &middot; Project 1999</div>
+    <input type="email" class="auth-input" id="regEmail" placeholder="Email address" autocomplete="email">
+    <input type="text" class="auth-input" id="regUsername" placeholder="Username" autocomplete="username">
+    <input type="password" class="auth-input" id="regPassword" placeholder="Password" autocomplete="new-password">
+    <button class="auth-btn" id="registerBtn">Create Account</button>
+    <div id="registerMsg" class="auth-msg"></div>
+    <div style="margin-top:.75rem;font-size:.8rem;color:var(--text-muted)"><span class="auth-toggle" id="showLogin">&#8592; Back to Sign In</span></div>
   </div>
 </div>
 
@@ -774,6 +788,15 @@ let syncTimeout=null;
 
 // ─── Auth ──────────────────────────────────────────────────────────────────────
 async function initAuth(){
+  // Try auto-login from cached credentials
+  const cachedEmail=localStorage.getItem('mp_cached_email');
+  const cachedPw=localStorage.getItem('mp_cached_pw');
+  if(cachedEmail&&cachedPw){
+    const{data,error}=await sb.auth.signInWithPassword({email:cachedEmail,password:cachedPw});
+    if(!error&&data.session){await onSignedIn(data.session.user);return;}
+    else{localStorage.removeItem('mp_cached_email');localStorage.removeItem('mp_cached_pw');}
+  }
+  // Check existing session
   const{data:{session}}=await sb.auth.getSession();
   if(session)await onSignedIn(session.user);
   else showAuthScreen();
@@ -785,53 +808,106 @@ async function initAuth(){
 
 function showAuthScreen(){
   document.getElementById('authScreen').style.display='flex';
-  document.getElementById('authMsg').textContent='';
-  document.getElementById('authEmail').value='';
-  document.getElementById('authPassword').value='';
+  document.getElementById('loginBox').style.display='block';
+  document.getElementById('registerBox').style.display='none';
+  // Pre-fill cached username
+  const cachedUser=localStorage.getItem('mp_cached_username');
+  if(cachedUser)document.getElementById('loginUsername').value=cachedUser;
+  document.getElementById('loginMsg').textContent='';
 }
 
 async function onSignedIn(user){
   currentUser=user;
   document.getElementById('authScreen').style.display='none';
   document.getElementById('userBar').style.display='flex';
-  document.getElementById('userEmail').textContent=user.email;
+  // Show username if stored, else email
+  const uname=localStorage.getItem('mp_cached_username')||user.email;
+  document.getElementById('userEmail').textContent=uname;
   await loadFromSupabase();
 }
 
 function onSignedOut(){
   currentUser=null;
   chars={};charMeta={};gearStats={};watchList=[];activeTab=null;
+  localStorage.removeItem('mp_cached_email');
+  localStorage.removeItem('mp_cached_pw');
   document.getElementById('userBar').style.display='none';
   showAuthScreen();
   refresh();
 }
 
-// Sign in
-document.getElementById('authBtn').addEventListener('click',async()=>{
-  const email=document.getElementById('authEmail').value.trim();
-  const password=document.getElementById('authPassword').value;
-  const btn=document.getElementById('authBtn');
-  const msg=document.getElementById('authMsg');
-  if(!email||!password){msg.className='auth-msg err';msg.textContent='Please enter email and password.';return;}
+// Username → email lookup via user metadata
+async function getUserEmail(username){
+  // We store username in user metadata on signup
+  // For login we need to map username → email via our own lookup
+  // Since Supabase doesn't support username login natively,
+  // we store email→username mapping and look it up
+  const{data}=await sb.from('profiles').select('email').eq('username',username).single();
+  return data?.email||null;
+}
+
+// Login
+document.getElementById('loginBtn').addEventListener('click',async()=>{
+  const username=document.getElementById('loginUsername').value.trim();
+  const password=document.getElementById('loginPassword').value;
+  const msg=document.getElementById('loginMsg');
+  const btn=document.getElementById('loginBtn');
+  if(!username||!password){msg.className='auth-msg err';msg.textContent='Please enter username and password.';return;}
   btn.disabled=true;msg.className='auth-msg';msg.textContent='Signing in…';
+  // Look up email from username
+  const email=await getUserEmail(username);
+  if(!email){msg.className='auth-msg err';msg.textContent='Username not found.';btn.disabled=false;return;}
   const{error}=await sb.auth.signInWithPassword({email,password});
-  if(error){msg.className='auth-msg err';msg.textContent=error.message;}
+  if(error){msg.className='auth-msg err';msg.textContent='Incorrect password.';}
+  else{
+    localStorage.setItem('mp_cached_email',email);
+    localStorage.setItem('mp_cached_pw',password);
+    localStorage.setItem('mp_cached_username',username);
+  }
   btn.disabled=false;
 });
 
-// Create account
-document.getElementById('authToggle').addEventListener('click',async()=>{
-  const email=document.getElementById('authEmail').value.trim();
-  const password=document.getElementById('authPassword').value;
-  const msg=document.getElementById('authMsg');
-  if(!email||!password){msg.className='auth-msg err';msg.textContent='Enter email and password first.';return;}
-  const{error}=await sb.auth.signUp({email,password});
-  if(error){msg.className='auth-msg err';msg.textContent=error.message;}
-  else{msg.className='auth-msg ok';msg.textContent='Account created! You can now sign in.';}
+// Register
+document.getElementById('registerBtn').addEventListener('click',async()=>{
+  const email=document.getElementById('regEmail').value.trim();
+  const username=document.getElementById('regUsername').value.trim();
+  const password=document.getElementById('regPassword').value;
+  const msg=document.getElementById('registerMsg');
+  const btn=document.getElementById('registerBtn');
+  if(!email||!username||!password){msg.className='auth-msg err';msg.textContent='All fields required.';return;}
+  if(password.length<6){msg.className='auth-msg err';msg.textContent='Password must be at least 6 characters.';return;}
+  btn.disabled=true;msg.className='auth-msg';msg.textContent='Creating account…';
+  const{data,error}=await sb.auth.signUp({email,password,options:{data:{username}}});
+  if(error){msg.className='auth-msg err';msg.textContent=error.message;btn.disabled=false;return;}
+  // Store profile
+  if(data.user){
+    await sb.from('profiles').upsert({user_id:data.user.id,username,email,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+    localStorage.setItem('mp_cached_email',email);
+    localStorage.setItem('mp_cached_pw',password);
+    localStorage.setItem('mp_cached_username',username);
+    msg.className='auth-msg ok';msg.textContent='Account created! Signing in…';
+  }
+  btn.disabled=false;
 });
 
-document.getElementById('authEmail').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('authPassword').focus();});
-document.getElementById('authPassword').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('authBtn').click();});
+// Navigation between pages
+document.getElementById('showRegister').addEventListener('click',()=>{
+  document.getElementById('loginBox').style.display='none';
+  document.getElementById('registerBox').style.display='block';
+  document.getElementById('registerMsg').textContent='';
+});
+document.getElementById('showLogin').addEventListener('click',()=>{
+  document.getElementById('loginBox').style.display='block';
+  document.getElementById('registerBox').style.display='none';
+  document.getElementById('loginMsg').textContent='';
+});
+
+// Keyboard nav
+document.getElementById('loginUsername').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPassword').focus();});
+document.getElementById('loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginBtn').click();});
+document.getElementById('regEmail').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('regUsername').focus();});
+document.getElementById('regUsername').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('regPassword').focus();});
+document.getElementById('regPassword').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('registerBtn').click();});
 document.getElementById('signOutBtn').addEventListener('click',()=>sb.auth.signOut());
 
 // ─── Supabase Data Sync ────────────────────────────────────────────────────────
