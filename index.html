@@ -346,7 +346,7 @@
   <div id="subInventory">
     <div class="watchlist-bar" id="tovBar">
       <div class="watchlist-bar-header">
-        <div class="watchlist-bar-title">🐉 Temple of Veeshan Faction</div>
+        <div class="watchlist-bar-title">🐉 Claws of Veeshan Faction</div>
       </div>
       <div id="tovRows" class="watchlist-rows"><div class="watchlist-empty">No characters loaded.</div></div>
     </div>
@@ -1155,7 +1155,7 @@ function renderTovBar(){
   const names=charNames().filter(n=>n!=='__all__');
   if(!names.length){container.innerHTML='<div class="watchlist-empty">No characters loaded.</div>';return;}
   container.innerHTML=names.map(n=>{
-    const lvl=getFaction(n,'Temple of Veeshan');
+    const lvl=getFaction(n,'Claws of Veeshan');
     const color=factionColor(lvl);
     const cls=color==='green'?'tov-chip-ally':color==='red'?'tov-chip-warn':color==='yellow'?'tov-chip-yellow':'tov-chip-none';
     const icon=color==='green'?'✔':color==='red'?'✘':'◐';
