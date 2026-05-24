@@ -429,7 +429,10 @@ const HP_RATIOS={'Warrior':[4.5,6.0],'Shadow Knight':[3.8,5.2],'Paladin':[3.8,5.
 const WIS_CLASSES=new Set(['Cleric','Druid','Paladin','Ranger','Shaman']);
 function staRatio(cls,lvl){const r=HP_RATIOS[cls];if(!r)return 0;if(lvl<=50)return r[0]*(lvl/50);if(lvl>=60)return r[1];return r[0]+(r[1]-r[0])*((lvl-50)/10);}
 function calcHP(sta,cls,lvl){return Math.floor(12.1*lvl+sta*staRatio(cls,lvl));}
-function calcMana(intWis,lvl){const base=Math.floor(3.71*lvl);const fromStat=intWis<=200?Math.floor(((80*lvl)/425)*intWis):Math.floor(((80*lvl)/425)*200+((40*lvl)/425)*(intWis-200));return base+fromStat;}
+function calcMana(intWis,lvl){
+  if(intWis<=200)return Math.floor((intWis+10)*lvl/5);
+  return Math.floor((11250*lvl+33*intWis*lvl)/425);
+}
 
 // ─── Item Database ────────────────────────────────────────────────────────────
 // MERGER_INJECT_START
@@ -1007,13 +1010,13 @@ async function loadFromSupabase(){
       for(const row of charRows){
         chars[row.char_name]=row.inventory||[];
         if(row.base_stats?.factions)factionData[row.char_name]=row.base_stats.factions;
-        const{factions:_f,...bs}=row.base_stats||{};
+        const{factions:_f,nakedStats:_n,currentStats:_c,...bs}=row.base_stats||{};
         const hasRealStats=bs.stats||bs.resists;
         charMeta[row.char_name]={
           class:row.class||'',race:row.race||'',level:row.level||1,
           baseStats:hasRealStats?bs:null,
-          nakedStats:bs.nakedStats||null,
-          currentStats:bs.currentStats||null,
+          nakedStats:row.base_stats?.nakedStats||null,
+          currentStats:row.base_stats?.currentStats||null,
           gearFetched:!!row.gear_stats
         };
         if(row.gear_stats)gearStats[row.char_name]=row.gear_stats;
@@ -1047,7 +1050,7 @@ async function saveToSupabase(){
       class:charMeta[cn]?.class||null,
       race:charMeta[cn]?.race||null,
       level:charMeta[cn]?.level||1,
-      base_stats:charMeta[cn]?.baseStats?{...charMeta[cn].baseStats,factions:factionData[cn]||{}}:{factions:factionData[cn]||{}},
+      base_stats:charMeta[cn]?.baseStats?{...charMeta[cn].baseStats,factions:factionData[cn]||{},nakedStats:charMeta[cn].nakedStats||null,currentStats:charMeta[cn].currentStats||null}:{factions:factionData[cn]||{},nakedStats:charMeta[cn]?.nakedStats||null,currentStats:charMeta[cn]?.currentStats||null},
       gear_stats:gearStats[cn]||null,
       inventory:chars[cn]||[],
       updated_at:new Date().toISOString()
