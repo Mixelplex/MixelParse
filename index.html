@@ -724,7 +724,7 @@ for(let i=headerIdx+1;i<lines.length;i++){const cols=lines[i].split(sep).map(c=>
 function applyDBToChar(charName){const equipped=getEquippedItems(charName);if(!equipped.length)return 0;if(!gearStats[charName])gearStats[charName]={};let matched=0;for(const item of equipped){if(itemDB[item.name]){gearStats[charName][item.name]=itemDB[item.name];matched++;}}return matched;}
 // saveItemDB and loadItemDB replaced by Supabase versions above
 
-function updateItemDbModal(){const count=Object.keys(itemDB).length;document.getElementById('itemDbStatus').textContent=count>0?'&#10003; '+count+' items loaded from '+itemDBSources.length+' source'+(itemDBSources.length!==1?'s':''):' No items loaded yet.';document.getElementById('itemDbSourceList').innerHTML=itemDBSources.length?itemDBSources.map(s=>`<div style="padding:.15rem 0;border-bottom:1px solid rgba(74,58,26,.15)">&#128196; ${esc(s)}</div>`).join(''):'';}
+function updateItemDbModal(){const count=Object.keys(itemDB).length;document.getElementById('itemDbStatus').textContent=count>0?'✓ '+count+' items loaded from '+itemDBSources.length+' source'+(itemDBSources.length!==1?'s':''):' No items loaded yet.';document.getElementById('itemDbSourceList').innerHTML=itemDBSources.length?itemDBSources.map(s=>`<div style="padding:.15rem 0;border-bottom:1px solid rgba(74,58,26,.15)">📄 ${esc(s)}</div>`).join(''):'';}
 document.getElementById('itemDbBtn').addEventListener('click',()=>{updateItemDbModal();document.getElementById('itemDbOverlay').classList.add('open');});
 document.getElementById('itemDbClose').addEventListener('click',()=>document.getElementById('itemDbOverlay').classList.remove('open'));
 document.getElementById('itemDbOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('itemDbOverlay'))document.getElementById('itemDbOverlay').classList.remove('open');});
@@ -928,14 +928,13 @@ async function loadFromSupabase(){
     // Load watch list
     const{data:wlRow}=await sb.from('watch_list').select('items').eq('user_id',currentUser.id).single();
     if(wlRow)watchList=wlRow.items||[];
-    // Load item DB
-    const{data:dbRows}=await sb.from('item_db').select('item_name,data');
-    if(dbRows&&dbRows.length&&Object.keys(BAKED_ITEM_DB).length===0){
-      for(const row of dbRows)itemDB[row.item_name]=row.data;
-      itemDBSources=['supabase'];
+    // Load item DB from Supabase if not baked
+    if(Object.keys(BAKED_ITEM_DB).length===0){
+      await loadItemDBFromSupabase();
     }
   }catch(e){console.warn('Load error',e);}
   refresh();
+  updateItemDbModal();
 }
 
 function scheduleSave(){
@@ -966,13 +965,36 @@ async function saveToSupabase(){
 
 async function saveItemDBToSupabase(){
   if(!currentUser)return;
+  const entries=Object.entries(itemDB);
+  if(!entries.length)return;
   try{
-    const rows=Object.entries(itemDB).map(([item_name,data])=>({item_name,data,updated_at:new Date().toISOString()}));
-    // Batch in chunks of 500
+    const rows=entries.map(([item_name,data])=>({item_name,data,updated_at:new Date().toISOString()}));
     for(let i=0;i<rows.length;i+=500){
       await sb.from('item_db').upsert(rows.slice(i,i+500),{onConflict:'item_name'});
     }
+    console.log(`Saved ${rows.length} items to Supabase`);
   }catch(e){console.warn('Item DB save error',e);}
+}
+
+async function loadItemDBFromSupabase(){
+  if(!currentUser)return false;
+  try{
+    let allRows=[], from=0, pageSize=1000;
+    while(true){
+      const{data,error}=await sb.from('item_db').select('item_name,data').range(from,from+pageSize-1);
+      if(error||!data||!data.length)break;
+      allRows=allRows.concat(data);
+      if(data.length<pageSize)break;
+      from+=pageSize;
+    }
+    if(allRows.length){
+      for(const row of allRows)itemDB[row.item_name]=row.data;
+      itemDBSources=['supabase ('+allRows.length+' items)'];
+      console.log(`Loaded ${allRows.length} items from Supabase`);
+      return true;
+    }
+  }catch(e){console.warn('Item DB load error',e);}
+  return false;
 }
 
 // ─── Replace localStorage state functions ─────────────────────────────────────
@@ -982,7 +1004,6 @@ function saveWatchList(){scheduleSave();}
 function loadWatchList(){} // handled by loadFromSupabase
 function saveItemDB(){saveItemDBToSupabase();}
 function loadItemDB(){
-  // Still load baked DB if present
   if(Object.keys(BAKED_ITEM_DB).length>0){
     itemDB=Object.assign({},BAKED_ITEM_DB);
     itemDBSources=['baked'];
