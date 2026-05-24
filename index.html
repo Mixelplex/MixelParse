@@ -250,8 +250,8 @@
     <button class="auth-signout" id="signOutBtn">Sign out</button>
   </div>
   <div class="ornament">&#9876; &#10022; &#9876;</div>
-  <h1>EQ Inventory Parser</h1>
-  <p>Project 1999 &middot; Multi-Character</p>
+  <h1>MixelParse</h1>
+  <p>Project 1999 &middot; Guild Inventory Tool</p>
   <div class="ornament">&#10022;</div>
   <button class="btn primary" id="itemDbBtn" style="position:absolute;top:1rem;right:1rem;font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.06em">&#128230; Item Database</button>
   <div class="version-badge">v1.0</div>
@@ -274,10 +274,8 @@
 
 <div class="tab-bar" id="tabBar">
   <div class="tab-add" id="tabAdd" title="Add character files">&#65291;</div>
-  <div class="tab-add" id="folderAdd" title="Load EQ folder" style="font-size:.8rem;letter-spacing:0">&#128193;</div>
 </div>
 <input type="file" id="fileInput" accept=".txt" multiple style="display:none">
-<input type="file" id="folderInput" webkitdirectory mozdirectory style="display:none">
 
 <div class="upload-zone" id="dropzone" style="display:none">
   <input type="file" id="dzInput" accept=".txt" multiple>
@@ -285,17 +283,15 @@
   <h2>Open Inventory Files</h2>
   <p>Drag &amp; drop your <code>CharacterName-Inventory.txt</code> files here, or:</p>
   <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;margin:.75rem 0">
-    <button class="btn primary" onclick="event.stopPropagation();document.getElementById('folderInput').click()" style="font-size:.85rem">&#128193; Select EQ Folder</button>
-    <button class="btn" onclick="event.stopPropagation();document.getElementById('fileInput').click()" style="font-size:.85rem">&#128196; Select Files</button>
+    <button class="btn primary" onclick="event.stopPropagation();document.getElementById('fileInput').click()" style="font-size:.85rem">&#128196; Select Files</button>
   </div>
-  <p style="font-size:.8rem;color:var(--text-muted)">Folder mode finds all <code>*-Inventory.txt</code> files automatically</p>
   <div class="how-to">
     <div class="how-to-title">&#9876; HOW TO EXPORT YOUR INVENTORY</div>
     <ol>
       <li>Log in to your character in EverQuest</li>
       <li>Type <code>/outputfile inventory</code> in chat</li>
       <li>Find <code>CharacterName-Inventory.txt</code> in your EQ folder</li>
-      <li>Use <strong>Select EQ Folder</strong> above to load all characters at once</li>
+      <li>Select all character files and drop them here</li>
     </ol>
   </div>
 </div>
@@ -751,18 +747,9 @@ document.getElementById('locationFilter').addEventListener('change',renderTable)
 // ─── File Loading ─────────────────────────────────────────────────────────────
 function loadFiles(files){const arr=[...files];if(!arr.length)return;let loaded=0,lastName=null;arr.forEach(file=>{const reader=new FileReader();reader.onload=e=>{const cn=extractCharName(file.name);chars[cn]=parseInventory(e.target.result,cn);if(!charMeta[cn])charMeta[cn]={};lastName=cn;if(++loaded===arr.length){activeTab=arr.length>1&&Object.keys(chars).length>1?'__all__':lastName;refresh();}};reader.readAsText(file);});}
 
-function loadFolder(files){
-  // Filter to only *-Inventory.txt files, ignore others
-  const inv=[...files].filter(f=>/inventory\.txt$/i.test(f.name));
-  if(!inv.length){alert('No Inventory.txt files found in that folder. Make sure you\'ve run /outputfile inventory for each character.');return;}
-  loadFiles(inv);
-}
-
 document.getElementById('fileInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
 document.getElementById('dzInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
-document.getElementById('folderInput').addEventListener('change',e=>{loadFolder(e.target.files);e.target.value='';});
 document.getElementById('tabAdd').addEventListener('click',()=>document.getElementById('fileInput').click());
-document.getElementById('folderAdd').addEventListener('click',()=>document.getElementById('folderInput').click());
 const dz=document.getElementById('dropzone');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
 dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
@@ -836,13 +823,11 @@ function onSignedOut(){
   refresh();
 }
 
-// Username → email lookup via user metadata
+// Username → email lookup via profiles table
 async function getUserEmail(username){
-  // We store username in user metadata on signup
-  // For login we need to map username → email via our own lookup
-  // Since Supabase doesn't support username login natively,
-  // we store email→username mapping and look it up
-  const{data}=await sb.from('profiles').select('email').eq('username',username).single();
+  console.log('Looking up username:', username);
+  const{data,error}=await sb.from('profiles').select('email').eq('username',username).single();
+  console.log('Profile lookup result:', data, error);
   return data?.email||null;
 }
 
@@ -854,11 +839,18 @@ document.getElementById('loginBtn').addEventListener('click',async()=>{
   const btn=document.getElementById('loginBtn');
   if(!username||!password){msg.className='auth-msg err';msg.textContent='Please enter username and password.';return;}
   btn.disabled=true;msg.className='auth-msg';msg.textContent='Signing in…';
-  // Look up email from username
-  const email=await getUserEmail(username);
-  if(!email){msg.className='auth-msg err';msg.textContent='Username not found.';btn.disabled=false;return;}
+
+  // Try username lookup first, fall back to treating input as email
+  let email=await getUserEmail(username);
+  if(!email){
+    // Maybe they typed their email directly — try it as-is
+    if(username.includes('@'))email=username;
+    else{msg.className='auth-msg err';msg.textContent='Username not found.';btn.disabled=false;return;}
+  }
+
+  console.log('Attempting login with email:', email);
   const{error}=await sb.auth.signInWithPassword({email,password});
-  if(error){msg.className='auth-msg err';msg.textContent='Incorrect password.';}
+  if(error){msg.className='auth-msg err';msg.textContent='Incorrect password.';console.log('Login error:',error);}
   else{
     localStorage.setItem('mp_cached_email',email);
     localStorage.setItem('mp_cached_pw',password);
@@ -908,7 +900,13 @@ document.getElementById('loginPassword').addEventListener('keydown',e=>{if(e.key
 document.getElementById('regEmail').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('regUsername').focus();});
 document.getElementById('regUsername').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('regPassword').focus();});
 document.getElementById('regPassword').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('registerBtn').click();});
-document.getElementById('signOutBtn').addEventListener('click',()=>sb.auth.signOut());
+document.getElementById('signOutBtn').addEventListener('click',async()=>{
+  await sb.auth.signOut();
+  localStorage.removeItem('mp_cached_email');
+  localStorage.removeItem('mp_cached_pw');
+  localStorage.removeItem('mp_cached_username');
+  onSignedOut();
+});
 
 // ─── Supabase Data Sync ────────────────────────────────────────────────────────
 async function loadFromSupabase(){
