@@ -703,7 +703,8 @@ function upgRenderStatSheet(current,projected,charClass,charLevel){
     const diff=proj-cur;
     const cls=diff>0?'ss-gain':diff<0?'ss-loss':'';
     const delta=diff!==0?`<span class="upg-ss-delta ${diff>0?'pos':'neg'}">${diff>0?'+':''}${diff}</span>`:'';
-    return `<div class="upg-ss-row ${cls}"><span class="upg-ss-label">${label}</span><span class="upg-ss-val">${proj}${delta}</span></div>`;
+    const overcap=proj>255?` <span style="font-size:.65rem;color:var(--text-muted);font-style:italic">(+${proj-255} over)</span>`:'';
+    return `<div class="upg-ss-row ${cls}"><span class="upg-ss-label">${label}</span><span class="upg-ss-val">${proj}${delta}${overcap}</span></div>`;
   }
   let html='';
   if(projHP!==null){
