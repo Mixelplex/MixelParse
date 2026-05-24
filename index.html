@@ -579,6 +579,7 @@ if(document.getElementById('clearCurrentBtn')){
   });
 }
 document.getElementById('fetchGearBtn').addEventListener('click',()=>fetchGearStats(name));
+document.getElementById('applyDBBtn').addEventListener('click',()=>{const matched=applyDBToChar(name);if(!charMeta[name])charMeta[name]={};charMeta[name].gearFetched=true;saveState();const status=document.getElementById('fetchStatus');status.textContent='✓ '+matched+' item'+(matched!==1?'s':'')+' matched from database';renderStatsPanel();});
 if(base){document.getElementById('statCardsContainer').innerHTML=buildStatCards(base,charGear,name,selClass,selLevel);}else{document.getElementById('statCardsContainer').innerHTML='<div class="empty-state">Enter your current in-game stats to get started.</div>';}
 }
 
