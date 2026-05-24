@@ -522,7 +522,7 @@ ${(meta.nakedStats||meta.currentStats)?`<div style="font-size:.75rem;color:var(-
   </div>
 </div>
 
-</div><div class="fetch-bar"><div style="flex:1"><div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap"><button class="btn primary" id="applyDBBtn" ${dbCount===0||!base?'disabled':''}>&#9889; Apply Item Database</button><button class="btn" id="fetchGearBtn" ${!base?'disabled':''}>&#127758; Wiki Fallback</button><span id="fetchStatus" style="font-size:.82rem;color:${dbCount>0?'#3a7a3a':'var(--text-muted)'};font-style:italic">${dbCount>0?'&#10003; '+dbCount+' items in database':meta.gearFetched?'Gear stats loaded':'Load item database via button above'}</span></div><div class="fetch-progress" id="fetchProgress"><div class="fetch-progress-bar" id="fetchProgressBar" style="width:0%"></div></div></div></div><div id="statCardsContainer"></div>`;
+</div><div class="fetch-bar"><div style="flex:1"><div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap"><button class="btn primary" id="applyDBBtn" ${dbCount===0?'disabled':''}>&#9889; Apply Item Database</button><button class="btn" id="fetchGearBtn" ${!base?'disabled':''}>&#127758; Wiki Fallback</button><span id="fetchStatus" style="font-size:.82rem;color:${dbCount>0?'#3a7a3a':'var(--text-muted)'};font-style:italic">${dbCount>0?'&#10003; '+dbCount+' items in database':meta.gearFetched?'Gear stats loaded':'Load item database via button above'}</span></div><div class="fetch-progress" id="fetchProgress"><div class="fetch-progress-bar" id="fetchProgressBar" style="width:0%"></div></div></div></div><div id="statCardsContainer"></div>`;
 
 // Wire up listeners
 document.getElementById('classSelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};charMeta[name].class=e.target.value;saveState();renderStatsPanel();});
@@ -1005,11 +1005,17 @@ async function loadFromSupabase(){
       chars={};charMeta={};gearStats={};factionData={};
       for(const row of charRows){
         chars[row.char_name]=row.inventory||[];
-        charMeta[row.char_name]={class:row.class||'',race:row.race||'',level:row.level||1,baseStats:row.base_stats||null,gearFetched:!!row.gear_stats};
-        if(row.gear_stats)gearStats[row.char_name]=row.gear_stats;
         if(row.base_stats?.factions)factionData[row.char_name]=row.base_stats.factions;
-        if(row.base_stats&&(row.base_stats.stats||row.base_stats.resists)){const{factions:_f,...bs}=row.base_stats;charMeta[row.char_name].baseStats=bs;}
-        else charMeta[row.char_name].baseStats=null;
+        const{factions:_f,...bs}=row.base_stats||{};
+        const hasRealStats=bs.stats||bs.resists;
+        charMeta[row.char_name]={
+          class:row.class||'',race:row.race||'',level:row.level||1,
+          baseStats:hasRealStats?bs:null,
+          nakedStats:bs.nakedStats||null,
+          currentStats:bs.currentStats||null,
+          gearFetched:!!row.gear_stats
+        };
+        if(row.gear_stats)gearStats[row.char_name]=row.gear_stats;
       }
       activeTab=Object.keys(chars).length>1?'__all__':Object.keys(chars)[0]||null;
     }
