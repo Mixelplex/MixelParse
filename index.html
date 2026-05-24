@@ -432,12 +432,108 @@ function renderTable(){const query=document.getElementById('searchBox').value.to
 // ─── Stats Panel ──────────────────────────────────────────────────────────────
 function renderStatsPanel(){const panel=document.getElementById('statsPanel');const name=activeTab;if(!name||name==='__all__'){panel.innerHTML='';return;}const meta=charMeta[name]||{};const base=meta.baseStats||null;const selClass=meta.class||'';const selLevel=meta.level||1;const selRace=meta.race||'';const charGear=gearStats[name]||{};const dbCount=Object.keys(itemDB).length;const getBaseVal=(k)=>{if(!base)return'';const si=STAT_KEYS.indexOf(k);if(si>=0)return base.stats[si]||'';const ri=RESIST_KEYS.indexOf(k);if(ri>=0)return base.resists[ri]||'';const pi=POOL_KEYS.indexOf(k);if(pi>=0)return base.pools?.[pi]||'';return'';};
 const raceSelect=`<label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Race<select id="raceSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:'Crimson Pro',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">— Select Race —</option>${EQ_RACES.map(r=>`<option value="${r}"${r===selRace?' selected':''}>${r}</option>`).join('')}</select></label>`;
-panel.innerHTML=`<div class="char-setup" style="flex-direction:column;align-items:flex-start;gap:.75rem;display:flex"><div style="font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em">CHARACTER</div><div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center"><label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Class<select id="classSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:'Crimson Pro',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">&#8212; Select Class &#8212;</option>${EQ_CLASSES.map(c=>`<option value="${c}"${c===selClass?' selected':''}>${c}</option>`).join('')}</select></label>${raceSelect}<label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Level<input type="number" id="levelInput" min="1" max="60" value="${selLevel}" style="width:55px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .4rem;font-family:'Crimson Pro',serif;font-size:.9rem;text-align:center;outline:none"></label></div><div style="border-top:1px solid var(--border);width:100%;padding-top:.75rem"><div style="font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em;margin-bottom:.5rem">CURRENT STATS</div><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center"><button class="btn primary" id="manualStatsBtn">${base?'&#9999; Edit Stats':'&#9999; Enter Current Stats'}</button>${base?'<span style="color:#3a7a3a;font-size:.85rem">&#10003; Base stats set</span>':'<span style="font-size:.82rem;color:var(--text-muted);font-style:italic">Enter your stats as shown in-game with gear on, unbuffed</span>'}</div><div id="manualForm" style="display:${base?'none':'block'};width:100%;margin-top:.6rem"><div style="font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.4rem">PRIMARY STATS</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${STAT_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ms_${STAT_KEYS[i]}" value="${getBaseVal(STAT_KEYS[i])}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div><div style="border-top:1px solid var(--border);margin:.75rem 0 .4rem"></div><div style="font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.4rem">RESISTANCES</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${RESIST_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ms_${RESIST_KEYS[i]}" value="${getBaseVal(RESIST_KEYS[i])}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div><div style="border-top:1px solid var(--border);margin:.75rem 0 .4rem"></div><div style="font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.4rem">POOLS &amp; COMBAT</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${POOL_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ms_${POOL_KEYS[i]}" value="${getBaseVal(POOL_KEYS[i])}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div><button class="btn primary" id="saveManualStats" style="margin-top:.75rem">Calculate &amp; Save Naked Stats</button><div style="font-size:.75rem;color:var(--text-muted);font-style:italic;margin-top:.35rem">&#9432; Enter your stats as shown in-game with all gear on, unbuffed. Naked stats will be calculated automatically by subtracting your gear.</div></div></div></div><div class="fetch-bar"><div style="flex:1"><div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap"><button class="btn primary" id="applyDBBtn" ${dbCount===0||!base?'disabled':''}>&#9889; Apply Item Database</button><button class="btn" id="fetchGearBtn" ${!base?'disabled':''}>&#127758; Wiki Fallback</button><span id="fetchStatus" style="font-size:.82rem;color:${dbCount>0?'#3a7a3a':'var(--text-muted)'};font-style:italic">${dbCount>0?'&#10003; '+dbCount+' items in database':meta.gearFetched?'Gear stats loaded':'Load item database via button above'}</span></div><div class="fetch-progress" id="fetchProgress"><div class="fetch-progress-bar" id="fetchProgressBar" style="width:0%"></div></div></div></div><div id="statCardsContainer"></div>`;
+panel.innerHTML=`<div class="char-setup" style="flex-direction:column;align-items:flex-start;gap:.75rem;display:flex">
+<div style="font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em">CHARACTER</div>
+<div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center">
+  <label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Class<select id="classSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:'Crimson Pro',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">&#8212; Select Class &#8212;</option>${EQ_CLASSES.map(c=>`<option value="${c}"${c===selClass?' selected':''}>${c}</option>`).join('')}</select></label>
+  ${raceSelect}
+  <label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Level<input type="number" id="levelInput" min="1" max="60" value="${selLevel}" style="width:55px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .4rem;font-family:'Crimson Pro',serif;font-size:.9rem;text-align:center;outline:none"></label>
+</div>
+
+<!-- Active method indicator -->
+${(meta.nakedStats||meta.currentStats)?`<div style="font-size:.75rem;color:var(--text-muted);font-style:italic">&#9432; Using: <strong style="color:var(--gold)">${meta.baseMethod==='naked'?'Naked Stats (manual)':'Derived from Current Stats'}</strong></div>`:''}
+
+<!-- NAKED STATS section -->
+<div style="border-top:1px solid var(--border);width:100%;padding-top:.75rem">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+    <div style="font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em">NAKED STATS</div>
+    <div style="display:flex;align-items:center;gap:.5rem">
+      ${meta.nakedStats?'<span style="color:#3a7a3a;font-size:.82rem">&#10003; Set</span>':''}
+      <button class="btn primary" id="nakedStatsBtn">${meta.nakedStats?'&#9999; Edit':'&#9999; Enter Naked Stats'}</button>
+      ${meta.nakedStats?'<button class="btn" id="clearNakedBtn" style="font-size:.75rem;color:#a03030;border-color:#a03030">&#10005; Clear</button>':''}
+    </div>
+  </div>
+  <div style="font-size:.78rem;color:var(--text-muted);font-style:italic;margin-bottom:.5rem">Enter your stats with <strong>no gear equipped</strong>. Most accurate baseline.</div>
+  <div id="nakedForm" style="display:none;width:100%;margin-top:.6rem">
+    <div style="font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.4rem">PRIMARY STATS</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${STAT_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ns_${STAT_KEYS[i]}" value="${meta.nakedStats?.stats[i]||''}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
+    <div style="border-top:1px solid var(--border);margin:.75rem 0 .4rem"></div>
+    <div style="font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.4rem">RESISTANCES</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${RESIST_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ns_${RESIST_KEYS[i]}" value="${meta.nakedStats?.resists[i]||''}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
+    <div style="border-top:1px solid var(--border);margin:.75rem 0 .4rem"></div>
+    <div style="font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.4rem">POOLS &amp; COMBAT</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${POOL_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ns_${POOL_KEYS[i]}" value="${meta.nakedStats?.pools?.[i]||''}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
+    <button class="btn primary" id="saveNakedStats" style="margin-top:.75rem">Save Naked Stats</button>
+  </div>
+</div>
+
+<!-- CURRENT STATS section -->
+<div style="border-top:1px solid var(--border);width:100%;padding-top:.75rem">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+    <div style="font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em">CURRENT STATS</div>
+    <div style="display:flex;align-items:center;gap:.5rem">
+      ${meta.currentStats?'<span style="color:#3a7a3a;font-size:.82rem">&#10003; Set</span>':''}
+      <button class="btn ${meta.nakedStats?'':'primary'}" id="manualStatsBtn">${meta.currentStats?'&#9999; Edit':'&#9999; Enter Current Stats'}</button>
+      ${meta.currentStats?'<button class="btn" id="clearCurrentBtn" style="font-size:.75rem;color:#a03030;border-color:#a03030">&#10005; Clear</button>':''}
+    </div>
+  </div>
+  <div style="font-size:.78rem;color:var(--text-muted);font-style:italic;margin-bottom:.5rem">Enter stats <strong>with gear on, unbuffed</strong>. Naked stats are back-calculated from gear.</div>
+  <div id="manualForm" style="display:none;width:100%;margin-top:.6rem">
+    <div style="font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.4rem">PRIMARY STATS</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${STAT_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ms_${STAT_KEYS[i]}" value="${getBaseVal(STAT_KEYS[i])}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
+    <div style="border-top:1px solid var(--border);margin:.75rem 0 .4rem"></div>
+    <div style="font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.4rem">RESISTANCES</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${RESIST_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ms_${RESIST_KEYS[i]}" value="${getBaseVal(RESIST_KEYS[i])}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
+    <div style="border-top:1px solid var(--border);margin:.75rem 0 .4rem"></div>
+    <div style="font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.4rem">POOLS &amp; COMBAT</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${POOL_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ms_${POOL_KEYS[i]}" value="${getBaseVal(POOL_KEYS[i])}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
+    <button class="btn primary" id="saveManualStats" style="margin-top:.75rem">Calculate &amp; Save Naked Stats</button>
+    <div style="font-size:.75rem;color:var(--text-muted);font-style:italic;margin-top:.35rem">&#9432; Naked stats calculated by subtracting gear from entered values.</div>
+  </div>
+</div>
+
+</div><div class="fetch-bar"><div style="flex:1"><div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap"><button class="btn primary" id="applyDBBtn" ${dbCount===0||!base?'disabled':''}>&#9889; Apply Item Database</button><button class="btn" id="fetchGearBtn" ${!base?'disabled':''}>&#127758; Wiki Fallback</button><span id="fetchStatus" style="font-size:.82rem;color:${dbCount>0?'#3a7a3a':'var(--text-muted)'};font-style:italic">${dbCount>0?'&#10003; '+dbCount+' items in database':meta.gearFetched?'Gear stats loaded':'Load item database via button above'}</span></div><div class="fetch-progress" id="fetchProgress"><div class="fetch-progress-bar" id="fetchProgressBar" style="width:0%"></div></div></div></div><div id="statCardsContainer"></div>`;
+
+// Wire up listeners
 document.getElementById('classSelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};charMeta[name].class=e.target.value;saveState();renderStatsPanel();});
 document.getElementById('raceSelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};charMeta[name].race=e.target.value;saveState();renderStatsPanel();buildTabs();});
 document.getElementById('levelInput').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};const v=Math.min(60,Math.max(1,parseInt(e.target.value)||1));charMeta[name].level=v;e.target.value=v;saveState();renderStatsPanel();});
+
+// Naked stats
+document.getElementById('nakedStatsBtn').addEventListener('click',()=>{const f=document.getElementById('nakedForm');f.style.display=f.style.display==='none'?'block':'none';});
+document.getElementById('saveNakedStats').addEventListener('click',()=>{
+  const parsed={};
+  [...STAT_KEYS,...RESIST_KEYS,...POOL_KEYS].forEach(k=>{const v=parseInt(document.getElementById('ns_'+k)?.value);if(!isNaN(v))parsed[k]=v;});
+  applyNakedStats(name,parsed);
+});
+if(document.getElementById('clearNakedBtn')){
+  document.getElementById('clearNakedBtn').addEventListener('click',()=>{
+    if(!charMeta[name])return;
+    delete charMeta[name].nakedStats;
+    // Fall back to current stats if available
+    if(charMeta[name].currentStats){
+      const cs=charMeta[name].currentStats;
+      charMeta[name].baseStats=cs;
+      charMeta[name].baseMethod='current';
+    } else {
+      delete charMeta[name].baseStats;
+      delete charMeta[name].baseMethod;
+    }
+    saveState();renderStatsPanel();
+  });
+}
+
+// Current stats
 document.getElementById('manualStatsBtn').addEventListener('click',()=>{const f=document.getElementById('manualForm');f.style.display=f.style.display==='none'?'block':'none';});
 document.getElementById('saveManualStats').addEventListener('click',()=>{const parsed={};[...STAT_KEYS,...RESIST_KEYS,...POOL_KEYS].forEach(k=>{const v=parseInt(document.getElementById('ms_'+k)?.value);if(!isNaN(v))parsed[k]=v;});const naked=calcNakedFromCurrent(name,parsed);applyBaseStats(name,naked);});
+if(document.getElementById('clearCurrentBtn')){
+  document.getElementById('clearCurrentBtn').addEventListener('click',()=>{
+    if(!charMeta[name])return;
+    delete charMeta[name].currentStats;
+    if(!charMeta[name].nakedStats){delete charMeta[name].baseStats;delete charMeta[name].baseMethod;}
+    saveState();renderStatsPanel();
+  });
+}
 document.getElementById('applyDBBtn').addEventListener('click',()=>{const matched=applyDBToChar(name);if(!charMeta[name])charMeta[name]={};charMeta[name].gearFetched=true;saveState();document.getElementById('fetchStatus').textContent='&#10003; '+matched+'/'+getEquippedItems(name).length+' items matched';setTimeout(()=>renderStatsPanel(),400);});
 document.getElementById('fetchGearBtn').addEventListener('click',()=>fetchGearStats(name));
 if(base){document.getElementById('statCardsContainer').innerHTML=buildStatCards(base,charGear,name,selClass,selLevel);}else{document.getElementById('statCardsContainer').innerHTML='<div class="empty-state">Enter your current in-game stats to get started.</div>';}
@@ -464,7 +560,31 @@ function calcNakedFromCurrent(charName, currentParsed){
   return naked;
 }
 
-function applyBaseStats(charName,parsed){const stats=STAT_KEYS.map(k=>parsed[k]||0);const resists=RESIST_KEYS.map(k=>parsed[k]||0);const pools=POOL_KEYS.map(k=>parsed[k]||0);if(!charMeta[charName])charMeta[charName]={};charMeta[charName].baseStats={stats,resists,pools};saveState();renderStatsPanel();}
+function applyNakedStats(charName,parsed){
+  const stats=STAT_KEYS.map(k=>parsed[k]||0);
+  const resists=RESIST_KEYS.map(k=>parsed[k]||0);
+  const pools=POOL_KEYS.map(k=>parsed[k]||0);
+  if(!charMeta[charName])charMeta[charName]={};
+  charMeta[charName].nakedStats={stats,resists,pools};
+  // nakedStats takes priority — set as baseStats
+  charMeta[charName].baseStats={stats,resists,pools};
+  charMeta[charName].baseMethod='naked';
+  saveState();renderStatsPanel();
+}
+
+function applyBaseStats(charName,parsed){
+  const stats=STAT_KEYS.map(k=>parsed[k]||0);
+  const resists=RESIST_KEYS.map(k=>parsed[k]||0);
+  const pools=POOL_KEYS.map(k=>parsed[k]||0);
+  if(!charMeta[charName])charMeta[charName]={};
+  charMeta[charName].currentStats={stats,resists,pools};
+  // Only use as baseStats if no nakedStats set
+  if(!charMeta[charName].nakedStats){
+    charMeta[charName].baseStats={stats,resists,pools};
+    charMeta[charName].baseMethod='current';
+  }
+  saveState();renderStatsPanel();
+}
 
 function buildStatCards(base,charGear,charName,cls,level){const equipped=getEquippedItems(charName);const gearSum={stats:[0,0,0,0,0,0,0],resists:[0,0,0,0,0],bonuses:[0,0]};for(const item of equipped){const gs=charGear[item.name];if(!gs)continue;STAT_KEYS.forEach((k,i)=>{if(gs[k])gearSum.stats[i]+=Number(gs[k])||0;});RESIST_KEYS.forEach((k,i)=>{if(gs[k])gearSum.resists[i]+=Number(gs[k])||0;});BONUS_KEYS.forEach((k,i)=>{if(gs[k])gearSum.bonuses[i]+=Number(gs[k])||0;});}
 const totalSTA=base.stats[1]+gearSum.stats[1];const manaKey=WIS_CLASSES.has(cls)?'wis':'int';const manaIdx=STAT_KEYS.indexOf(manaKey);const totalManastat=base.stats[manaIdx]+gearSum.stats[manaIdx];
