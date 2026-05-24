@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MixelParse</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+  :root{--bg:#f5f0e8;--surface:#ede6d6;--surface2:#e4dbc8;--border:#c8b890;--border-glow:#a08050;--gold:#7a5010;--gold-light:#5a3a08;--gold-dim:#a07030;--text:#1a1008;--text-dim:#4a3a1a;--text-muted:#8a7050}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Crimson Pro',Georgia,serif;font-size:16px;min-height:100vh;background-image:radial-gradient(ellipse at 20% 0%,rgba(180,140,80,.12) 0%,transparent 60%),radial-gradient(ellipse at 80% 100%,rgba(160,120,60,.08) 0%,transparent 60%)}
+  header{text-align:center;padding:1.5rem 1rem 1rem;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(220,200,160,.6) 0%,transparent 100%);position:relative}
+  header h1{font-family:'Cinzel',serif;font-size:clamp(1.3rem,5vw,1.9rem);color:var(--gold-light);letter-spacing:.12em;text-shadow:0 0 30px rgba(201,146,42,.4)}
+  header p{margin-top:.3rem;color:var(--text-dim);font-size:.85rem;font-style:italic}
+  .version-badge{position:absolute;bottom:.5rem;right:1rem;font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.06em}
+  .ornament{color:var(--gold-dim);font-size:1.1rem;margin:.25rem 0;letter-spacing:.3em}
+  .tab-bar{display:flex;border-bottom:2px solid var(--border-glow);background:var(--surface2);overflow-x:auto;padding:0 1rem}
+  .tab{font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.07em;color:var(--text-muted);padding:.6rem .9rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .15s,border-color .15s;user-select:none;display:flex;align-items:center;gap:.35rem}
+  .tab:hover{color:var(--gold)}.tab.active{color:var(--gold-light);border-bottom-color:var(--gold-light);background:var(--bg)}
+  .tab .remove-char{opacity:0;font-size:.8rem;color:var(--text-muted);transition:opacity .15s}
+  .tab:hover .remove-char{opacity:1}.tab .remove-char:hover{color:#a03030}
+  .tab-add{font-size:1.1rem;padding:.4rem .7rem;color:var(--gold-dim);cursor:pointer;transition:color .15s;display:flex;align-items:center}
+  .tab-add:hover{color:var(--gold-light)}
+  .subtab-bar{display:flex;border-bottom:1px solid var(--border);background:var(--surface);padding:0 1rem}
+  .subtab{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.06em;color:var(--text-muted);padding:.45rem .8rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:color .15s}
+  .subtab:hover{color:var(--gold)}.subtab.active{color:var(--gold-light);border-bottom-color:var(--gold-light)}
+  .upload-zone{margin:1.5rem;border:2px dashed var(--border-glow);border-radius:4px;padding:2rem 1rem;text-align:center;cursor:pointer;transition:all .2s;background:rgba(201,146,42,.03);position:relative}
+  .upload-zone:hover,.upload-zone.drag-over{border-color:var(--gold);background:rgba(201,146,42,.07)}
+  .upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .upload-icon{font-size:2.5rem;margin-bottom:.5rem}
+  .upload-zone h2{font-family:'Cinzel',serif;font-size:1rem;color:var(--gold);letter-spacing:.08em;margin-bottom:.3rem}
+  .upload-zone p{color:var(--text-dim);font-size:.85rem}
+  .how-to{margin-top:1.25rem;padding:1rem;background:rgba(160,120,50,.07);border:1px solid var(--border);border-radius:4px;text-align:left;font-size:.85rem;color:var(--text-dim)}
+  .how-to-title{font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold);letter-spacing:.07em;margin-bottom:.5rem}
+  .how-to ol{padding-left:1.25rem;line-height:1.9}
+  .how-to code{background:var(--surface2);border:1px solid var(--border);border-radius:2px;padding:.1rem .35rem;font-size:.82rem;color:var(--gold-light)}
+  .controls{margin:.75rem 1rem .5rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+  .search-box{flex:1;min-width:150px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.45rem .75rem;font-family:'Crimson Pro',serif;font-size:.95rem;outline:none;transition:border-color .2s}
+  .search-box:focus{border-color:var(--gold)}.search-box::placeholder{color:var(--text-muted)}
+  .filter-select{background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.45rem .5rem;font-family:'Crimson Pro',serif;font-size:.9rem;outline:none;cursor:pointer}
+  .btn{background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-dim);padding:.45rem .75rem;cursor:pointer;font-family:'Crimson Pro',serif;font-size:.85rem;transition:all .15s;white-space:nowrap}
+  .btn:hover{border-color:var(--gold-dim);color:var(--gold)}.btn.danger:hover{border-color:#a03030;color:#a03030}
+  .btn.primary{border-color:var(--gold-dim);color:var(--gold);background:rgba(160,120,50,.08)}.btn.primary:hover{background:rgba(160,120,50,.18)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .stats-bar{margin:0 1rem .75rem;padding:.5rem .75rem;background:var(--surface);border:1px solid var(--border);border-radius:3px;display:flex;gap:1rem;flex-wrap:wrap;font-size:.85rem;color:var(--text-dim)}
+  .stat{display:flex;gap:.3rem;align-items:center}.stat-val{color:var(--gold-light);font-weight:500}
+  .table-wrap{margin:0 1rem 2rem;border:1px solid var(--border);border-radius:4px;overflow:hidden;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead tr{background:var(--surface2);border-bottom:2px solid var(--border-glow)}
+  th{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.08em;color:var(--gold);padding:.55rem .75rem;text-align:left;cursor:pointer;user-select:none;white-space:nowrap;transition:color .15s}
+  th:hover{color:var(--gold-light)}.sorted{color:var(--gold-light)}
+  .sort-arrow{margin-left:.2rem;opacity:.6}
+  tbody tr{border-bottom:1px solid rgba(74,58,26,.35);transition:background .1s}
+  tbody tr:hover{background:rgba(160,120,50,.08)}
+  tbody tr.equipped-row{background:rgba(180,220,180,.2)}
+  tbody tr.equipped-row:hover{background:rgba(180,220,180,.38)}
+  td{padding:.42rem .75rem;color:var(--text);vertical-align:middle}
+  .td-name{font-weight:500}.td-char{font-size:.78rem;color:var(--text-muted);font-style:italic}
+  .td-location{font-size:.78rem;color:var(--text-dim);white-space:nowrap}
+  .td-count{text-align:right;color:var(--text-dim);font-variant-numeric:tabular-nums}
+  .td-count.stack{color:var(--gold-light);font-weight:500}
+  td.td-id{font-size:.78rem;color:var(--text-muted);font-variant-numeric:tabular-nums}
+  .badge{display:inline-block;padding:.08rem .38rem;border-radius:2px;font-size:.7rem;font-family:'Cinzel',serif;letter-spacing:.05em;white-space:nowrap}
+  .badge-equipped{background:rgba(180,230,180,.5);border:1px solid #5a9a5a;color:#1a5a1a}
+  .badge-bank{background:rgba(200,210,240,.6);border:1px solid #7080c0;color:#2030a0}
+  .badge-bag{background:rgba(220,190,130,.4);border:1px solid var(--border);color:var(--gold)}
+  .stats-panel{margin:0 1rem 2rem}
+  .char-setup{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1rem;margin-bottom:1rem}
+  .fetch-bar{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;padding:.75rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:4px}
+  .fetch-progress{width:100%;height:4px;background:var(--surface2);border-radius:2px;margin-top:.5rem;overflow:hidden;display:none}
+  .fetch-progress-bar{height:100%;background:var(--gold-dim);border-radius:2px;transition:width .3s}
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.75rem;margin-bottom:.75rem}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.75rem 1rem}
+  .stat-card-title{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);margin-bottom:.5rem}
+  .stat-row{display:flex;justify-content:space-between;align-items:center;padding:.15rem 0;border-bottom:1px solid rgba(74,58,26,.15);font-size:.88rem}
+  .stat-row:last-child{border-bottom:none}.stat-row-label{color:var(--text-dim)}
+  .stat-row-vals{display:flex;gap:.5rem;align-items:center;font-variant-numeric:tabular-nums}
+  .val-base{color:var(--text-muted);font-size:.8rem}
+  .val-gear{font-size:.8rem;font-weight:500}.val-gear.pos{color:#3a7a3a}.val-gear.neg{color:#a03030}.val-gear.zero{color:var(--text-muted)}
+  .val-total{color:var(--gold-light);font-weight:600;min-width:2.5rem;text-align:right}
+  .gear-breakdown{margin-top:1rem}
+  .gear-breakdown-title{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.08em;color:var(--gold);margin-bottom:.5rem}
+  .gear-table{width:100%;border-collapse:collapse;font-size:.82rem}
+  .gear-table th{font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.05em;padding:.3rem .5rem;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+  .gear-table th:first-child{text-align:left}
+  .gear-table td{padding:.28rem .5rem;text-align:right;border-bottom:1px solid rgba(74,58,26,.15);color:var(--text-dim)}
+  .gear-table td:first-child{text-align:left;color:var(--text);font-weight:500}
+  .gear-table tr:last-child td{border-bottom:none}
+  .gear-val-pos{color:#3a7a3a;font-weight:500}.gear-val-neg{color:#a03030;font-weight:500}.gear-val-zero{color:var(--text-muted)}
+  .legend{font-size:.75rem;color:var(--text-muted);font-style:italic;margin-bottom:.75rem}
+  .combined-header{margin:.75rem 1rem 0;display:flex;align-items:center;gap:.5rem;font-family:'Cinzel',serif;font-size:.8rem;color:var(--gold-dim);letter-spacing:.07em}
+  .combined-header hr{flex:1;border:none;border-top:1px solid var(--border)}
+  /* ── Upgrades two-col layout ── */
+  .upg-layout{display:grid;grid-template-columns:1fr 200px;gap:1rem;margin:0 1rem 2rem;align-items:start}
+  .upg-panel{display:flex;flex-direction:column;gap:.6rem}
+  .upg-slot-row{background:var(--surface);border:1px solid var(--border);border-radius:5px;overflow:hidden}
+  .upg-slot-header{display:grid;grid-template-columns:70px 1fr 1fr;align-items:center;gap:.6rem;padding:.5rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border)}
+  .upg-slot-label{font-family:'Cinzel',serif;font-size:.63rem;letter-spacing:.09em;color:var(--text-muted);text-transform:uppercase}
+  .upg-current-name{font-size:.85rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .upg-current-from{font-size:.73rem;color:var(--text-muted);font-style:italic}
+  .upg-select-wrap{position:relative}
+  .upg-select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem 1.6rem .3rem .45rem;font-family:'Crimson Pro',serif;font-size:.85rem;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none}
+  .upg-select:focus{border-color:var(--gold)}
+  .upg-select-arrow{position:absolute;right:.45rem;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-muted);font-size:.65rem}
+  .upg-delta{padding:.55rem .75rem;display:none;border-top:1px solid rgba(74,58,26,.15)}
+  .upg-delta.visible{display:block}
+  .upg-delta-title{font-size:.82rem;margin-bottom:.4rem}
+  .upg-stat-table{border-collapse:collapse;font-size:.8rem;width:100%}
+  .upg-stat-table th{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.07em;color:var(--text-muted);padding:.18rem .45rem;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+  .upg-stat-table th:first-child{text-align:left}
+  .upg-stat-table td{padding:.18rem .45rem;border-bottom:1px solid rgba(74,58,26,.08);text-align:right;color:var(--text-dim)}
+  .upg-stat-table td:first-child{text-align:left;color:var(--text-muted);font-size:.76rem}
+  .upg-stat-table .upg-delta-pos{color:#3a7a3a;font-weight:600}
+  .upg-stat-table .upg-delta-neg{color:#a03030;font-weight:600}
+  .upg-cap-note{font-size:.68rem;color:var(--text-muted)}
+  .upg-delta-meta{margin-top:.4rem;display:flex;flex-direction:column;gap:.15rem;font-size:.76rem;color:var(--text-muted)}
+  .upg-delta-eff{font-family:'Cinzel',serif;font-size:.76rem;color:var(--gold)}
+  /* ── Live stat sheet ── */
+  .upg-statsheet{background:var(--surface);border:1px solid var(--border);border-radius:5px;overflow:hidden;position:sticky;top:1rem}
+  .upg-statsheet-header{background:var(--surface2);border-bottom:1px solid var(--border);padding:.45rem .65rem;font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.08em;color:var(--gold);text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
+  .upg-reset-btn{font-family:'Segoe UI',sans-serif;font-size:.7rem;letter-spacing:0;text-transform:none;color:var(--text-muted);background:none;border:1px solid var(--border);border-radius:3px;padding:.1rem .45rem;cursor:pointer;transition:all .15s}
+  .upg-reset-btn:hover{border-color:var(--gold);color:var(--gold)}
+  .upg-statsheet-body{padding:.4rem .5rem}
+  .upg-ss-section{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.09em;color:var(--text-muted);text-transform:uppercase;padding:.35rem .15rem .15rem;border-bottom:1px solid rgba(74,58,26,.15);margin-bottom:.15rem}
+  .upg-ss-row{display:flex;justify-content:space-between;align-items:center;padding:.12rem .15rem;border-radius:2px;transition:background .15s}
+  .upg-ss-label{font-size:.75rem;color:var(--text-muted)}
+  .upg-ss-val{font-size:.8rem;color:var(--text-dim);font-family:'Crimson Pro',serif;font-weight:600}
+  .upg-ss-row.ss-gain{background:rgba(58,122,58,.12)}
+  .upg-ss-row.ss-loss{background:rgba(160,48,48,.1)}
+  .upg-ss-delta{font-size:.68rem;margin-left:.2rem;font-weight:700}
+  .upg-ss-delta.pos{color:#3a7a3a}
+  .upg-ss-delta.neg{color:#a03030}
+  .upg-ss-hp{font-family:'Cinzel',serif;font-size:.72rem;color:var(--gold)}
+  .upg-none{color:var(--text-muted);font-size:.82rem;font-style:italic;padding:.4rem .75rem}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;align-items:center;justify-content:center}
+  .modal-overlay.open{display:flex}
+  .modal{background:var(--bg);border:2px solid var(--border-glow);border-radius:5px;padding:1.5rem;max-width:480px;width:90%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.4)}
+  .modal h2{font-family:'Cinzel',serif;font-size:1rem;color:var(--gold-light);letter-spacing:.08em;margin-bottom:.6rem}
+  .modal p{color:var(--text-dim);font-size:.9rem;margin-bottom:1.2rem}
+  .modal-btns{display:flex;gap:.6rem;justify-content:center}
+  .btn-confirm-danger{background:#7a1010;border:1px solid #a02020;border-radius:3px;color:#f8d0d0;padding:.45rem 1rem;cursor:pointer;font-family:'Crimson Pro',serif;font-size:.9rem}
+  .btn-confirm-danger:hover{background:#a01010}
+  /* ── Auth Screen ── */
+  .auth-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:2000;background-image:radial-gradient(ellipse at 20% 0%,rgba(180,140,80,.12) 0%,transparent 60%),radial-gradient(ellipse at 80% 100%,rgba(160,120,60,.08) 0%,transparent 60%)}
+  .auth-box{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2rem;width:min(380px,90vw);text-align:center}
+  .auth-title{font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold-light);letter-spacing:.1em;margin-bottom:.25rem}
+  .auth-sub{color:var(--text-muted);font-size:.85rem;font-style:italic;margin-bottom:1.5rem}
+  .auth-ornament{color:var(--gold-dim);font-size:.9rem;letter-spacing:.3em;margin-bottom:1rem}
+  .auth-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.55rem .75rem;font-family:'Crimson Pro',serif;font-size:1rem;outline:none;margin-bottom:.6rem;transition:border-color .2s}
+  .auth-input:focus{border-color:var(--gold)}
+  .auth-btn{width:100%;background:rgba(160,120,50,.12);border:1px solid var(--gold-dim);border-radius:3px;color:var(--gold);padding:.6rem;font-family:'Cinzel',serif;font-size:.78rem;letter-spacing:.08em;cursor:pointer;transition:all .15s;margin-bottom:.5rem}
+  .auth-btn:hover{background:rgba(160,120,50,.22)}
+  .auth-btn:disabled{opacity:.5;cursor:not-allowed}
+  .auth-toggle{font-size:.82rem;color:var(--text-muted);cursor:pointer;text-decoration:underline;margin-top:.5rem;display:inline-block}
+  .auth-toggle:hover{color:var(--gold)}
+  .auth-msg{font-size:.82rem;margin-top:.5rem;min-height:1.2rem}
+  .auth-msg.err{color:#a03030}.auth-msg.ok{color:#3a7a3a}
+  .auth-user-bar{position:absolute;top:.75rem;left:1rem;font-size:.75rem;color:var(--text-muted);display:flex;align-items:center;gap:.5rem}
+  .auth-signout{background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-muted);padding:.15rem .45rem;font-size:.72rem;cursor:pointer;font-family:'Crimson Pro',serif;transition:all .15s}
+  .auth-signout:hover{border-color:#a03030;color:#a03030}
+  /* ── Watch List Banner ── */
+  .watchlist-bar{background:var(--surface);border:1px solid var(--border);border-radius:5px;margin:.5rem 0;overflow:hidden}
+  .watchlist-bar-header{display:flex;align-items:center;justify-content:space-between;padding:.45rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border)}
+  .watchlist-bar-title{font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;font-weight:700}
+  .watchlist-gear-btn{background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:.1rem .3rem;line-height:1;border-radius:3px;transition:all .15s}
+  .watchlist-gear-btn:hover{color:var(--gold);background:rgba(122,80,16,.1)}
+  .watchlist-rows{padding:.4rem .75rem .5rem;display:flex;flex-direction:column;gap:.3rem}
+  .watchlist-row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+  .watchlist-item-name{font-size:.85rem;font-weight:600;color:var(--text-dim);min-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .watchlist-chip{display:inline-flex;align-items:center;gap:.25rem;padding:.15rem .55rem;border-radius:3px;font-size:.75rem;font-family:'Cinzel',serif;letter-spacing:.04em;white-space:nowrap;font-weight:600}
+  .watchlist-chip-ok{background:rgba(58,122,58,.2);border:1px solid #5a9a5a;color:#1a5a1a}
+  .watchlist-chip-miss{background:rgba(160,48,48,.15);border:1px solid #c03030;color:#8a1010}
+  .watchlist-empty{color:var(--text-muted);font-size:.8rem;font-style:italic;padding:.1rem 0}
+  /* ── Watch List Modal ── */
+  .wl-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:none;align-items:center;justify-content:center}
+  .wl-modal-overlay.open{display:flex}
+  .wl-modal{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:1.25rem;width:min(420px,90vw);max-height:80vh;overflow-y:auto}
+  .wl-modal-title{font-family:'Cinzel',serif;font-size:.85rem;color:var(--gold);margin-bottom:.75rem;letter-spacing:.06em}
+  .wl-modal-input-row{display:flex;gap:.5rem;margin-bottom:.75rem}
+  .wl-modal-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:'Crimson Pro',serif;font-size:.9rem;outline:none}
+  .wl-modal-input:focus{border-color:var(--gold)}
+  .wl-item-list{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.75rem}
+  .wl-item-row{display:flex;align-items:center;justify-content:space-between;padding:.3rem .5rem;background:var(--surface);border:1px solid var(--border);border-radius:3px;font-size:.85rem;color:var(--text-dim)}
+  .wl-item-remove{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.85rem;padding:0 .2rem;line-height:1}
+  .wl-item-remove:hover{color:#a03030}
+  .wl-shortcut{font-size:.75rem;color:var(--text-muted);margin-bottom:.5rem}
+  .wl-shortcut-chips{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem}
+  .wl-shortcut-chip{background:rgba(122,80,16,.08);border:1px solid var(--border);border-radius:3px;padding:.1rem .4rem;font-size:.72rem;color:var(--text-dim);cursor:pointer;transition:all .15s}
+  .wl-shortcut-chip:hover{border-color:var(--gold);color:var(--gold)}
+  /* ── Raid Consumes ── */
+  .rc-panel{margin:0 1rem 2rem}
+  .rc-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem}
+  .rc-title{font-family:'Cinzel',serif;font-size:.75rem;letter-spacing:.1em;color:var(--gold);text-transform:uppercase}
+  .rc-legend{display:flex;gap:1rem;font-size:.78rem;color:var(--text-muted)}
+  .rc-legend span{display:flex;align-items:center;gap:.3rem}
+  .rc-table{width:100%;border-collapse:collapse;font-size:.88rem}
+  .rc-table th{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.07em;color:var(--gold);padding:.5rem .75rem;text-align:left;border-bottom:2px solid var(--border-glow);background:var(--surface2);white-space:nowrap}
+  .rc-table th.rc-th-center{text-align:center}
+  .rc-table td{padding:.45rem .75rem;border-bottom:1px solid rgba(74,58,26,.2);vertical-align:middle}
+  .rc-table tr:hover td{background:rgba(160,120,50,.06)}
+  .rc-char-name{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.06em;color:var(--text-muted);background:var(--surface2);padding:.25rem .6rem;border-radius:2px;border:1px solid var(--border)}
+  .rc-item-name{font-weight:500;color:var(--text)}
+  .rc-item-note{font-size:.75rem;color:var(--text-muted);font-style:italic;margin-top:.1rem}
+  .rc-check{text-align:center;font-size:1.1rem;line-height:1}
+  .rc-check-green{color:#3a7a3a}
+  .rc-check-yellow{color:#b07800}
+  .rc-check-red{color:#a03030}
+  .rc-check-na{color:var(--text-muted);font-size:.75rem}
+  .rc-status-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .6rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.06em;white-space:nowrap}
+  .rc-status-green{background:rgba(58,122,58,.15);border:1px solid #5a9a5a;color:#1a5a1a}
+  .rc-status-yellow{background:rgba(176,120,0,.12);border:1px solid #b07800;color:#7a5000}
+  .rc-status-red{background:rgba(160,48,48,.12);border:1px solid #a03030;color:#7a1010}
+  .rc-section-divider td{background:var(--surface);padding:.3rem .75rem;font-family:'Cinzel',serif;font-size:.63rem;letter-spacing:.1em;color:var(--text-muted);border-bottom:1px solid var(--border);border-top:2px solid var(--border)}
+</style>
+</head>
+<body>
+
+<!-- Auth Screen -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-box">
+    <div class="auth-ornament">⚔ ✦ ⚔</div>
+    <div class="auth-title">MixelParse</div>
+    <div class="auth-sub">Project 1999 Guild Inventory Tool</div>
+    <input type="email" class="auth-input" id="authEmail" placeholder="Email address" autocomplete="email">
+    <input type="password" class="auth-input" id="authPassword" placeholder="Password" autocomplete="current-password">
+    <button class="auth-btn" id="authBtn">Sign In</button>
+    <div id="authMsg" class="auth-msg"></div>
+    <div style="margin-top:.75rem;font-size:.8rem;color:var(--text-muted)">No account? <span id="authToggle" class="auth-toggle">Create one</span></div>
+  </div>
+</div>
+
+<header>
+  <div class="auth-user-bar" id="userBar" style="display:none">
+    <span id="userEmail"></span>
+    <button class="auth-signout" id="signOutBtn">Sign out</button>
+  </div>
+  <div class="ornament">&#9876; &#10022; &#9876;</div>
+  <h1>EQ Inventory Parser</h1>
+  <p>Project 1999 &middot; Multi-Character</p>
+  <div class="ornament">&#10022;</div>
+  <button class="btn primary" id="itemDbBtn" style="position:absolute;top:1rem;right:1rem;font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.06em">&#128230; Item Database</button>
+  <div class="version-badge">v1.0</div>
+</header>
+
+<div class="modal-overlay" id="itemDbOverlay">
+  <div class="modal">
+    <h2>&#128230; Item Database</h2>
+    <p id="itemDbStatus"></p>
+    <div id="itemDbSourceList" style="margin-bottom:1rem;font-size:.82rem;color:var(--text-dim);text-align:left;max-height:120px;overflow-y:auto"></div>
+    <div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap">
+      <button class="btn primary" id="dbLoadBtn">&#128194; Load CSV Files</button>
+      <input type="file" id="dbFileInput" accept=".csv,.txt" multiple style="display:none">
+      <button class="btn danger" id="clearDBBtn">&#128465; Clear Database</button>
+      <button class="btn" id="itemDbClose">Close</button>
+    </div>
+    <div style="margin-top:.75rem;font-size:.78rem;color:var(--text-muted);font-style:italic">Select all class CSV files at once &mdash; merged into one database and saved locally.</div>
+  </div>
+</div>
+
+<div class="tab-bar" id="tabBar">
+  <div class="tab-add" id="tabAdd" title="Add character files">&#65291;</div>
+  <div class="tab-add" id="folderAdd" title="Load EQ folder" style="font-size:.8rem;letter-spacing:0">&#128193;</div>
+</div>
+<input type="file" id="fileInput" accept=".txt" multiple style="display:none">
+<input type="file" id="folderInput" webkitdirectory mozdirectory style="display:none">
+
+<div class="upload-zone" id="dropzone" style="display:none">
+  <input type="file" id="dzInput" accept=".txt" multiple>
+  <div class="upload-icon">&#128220;</div>
+  <h2>Open Inventory Files</h2>
+  <p>Drag &amp; drop your <code>CharacterName-Inventory.txt</code> files here, or:</p>
+  <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;margin:.75rem 0">
+    <button class="btn primary" onclick="event.stopPropagation();document.getElementById('folderInput').click()" style="font-size:.85rem">&#128193; Select EQ Folder</button>
+    <button class="btn" onclick="event.stopPropagation();document.getElementById('fileInput').click()" style="font-size:.85rem">&#128196; Select Files</button>
+  </div>
+  <p style="font-size:.8rem;color:var(--text-muted)">Folder mode finds all <code>*-Inventory.txt</code> files automatically</p>
+  <div class="how-to">
+    <div class="how-to-title">&#9876; HOW TO EXPORT YOUR INVENTORY</div>
+    <ol>
+      <li>Log in to your character in EverQuest</li>
+      <li>Type <code>/outputfile inventory</code> in chat</li>
+      <li>Find <code>CharacterName-Inventory.txt</code> in your EQ folder</li>
+      <li>Use <strong>Select EQ Folder</strong> above to load all characters at once</li>
+    </ol>
+  </div>
+</div>
+
+<!-- Watch List Modal -->
+<div class="wl-modal-overlay" id="wlModalOverlay">
+  <div class="wl-modal">
+    <div class="wl-modal-title">⚔ Watch List Configuration</div>
+    <div class="wl-modal-input-row">
+      <input type="text" class="wl-modal-input" id="wlInput" placeholder="Item name (exact match)…">
+      <button class="btn p" id="wlAddBtn">Add</button>
+    </div>
+    <div class="wl-shortcut">
+      <div>Quick add from Raid Consumes:</div>
+      <div class="wl-shortcut-chips" id="wlShortcuts"></div>
+    </div>
+    <div class="wl-item-list" id="wlItemList"></div>
+    <div style="display:flex;justify-content:flex-end">
+      <button class="btn" id="wlCloseBtn">Done</button>
+    </div>
+  </div>
+</div>
+
+<div id="mainView" style="display:none">
+  <div class="subtab-bar" id="subtabBar" style="display:none">
+    <div class="subtab active" data-sub="inventory">Inventory</div>
+    <div class="subtab" data-sub="stats">Character Stats</div>
+    <div class="subtab" data-sub="upgrades">Upgrades</div>
+    <div class="subtab" data-sub="consumes">Raid Consumes</div>
+  </div>
+
+  <div id="subInventory">
+    <div class="watchlist-bar" id="watchlistBar">
+      <div class="watchlist-bar-header">
+        <div class="watchlist-bar-title">⚔ Watch List</div>
+        <button class="watchlist-gear-btn" id="wlGearBtn" title="Configure watch list">⚙</button>
+      </div>
+      <div id="watchlistRows" class="watchlist-rows"><div class="watchlist-empty">No items on watch list — click ⚙ to add items.</div></div>
+    </div>
+    <div class="controls">
+      <input type="text" class="search-box" id="searchBox" placeholder="Search items&hellip;">
+      <select class="filter-select" id="locationFilter">
+        <option value="">All locations</option>
+        <option value="equipped">Equipped</option>
+        <option value="bag">Bags</option>
+        <option value="bank">Bank</option>
+      </select>
+      <button class="btn danger" id="clearAllBtn">&#128465; Clear All</button>
+    </div>
+    <div class="stats-bar" id="statsBar"></div>
+    <div id="combinedHeader" class="combined-header" style="display:none"><span>All Characters Combined</span><hr></div>
+    <div class="table-wrap">
+      <table id="invTable">
+        <thead><tr>
+          <th data-col="name">Name <span class="sort-arrow">&#8597;</span></th>
+          <th data-col="char" id="th-char">Character <span class="sort-arrow">&#8597;</span></th>
+          <th data-col="location">Location <span class="sort-arrow">&#8597;</span></th>
+          <th data-col="count">Qty <span class="sort-arrow">&#8597;</span></th>
+          <th data-col="id">ID <span class="sort-arrow">&#8597;</span></th>
+        </tr></thead>
+        <tbody id="invBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="subStats" style="display:none">
+    <div class="stats-panel" id="statsPanel"></div>
+  </div>
+
+  <div id="subUpgrades" style="display:none">
+    <div class="stats-panel" id="upgradesPanel"></div>
+  </div>
+
+  <div id="subConsumes" style="display:none">
+    <div class="rc-panel" id="consumesPanel"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>&#9888; Confirm</h2>
+    <p id="modalMsg">Are you sure?</p>
+    <div class="modal-btns">
+      <button class="btn" id="modalCancel">Cancel</button>
+      <button class="btn-confirm-danger" id="modalConfirm">Yes, delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Constants ────────────────────────────────────────────────────────────────
+const EQ_CLASSES=["Bard","Cleric","Druid","Enchanter","Magician","Monk","Necromancer","Paladin","Ranger","Rogue","Shadow Knight","Shaman","Warrior","Wizard"];
+const EQ_RACES=["Barbarian","Dark Elf","Dwarf","Erudite","Gnome","Half Elf","Halfling","High Elf","Human","Iksar","Ogre","Troll","Wood Elf"];
+const RACE_ABBR_MAP={"Barbarian":"BAR","Dark Elf":"DEF","Dwarf":"DWF","Erudite":"ERU","Gnome":"GNM","Half Elf":"HEF","Halfling":"HFL","High Elf":"HEF","Human":"HUM","Iksar":"IKS","Ogre":"OGR","Troll":"TRL","Wood Elf":"WEF"};
+const STAT_LABELS=["Strength","Stamina","Dexterity","Agility","Wisdom","Intelligence","Charisma"];
+const RESIST_LABELS=["Poison","Magic","Disease","Fire","Cold"];
+const POOL_LABELS=["HP","Mana","Endurance","AC","ATK"];
+const STAT_KEYS=["str","sta","dex","agi","wis","int","cha"];
+const RESIST_KEYS=["svpoison","svmagic","svdisease","svfire","svcold"];
+const POOL_KEYS=["hp","mana","end","ac","atk"];
+const BONUS_KEYS=["hpbonus","manabonus"];
+const STAT_KEYS_ALL=[...STAT_KEYS,...RESIST_KEYS,...BONUS_KEYS];
+const STAT_DISPLAY={str:'STR',sta:'STA',dex:'DEX',agi:'AGI',wis:'WIS',int:'INT',cha:'CHA',hpbonus:'+HP',manabonus:'+Mana',svpoison:'SvPo',svmagic:'SvMa',svdisease:'SvDi',svfire:'SvFi',svcold:'SvCo'};
+const HP_RATIOS={'Warrior':[4.5,6.0],'Shadow Knight':[3.8,5.2],'Paladin':[3.8,5.2],'Ranger':[3.3,4.2],'Bard':[3.0,4.0],'Monk':[3.0,4.0],'Rogue':[3.0,4.0],'Cleric':[2.5,3.0],'Druid':[2.5,3.0],'Shaman':[2.5,3.0],'Enchanter':[2.0,2.4],'Magician':[2.0,2.4],'Necromancer':[2.0,2.4],'Wizard':[2.0,2.4]};
+const WIS_CLASSES=new Set(['Cleric','Druid','Paladin','Ranger','Shaman']);
+function staRatio(cls,lvl){const r=HP_RATIOS[cls];if(!r)return 0;if(lvl<=50)return r[0]*(lvl/50);if(lvl>=60)return r[1];return r[0]+(r[1]-r[0])*((lvl-50)/10);}
+function calcHP(sta,cls,lvl){return Math.floor(12.1*lvl+sta*staRatio(cls,lvl));}
+function calcMana(intWis,lvl){const base=Math.floor(3.71*lvl);const fromStat=intWis<=200?Math.floor(((80*lvl)/425)*intWis):Math.floor(((80*lvl)/425)*200+((40*lvl)/425)*(intWis-200));return base+fromStat;}
+
+// ─── Item Database ────────────────────────────────────────────────────────────
+// MERGER_INJECT_START
+var BAKED_ITEM_DB = {};
+// MERGER_INJECT_END
+let itemDB = Object.assign({}, BAKED_ITEM_DB);
+let itemDBSources = Object.keys(itemDB).length > 0 ? ['baked'] : [];
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let chars={},charMeta={},gearStats={};
+let activeTab=null,activeSub='inventory';
+let sortCol='name',sortDir=1;
+
+// ─── Parse inventory ──────────────────────────────────────────────────────────
+function parseInventory(text,charName){const items=[];for(const line of text.split('\n')){const p=line.trim().split('\t');if(p.length<4)continue;const[loc,name,id,count]=p;if(name==='Empty'||name==='Name')continue;if(Number(id)===0)continue;items.push({char:charName,location:loc,name:name.trim(),id:Number(id),count:Number(count)});}return items;}
+function locationType(loc){if(/^Bank/.test(loc))return 'bank';if(/^General/.test(loc)||/^Held/.test(loc))return 'bag';return 'equipped';}
+function extractCharName(fn){return fn.replace(/-Inventory\.txt$/i,'').replace(/\.txt$/i,'');}
+function charNames(){return Object.keys(chars);}
+function getEquippedItems(cn){return(chars[cn]||[]).filter(i=>locationType(i.location)==='equipped');}
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+function buildTabs(){const bar=document.getElementById('tabBar');bar.querySelectorAll('.tab').forEach(t=>t.remove());const names=charNames();if(names.length>1)bar.insertBefore(makeTab('__all__','&#9876; All Characters'),document.getElementById('tabAdd'));names.forEach(n=>bar.insertBefore(makeTab(n,n),document.getElementById('tabAdd')));if(activeTab==='__all__'&&names.length<2)activeTab=names[0]||null;if(activeTab&&activeTab!=='__all__'&&!chars[activeTab])activeTab=names[0]||null;if(!activeTab&&names.length===1)activeTab=names[0];if(!activeTab&&names.length>1)activeTab='__all__';bar.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.char===activeTab));document.getElementById('subtabBar').style.display=(activeTab&&activeTab!=='__all__')?'flex':'none';}
+function makeTab(charKey,label){const t=document.createElement('div');t.className='tab';t.dataset.char=charKey;const span=document.createElement('span');span.innerHTML=label;t.appendChild(span);if(charKey!=='__all__'){const status=getOverallStatus(charKey);const dot=document.createElement('span');dot.className='tab-rc-dot';dot.title='Raid Consumes: '+(status==='green'?'Ready':status==='yellow'?'Mostly Ready':'Not Ready');dot.style.cssText='font-size:.7rem;line-height:1;margin-left:.1rem;';dot.textContent=status==='green'?'✔':status==='yellow'?'◐':'✘';dot.style.color=status==='green'?'#3a7a3a':status==='yellow'?'#b07800':'#a03030';t.appendChild(dot);const x=document.createElement('span');x.className='remove-char';x.textContent='✕';x.addEventListener('click',e=>{e.stopPropagation();confirmAction('Remove '+charKey+'?',()=>{delete chars[charKey];delete charMeta[charKey];delete gearStats[charKey];if(activeTab===charKey)activeTab=charNames()[0]||null;refresh();});});t.appendChild(x);}t.addEventListener('click',()=>{activeTab=charKey;if(charKey==='__all__')activeSub='inventory';buildTabs();renderView();});return t;}
+document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();});});
+function refresh(){buildTabs();renderView();saveState();}
+function renderView(){const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();}
+
+// ─── Inventory Table ──────────────────────────────────────────────────────────
+function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.values(chars).flat():(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;return ms&&ml;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=source.reduce((s,i)=>s+i.count,0);const unique=new Set(source.map(i=>i.id)).size;const stacks=source.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span>':'');}
+
+// ─── Stats Panel ──────────────────────────────────────────────────────────────
+function renderStatsPanel(){const panel=document.getElementById('statsPanel');const name=activeTab;if(!name||name==='__all__'){panel.innerHTML='';return;}const meta=charMeta[name]||{};const base=meta.baseStats||null;const selClass=meta.class||'';const selLevel=meta.level||1;const selRace=meta.race||'';const charGear=gearStats[name]||{};const dbCount=Object.keys(itemDB).length;const getBaseVal=(k)=>{if(!base)return'';const si=STAT_KEYS.indexOf(k);if(si>=0)return base.stats[si]||'';const ri=RESIST_KEYS.indexOf(k);if(ri>=0)return base.resists[ri]||'';const pi=POOL_KEYS.indexOf(k);if(pi>=0)return base.pools?.[pi]||'';return'';};
+const raceSelect=`<label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Race<select id="raceSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:'Crimson Pro',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">— Select Race —</option>${EQ_RACES.map(r=>`<option value="${r}"${r===selRace?' selected':''}>${r}</option>`).join('')}</select></label>`;
+panel.innerHTML=`<div class="char-setup" style="flex-direction:column;align-items:flex-start;gap:.75rem;display:flex"><div style="font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em">CHARACTER</div><div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center"><label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Class<select id="classSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:'Crimson Pro',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">&#8212; Select Class &#8212;</option>${EQ_CLASSES.map(c=>`<option value="${c}"${c===selClass?' selected':''}>${c}</option>`).join('')}</select></label>${raceSelect}<label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Level<input type="number" id="levelInput" min="1" max="60" value="${selLevel}" style="width:55px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .4rem;font-family:'Crimson Pro',serif;font-size:.9rem;text-align:center;outline:none"></label></div><div style="border-top:1px solid var(--border);width:100%;padding-top:.75rem"><div style="font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em;margin-bottom:.5rem">CURRENT STATS</div><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center"><button class="btn primary" id="manualStatsBtn">${base?'&#9999; Edit Stats':'&#9999; Enter Current Stats'}</button>${base?'<span style="color:#3a7a3a;font-size:.85rem">&#10003; Base stats set</span>':'<span style="font-size:.82rem;color:var(--text-muted);font-style:italic">Enter your stats as shown in-game with gear on, unbuffed</span>'}</div><div id="manualForm" style="display:${base?'none':'block'};width:100%;margin-top:.6rem"><div style="font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.4rem">PRIMARY STATS</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${STAT_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ms_${STAT_KEYS[i]}" value="${getBaseVal(STAT_KEYS[i])}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div><div style="border-top:1px solid var(--border);margin:.75rem 0 .4rem"></div><div style="font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.4rem">RESISTANCES</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${RESIST_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ms_${RESIST_KEYS[i]}" value="${getBaseVal(RESIST_KEYS[i])}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div><div style="border-top:1px solid var(--border);margin:.75rem 0 .4rem"></div><div style="font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.4rem">POOLS &amp; COMBAT</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${POOL_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ms_${POOL_KEYS[i]}" value="${getBaseVal(POOL_KEYS[i])}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div><button class="btn primary" id="saveManualStats" style="margin-top:.75rem">Calculate &amp; Save Naked Stats</button><div style="font-size:.75rem;color:var(--text-muted);font-style:italic;margin-top:.35rem">&#9432; Enter your stats as shown in-game with all gear on, unbuffed. Naked stats will be calculated automatically by subtracting your gear.</div></div></div></div><div class="fetch-bar"><div style="flex:1"><div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap"><button class="btn primary" id="applyDBBtn" ${dbCount===0||!base?'disabled':''}>&#9889; Apply Item Database</button><button class="btn" id="fetchGearBtn" ${!base?'disabled':''}>&#127758; Wiki Fallback</button><span id="fetchStatus" style="font-size:.82rem;color:${dbCount>0?'#3a7a3a':'var(--text-muted)'};font-style:italic">${dbCount>0?'&#10003; '+dbCount+' items in database':meta.gearFetched?'Gear stats loaded':'Load item database via button above'}</span></div><div class="fetch-progress" id="fetchProgress"><div class="fetch-progress-bar" id="fetchProgressBar" style="width:0%"></div></div></div></div><div id="statCardsContainer"></div>`;
+document.getElementById('classSelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};charMeta[name].class=e.target.value;saveState();renderStatsPanel();});
+document.getElementById('raceSelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};charMeta[name].race=e.target.value;saveState();renderStatsPanel();buildTabs();});
+document.getElementById('levelInput').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};const v=Math.min(60,Math.max(1,parseInt(e.target.value)||1));charMeta[name].level=v;e.target.value=v;saveState();renderStatsPanel();});
+document.getElementById('manualStatsBtn').addEventListener('click',()=>{const f=document.getElementById('manualForm');f.style.display=f.style.display==='none'?'block':'none';});
+document.getElementById('saveManualStats').addEventListener('click',()=>{const parsed={};[...STAT_KEYS,...RESIST_KEYS,...POOL_KEYS].forEach(k=>{const v=parseInt(document.getElementById('ms_'+k)?.value);if(!isNaN(v))parsed[k]=v;});const naked=calcNakedFromCurrent(name,parsed);applyBaseStats(name,naked);});
+document.getElementById('applyDBBtn').addEventListener('click',()=>{const matched=applyDBToChar(name);if(!charMeta[name])charMeta[name]={};charMeta[name].gearFetched=true;saveState();document.getElementById('fetchStatus').textContent='&#10003; '+matched+'/'+getEquippedItems(name).length+' items matched';setTimeout(()=>renderStatsPanel(),400);});
+document.getElementById('fetchGearBtn').addEventListener('click',()=>fetchGearStats(name));
+if(base){document.getElementById('statCardsContainer').innerHTML=buildStatCards(base,charGear,name,selClass,selLevel);}else{document.getElementById('statCardsContainer').innerHTML='<div class="empty-state">Enter your current in-game stats to get started.</div>';}
+}
+
+function calcNakedFromCurrent(charName, currentParsed){
+  // Sum all equipped gear stats from DB
+  const equipped=getEquippedItems(charName);
+  const cg=gearStats[charName]||{};
+  const gearSum={};
+  for(const item of equipped){
+    const gs=cg[item.name]||itemDB[item.name]||{};
+    for(const k of [...STAT_KEYS,...RESIST_KEYS]){
+      if(gs[k])gearSum[k]=(gearSum[k]||0)+Number(gs[k]);
+    }
+  }
+  // Naked = Current - Gear
+  const naked={};
+  for(const k of [...STAT_KEYS,...RESIST_KEYS]){
+    naked[k]=Math.max(0,(currentParsed[k]||0)-(gearSum[k]||0));
+  }
+  // Pools passed through as-is (can't back-calc HP/Mana to naked easily)
+  for(const k of POOL_KEYS) naked[k]=currentParsed[k]||0;
+  return naked;
+}
+
+function applyBaseStats(charName,parsed){const stats=STAT_KEYS.map(k=>parsed[k]||0);const resists=RESIST_KEYS.map(k=>parsed[k]||0);const pools=POOL_KEYS.map(k=>parsed[k]||0);if(!charMeta[charName])charMeta[charName]={};charMeta[charName].baseStats={stats,resists,pools};saveState();renderStatsPanel();}
+
+function buildStatCards(base,charGear,charName,cls,level){const equipped=getEquippedItems(charName);const gearSum={stats:[0,0,0,0,0,0,0],resists:[0,0,0,0,0],bonuses:[0,0]};for(const item of equipped){const gs=charGear[item.name];if(!gs)continue;STAT_KEYS.forEach((k,i)=>{if(gs[k])gearSum.stats[i]+=Number(gs[k])||0;});RESIST_KEYS.forEach((k,i)=>{if(gs[k])gearSum.resists[i]+=Number(gs[k])||0;});BONUS_KEYS.forEach((k,i)=>{if(gs[k])gearSum.bonuses[i]+=Number(gs[k])||0;});}
+const totalSTA=base.stats[1]+gearSum.stats[1];const manaKey=WIS_CLASSES.has(cls)?'wis':'int';const manaIdx=STAT_KEYS.indexOf(manaKey);const totalManastat=base.stats[manaIdx]+gearSum.stats[manaIdx];
+const statRows=STAT_LABELS.map((lbl,i)=>{const g=gearSum.stats[i],t=base.stats[i]+g,gc=g>0?'pos':g<0?'neg':'zero';return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${base.stats[i]}</span><span class="val-gear ${gc}">${g>=0?'+':''}${g}</span><span class="val-total">${t}</span></div></div>`;}).join('');
+const resistRows=RESIST_LABELS.map((lbl,i)=>{const g=gearSum.resists[i],t=base.resists[i]+g,gc=g>0?'pos':g<0?'neg':'zero';return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${base.resists[i]}</span><span class="val-gear ${gc}">${g>=0?'+':''}${g}</span><span class="val-total">${t}</span></div></div>`;}).join('');
+const poolRows=POOL_LABELS.map((lbl,i)=>{const base_v=base.pools?.[i]||0;let gearBonus=i<2?gearSum.bonuses[i]:0;let total;if(i===0&&cls&&level&&HP_RATIOS[cls])total=calcHP(totalSTA,cls,level)+gearBonus;else if(i===1&&cls&&level)total=calcMana(totalManastat,level)+gearBonus;else total=base_v+gearBonus;const gc=gearBonus>0?'pos':gearBonus<0?'neg':'zero';return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${base_v}</span><span class="val-gear ${gc}">${gearBonus>=0?'+':''}${gearBonus}</span><span class="val-total">${total}</span></div></div>`;}).join('');
+const breakdownRows=equipped.map(item=>{const gs=charGear[item.name];if(!gs)return `<tr><td>${esc(item.name)}</td>${STAT_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}${RESIST_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}${BONUS_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}</tr>`;return `<tr><td>${esc(item.name)}</td>${STAT_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}${RESIST_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}${BONUS_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}</tr>`;}).join('');
+return `<div class="stat-grid"><div class="stat-card"><div class="stat-card-title">PRIMARY STATS</div>${statRows}</div><div class="stat-card"><div class="stat-card-title">RESISTANCES</div>${resistRows}</div><div class="stat-card"><div class="stat-card-title">POOLS &amp; COMBAT</div>${poolRows}</div></div><div class="legend">Base &middot; <span style="color:#3a7a3a">+Gear</span> &middot; <span style="color:var(--gold-light)">Total</span>${cls&&level?' &middot; HP/Mana calculated from stats at level '+level:' <span style="color:#a06020">&mdash; set class &amp; level for calculated HP/Mana</span>'}</div>${equipped.length?`<div class="gear-breakdown"><div class="gear-breakdown-title">GEAR BREAKDOWN</div><div style="overflow-x:auto"><table class="gear-table"><thead><tr><th>Item</th>${STAT_LABELS.map(l=>`<th>${l.slice(0,3)}</th>`).join('')}${RESIST_LABELS.map(l=>`<th>Sv${l.slice(0,2)}</th>`).join('')}<th>+HP</th><th>+Mana</th></tr></thead><tbody>${breakdownRows}</tbody></table></div></div>`:''}`;
+}
+
+// ─── Upgrades Panel ───────────────────────────────────────────────────────────
+function renderUpgradesPanel(){
+  const panel=document.getElementById('upgradesPanel');
+  if(!panel)return;
+  const name=activeTab;
+  if(!name||name==='__all__'){panel.innerHTML='<div class="empty-state">Select a character to see upgrade suggestions.</div>';return;}
+  if(!Object.keys(itemDB).length){panel.innerHTML='<div class="empty-state">Load your item database via the &#128230; Item Database button to see upgrade suggestions.</div>';return;}
+  const equipped=getEquippedItems(name);
+  if(!equipped.length){panel.innerHTML='<div class="empty-state">No equipped items found.</div>';return;}
+  const meta=charMeta[name]||{};
+  const charClass=meta.class||'';
+  const charLevel=meta.level||1;
+  const base=meta.baseStats||null;
+  const charGear=gearStats[name]||{};
+  const CLASS_MAP={'BARD':'BRD','CLERIC':'CLR','DRUID':'DRU','ENCHANTER':'ENC','MAGICIAN':'MAG','MONK':'MNK','NECROMANCER':'NEC','PALADIN':'PAL','RANGER':'RNG','ROGUE':'ROG','SHADOW KNIGHT':'SHD','SHAMAN':'SHM','WARRIOR':'WAR','WIZARD':'WIZ'};
+  const charClassAbbr=CLASS_MAP[(charClass||'').toUpperCase()]||'';
+  const charRaceAbbr=RACE_ABBR_MAP[meta.race||'']||'';
+  function itemUsableByChar(data){
+    if(!charClassAbbr)return true;
+    const classes=(data._classes||'ALL').toUpperCase();
+    const classOk=classes==='ALL'||classes.split(' ').includes(charClassAbbr);
+    if(!classOk)return false;
+    if(!charRaceAbbr)return true;
+    const races=(data._races||'ALL').toUpperCase();
+    return races==='ALL'||races.split(' ').includes(charRaceAbbr);
+  }
+  function invSlotToDBSlot(loc){const s=loc.toUpperCase();if(s.includes('EAR'))return'EAR';if(s.includes('FINGER'))return'FINGERS';if(s.includes('WRIST'))return'WRIST';return s;}
+  // Baseline totals: base stats + all current gear
+  function buildTotals(overrides){
+    const t={};
+    if(base){STAT_KEYS.forEach((k,i)=>{t[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{t[k]=base.resists[i]||0;});}
+    for(const item of equipped){
+      const dbSlot=invSlotToDBSlot(item.location);
+      const data=(overrides&&overrides[dbSlot])||charGear[item.name]||itemDB[item.name]||{};
+      for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)t[k]=(t[k]||0)+v;}
+    }
+    return t;
+  }
+  const NO_CAP=new Set(['hpbonus','manabonus']);
+  function effectiveGain(curItemData,candData,baseTotals){
+    let total=0;
+    for(const k of STAT_KEYS_ALL){
+      const cur=Number(curItemData[k]||0),nxt=Number(candData[k]||0),raw=nxt-cur;
+      if(!raw)continue;
+      if(raw>0&&!NO_CAP.has(k)){const headroom=Math.max(0,255-(baseTotals[k]||0)-cur);total+=Math.min(raw,headroom);}
+      else total+=raw;
+    }
+    return total;
+  }
+  window._upgData={};
+  const bySlot={};
+  for(const[itemName,data]of Object.entries(itemDB)){const slot=data._slot;if(!slot)continue;if(!bySlot[slot])bySlot[slot]=[];bySlot[slot].push({name:itemName,...data});}
+  const baselineTotals=buildTotals(null);
+  let slotHtml='';
+  for(const item of equipped){
+    const dbSlot=invSlotToDBSlot(item.location);
+    const currentData=itemDB[item.name]||charGear[item.name]||{};
+    const candidates=(bySlot[dbSlot]||[])
+      .filter(c=>c.name!==item.name&&itemUsableByChar(c))
+      .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
+      .sort((a,b)=>b._effGain-a._effGain);
+    const rowId='upg_'+dbSlot+'_'+Math.random().toString(36).slice(2,7);
+    window._upgData[rowId]={currentData,candidates,dbSlot};
+    const options=candidates.length
+      ?candidates.map((c,i)=>`<option value="${i}">${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain} eff)</option>`).join('')
+      :'<option disabled>No alternatives in database</option>';
+    slotHtml+=`<div class="upg-slot-row" id="${rowId}">
+      <div class="upg-slot-header">
+        <div class="upg-slot-label">${dbSlot}</div>
+        <div><div class="upg-current-name">${esc(item.name)}</div><div class="upg-current-from">${esc(currentData._from||'')}</div></div>
+        <div class="upg-select-wrap">
+          <select class="upg-select" data-rowid="${rowId}" onchange="upgOnChange('${rowId}',this.value)">
+            <option value="">— Compare —</option>${options}
+          </select>
+          <span class="upg-select-arrow">&#9660;</span>
+        </div>
+      </div>
+      <div class="upg-delta" id="${rowId}_delta"></div>
+    </div>`;
+  }
+  panel.innerHTML=`<div class="upg-layout">
+    <div class="upg-panel">${slotHtml}</div>
+    <div class="upg-statsheet" id="upgStatSheet">
+      <div class="upg-statsheet-header"><span>&#9876; Projected Stats</span><button class="upg-reset-btn" onclick="upgReset()">&#8635; Reset</button></div>
+      <div class="upg-statsheet-body" id="upgStatSheetBody"></div>
+    </div>
+  </div>`;
+  upgRenderStatSheet(baselineTotals,baselineTotals,charClass,charLevel);
+}
+
+function upgRenderStatSheet(current,projected,charClass,charLevel){
+  const body=document.getElementById('upgStatSheetBody');
+  if(!body)return;
+  const manaKey=WIS_CLASSES.has(charClass)?'wis':'int';
+  const curHP=charClass?calcHP(Math.min(255,current.sta||0),charClass,charLevel):null;
+  const projHP=charClass?calcHP(Math.min(255,projected.sta||0),charClass,charLevel):null;
+  const curMana=charClass?calcMana(Math.min(255,current[manaKey]||0),charLevel):null;
+  const projMana=charClass?calcMana(Math.min(255,projected[manaKey]||0),charLevel):null;
+  function row(label,cur,proj){
+    const diff=proj-cur;
+    const cls=diff>0?'ss-gain':diff<0?'ss-loss':'';
+    const delta=diff!==0?`<span class="upg-ss-delta ${diff>0?'pos':'neg'}">${diff>0?'+':''}${diff}</span>`:'';
+    return `<div class="upg-ss-row ${cls}"><span class="upg-ss-label">${label}</span><span class="upg-ss-val">${proj}${delta}</span></div>`;
+  }
+  let html='';
+  if(projHP!==null){
+    html+='<div class="upg-ss-section">Pools</div>';
+    html+=row('HP',curHP,projHP);
+    html+=row('Mana',curMana,projMana);
+  }
+  html+='<div class="upg-ss-section">Primary</div>';
+  STAT_KEYS.forEach((k,i)=>html+=row(STAT_LABELS[i],Math.min(255,current[k]||0),Math.min(255,projected[k]||0)));
+  html+='<div class="upg-ss-section">Resists</div>';
+  RESIST_KEYS.forEach((k,i)=>html+=row(RESIST_LABELS[i],current[k]||0,projected[k]||0));
+  body.innerHTML=html;
+}
+
+window.upgOnChange=function(rowId,idx){
+  upgShowDelta(rowId,idx);
+  // Rebuild projected totals from ALL current dropdown selections
+  const name=activeTab;
+  const meta=charMeta[name]||{};
+  const base=meta.baseStats||null;
+  const charGear=gearStats[name]||{};
+  const equipped=getEquippedItems(name);
+  function invSlotToDBSlot(loc){const s=loc.toUpperCase();if(s.includes('EAR'))return'EAR';if(s.includes('FINGER'))return'FINGERS';if(s.includes('WRIST'))return'WRIST';return s;}
+  // Collect all current overrides
+  const overrides={};
+  document.querySelectorAll('.upg-select').forEach(sel=>{
+    const rid=sel.dataset.rowid;
+    const store=window._upgData&&window._upgData[rid];
+    if(!store||sel.value==='')return;
+    const chosen=store.candidates[parseInt(sel.value)];
+    if(chosen)overrides[store.dbSlot]=chosen;
+  });
+  // Baseline
+  const baseline={};
+  if(base){STAT_KEYS.forEach((k,i)=>{baseline[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{baseline[k]=base.resists[i]||0;});}
+  for(const item of equipped){const data=charGear[item.name]||itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)baseline[k]=(baseline[k]||0)+v;}}
+  // Projected
+  const projected={};
+  if(base){STAT_KEYS.forEach((k,i)=>{projected[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{projected[k]=base.resists[i]||0;});}
+  for(const item of equipped){
+    const dbSlot=invSlotToDBSlot(item.location);
+    const data=overrides[dbSlot]||charGear[item.name]||itemDB[item.name]||{};
+    for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)projected[k]=(projected[k]||0)+v;}
+  }
+  upgRenderStatSheet(baseline,projected,meta.class||'',meta.level||1);
+};
+
+window.upgReset=function(){
+  // Clear all dropdowns
+  document.querySelectorAll('.upg-select').forEach(sel=>sel.value='');
+  // Collapse all delta panels
+  document.querySelectorAll('.upg-delta').forEach(d=>{d.className='upg-delta';d.innerHTML='';});
+  // Reset stat sheet to baseline
+  const name=activeTab;
+  const meta=charMeta[name]||{};
+  const base=meta.baseStats||null;
+  const charGear=gearStats[name]||{};
+  const equipped=getEquippedItems(name);
+  const baseline={};
+  if(base){STAT_KEYS.forEach((k,i)=>{baseline[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{baseline[k]=base.resists[i]||0;});}
+  for(const item of equipped){const data=charGear[item.name]||itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)baseline[k]=(baseline[k]||0)+v;}}
+  upgRenderStatSheet(baseline,baseline,meta.class||'',meta.level||1);
+};
+
+window.upgShowDelta=function(rowId,idx){
+  const delta=document.getElementById(rowId+'_delta');
+  if(!delta)return;
+  if(idx===''){delta.className='upg-delta';delta.innerHTML='';return;}
+  const store=window._upgData&&window._upgData[rowId];
+  if(!store){delta.className='upg-delta';return;}
+  const {currentData,candidates}=store;
+  const sel=candidates[parseInt(idx)];
+  if(!sel){delta.className='upg-delta';return;}
+  const meta=charMeta[activeTab]||{};
+  const base=meta.baseStats||null;
+  const charGear=gearStats[activeTab]||{};
+  const equipped=getEquippedItems(activeTab);
+  const currentTotals={};
+  if(base){STAT_KEYS.forEach((k,i)=>{currentTotals[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{currentTotals[k]=base.resists[i]||0;});}
+  for(const item of equipped){const gs=charGear[item.name]||itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){if(gs[k])currentTotals[k]=(currentTotals[k]||0)+Number(gs[k]);}}
+  const allKeys=STAT_KEYS_ALL.filter(k=>(currentData[k]||0)!==0||(sel[k]||0)!==0);
+  const NO_CAP=new Set(['hpbonus','manabonus']);
+  let totalEff=0,rows='';
+  for(const k of allKeys){
+    const cur=Number(currentData[k]||0),nxt=Number(sel[k]||0),raw=nxt-cur;
+    const label=STAT_DISPLAY[k]||k;
+    let changeCell='<td style="color:var(--text-muted)">&#8212;</td>';
+    if(raw!==0){
+      if(raw>0){
+        if(NO_CAP.has(k)){
+          totalEff+=raw;
+          changeCell=`<td class="upg-delta-pos">+${raw}</td>`;
+        } else {
+          const headroom=Math.max(0,255-(currentTotals[k]||0)-cur);
+          const eff=Math.min(raw,headroom);
+          totalEff+=eff;
+          const wasted=raw-eff;
+          changeCell=`<td class="upg-delta-pos">+${raw}${wasted>0?`<span class="upg-cap-note"> (${wasted} capped)</span>`:''}</td>`;
+        }
+      } else {
+        totalEff+=raw;
+        changeCell=`<td class="upg-delta-neg">${raw}</td>`;
+      }
+    }
+    rows+=`<tr><td>${label}</td><td>${cur||'&#8212;'}</td><td>${nxt||'&#8212;'}</td>${changeCell}</tr>`;
+  }
+  if(!rows)rows=`<tr><td colspan="4" style="color:var(--text-muted);font-style:italic">No stat differences</td></tr>`;
+  const sign=totalEff>=0?'+':'';
+  const cost=[sel.plat?`${sel.plat}k pp`:'',sel.dkp?`${sel.dkp} DKP`:''].filter(Boolean).join(' · ')||'&#8212;';
+  const wikiLink=`<a href="${wikiUrl(sel.name)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold)">${esc(sel.name)}</a>`;
+  delta.innerHTML=`
+    <div class="upg-delta-title">${wikiLink}</div>
+    <table class="upg-stat-table">
+      <thead><tr><th>Stat</th><th>Current</th><th>New</th><th>Change</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="upg-delta-meta">
+      <span class="upg-delta-eff">${sign}${totalEff} eff gain</span>
+      <span style="font-style:italic">&#128197; ${esc(sel._from||'Unknown source')}</span>
+      <span>&#128176; ${cost}</span>
+    </div>`;
+  delta.className='upg-delta visible';
+};
+
+
+// ─── Item Database ─ CSV loading ──────────────────────────────────────────────
+function parseItemDB(csvText,filename){const lines=csvText.split('\n');let headerIdx=-1,headers=[],sep='\t';for(let i=0;i<Math.min(lines.length,5);i++){for(const s of['\t',',']){const cols=lines[i].split(s);if(cols[0].trim()==='Slot'&&cols[1].trim()==='Name'){headerIdx=i;sep=s;headers=cols.map(h=>h.trim().toLowerCase().replace(/"/g,''));break;}}if(headerIdx>=0)break;}if(headerIdx<0){return 0;}
+const idxMap={str:7,sta:8,agi:9,dex:10,cha:11,int:12,wis:13,hpbonus:14,manabonus:15,svmagic:16,svfire:17,svcold:18,svpoison:19,svdisease:20,stat_val:27,plat:30,dkp:31};const col=n=>headers.indexOf(n);const dynMap={str:col('str'),sta:col('sta'),agi:col('agi'),dex:col('dex'),cha:col('cha'),int:col('int'),wis:col('wis'),hpbonus:col('hp'),manabonus:col('mana'),svmagic:col('mr'),svfire:col('fr'),svcold:col('cr'),svpoison:col('pr'),svdisease:col('dr'),stat_val:col('stat_val'),plat:col('plat(k)'),dkp:col('dkp')};const allFound=Object.values(dynMap).filter(v=>v>=0).length>10;const colMap=allFound?dynMap:idxMap;
+const validSlots=new Set(['EAR','HEAD','FACE','NECK','SHOULDERS','ARMS','BACK','WRIST','RANGE','HANDS','PRIMARY','SECONDARY','FINGERS','CHEST','LEGS','FEET','WAIST','AMMO','TWOHANDER','ONEHANDER','SHIELD']);
+const FILE_CLASS_MAP={'bard':'BRD','cleric':'CLR','druid':'DRU','enchanter':'ENC','mage':'MAG','magician':'MAG','monk':'MNK','necromancer':'NEC','paladin':'PAL','ranger':'RNG','rogue':'ROG','shadowknight':'SHD','shadow_knight':'SHD','shaman':'SHM','warrior':'WAR','wizard':'WIZ'};
+const FILE_RACE_MAP={'human':'HUM','barbarian':'BAR','erudite':'ERU','woodelf':'WEF','wood_elf':'WEF','highelf':'HEF','high_elf':'HEF','darkelf':'DEF','dark_elf':'DEF','halfelf':'HEF','half_elf':'HEF','dwarf':'DWF','troll':'TRL','ogre':'OGR','halfling':'HFL','gnome':'GNM','iksar':'IKS'};
+function classFromFilename(fn){const low=fn.toLowerCase().replace(/[^a-z_]/g,'');for(const[k,v]of Object.entries(FILE_CLASS_MAP)){if(low.includes(k))return v;}return null;}
+function raceFromFilename(fn){const low=fn.toLowerCase().replace(/[^a-z_]/g,'');for(const[k,v]of Object.entries(FILE_RACE_MAP)){if(low.includes(k))return v;}return null;}
+let count=0;
+const fileClass=classFromFilename(filename||'');
+const fileRace=raceFromFilename(filename||'');
+for(let i=headerIdx+1;i<lines.length;i++){const cols=lines[i].split(sep).map(c=>c.trim().replace(/"/g,''));const slot=cols[0],name=cols[1];if(!slot||!name||name==='STAT WEIGHTS:'||name==='Name')continue;if(!validSlots.has(slot.toUpperCase()))continue;const stats={};for(const[key,idx]of Object.entries(colMap)){if(idx<0||idx>=cols.length)continue;const v=parseFloat(cols[idx]);if(!isNaN(v)&&v!==0)stats[key]=Math.round(v*100)/100;}stats._slot=slot.toUpperCase();stats._from=cols[2]?.trim()||'';stats._classes='ALL';stats._races='ALL';const sk=Object.keys(stats).filter(k=>!k.startsWith('_'));if(sk.length>0){if(!itemDB[name]){itemDB[name]=stats;if(fileClass)itemDB[name]._classes=fileClass;if(fileRace)itemDB[name]._races=fileRace;count++;}else{for(const[k,v]of Object.entries(stats)){if(!itemDB[name][k])itemDB[name][k]=v;}if(fileClass){const ex=itemDB[name]._classes||'ALL';if(ex==='ALL')itemDB[name]._classes=fileClass;else if(!ex.includes(fileClass))itemDB[name]._classes=ex+' '+fileClass;}if(fileRace){const exr=itemDB[name]._races||'ALL';if(exr==='ALL')itemDB[name]._races=fileRace;else if(!exr.includes(fileRace))itemDB[name]._races=exr+' '+fileRace;}}}}return count;}
+
+function applyDBToChar(charName){const equipped=getEquippedItems(charName);if(!equipped.length)return 0;if(!gearStats[charName])gearStats[charName]={};let matched=0;for(const item of equipped){if(itemDB[item.name]){gearStats[charName][item.name]=itemDB[item.name];matched++;}}return matched;}
+// saveItemDB and loadItemDB replaced by Supabase versions above
+
+function updateItemDbModal(){const count=Object.keys(itemDB).length;document.getElementById('itemDbStatus').textContent=count>0?'&#10003; '+count+' items loaded from '+itemDBSources.length+' source'+(itemDBSources.length!==1?'s':''):' No items loaded yet.';document.getElementById('itemDbSourceList').innerHTML=itemDBSources.length?itemDBSources.map(s=>`<div style="padding:.15rem 0;border-bottom:1px solid rgba(74,58,26,.15)">&#128196; ${esc(s)}</div>`).join(''):'';}
+document.getElementById('itemDbBtn').addEventListener('click',()=>{updateItemDbModal();document.getElementById('itemDbOverlay').classList.add('open');});
+document.getElementById('itemDbClose').addEventListener('click',()=>document.getElementById('itemDbOverlay').classList.remove('open'));
+document.getElementById('itemDbOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('itemDbOverlay'))document.getElementById('itemDbOverlay').classList.remove('open');});
+document.getElementById('dbLoadBtn').addEventListener('click',()=>document.getElementById('dbFileInput').click());
+document.getElementById('dbFileInput').addEventListener('change',e=>{const files=[...e.target.files];if(!files.length)return;const status=document.getElementById('itemDbStatus');status.textContent=`Loading ${files.length} file${files.length>1?'s':''}...`;let loaded=0;files.forEach(file=>{const reader=new FileReader();reader.onload=ev=>{const count=parseItemDB(ev.target.result,file.name);if(count>0&&!itemDBSources.includes(file.name))itemDBSources.push(file.name);if(++loaded===files.length){saveItemDB();updateItemDbModal();charNames().forEach(cn=>{applyDBToChar(cn);if(!charMeta[cn])charMeta[cn]={};charMeta[cn].gearFetched=true;});saveState();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();}};reader.readAsText(file);});e.target.value='';});
+document.getElementById('clearDBBtn').addEventListener('click',()=>{confirmAction('Clear the entire item database?',()=>{itemDB={};itemDBSources=[];saveItemDB();updateItemDbModal();if(activeSub==='stats')renderStatsPanel();});});
+
+// ─── Fetch Gear Stats ─────────────────────────────────────────────────────────
+const CORS_PROXIES=['https://corsproxy.io/?','https://api.allorigins.win/raw?url='];
+async function fetchWithProxy(url){for(const proxy of CORS_PROXIES){try{const res=await fetch(proxy+encodeURIComponent(url),{signal:AbortSignal.timeout(8000)});if(res.ok)return await res.text();}catch(e){}}throw new Error('All proxies failed');}
+async function fetchGearStats(charName){const equipped=getEquippedItems(charName);if(!equipped.length)return;const btn=document.getElementById('fetchGearBtn');const status=document.getElementById('fetchStatus');const progressWrap=document.getElementById('fetchProgress');const progressBar=document.getElementById('fetchProgressBar');btn.disabled=true;progressWrap.style.display='block';if(!gearStats[charName])gearStats[charName]={};let fromDB=0,fromWiki=0,failed=0;for(let i=0;i<equipped.length;i++){const item=equipped[i];progressBar.style.width=Math.round((i/equipped.length)*100)+'%';if(itemDB[item.name]){gearStats[charName][item.name]=itemDB[item.name];fromDB++;status.textContent=`${i+1}/${equipped.length}: ${item.name} &#10003; (DB)`;continue;}status.textContent=`${i+1}/${equipped.length}: ${item.name} &mdash; wiki...`;try{const html=await fetchWithProxy(wikiUrl(item.name));gearStats[charName][item.name]=parseWikiStats(html);fromWiki++;}catch(e){gearStats[charName][item.name]={};failed++;}}progressBar.style.width='100%';status.textContent=`Done! ${fromDB} from DB, ${fromWiki} from wiki${failed?`, ${failed} not found`:''}`;if(!charMeta[charName])charMeta[charName]={};charMeta[charName].gearFetched=true;saveState();setTimeout(()=>{progressWrap.style.display='none';renderStatsPanel();},800);}
+function parseWikiStats(html){const stats={};const plain=html.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/\s+/g,' ');const patterns=[[/\bHP[:\s]+\+?(\d+)/i,'hpbonus'],[/\bMana[:\s]+\+?(\d+)/i,'manabonus'],[/\bSTR[:\s]+\+?(\d+)/i,'str'],[/\bSTA[:\s]+\+?(\d+)/i,'sta'],[/\bDEX[:\s]+\+?(\d+)/i,'dex'],[/\bAGI[:\s]+\+?(\d+)/i,'agi'],[/\bWIS[:\s]+\+?(\d+)/i,'wis'],[/\bINT[:\s]+\+?(\d+)/i,'int'],[/\bCHA[:\s]+\+?(\d+)/i,'cha'],[/SV\s*POISON[:\s]+\+?(\d+)/i,'svpoison'],[/SV\s*MAGIC[:\s]+\+?(\d+)/i,'svmagic'],[/SV\s*DISEASE[:\s]+\+?(\d+)/i,'svdisease'],[/SV\s*FIRE[:\s]+\+?(\d+)/i,'svfire'],[/SV\s*COLD[:\s]+\+?(\d+)/i,'svcold']];for(const[re,key]of patterns){const m=plain.match(re);if(m)stats[key]=parseInt(m[1]);}return stats;}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function wikiUrl(n){return 'https://wiki.project1999.com/'+encodeURIComponent(n.trim().replace(/ /g,'_'));}
+function itemLink(n){return `<a href="${wikiUrl(n)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold-dim)">${esc(n)}</a>`;}
+
+// ─── Sort ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('th[data-col]').forEach(th=>{th.addEventListener('click',()=>{const col=th.dataset.col;if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=1;}document.querySelectorAll('th').forEach(t=>t.classList.remove('sorted'));th.classList.add('sorted');th.querySelector('.sort-arrow').textContent=sortDir===1?' &#8593;':' &#8595;';renderTable();});});
+document.getElementById('searchBox').addEventListener('input',renderTable);
+document.getElementById('locationFilter').addEventListener('change',renderTable);
+
+// ─── File Loading ─────────────────────────────────────────────────────────────
+function loadFiles(files){const arr=[...files];if(!arr.length)return;let loaded=0,lastName=null;arr.forEach(file=>{const reader=new FileReader();reader.onload=e=>{const cn=extractCharName(file.name);chars[cn]=parseInventory(e.target.result,cn);if(!charMeta[cn])charMeta[cn]={};lastName=cn;if(++loaded===arr.length){activeTab=arr.length>1&&Object.keys(chars).length>1?'__all__':lastName;refresh();}};reader.readAsText(file);});}
+
+function loadFolder(files){
+  // Filter to only *-Inventory.txt files, ignore others
+  const inv=[...files].filter(f=>/inventory\.txt$/i.test(f.name));
+  if(!inv.length){alert('No Inventory.txt files found in that folder. Make sure you\'ve run /outputfile inventory for each character.');return;}
+  loadFiles(inv);
+}
+
+document.getElementById('fileInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
+document.getElementById('dzInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
+document.getElementById('folderInput').addEventListener('change',e=>{loadFolder(e.target.files);e.target.value='';});
+document.getElementById('tabAdd').addEventListener('click',()=>document.getElementById('fileInput').click());
+document.getElementById('folderAdd').addEventListener('click',()=>document.getElementById('folderInput').click());
+const dz=document.getElementById('dropzone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');loadFiles(e.dataTransfer.files);});
+
+// ─── Clear All ────────────────────────────────────────────────────────────────
+document.getElementById('clearAllBtn').addEventListener('click',()=>{confirmAction('Clear ALL characters and start fresh?',()=>{chars={};charMeta={};gearStats={};activeTab=null;document.getElementById('searchBox').value='';document.getElementById('locationFilter').value='';refresh();});});
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
+let _confirmCb=null;
+function confirmAction(msg,cb){document.getElementById('modalMsg').textContent=msg;_confirmCb=cb;document.getElementById('modalOverlay').classList.add('open');}
+document.getElementById('modalCancel').addEventListener('click',()=>{document.getElementById('modalOverlay').classList.remove('open');_confirmCb=null;});
+document.getElementById('modalConfirm').addEventListener('click',()=>{document.getElementById('modalOverlay').classList.remove('open');if(_confirmCb){_confirmCb();_confirmCb=null;}});
+document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('modalOverlay')){document.getElementById('modalOverlay').classList.remove('open');_confirmCb=null;}});
+
+// ─── Persist ──────────────────────────────────────────────────────────────────
+// ─── Supabase ─────────────────────────────────────────────────────────────────
+const SUPABASE_URL='https://sonenrhxvmheslwufhqf.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvbmVucmh4dm1oZXNsd3VmaHFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.UEHihq6mga4hqtQ9bd2Ao9AIsR1CghqKO6WjO9ZoonU';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser=null;
+let syncTimeout=null;
+
+// ─── Auth ──────────────────────────────────────────────────────────────────────
+async function initAuth(){
+  const{data:{session}}=await sb.auth.getSession();
+  if(session)await onSignedIn(session.user);
+  else showAuthScreen();
+  sb.auth.onAuthStateChange(async(event,session)=>{
+    if(event==='SIGNED_IN'&&session)await onSignedIn(session.user);
+    if(event==='SIGNED_OUT')onSignedOut();
+  });
+}
+
+function showAuthScreen(){
+  document.getElementById('authScreen').style.display='flex';
+  document.getElementById('authMsg').textContent='';
+  document.getElementById('authEmail').value='';
+  document.getElementById('authPassword').value='';
+}
+
+async function onSignedIn(user){
+  currentUser=user;
+  document.getElementById('authScreen').style.display='none';
+  document.getElementById('userBar').style.display='flex';
+  document.getElementById('userEmail').textContent=user.email;
+  await loadFromSupabase();
+}
+
+function onSignedOut(){
+  currentUser=null;
+  chars={};charMeta={};gearStats={};watchList=[];activeTab=null;
+  document.getElementById('userBar').style.display='none';
+  showAuthScreen();
+  refresh();
+}
+
+// Sign in
+document.getElementById('authBtn').addEventListener('click',async()=>{
+  const email=document.getElementById('authEmail').value.trim();
+  const password=document.getElementById('authPassword').value;
+  const btn=document.getElementById('authBtn');
+  const msg=document.getElementById('authMsg');
+  if(!email||!password){msg.className='auth-msg err';msg.textContent='Please enter email and password.';return;}
+  btn.disabled=true;msg.className='auth-msg';msg.textContent='Signing in…';
+  const{error}=await sb.auth.signInWithPassword({email,password});
+  if(error){msg.className='auth-msg err';msg.textContent=error.message;}
+  btn.disabled=false;
+});
+
+// Create account
+document.getElementById('authToggle').addEventListener('click',async()=>{
+  const email=document.getElementById('authEmail').value.trim();
+  const password=document.getElementById('authPassword').value;
+  const msg=document.getElementById('authMsg');
+  if(!email||!password){msg.className='auth-msg err';msg.textContent='Enter email and password first.';return;}
+  const{error}=await sb.auth.signUp({email,password});
+  if(error){msg.className='auth-msg err';msg.textContent=error.message;}
+  else{msg.className='auth-msg ok';msg.textContent='Account created! You can now sign in.';}
+});
+
+document.getElementById('authEmail').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('authPassword').focus();});
+document.getElementById('authPassword').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('authBtn').click();});
+document.getElementById('signOutBtn').addEventListener('click',()=>sb.auth.signOut());
+
+// ─── Supabase Data Sync ────────────────────────────────────────────────────────
+async function loadFromSupabase(){
+  if(!currentUser)return;
+  try{
+    // Load characters
+    const{data:charRows}=await sb.from('characters').select('*').eq('user_id',currentUser.id);
+    if(charRows&&charRows.length){
+      chars={};charMeta={};gearStats={};
+      for(const row of charRows){
+        chars[row.char_name]=row.inventory||[];
+        charMeta[row.char_name]={class:row.class||'',race:row.race||'',level:row.level||1,baseStats:row.base_stats||null,gearFetched:!!row.gear_stats};
+        if(row.gear_stats)gearStats[row.char_name]=row.gear_stats;
+      }
+      activeTab=Object.keys(chars).length>1?'__all__':Object.keys(chars)[0]||null;
+    }
+    // Load watch list
+    const{data:wlRow}=await sb.from('watch_list').select('items').eq('user_id',currentUser.id).single();
+    if(wlRow)watchList=wlRow.items||[];
+    // Load item DB
+    const{data:dbRows}=await sb.from('item_db').select('item_name,data');
+    if(dbRows&&dbRows.length&&Object.keys(BAKED_ITEM_DB).length===0){
+      for(const row of dbRows)itemDB[row.item_name]=row.data;
+      itemDBSources=['supabase'];
+    }
+  }catch(e){console.warn('Load error',e);}
+  refresh();
+}
+
+function scheduleSave(){
+  clearTimeout(syncTimeout);
+  syncTimeout=setTimeout(saveToSupabase,1200);
+}
+
+async function saveToSupabase(){
+  if(!currentUser)return;
+  try{
+    // Upsert all characters
+    const rows=charNames().map(cn=>({
+      user_id:currentUser.id,
+      char_name:cn,
+      class:charMeta[cn]?.class||null,
+      race:charMeta[cn]?.race||null,
+      level:charMeta[cn]?.level||1,
+      base_stats:charMeta[cn]?.baseStats||null,
+      gear_stats:gearStats[cn]||null,
+      inventory:chars[cn]||[],
+      updated_at:new Date().toISOString()
+    }));
+    if(rows.length)await sb.from('characters').upsert(rows,{onConflict:'user_id,char_name'});
+    // Upsert watch list
+    await sb.from('watch_list').upsert({user_id:currentUser.id,items:watchList,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+  }catch(e){console.warn('Save error',e);}
+}
+
+async function saveItemDBToSupabase(){
+  if(!currentUser)return;
+  try{
+    const rows=Object.entries(itemDB).map(([item_name,data])=>({item_name,data,updated_at:new Date().toISOString()}));
+    // Batch in chunks of 500
+    for(let i=0;i<rows.length;i+=500){
+      await sb.from('item_db').upsert(rows.slice(i,i+500),{onConflict:'item_name'});
+    }
+  }catch(e){console.warn('Item DB save error',e);}
+}
+
+// ─── Replace localStorage state functions ─────────────────────────────────────
+function saveState(){scheduleSave();}
+function loadState(){return false;} // handled by loadFromSupabase
+function saveWatchList(){scheduleSave();}
+function loadWatchList(){} // handled by loadFromSupabase
+function saveItemDB(){saveItemDBToSupabase();}
+function loadItemDB(){
+  // Still load baked DB if present
+  if(Object.keys(BAKED_ITEM_DB).length>0){
+    itemDB=Object.assign({},BAKED_ITEM_DB);
+    itemDBSources=['baked'];
+  }
+}
+
+
+// ─── Raid Consumes ────────────────────────────────────────────────────────────
+
+// Classes that can self-cast SoW (don't need JBoots)
+const SOW_CLASSES = new Set(['Druid','Ranger','Shaman']);
+// Classes that can self-cast Invisibility (don't need invis item)
+const INVIS_CLASSES = new Set(['Enchanter','Magician','Necromancer','Wizard','Shaman','Druid','Ranger','Bard']);
+
+// Consume definitions
+// required: true = red if missing | false = yellow if missing | 'yellow_only' = tracked, yellow only, never red
+// classOnly: set of classes this applies to (undefined = all)
+// anyOf: array of item name arrays — pass if ANY group has at least one present
+const RAID_CONSUMES = [
+  // ── Required for all ────────────────────────────────────────────────────────
+  {name:'Leatherfoot Raider Skullcap', required:true,  note:'Clicky — rechargeable'},
+  {name:'Reaper of the Dead',          required:true,  note:'1× Complete Heal (instant)'},
+  {name:'Shiny Brass Idol',            required:true,  note:'1× Divine Aura (instant)'},
+  {name:'10 Dose Potion of Stinging Wort', required:true, note:'10× ~300hp self-heal'},
+  {name:'Thin Boned Wand',             required:true,  note:'3× Lifespike (instant)'},
+  {name:'Worker Sledgemallet',         required:true,  note:'Gate to Overthere (lvl 50 req)'},
+  {name:'Vial of Velium Vapors',       required:true,  note:'Thurgadin gate'},
+  {name:'Cazic-Thul Gate Potion',      required:true,  note:'Cazic gate (instant)'},
+
+  // ── Class conditional required ──────────────────────────────────────────────
+  {name:'SoulFire',                    required:true,  note:'5× Complete Heal (PAL only)', classOnly:new Set(['Paladin'])},
+  // ── Yellow (soft required) ──────────────────────────────────────────────────
+  {name:'Journeyman\'s Boots',         required:'yellow', note:'SoW — required if no self-SoW', skipClasses:SOW_CLASSES},
+  {name:'Ring of Shadows',             required:'yellow', note:'Invis — required if no self-invis', skipClasses:INVIS_CLASSES},
+  {name:'Larrikan\'s Mask',            required:'yellow', note:'Invis (alt) — required if no self-invis', skipClasses:INVIS_CLASSES},
+  // ── Tracked utility (yellow check only, never red) ──────────────────────────
+  {name:'Pegasus Feather Cloak',       required:'tracked', note:'Levitate clicky — nice to have'},
+];
+
+function charHasItem(charName, itemName){
+  const all = chars[charName] || [];
+  return all.some(i => i.name === itemName);
+}
+
+function charHasAnyOf(charName, names){
+  return names.some(n => charHasItem(charName, n));
+}
+
+const INVIS_ALTS=['Ring of Shadows','Larrikan\'s Mask'];
+
+function getConsumeStatus(consume, charName){
+  const cls = (charMeta[charName]||{}).class || '';
+  if(consume.classOnly && !consume.classOnly.has(cls)) return 'na';
+  if(consume.skipClasses && consume.skipClasses.has(cls)) return 'na';
+
+  // Invis items — having either one satisfies both
+  if(consume.name && INVIS_ALTS.includes(consume.name)){
+    const has = charHasAnyOf(charName, INVIS_ALTS);
+    if(has) return 'present';
+    return 'missing_yellow';
+  }
+
+  const has = consume.anyOf
+    ? charHasAnyOf(charName, consume.anyOf)
+    : charHasItem(charName, consume.name);
+
+  if(has) return 'present';
+  return consume.required === true ? 'missing_red'
+       : consume.required === 'yellow' ? 'missing_yellow'
+       : 'missing_tracked';
+}
+
+function getOverallStatus(charName){
+  let missingRed = false, missingYellow = false;
+  for(const c of RAID_CONSUMES){
+    const s = getConsumeStatus(c, charName);
+    if(s === 'missing_red') missingRed = true;
+    if(s === 'missing_yellow') missingYellow = true;
+  }
+  if(missingRed) return 'red';
+  if(missingYellow) return 'yellow';
+  return 'green';
+}
+
+function statusBadge(status){
+  if(status==='green')  return '<span class="rc-status-badge rc-status-green">✔ Raid Ready</span>';
+  if(status==='yellow') return '<span class="rc-status-badge rc-status-yellow">◐ Mostly Ready</span>';
+  return '<span class="rc-status-badge rc-status-red">✘ Not Ready</span>';
+}
+
+function checkCell(status){
+  if(status==='na')            return '<td class="rc-check"><span class="rc-check-na">N/A</span></td>';
+  if(status==='present')       return '<td class="rc-check"><span class="rc-check-green">✔</span></td>';
+  if(status==='missing_red')   return '<td class="rc-check"><span class="rc-check-red">✘</span></td>';
+  if(status==='missing_yellow')return '<td class="rc-check"><span class="rc-check-yellow">◐</span></td>';
+  if(status==='missing_tracked')return '<td class="rc-check"><span class="rc-check-yellow">◐</span></td>';
+  return '<td></td>';
+}
+
+function renderConsumesPanel(){
+  const panel = document.getElementById('consumesPanel');
+  const names = charNames().filter(n => n !== '__all__');
+  if(!names.length){ panel.innerHTML='<div class="empty-state">No characters loaded.</div>'; return; }
+
+  // Split consumes into sections
+  const required = RAID_CONSUMES.filter(c => c.required === true);
+  const yellow   = RAID_CONSUMES.filter(c => c.required === 'yellow');
+  const tracked  = RAID_CONSUMES.filter(c => c.required === 'tracked');
+
+  function buildRows(list){
+    return list.map(c => {
+      const label = c.label || c.name;
+      const wikiName = c.anyOf ? null : c.name;
+      const nameHtml = wikiName
+        ? `<a href="${wikiUrl(wikiName)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold)">${esc(label)}</a>`
+        : esc(label);
+      const checks = names.map(n => checkCell(getConsumeStatus(c, n))).join('');
+      return `<tr>
+        <td><div class="rc-item-name">${nameHtml}</div><div class="rc-item-note">${esc(c.note||'')}</div></td>
+        ${checks}
+      </tr>`;
+    }).join('');
+  }
+
+  function sectionDivider(label, colspan){
+    return `<tr class="rc-section-divider"><td colspan="${colspan}">${label}</td></tr>`;
+  }
+
+  const colCount = names.length + 1;
+  const charHeaders = names.map(n => {
+    return `<th class="rc-th-center"><span class="rc-char-name">${esc(n)}</span></th>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="rc-header">
+      <div class="rc-title">⚔ Raid Consume Checklist</div>
+      <div class="rc-legend">
+        <span><span class="rc-check-green">✔</span> Have it</span>
+        <span><span class="rc-check-yellow">◐</span> Missing (soft)</span>
+        <span><span class="rc-check-red">✘</span> Missing (required)</span>
+        <span><span class="rc-check-na" style="font-size:.85rem">N/A</span> Not applicable</span>
+      </div>
+    </div>
+    <div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;overflow-x:auto">
+      <table class="rc-table">
+        <thead><tr>
+          <th>Item</th>
+          ${charHeaders}
+        </tr></thead>
+        <tbody>
+          ${sectionDivider('REQUIRED — CORE CONSUMES', colCount)}
+          ${buildRows(required)}
+          ${sectionDivider('SOFT REQUIRED — CLASS CONDITIONAL', colCount)}
+          ${buildRows(yellow)}
+          ${sectionDivider('TRACKED UTILITY', colCount)}
+          ${buildRows(tracked)}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ─── Watch List ───────────────────────────────────────────────────────────────
+let watchList = [];
+function renderWatchlistBar(){
+  const container=document.getElementById('watchlistRows');
+  if(!container)return;
+  const names=charNames().filter(n=>n!=='__all__');
+  const isAll=activeTab==='__all__';
+  const visibleChars=isAll?names:(activeTab?[activeTab]:[]);
+  if(!watchList.length){container.innerHTML='<div class="watchlist-empty">No items on watch list — click ⚙ Configure to add items.</div>';return;}
+  if(!visibleChars.length){container.innerHTML='<div class="watchlist-empty">Load characters to see watch list status.</div>';return;}
+  container.innerHTML=watchList.map(itemName=>{
+    const chips=visibleChars.map(n=>{
+      const has=charHasItem(n,itemName);
+      return `<span class="watchlist-chip ${has?'watchlist-chip-ok':'watchlist-chip-miss'}">${has?'✔':'✘'} ${esc(n)}</span>`;
+    }).join('');
+    const wl=`<a href="${wikiUrl(itemName)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.8rem">${esc(itemName)}</a>`;
+    return `<div class="watchlist-row"><div class="watchlist-item-name">${wl}</div>${chips}</div>`;
+  }).join('');
+}
+
+function renderWlModal(){
+  // Item list
+  document.getElementById('wlItemList').innerHTML=watchList.length
+    ?watchList.map((item,i)=>`<div class="wl-item-row"><span>${esc(item)}</span><button class="wl-item-remove" onclick="wlRemove(${i})">✕</button></div>`).join('')
+    :'<div style="color:var(--text-muted);font-size:.82rem;font-style:italic">No items yet.</div>';
+  // Shortcuts from raid consumes
+  const shortcuts=[...new Set(RAID_CONSUMES.flatMap(c=>c.anyOf||[c.name||'']).filter(Boolean))];
+  document.getElementById('wlShortcuts').innerHTML=shortcuts.map(name=>
+    `<span class="wl-shortcut-chip" onclick="wlQuickAdd('${esc(name)}')">${esc(name)}</span>`
+  ).join('');
+}
+
+window.wlRemove=function(idx){watchList.splice(idx,1);saveWatchList();renderWlModal();renderWatchlistBar();};
+window.wlQuickAdd=function(name){if(!watchList.includes(name)){watchList.push(name);saveWatchList();renderWlModal();renderWatchlistBar();}};
+
+document.getElementById('wlGearBtn').addEventListener('click',()=>{renderWlModal();document.getElementById('wlModalOverlay').classList.add('open');});
+document.getElementById('wlCloseBtn').addEventListener('click',()=>{document.getElementById('wlModalOverlay').classList.remove('open');});
+document.getElementById('wlModalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)document.getElementById('wlModalOverlay').classList.remove('open');});
+document.getElementById('wlAddBtn').addEventListener('click',()=>{
+  const inp=document.getElementById('wlInput');
+  const val=inp.value.trim();
+  if(val&&!watchList.includes(val)){watchList.push(val);saveWatchList();renderWlModal();renderWatchlistBar();}
+  inp.value='';
+});
+document.getElementById('wlInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){document.getElementById('wlAddBtn').click();}
+});
+
+loadItemDB();
+initAuth();
+</script>
+</body>
+</html>
