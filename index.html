@@ -224,7 +224,7 @@
     <div class="auth-ornament">⚔ ✦ ⚔</div>
     <div class="auth-title">MixelParse</div>
     <div class="auth-sub">Project 1999 Guild Inventory Tool</div>
-    <input type="text" class="auth-input" id="loginUsername" placeholder="Username" autocomplete="username">
+    <input type="email" class="auth-input" id="loginEmail" placeholder="Email address" autocomplete="email">
     <input type="password" class="auth-input" id="loginPassword" placeholder="Password" autocomplete="current-password">
     <button class="auth-btn" id="loginBtn">Sign In</button>
     <div id="loginMsg" class="auth-msg"></div>
@@ -236,8 +236,7 @@
     <div class="auth-title">Create Account</div>
     <div class="auth-sub">MixelParse &middot; Project 1999</div>
     <input type="email" class="auth-input" id="regEmail" placeholder="Email address" autocomplete="email">
-    <input type="text" class="auth-input" id="regUsername" placeholder="Username" autocomplete="username">
-    <input type="password" class="auth-input" id="regPassword" placeholder="Password" autocomplete="new-password">
+    <input type="password" class="auth-input" id="regPassword" placeholder="Password (min 6 chars)" autocomplete="new-password">
     <button class="auth-btn" id="registerBtn">Create Account</button>
     <div id="registerMsg" class="auth-msg"></div>
     <div style="margin-top:.75rem;font-size:.8rem;color:var(--text-muted)"><span class="auth-toggle" id="showLogin">&#8592; Back to Sign In</span></div>
@@ -775,15 +774,12 @@ let syncTimeout=null;
 
 // ─── Auth ──────────────────────────────────────────────────────────────────────
 async function initAuth(){
-  // Try auto-login from cached credentials
-  const cachedEmail=localStorage.getItem('mp_cached_email');
-  const cachedPw=localStorage.getItem('mp_cached_pw');
-  if(cachedEmail&&cachedPw){
-    const{data,error}=await sb.auth.signInWithPassword({email:cachedEmail,password:cachedPw});
+  const ce=localStorage.getItem('mp_ce'),cp=localStorage.getItem('mp_cp');
+  if(ce&&cp){
+    const{data,error}=await sb.auth.signInWithPassword({email:ce,password:cp});
     if(!error&&data.session){await onSignedIn(data.session.user);return;}
-    else{localStorage.removeItem('mp_cached_email');localStorage.removeItem('mp_cached_pw');}
+    else{localStorage.removeItem('mp_ce');localStorage.removeItem('mp_cp');}
   }
-  // Check existing session
   const{data:{session}}=await sb.auth.getSession();
   if(session)await onSignedIn(session.user);
   else showAuthScreen();
@@ -797,92 +793,59 @@ function showAuthScreen(){
   document.getElementById('authScreen').style.display='flex';
   document.getElementById('loginBox').style.display='block';
   document.getElementById('registerBox').style.display='none';
-  // Pre-fill cached username
-  const cachedUser=localStorage.getItem('mp_cached_username');
-  if(cachedUser)document.getElementById('loginUsername').value=cachedUser;
   document.getElementById('loginMsg').textContent='';
+  const ce=localStorage.getItem('mp_ce');
+  if(ce)document.getElementById('loginEmail').value=ce;
 }
 
 async function onSignedIn(user){
   currentUser=user;
   document.getElementById('authScreen').style.display='none';
   document.getElementById('userBar').style.display='flex';
-  // Show username if stored, else email
-  const uname=localStorage.getItem('mp_cached_username')||user.email;
-  document.getElementById('userEmail').textContent=uname;
+  document.getElementById('userEmail').textContent=user.email;
   await loadFromSupabase();
 }
 
 function onSignedOut(){
   currentUser=null;
   chars={};charMeta={};gearStats={};watchList=[];activeTab=null;
-  localStorage.removeItem('mp_cached_email');
-  localStorage.removeItem('mp_cached_pw');
   document.getElementById('userBar').style.display='none';
   showAuthScreen();
   refresh();
 }
 
-// Username → email lookup via profiles table
-async function getUserEmail(username){
-  console.log('Looking up username:', username);
-  const{data,error}=await sb.from('profiles').select('email').eq('username',username).single();
-  console.log('Profile lookup result:', data, error);
-  return data?.email||null;
-}
-
-// Login
+// Sign in
 document.getElementById('loginBtn').addEventListener('click',async()=>{
-  const username=document.getElementById('loginUsername').value.trim();
+  const email=document.getElementById('loginEmail').value.trim();
   const password=document.getElementById('loginPassword').value;
   const msg=document.getElementById('loginMsg');
   const btn=document.getElementById('loginBtn');
-  if(!username||!password){msg.className='auth-msg err';msg.textContent='Please enter username and password.';return;}
+  if(!email||!password){msg.className='auth-msg err';msg.textContent='Please enter email and password.';return;}
   btn.disabled=true;msg.className='auth-msg';msg.textContent='Signing in…';
-
-  // Try username lookup first, fall back to treating input as email
-  let email=await getUserEmail(username);
-  if(!email){
-    // Maybe they typed their email directly — try it as-is
-    if(username.includes('@'))email=username;
-    else{msg.className='auth-msg err';msg.textContent='Username not found.';btn.disabled=false;return;}
-  }
-
-  console.log('Attempting login with email:', email);
   const{error}=await sb.auth.signInWithPassword({email,password});
-  if(error){msg.className='auth-msg err';msg.textContent='Incorrect password.';console.log('Login error:',error);}
-  else{
-    localStorage.setItem('mp_cached_email',email);
-    localStorage.setItem('mp_cached_pw',password);
-    localStorage.setItem('mp_cached_username',username);
-  }
+  if(error){msg.className='auth-msg err';msg.textContent='Invalid email or password.';}
+  else{localStorage.setItem('mp_ce',email);localStorage.setItem('mp_cp',password);}
   btn.disabled=false;
 });
 
 // Register
 document.getElementById('registerBtn').addEventListener('click',async()=>{
   const email=document.getElementById('regEmail').value.trim();
-  const username=document.getElementById('regUsername').value.trim();
   const password=document.getElementById('regPassword').value;
   const msg=document.getElementById('registerMsg');
   const btn=document.getElementById('registerBtn');
-  if(!email||!username||!password){msg.className='auth-msg err';msg.textContent='All fields required.';return;}
+  if(!email||!password){msg.className='auth-msg err';msg.textContent='Email and password required.';return;}
   if(password.length<6){msg.className='auth-msg err';msg.textContent='Password must be at least 6 characters.';return;}
   btn.disabled=true;msg.className='auth-msg';msg.textContent='Creating account…';
-  const{data,error}=await sb.auth.signUp({email,password,options:{data:{username}}});
+  const{data,error}=await sb.auth.signUp({email,password});
   if(error){msg.className='auth-msg err';msg.textContent=error.message;btn.disabled=false;return;}
-  // Store profile
-  if(data.user){
-    await sb.from('profiles').upsert({user_id:data.user.id,username,email,updated_at:new Date().toISOString()},{onConflict:'user_id'});
-    localStorage.setItem('mp_cached_email',email);
-    localStorage.setItem('mp_cached_pw',password);
-    localStorage.setItem('mp_cached_username',username);
-    msg.className='auth-msg ok';msg.textContent='Account created! Signing in…';
-  }
+  localStorage.setItem('mp_ce',email);localStorage.setItem('mp_cp',password);
+  msg.className='auth-msg ok';msg.textContent='Account created! Signing in…';
+  await sb.auth.signInWithPassword({email,password});
   btn.disabled=false;
 });
 
-// Navigation between pages
+// Navigation
 document.getElementById('showRegister').addEventListener('click',()=>{
   document.getElementById('loginBox').style.display='none';
   document.getElementById('registerBox').style.display='block';
@@ -894,17 +857,15 @@ document.getElementById('showLogin').addEventListener('click',()=>{
   document.getElementById('loginMsg').textContent='';
 });
 
-// Keyboard nav
-document.getElementById('loginUsername').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPassword').focus();});
+document.getElementById('loginEmail').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPassword').focus();});
 document.getElementById('loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginBtn').click();});
-document.getElementById('regEmail').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('regUsername').focus();});
-document.getElementById('regUsername').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('regPassword').focus();});
+document.getElementById('regEmail').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('regPassword').focus();});
 document.getElementById('regPassword').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('registerBtn').click();});
+
 document.getElementById('signOutBtn').addEventListener('click',async()=>{
   await sb.auth.signOut();
-  localStorage.removeItem('mp_cached_email');
-  localStorage.removeItem('mp_cached_pw');
-  localStorage.removeItem('mp_cached_username');
+  localStorage.removeItem('mp_ce');
+  localStorage.removeItem('mp_cp');
   onSignedOut();
 });
 
