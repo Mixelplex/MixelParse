@@ -1678,7 +1678,7 @@ let platData=[];          // raw array from Pigparse
 let platMeta={};          // {fetchedAt, count}
 let platCachedRows=[];
 let platCacheKey='';
-let platSort={col:'ask',dir:'desc'};
+let platSort={col:'current',dir:'desc'};
 let platSearchTimer=null;
 let platPage=0;
 const PLAT_PAGE_SIZE=100;
@@ -1717,31 +1717,33 @@ async function fetchPlatData(){
   }
 }
 
+// Pigparse field map:
+// n=name, t=current ask, ay=all-time avg ask, a30/a60/a90=30/60/90d avg ask
+// ty=all-time count, t30/t60/t90=30/60/90d count, l=last seen, i=id
+
 function getPlatRows(){
   const key=platQuery+'|'+platSort.col+'|'+platSort.dir;
   if(key===platCacheKey)return platCachedRows;
   const q=platQuery.toLowerCase().trim();
   let rows=platData.slice();
-  if(q)rows=rows.filter(r=>(r.itemName||r.name||r.ItemName||'').toLowerCase().includes(q));
+  if(q)rows=rows.filter(r=>(r.n||'').toLowerCase().includes(q));
   const{col,dir}=platSort;
+  const colVal=(r,c)=>{
+    const map={name:null,current:r.t??-1,avg:r.ay??-1,a30:r.a30??-1,a60:r.a60??-1,count:r.ty??-1};
+    return map[c]??-1;
+  };
   rows.sort((a,b)=>{
-    const getName=r=>r.itemName||r.name||r.ItemName||'';
-    const getVal=(r,c)=>{
-      // Try common field name variations
-      const map={
-        ask: r.askPrice??r.ask??r.AskPrice??r.sellPrice??null,
-        bid: r.bidPrice??r.bid??r.BidPrice??r.buyPrice??null,
-        count: r.count??r.Count??r.saleCount??null,
-      };
-      return map[c]??-1;
-    };
-    if(col==='name'){const av=getName(a).toLowerCase(),bv=getName(b).toLowerCase();return dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);}
-    const av=getVal(a,col),bv=getVal(b,col);
+    if(col==='name'){const av=(a.n||'').toLowerCase(),bv=(b.n||'').toLowerCase();return dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);}
+    const av=colVal(a,col),bv=colVal(b,col);
     return dir==='asc'?av-bv:bv-av;
   });
   platCachedRows=rows;
   platCacheKey=key;
   return rows;
+}
+
+function platCell(val,cls){
+  return val!=null&&val>0?`<span class="${cls}">${Number(val).toLocaleString()}</span>`:`<span class="dkp-no-data">—</span>`;
 }
 
 function updatePlatBody(){
@@ -1750,34 +1752,39 @@ function updatePlatBody(){
   const rows=getPlatRows();
   const totalRows=rows.length;
   const visible=rows.slice(0,(platPage+1)*PLAT_PAGE_SIZE);
+  const COLS=6;
   let html='';
   for(const r of visible){
-    const name=r.itemName||r.name||r.ItemName||'?';
-    const ask=r.askPrice??r.ask??r.AskPrice??r.sellPrice??null;
-    const bid=r.bidPrice??r.bid??r.BidPrice??r.buyPrice??null;
-    const cnt=r.count??r.Count??r.saleCount??null;
-    const askCell=ask!=null?`<span class="plat-ask">${Number(ask).toLocaleString()}</span>`:`<span class="dkp-no-data">—</span>`;
-    const bidCell=bid!=null?`<span class="plat-bid">${Number(bid).toLocaleString()}</span>`:`<span class="dkp-no-data">—</span>`;
-    const cntCell=cnt!=null?`<span class="plat-count">${cnt}</span>`:`<span class="dkp-no-data">—</span>`;
+    const name=r.n||'?';
     const isExp=platExpanded===name;
     html+=`<tr class="${isExp?'dkp-expanded':''}" onclick="platToggle('${esc(name)}')">
       <td>${esc(name)}</td>
-      <td class="dkp-td-right">${askCell}</td>
-      <td class="dkp-td-right">${bidCell}</td>
-      <td class="dkp-td-right">${cntCell}</td>
+      <td class="dkp-td-right">${platCell(r.t,'plat-ask')}</td>
+      <td class="dkp-td-right">${platCell(r.ay,'dkp-avg')}</td>
+      <td class="dkp-td-right">${platCell(r.a30,'dkp-avg')}</td>
+      <td class="dkp-td-right">${platCell(r.a60,'dkp-avg')}</td>
+      <td class="dkp-td-right"><span class="plat-count">${r.ty??'—'}</span></td>
     </tr>`;
     if(isExp){
-      // Show raw record fields so we can inspect the full API shape
-      const raw=JSON.stringify(r,null,2);
-      html+=`<tr class="plat-history-row"><td colspan="4"><div class="plat-history-inner">
-        <div style="font-family:monospace;font-size:.75rem;white-space:pre-wrap;color:var(--text-dim)">${esc(raw)}</div>
+      // Expanded: show per-window breakdown table
+      const row=(label,avg,cnt)=>`<tr><td>${label}</td><td style="text-align:right;font-weight:600">${avg??'—'}</td><td style="text-align:right;color:var(--text-muted)">${cnt??'—'} sales</td></tr>`;
+      const lastSeen=r.l?new Date(r.l).toLocaleDateString():'?';
+      html+=`<tr class="plat-history-row"><td colspan="${COLS}"><div class="plat-history-inner">
+        <table class="plat-history-table"><thead><tr><th>Window</th><th style="text-align:right">Avg Ask</th><th style="text-align:right">Sales</th></tr></thead>
+        <tbody>
+          ${row('30 days',r.a30,r.t30)}
+          ${row('60 days',r.a60,r.t60)}
+          ${row('90 days',r.a90,r.t90)}
+          ${row('6 months',r.a6m,r.t6m)}
+          ${row('All time',r.ay,r.ty)}
+        </tbody></table>
+        <div style="margin-top:.4rem;font-size:.75rem;color:var(--text-muted)">Last seen in tunnel: ${lastSeen}</div>
       </div></td></tr>`;
     }
   }
   const showing=Math.min((platPage+1)*PLAT_PAGE_SIZE,totalRows);
-  const loadMore=showing<totalRows?`<tr><td colspan="4" style="text-align:center;padding:.75rem"><button class="plat-fetch-btn" onclick="platPage++;updatePlatBody()">Load more (${showing} of ${totalRows})</button></td></tr>`:'';
-  tbody.innerHTML=(html||`<tr><td colspan="4" class="dkp-empty">No items match your search.</td></tr>`)+loadMore;
-  // Update sort indicators
+  const loadMore=showing<totalRows?`<tr><td colspan="${COLS}" style="text-align:center;padding:.75rem"><button class="plat-fetch-btn" onclick="platPage++;updatePlatBody()">Load more (${showing} of ${totalRows})</button></td></tr>`:'';
+  tbody.innerHTML=(html||`<tr><td colspan="${COLS}" class="dkp-empty">No items match your search.</td></tr>`)+loadMore;
   document.querySelectorAll('#platTable th[data-col]').forEach(th=>{
     const isRight=th.dataset.col!=='name';
     th.className=(isRight?'dkp-th-right':'')+(platSort.col===th.dataset.col?' sort-'+platSort.dir:'');
@@ -1800,14 +1807,14 @@ function renderPlatPanel(){
       <input class="dkp-search" id="platSearch" placeholder="Search items…" value="${esc(platQuery)}"
         oninput="clearTimeout(platSearchTimer);platSearchTimer=setTimeout(()=>{platQuery=this.value;platPage=0;platExpanded=null;updatePlatBody();},150)">
       <button class="plat-fetch-btn" id="platFetchBtn" onclick="fetchPlatData()">⟳ Refresh Prices</button>
-      <span class="dkp-meta" id="platMeta">${metaStr}</span>
+      <span class="dkp-meta">${metaStr}</span>
       <span id="platError" style="color:#a03030;font-size:.78rem"></span>
     </div>
     ${!hasData
       ?`<div class="dkp-empty">No plat price data loaded yet.<br>Click <strong>Refresh Prices</strong> to fetch live tunnel prices from Pigparse.</div>`
       :`<div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;overflow-x:auto">
         <table class="dkp-table" id="platTable">
-          <thead><tr>${th('Item','name')}${th('Ask','ask')}${th('Bid','bid')}${th('Count','count')}</tr></thead>
+          <thead><tr>${th('Item','name')}${th('Current Ask','current')}${th('All-time Avg','avg')}${th('30d Avg','a30')}${th('60d Avg','a60')}${th('Sales','count')}</tr></thead>
           <tbody id="platTbody"></tbody>
         </table>
       </div>`}`;
