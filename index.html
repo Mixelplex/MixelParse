@@ -1458,10 +1458,11 @@ function parseDkpCsv(text){
   const lines = text.split('\n');
   const items = {};
   const hist = {};
+  const recent = {};
+  const cutoff = new Date(Date.now() - 60*24*60*60*1000);
   for(let i=1;i<lines.length;i++){
     const line=lines[i].trim();
     if(!line)continue;
-    // Handle quoted fields
     const cols=[];let cur='',inQ=false;
     for(let c=0;c<line.length;c++){
       if(line[c]==='"'){inQ=!inQ;}
@@ -1480,12 +1481,22 @@ function parseDkpCsv(text){
     items[name].push(dkp);
     if(!hist[name])hist[name]=[];
     hist[name].push([charN,dkp,date,raid]);
+    // 60-day check
+    try{
+      const dt=new Date(date);
+      if(dt>=cutoff){
+        if(!recent[name])recent[name]=[];
+        recent[name].push(dkp);
+      }
+    }catch(e){}
   }
   const lookup={};
   for(const name of Object.keys(items)){
     const vals=items[name];
     const h=hist[name].sort((a,b)=>new Date(b[2])-new Date(a[2])).slice(0,10);
-    lookup[name]=[Math.max(...vals),Math.min(...vals),Math.round(10*vals.reduce((a,b)=>a+b,0)/vals.length)/10,vals.length,h];
+    const r=recent[name]||[];
+    const r60avg=r.length?Math.round(10*r.reduce((a,b)=>a+b,0)/r.length)/10:null;
+    lookup[name]=[Math.max(...vals),Math.min(...vals),Math.round(10*vals.reduce((a,b)=>a+b,0)/vals.length)/10,vals.length,h,r60avg,r.length];
   }
   return {lookup, txCount: Object.values(items).reduce((a,b)=>a+b.length,0)};
 }
@@ -1527,7 +1538,7 @@ function renderDkpPanel(){
 
   // Sort
   const {col,dir}=dkpSort;
-  const colIdx={high:0,low:1,avg:2,count:3,name:-1};
+  const colIdx={high:0,low:1,avg:2,count:3,r60:5,name:-1};
   rows.sort((a,b)=>{
     let av,bv;
     if(col==='name'){av=a[0].toLowerCase();bv=b[0].toLowerCase();return dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);}
@@ -1544,25 +1555,27 @@ function renderDkpPanel(){
 
   let tableRows='';
   for(const [name,d] of visibleRows){
-    const [high,low,avg,count,hist]=d;
+    const [high,low,avg,count,hist,r60avg,r60count]=d;
     const isExp=dkpExpanded===name;
+    const r60cell=r60avg!=null?`<span class="dkp-avg">${r60avg}</span> <span class="dkp-count">(${r60count})</span>`:`<span class="dkp-no-data">—</span>`;
     tableRows+=`<tr class="${isExp?'dkp-expanded':''}" onclick="dkpToggle('${esc(name)}')">
       <td>${esc(name)}</td>
       <td class="dkp-td-right dkp-high">${high}</td>
       <td class="dkp-td-right dkp-avg">${avg}</td>
       <td class="dkp-td-right dkp-low">${low}</td>
       <td class="dkp-td-right dkp-count">${count}</td>
+      <td class="dkp-td-right">${r60cell}</td>
     </tr>`;
     if(isExp&&hist?.length){
       const hRows=hist.map(([c,v,dt,raid])=>`<tr><td>${esc(c)}</td><td style="text-align:right;font-weight:600">${v}</td><td style="color:var(--text-muted)">${esc(dt)}</td><td style="color:var(--text-muted);font-size:.75rem">${esc(raid||'')}</td></tr>`).join('');
-      tableRows+=`<tr class="dkp-history-row"><td colspan="5"><div class="dkp-history-inner">
+      tableRows+=`<tr class="dkp-history-row"><td colspan="6"><div class="dkp-history-inner">
         <table class="dkp-history-table"><thead><tr><th>Character</th><th style="text-align:right">DKP</th><th>Date</th><th>Raid</th></tr></thead>
         <tbody>${hRows}</tbody></table></div></td></tr>`;
     }
   }
 
   const showing=Math.min((dkpPage+1)*DKP_PAGE_SIZE,totalRows);
-  const loadMore=showing<totalRows?`<tr><td colspan="5" style="text-align:center;padding:.75rem"><button class="dkp-upload-btn" onclick="dkpPage++;renderDkpPanel()">Load more (${showing} of ${totalRows})</button></td></tr>`:'';
+  const loadMore=showing<totalRows?`<tr><td colspan="6" style="text-align:center;padding:.75rem"><button class="dkp-upload-btn" onclick="dkpPage++;renderDkpPanel()">Load more (${showing} of ${totalRows})</button></td></tr>`:'';
 
   panel.innerHTML=`
     <div class="dkp-toolbar">
@@ -1573,8 +1586,8 @@ function renderDkpPanel(){
     ${!hasData?`<div class="dkp-empty">No DKP data loaded yet.<br>Upload your ODKP items CSV to get started.</div>`:`
     <div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;overflow-x:auto">
       <table class="dkp-table">
-        <thead><tr>${th('Item','name')}${th('High','high')}${th('Avg','avg')}${th('Low','low')}${th('Sales','count')}</tr></thead>
-        <tbody>${tableRows||'<tr><td colspan="5" class="dkp-empty">No items match your search.</td></tr>'}${loadMore}</tbody>
+        <thead><tr>${th('Item','name')}${th('High','high')}${th('Avg','avg')}${th('Low','low')}${th('Sales','count')}${th('60d Avg','r60')}</tr></thead>
+        <tbody>${tableRows||'<tr><td colspan="6" class="dkp-empty">No items match your search.</td></tr>'}${loadMore}</tbody>
       </table>
     </div>`}`;
 
