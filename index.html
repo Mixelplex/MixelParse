@@ -1573,21 +1573,12 @@ function dkpChip(itemName){
   return `<span class="dkp-chip dkp-chip-avg" title="High:${d[0]} Avg:${d[2]} Low:${d[1]} (${d[3]} sales)">⚔ ${d[2]}</span>`;
 }
 
-function renderDkpPanel(){
-  const panel=document.getElementById('dkpPanel');
-  if(!panel)return;
-
-  const hasData=Object.keys(dkpLookup).length>0;
+function updateDkpBody(){
+  const tbody=document.getElementById('dkpTbody');
+  if(!tbody)return;
   const rows=getDkpRows();
   const totalRows=rows.length;
-
-  const metaStr=dkpMeta.updatedAt?`${Object.keys(dkpLookup).length.toLocaleString()} items · ${(dkpMeta.txCount||0).toLocaleString()} transactions · Updated ${new Date(dkpMeta.updatedAt).toLocaleDateString()}`:'No data loaded';
-
-  const colIdx={high:0,low:1,avg:2,count:3,r60:5,name:-1};
-  const th=(label,c)=>`<th class="${colIdx[c]===-1?'':'dkp-th-right'}${dkpSort.col===c?' sort-'+dkpSort.dir:''}" onclick="dkpSortBy('${c}')">${label}</th>`;
-
   const visibleRows=rows.slice(0,(dkpPage+1)*DKP_PAGE_SIZE);
-
   let tableRows='';
   for(const [name,d] of visibleRows){
     const [high,low,avg,count,hist,r60avg,r60count]=d;
@@ -1608,42 +1599,53 @@ function renderDkpPanel(){
         <tbody>${hRows}</tbody></table></div></td></tr>`;
     }
   }
-
   const showing=Math.min((dkpPage+1)*DKP_PAGE_SIZE,totalRows);
-  const loadMore=showing<totalRows?`<tr><td colspan="6" style="text-align:center;padding:.75rem"><button class="dkp-upload-btn" onclick="dkpPage++;renderDkpPanel()">Load more (${showing} of ${totalRows})</button></td></tr>`:'';
+  const loadMore=showing<totalRows?`<tr><td colspan="6" style="text-align:center;padding:.75rem"><button class="dkp-upload-btn" onclick="dkpPage++;updateDkpBody()">Load more (${showing} of ${totalRows})</button></td></tr>`:'';
+  tbody.innerHTML=(tableRows||'<tr><td colspan="6" class="dkp-empty">No items match your search.</td></tr>')+loadMore;
+  // Update sort indicators
+  const colIdx={high:0,low:1,avg:2,count:3,r60:5,name:-1};
+  document.querySelectorAll('#dkpTable th[data-col]').forEach(th=>{
+    th.className=(colIdx[th.dataset.col]===-1?'':'dkp-th-right')+(dkpSort.col===th.dataset.col?' sort-'+dkpSort.dir:'');
+  });
+}
+
+function renderDkpPanel(){
+  const panel=document.getElementById('dkpPanel');
+  if(!panel)return;
+  const hasData=Object.keys(dkpLookup).length>0;
+  const metaStr=dkpMeta.updatedAt?`${Object.keys(dkpLookup).length.toLocaleString()} items · ${(dkpMeta.txCount||0).toLocaleString()} transactions · Updated ${new Date(dkpMeta.updatedAt).toLocaleDateString()}`:'No data loaded';
+  const colIdx={high:0,low:1,avg:2,count:3,r60:5,name:-1};
+  const th=(label,c)=>`<th data-col="${c}" class="${colIdx[c]===-1?'':'dkp-th-right'}${dkpSort.col===c?' sort-'+dkpSort.dir:''}" onclick="dkpSortBy('${c}')">${label}</th>`;
 
   panel.innerHTML=`
     <div class="dkp-toolbar">
-    <input class="dkp-search" id="dkpSearch" placeholder="Search items…" value="${esc(dkpQuery)}" oninput="clearTimeout(dkpSearchTimer);dkpSearchTimer=setTimeout(()=>{dkpQuery=this.value;dkpPage=0;dkpExpanded=null;renderDkpPanel();},250)">
+      <input class="dkp-search" id="dkpSearch" placeholder="Search items…" value="${esc(dkpQuery)}"
+        oninput="clearTimeout(dkpSearchTimer);dkpSearchTimer=setTimeout(()=>{dkpQuery=this.value;dkpPage=0;dkpExpanded=null;updateDkpBody();},150)">
       <button class="dkp-upload-btn" onclick="document.getElementById('dkpCsvInput').click()">⚔ Update DKP Data</button>
-      <span class="dkp-meta">${metaStr}</span>
+      <span class="dkp-meta" id="dkpMeta">${metaStr}</span>
     </div>
     ${!hasData?`<div class="dkp-empty">No DKP data loaded yet.<br>Upload your ODKP items CSV to get started.</div>`:`
     <div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;overflow-x:auto">
-      <table class="dkp-table">
+      <table class="dkp-table" id="dkpTable">
         <thead><tr>${th('Item','name')}${th('60d Avg','r60')}${th('High','high')}${th('Avg','avg')}${th('Low','low')}${th('Sales','count')}</tr></thead>
-        <tbody>${tableRows||'<tr><td colspan="6" class="dkp-empty">No items match your search.</td></tr>'}${loadMore}</tbody>
+        <tbody id="dkpTbody"></tbody>
       </table>
     </div>`}`;
 
-  // Re-attach search focus
-  const s=document.getElementById('dkpSearch');
-  if(s&&document.activeElement!==s){}
+  updateDkpBody();
+  document.getElementById('dkpSearch')?.focus();
 }
 
 window.dkpSortBy=function(col){
   if(dkpSort.col===col)dkpSort.dir=dkpSort.dir==='asc'?'desc':'asc';
   else{dkpSort.col=col;dkpSort.dir=col==='name'?'asc':'desc';}
   dkpPage=0;dkpCacheKey='';
-  renderDkpPanel();
+  updateDkpBody();
 };
 
 window.dkpToggle=function(name){
   dkpExpanded=dkpExpanded===name?null:name;
-  renderDkpPanel();
-  // Restore search input value after re-render
-  const s=document.getElementById('dkpSearch');
-  if(s)s.value=dkpQuery;
+  updateDkpBody();
 };
 
 // ─── Raid Consumes ────────────────────────────────────────────────────────────
