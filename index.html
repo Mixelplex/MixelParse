@@ -1162,7 +1162,7 @@ function renderTovBar(){
     const color=factionColor(lvl);
     const cls=color==='green'?'tov-chip-ally':color==='red'?'tov-chip-warn':color==='yellow'?'tov-chip-yellow':'tov-chip-none';
     const icon=color==='green'?'✔':color==='red'?'✘':'◐';
-    return `<div class="watchlist-row"><div class="watchlist-item-name" style="min-width:120px">${esc(n)}</div><span class="tov-chip ${cls}">${icon} ${esc(lvl||'Not Set')}</span></div>`;
+    return `<div class="watchlist-row"><div class="watchlist-item-name" style="min-width:120px">${esc(n)}</div><span class="tov-chip ${cls}">${icon} ${esc(lvl==='Ready to Attack'?'KOS':lvl||'Not Set')}</span></div>`;
   }).join('');
 }
 
