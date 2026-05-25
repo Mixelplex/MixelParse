@@ -285,6 +285,18 @@
   .dkp-chip-avg{background:rgba(120,80,16,.12);border:1px solid var(--border);color:var(--gold-light)}
   .dkp-empty{text-align:center;padding:2rem;color:var(--text-muted);font-style:italic}
   .dkp-no-data{color:var(--text-muted);font-style:italic;font-size:.8rem}
+  /* ── Plat Prices ── */
+  .plat-ask{color:#1a5a1a;font-weight:600}
+  .plat-bid{color:#a03030;font-weight:600}
+  .plat-count{color:var(--text-muted);font-size:.8rem}
+  .plat-fetch-btn{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.06em;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.4rem .8rem;color:var(--gold);cursor:pointer;white-space:nowrap;transition:border-color .15s}
+  .plat-fetch-btn:hover{border-color:var(--gold-light)}
+  .plat-fetch-btn:disabled{opacity:.5;cursor:not-allowed}
+  .plat-history-row td{background:var(--surface2)!important;padding:0}
+  .plat-history-inner{padding:.5rem 1rem .75rem 1.5rem}
+  .plat-history-table{width:100%;border-collapse:collapse;font-size:.8rem}
+  .plat-history-table th{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.06em;color:var(--text-muted);padding:.25rem .5rem;text-align:left;border-bottom:1px solid var(--border)}
+  .plat-history-table td{padding:.25rem .5rem;border-bottom:1px solid rgba(74,58,26,.1)}
 </style>
 </head>
 <body>
@@ -347,10 +359,15 @@
 <div class="top-nav" id="topNav" style="display:none">
   <div class="top-nav-item active" data-view="characters">Characters</div>
   <div class="top-nav-item" data-view="dkp">DKP History</div>
+  <div class="top-nav-item" data-view="plat">Plat Prices</div>
 </div>
 
 <div id="dkpView" style="display:none">
   <div class="rc-panel" id="dkpPanel"></div>
+</div>
+
+<div id="platView" style="display:none">
+  <div class="rc-panel" id="platPanel"></div>
 </div>
 
 <div class="tab-bar" id="tabBar">
@@ -532,11 +549,15 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     activeTopView=item.dataset.view;
     document.querySelectorAll('.top-nav-item').forEach(i=>i.classList.toggle('active',i.dataset.view===activeTopView));
     const isChars=activeTopView==='characters';
+    const isDkp=activeTopView==='dkp';
+    const isPlat=activeTopView==='plat';
     document.getElementById('tabBar').style.display=isChars?'flex':'none';
     document.getElementById('dropzone').style.display='none';
     document.getElementById('mainView').style.display='none';
-    document.getElementById('dkpView').style.display=isChars?'none':'block';
-    if(!isChars){renderDkpPanel();}
+    document.getElementById('dkpView').style.display=isDkp?'block':'none';
+    document.getElementById('platView').style.display=isPlat?'block':'none';
+    if(isDkp){renderDkpPanel();}
+    else if(isPlat){renderPlatPanel();}
     else{renderView();}
   });
 });
@@ -1026,10 +1047,11 @@ async function onSignedIn(user){
 
 function onSignedOut(){
   currentUser=null;
-  chars={};charMeta={};gearStats={};watchList=[];factionData={};skyshrineData={};dkpLookup={};dkpMeta={};activeTab=null;
+  chars={};charMeta={};gearStats={};watchList=[];factionData={};skyshrineData={};dkpLookup={};dkpMeta={};platData=[];platMeta={};platCachedRows=[];platCacheKey='';activeTab=null;
   document.getElementById('userBar').style.display='none';
   document.getElementById('topNav').style.display='none';
   document.getElementById('dkpView').style.display='none';
+  document.getElementById('platView').style.display='none';
   showAuthScreen();
   refresh();
 }
@@ -1646,6 +1668,163 @@ window.dkpSortBy=function(col){
 window.dkpToggle=function(name){
   dkpExpanded=dkpExpanded===name?null:name;
   updateDkpBody();
+};
+
+// ─── Plat Prices (Pigparse) ───────────────────────────────────────────────────
+
+const PIGPARSE_URL='https://pigparse.azurewebsites.net/api/item/getall/Green';
+
+let platData=[];          // raw array from Pigparse
+let platMeta={};          // {fetchedAt, count}
+let platCachedRows=[];
+let platCacheKey='';
+let platSort={col:'ask',dir:'desc'};
+let platSearchTimer=null;
+let platPage=0;
+const PLAT_PAGE_SIZE=100;
+let platQuery='';
+let platExpanded=null;
+let platLoading=false;
+
+async function fetchPlatData(){
+  if(platLoading)return;
+  platLoading=true;
+  const btn=document.getElementById('platFetchBtn');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Fetching…';}
+  try{
+    const resp=await fetch(PIGPARSE_URL);
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const json=await resp.json();
+    // Normalize: handle array or object response
+    platData=Array.isArray(json)?json:Object.values(json);
+    platMeta={fetchedAt:new Date().toISOString(),count:platData.length};
+    platCacheKey='';
+    platPage=0;
+    platExpanded=null;
+    console.log('[Plat] Sample record:',platData[0]); // so we can see the shape
+    renderPlatPanel();
+  }catch(e){
+    console.error('[Plat] Fetch error',e);
+    const panel=document.getElementById('platPanel');
+    if(panel){
+      const errDiv=panel.querySelector('#platError');
+      if(errDiv)errDiv.textContent='Error fetching data: '+e.message;
+    }
+  }finally{
+    platLoading=false;
+    const btn2=document.getElementById('platFetchBtn');
+    if(btn2){btn2.disabled=false;btn2.textContent='⟳ Refresh Prices';}
+  }
+}
+
+function getPlatRows(){
+  const key=platQuery+'|'+platSort.col+'|'+platSort.dir;
+  if(key===platCacheKey)return platCachedRows;
+  const q=platQuery.toLowerCase().trim();
+  let rows=platData.slice();
+  if(q)rows=rows.filter(r=>(r.itemName||r.name||r.ItemName||'').toLowerCase().includes(q));
+  const{col,dir}=platSort;
+  rows.sort((a,b)=>{
+    const getName=r=>r.itemName||r.name||r.ItemName||'';
+    const getVal=(r,c)=>{
+      // Try common field name variations
+      const map={
+        ask: r.askPrice??r.ask??r.AskPrice??r.sellPrice??null,
+        bid: r.bidPrice??r.bid??r.BidPrice??r.buyPrice??null,
+        count: r.count??r.Count??r.saleCount??null,
+      };
+      return map[c]??-1;
+    };
+    if(col==='name'){const av=getName(a).toLowerCase(),bv=getName(b).toLowerCase();return dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);}
+    const av=getVal(a,col),bv=getVal(b,col);
+    return dir==='asc'?av-bv:bv-av;
+  });
+  platCachedRows=rows;
+  platCacheKey=key;
+  return rows;
+}
+
+function updatePlatBody(){
+  const tbody=document.getElementById('platTbody');
+  if(!tbody)return;
+  const rows=getPlatRows();
+  const totalRows=rows.length;
+  const visible=rows.slice(0,(platPage+1)*PLAT_PAGE_SIZE);
+  let html='';
+  for(const r of visible){
+    const name=r.itemName||r.name||r.ItemName||'?';
+    const ask=r.askPrice??r.ask??r.AskPrice??r.sellPrice??null;
+    const bid=r.bidPrice??r.bid??r.BidPrice??r.buyPrice??null;
+    const cnt=r.count??r.Count??r.saleCount??null;
+    const askCell=ask!=null?`<span class="plat-ask">${Number(ask).toLocaleString()}</span>`:`<span class="dkp-no-data">—</span>`;
+    const bidCell=bid!=null?`<span class="plat-bid">${Number(bid).toLocaleString()}</span>`:`<span class="dkp-no-data">—</span>`;
+    const cntCell=cnt!=null?`<span class="plat-count">${cnt}</span>`:`<span class="dkp-no-data">—</span>`;
+    const isExp=platExpanded===name;
+    html+=`<tr class="${isExp?'dkp-expanded':''}" onclick="platToggle('${esc(name)}')">
+      <td>${esc(name)}</td>
+      <td class="dkp-td-right">${askCell}</td>
+      <td class="dkp-td-right">${bidCell}</td>
+      <td class="dkp-td-right">${cntCell}</td>
+    </tr>`;
+    if(isExp){
+      // Show raw record fields so we can inspect the full API shape
+      const raw=JSON.stringify(r,null,2);
+      html+=`<tr class="plat-history-row"><td colspan="4"><div class="plat-history-inner">
+        <div style="font-family:monospace;font-size:.75rem;white-space:pre-wrap;color:var(--text-dim)">${esc(raw)}</div>
+      </div></td></tr>`;
+    }
+  }
+  const showing=Math.min((platPage+1)*PLAT_PAGE_SIZE,totalRows);
+  const loadMore=showing<totalRows?`<tr><td colspan="4" style="text-align:center;padding:.75rem"><button class="plat-fetch-btn" onclick="platPage++;updatePlatBody()">Load more (${showing} of ${totalRows})</button></td></tr>`:'';
+  tbody.innerHTML=(html||`<tr><td colspan="4" class="dkp-empty">No items match your search.</td></tr>`)+loadMore;
+  // Update sort indicators
+  document.querySelectorAll('#platTable th[data-col]').forEach(th=>{
+    const isRight=th.dataset.col!=='name';
+    th.className=(isRight?'dkp-th-right':'')+(platSort.col===th.dataset.col?' sort-'+platSort.dir:'');
+  });
+}
+
+function renderPlatPanel(){
+  const panel=document.getElementById('platPanel');
+  if(!panel)return;
+  const hasData=platData.length>0;
+  const metaStr=platMeta.fetchedAt
+    ?`${platData.length.toLocaleString()} items · Fetched ${new Date(platMeta.fetchedAt).toLocaleTimeString()}`
+    :'No data loaded';
+  const th=(label,c)=>{
+    const isRight=c!=='name';
+    return `<th data-col="${c}" class="${isRight?'dkp-th-right':''}${platSort.col===c?' sort-'+platSort.dir:''}" onclick="platSortBy('${c}')">${label}</th>`;
+  };
+  panel.innerHTML=`
+    <div class="dkp-toolbar">
+      <input class="dkp-search" id="platSearch" placeholder="Search items…" value="${esc(platQuery)}"
+        oninput="clearTimeout(platSearchTimer);platSearchTimer=setTimeout(()=>{platQuery=this.value;platPage=0;platExpanded=null;updatePlatBody();},150)">
+      <button class="plat-fetch-btn" id="platFetchBtn" onclick="fetchPlatData()">⟳ Refresh Prices</button>
+      <span class="dkp-meta" id="platMeta">${metaStr}</span>
+      <span id="platError" style="color:#a03030;font-size:.78rem"></span>
+    </div>
+    ${!hasData
+      ?`<div class="dkp-empty">No plat price data loaded yet.<br>Click <strong>Refresh Prices</strong> to fetch live tunnel prices from Pigparse.</div>`
+      :`<div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;overflow-x:auto">
+        <table class="dkp-table" id="platTable">
+          <thead><tr>${th('Item','name')}${th('Ask','ask')}${th('Bid','bid')}${th('Count','count')}</tr></thead>
+          <tbody id="platTbody"></tbody>
+        </table>
+      </div>`}`;
+  if(hasData)updatePlatBody();
+  document.getElementById('platSearch')?.focus();
+}
+
+window.platSortBy=function(col){
+  if(platSort.col===col)platSort.dir=platSort.dir==='asc'?'desc':'asc';
+  else{platSort.col=col;platSort.dir=col==='name'?'asc':'desc';}
+  platPage=0;platCacheKey='';
+  updatePlatBody();
+};
+
+window.platToggle=function(name){
+  platExpanded=platExpanded===name?null:name;
+  updatePlatBody();
 };
 
 // ─── Raid Consumes ────────────────────────────────────────────────────────────
