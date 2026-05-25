@@ -212,6 +212,10 @@
   .rc-status-yellow{background:rgba(176,120,0,.12);border:1px solid #b07800;color:#7a5000}
   .rc-status-red{background:rgba(160,48,48,.12);border:1px solid #a03030;color:#7a1010}
   .rc-section-divider td{background:var(--surface);padding:.3rem .75rem;font-family:'Cinzel',serif;font-size:.63rem;letter-spacing:.1em;color:var(--text-muted);border-bottom:1px solid var(--border);border-top:2px solid var(--border)}
+  .top-nav{display:flex;border-bottom:2px solid var(--border-glow);background:var(--surface);padding:0 1rem;gap:0}
+  .top-nav-item{font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.07em;color:var(--text-muted);padding:.55rem .9rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .15s,border-color .15s}
+  .top-nav-item:hover{color:var(--gold)}
+  .top-nav-item.active{color:var(--gold-light);border-bottom-color:var(--gold-light)}
   /* ── Factions ── */
   .faction-panel{margin:0 1rem 2rem}
   .faction-table{width:100%;border-collapse:collapse;font-size:.88rem}
@@ -340,6 +344,15 @@
   </div>
 </div>
 
+<div class="top-nav" id="topNav" style="display:none">
+  <div class="top-nav-item active" data-view="characters">Characters</div>
+  <div class="top-nav-item" data-view="dkp">DKP History</div>
+</div>
+
+<div id="dkpView" style="display:none">
+  <div class="rc-panel" id="dkpPanel"></div>
+</div>
+
 <div class="tab-bar" id="tabBar">
   <div class="tab-add" id="tabAdd" title="Add character files">&#65291;</div>
 </div>
@@ -393,7 +406,6 @@
     <div class="subtab" data-sub="consumes">Raid Consumes</div>
     <div class="subtab" data-sub="factions">Factions</div>
     <div class="subtab" data-sub="skyshrine">Skyshrine</div>
-    <div class="subtab" data-sub="dkp">DKP History</div>
   </div>
 
   <div id="subInventory">
@@ -455,10 +467,6 @@
   <div id="subSkyshrine" style="display:none">
     <div class="rc-panel" id="skyshrinePanel"></div>
   </div>
-
-  <div id="subDkp" style="display:none">
-    <div class="rc-panel" id="dkpPanel"></div>
-  </div>
 </div>
 
 <div class="modal-overlay" id="modalOverlay">
@@ -517,9 +525,24 @@ function getEquippedItems(cn){return(chars[cn]||[]).filter(i=>locationType(i.loc
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 function buildTabs(){const bar=document.getElementById('tabBar');bar.querySelectorAll('.tab').forEach(t=>t.remove());const names=charNames();if(names.length>1)bar.insertBefore(makeTab('__all__','&#9876; All Characters'),document.getElementById('tabAdd'));names.forEach(n=>bar.insertBefore(makeTab(n,n),document.getElementById('tabAdd')));if(activeTab==='__all__'&&names.length<2)activeTab=names[0]||null;if(activeTab&&activeTab!=='__all__'&&!chars[activeTab])activeTab=names[0]||null;if(!activeTab&&names.length===1)activeTab=names[0];if(!activeTab&&names.length>1)activeTab='__all__';bar.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.char===activeTab));document.getElementById('subtabBar').style.display=(activeTab&&activeTab!=='__all__')?'flex':'none';}
 function makeTab(charKey,label){const t=document.createElement('div');t.className='tab';t.dataset.char=charKey;const span=document.createElement('span');span.innerHTML=label;t.appendChild(span);if(charKey!=='__all__'){const status=getOverallStatus(charKey);const dot=document.createElement('span');dot.className='tab-rc-dot';dot.title='Raid Consumes: '+(status==='green'?'Ready':status==='yellow'?'Mostly Ready':'Not Ready');dot.style.cssText='font-size:.7rem;line-height:1;margin-left:.1rem;';dot.textContent=status==='green'?'✔':status==='yellow'?'◐':'✘';dot.style.color=status==='green'?'#3a7a3a':status==='yellow'?'#b07800':'#a03030';t.appendChild(dot);const reload=document.createElement('span');reload.className='remove-char';reload.textContent='↻';reload.title='Refresh inventory';reload.style.cssText='font-size:.9rem;';reload.addEventListener('click',e=>{e.stopPropagation();const inp=document.getElementById('charRefreshInput');inp.dataset.charkey=charKey;inp.click();});t.appendChild(reload);const x=document.createElement('span');x.className='remove-char';x.textContent='✕';x.addEventListener('click',e=>{e.stopPropagation();confirmAction('Remove '+charKey+'?',()=>{delete chars[charKey];delete charMeta[charKey];delete gearStats[charKey];if(activeTab===charKey)activeTab=charNames()[0]||null;refresh();});});t.appendChild(x);}t.addEventListener('click',()=>{activeTab=charKey;if(charKey==='__all__')activeSub='inventory';buildTabs();renderView();});return t;}
-document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subDkp').style.display=activeSub==='dkp'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='dkp')renderDkpPanel();});});
+// ── Top Nav ──
+let activeTopView='characters';
+document.querySelectorAll('.top-nav-item').forEach(item=>{
+  item.addEventListener('click',()=>{
+    activeTopView=item.dataset.view;
+    document.querySelectorAll('.top-nav-item').forEach(i=>i.classList.toggle('active',i.dataset.view===activeTopView));
+    const isChars=activeTopView==='characters';
+    document.getElementById('tabBar').style.display=isChars?'flex':'none';
+    document.getElementById('dropzone').style.display='none';
+    document.getElementById('mainView').style.display='none';
+    document.getElementById('dkpView').style.display=isChars?'none':'block';
+    if(!isChars){renderDkpPanel();}
+    else{renderView();}
+  });
+});
+document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();});});
 function refresh(){buildTabs();renderView();saveState();}
-function renderView(){const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subDkp').style.display=activeSub==='dkp'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderTovBar();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='dkp')renderDkpPanel();}
+function renderView(){const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderTovBar();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();}
 
 // ─── Inventory Table ──────────────────────────────────────────────────────────
 function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.values(chars).flat():(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;return ms&&ml;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=source.reduce((s,i)=>s+i.count,0);const unique=new Set(source.map(i=>i.id)).size;const stacks=source.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span>':'');}
@@ -996,6 +1019,7 @@ async function onSignedIn(user){
   document.getElementById('authScreen').style.display='none';
   document.getElementById('userBar').style.display='flex';
   document.getElementById('userEmail').textContent=user.email;
+  document.getElementById('topNav').style.display='flex';
   await loadFromSupabase();
   await loadDkpFromSupabase();
 }
@@ -1004,6 +1028,8 @@ function onSignedOut(){
   currentUser=null;
   chars={};charMeta={};gearStats={};watchList=[];factionData={};skyshrineData={};dkpLookup={};dkpMeta={};activeTab=null;
   document.getElementById('userBar').style.display='none';
+  document.getElementById('topNav').style.display='none';
+  document.getElementById('dkpView').style.display='none';
   showAuthScreen();
   refresh();
 }
