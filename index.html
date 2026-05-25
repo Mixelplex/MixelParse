@@ -1447,7 +1447,9 @@ function renderSkyshrinePanel(){
 // dkpLookup[itemName] = [high, low, avg, count, [[char,dkp,date],...]]
 let dkpLookup = {};
 let dkpMeta = {updatedAt: null, txCount: 0};
-let dkpSort = {col:'avg', dir:'desc'};
+let dkpSearchTimer=null;
+let dkpPage=0;
+const DKP_PAGE_SIZE=100;
 let dkpQuery = '';
 let dkpExpanded = null;
 
@@ -1536,8 +1538,11 @@ function renderDkpPanel(){
 
   const th=(label,c)=>`<th class="${colIdx[c]===-1?'':'dkp-th-right'}${dkpSort.col===c?' sort-'+dkpSort.dir:''}" onclick="dkpSortBy('${c}')">${label}</th>`;
 
+  const totalRows=rows.length;
+  const visibleRows=rows.slice(0,(dkpPage+1)*DKP_PAGE_SIZE);
+
   let tableRows='';
-  for(const [name,d] of rows){
+  for(const [name,d] of visibleRows){
     const [high,low,avg,count,hist]=d;
     const isExp=dkpExpanded===name;
     tableRows+=`<tr class="${isExp?'dkp-expanded':''}" onclick="dkpToggle('${esc(name)}')">
@@ -1555,9 +1560,12 @@ function renderDkpPanel(){
     }
   }
 
+  const showing=Math.min((dkpPage+1)*DKP_PAGE_SIZE,totalRows);
+  const loadMore=showing<totalRows?`<tr><td colspan="5" style="text-align:center;padding:.75rem"><button class="dkp-upload-btn" onclick="dkpPage++;renderDkpPanel()">Load more (${showing} of ${totalRows})</button></td></tr>`:'';
+
   panel.innerHTML=`
     <div class="dkp-toolbar">
-      <input class="dkp-search" id="dkpSearch" placeholder="Search items…" value="${esc(dkpQuery)}" oninput="dkpQuery=this.value;renderDkpPanel()">
+    <input class="dkp-search" id="dkpSearch" placeholder="Search items…" value="${esc(dkpQuery)}" oninput="clearTimeout(dkpSearchTimer);dkpSearchTimer=setTimeout(()=>{dkpQuery=this.value;dkpPage=0;dkpExpanded=null;renderDkpPanel();},250)">
       <button class="dkp-upload-btn" onclick="document.getElementById('dkpCsvInput').click()">⚔ Update DKP Data</button>
       <span class="dkp-meta">${metaStr}</span>
     </div>
@@ -1565,7 +1573,7 @@ function renderDkpPanel(){
     <div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;overflow-x:auto">
       <table class="dkp-table">
         <thead><tr>${th('Item','name')}${th('High','high')}${th('Avg','avg')}${th('Low','low')}${th('Sales','count')}</tr></thead>
-        <tbody>${tableRows||'<tr><td colspan="5" class="dkp-empty">No items match your search.</td></tr>'}</tbody>
+        <tbody>${tableRows||'<tr><td colspan="5" class="dkp-empty">No items match your search.</td></tr>'}${loadMore}</tbody>
       </table>
     </div>`}`;
 
@@ -1577,6 +1585,7 @@ function renderDkpPanel(){
 window.dkpSortBy=function(col){
   if(dkpSort.col===col)dkpSort.dir=dkpSort.dir==='asc'?'desc':'asc';
   else{dkpSort.col=col;dkpSort.dir=col==='name'?'asc':'desc';}
+  dkpPage=0;
   renderDkpPanel();
 };
 
