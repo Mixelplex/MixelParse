@@ -297,6 +297,40 @@
   .plat-history-table{width:100%;border-collapse:collapse;font-size:.8rem}
   .plat-history-table th{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.06em;color:var(--text-muted);padding:.25rem .5rem;text-align:left;border-bottom:1px solid var(--border)}
   .plat-history-table td{padding:.25rem .5rem;border-bottom:1px solid rgba(74,58,26,.1)}
+  /* ── Kill / Session Tracker ── */
+  .kt-tier-header{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);padding:.5rem 1rem .3rem;border-bottom:1px solid var(--border)}
+  .kt-check-row{display:flex;align-items:center;gap:.6rem;padding:.35rem 1rem;border-bottom:1px solid rgba(200,184,144,.2);cursor:pointer;transition:background .1s}
+  .kt-check-row:hover{background:rgba(200,184,144,.1)}
+  .kt-check-row.kt-checked{background:rgba(26,90,26,.06)}
+  .kt-check-row input[type=checkbox]{accent-color:var(--gold-light);width:14px;height:14px;flex-shrink:0;cursor:pointer}
+  .kt-check-name{font-family:'Cinzel',serif;font-size:.78rem;font-weight:600;color:var(--text);flex:1}
+  .kt-check-full{font-size:.7rem;color:var(--text-muted);font-style:italic}
+  .kt-check-dkp{font-size:.72rem;color:var(--gold-dim);font-family:'Cinzel',serif;margin-left:auto;white-space:nowrap}
+  .kt-role-row{display:flex;align-items:center;gap:.5rem;padding:.4rem .75rem;border-bottom:1px solid rgba(200,184,144,.2);cursor:pointer}
+  .kt-role-row:hover{background:rgba(200,184,144,.08)}
+  .kt-role-row.kt-role-active{background:rgba(26,90,26,.07)}
+  .kt-role-row input[type=checkbox]{accent-color:var(--gold-light);width:14px;height:14px;flex-shrink:0;cursor:pointer}
+  .kt-role-desc{font-size:.78rem;color:var(--text-dim);flex:1;line-height:1.2}
+  .kt-role-val{font-size:.7rem;color:var(--gold-dim);white-space:nowrap;font-family:'Cinzel',serif}
+  .kt-role-qty{display:flex;align-items:center;gap:.3rem;margin-left:.3rem}
+  .kt-qty-btn{width:20px;height:20px;border:1px solid var(--border);border-radius:3px;background:var(--surface2);color:var(--gold);font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;transition:border-color .1s}
+  .kt-qty-btn:hover{border-color:var(--gold-light)}
+  .kt-qty-num{font-family:'Cinzel',serif;font-size:.8rem;min-width:16px;text-align:center;color:${0>0?'var(--gold-light)':'var(--text-muted)' }}
+  .kt-dkp-badge{font-family:'Cinzel',serif;font-size:.82rem;font-weight:700;color:var(--gold-light);background:rgba(122,80,16,.1);border:1px solid var(--border-glow);border-radius:4px;padding:.3rem .7rem;white-space:nowrap}
+  .kt-date-input{font-family:'Crimson Pro',serif;font-size:.85rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.25rem .5rem;color:var(--text)}
+  .kt-date-input:focus{outline:none;border-color:var(--gold-dim)}
+  .kt-save-btn{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.06em;background:rgba(26,90,26,.1);border:1px solid #3a7a3a;border-radius:4px;padding:.4rem .8rem;color:#1a5a1a;cursor:pointer;white-space:nowrap;transition:all .15s}
+  .kt-save-btn:hover{background:rgba(26,90,26,.2)}
+  .kt-undo-btn{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.05em;background:none;border:1px solid var(--border);border-radius:4px;padding:.3rem .6rem;color:var(--text-muted);cursor:pointer;transition:all .15s;white-space:nowrap}
+  .kt-undo-btn:hover{border-color:#a03030;color:#a03030}
+  .kt-view-tab{font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.07em;padding:.55rem 1.2rem;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;transition:all .15s}
+  .kt-view-tab:hover{color:var(--gold-dim)}
+  .kt-view-tab.active{color:var(--gold-light);border-bottom-color:var(--gold-light)}
+  .kt-hist-row{display:flex;align-items:center;gap:.75rem;padding:.6rem 1rem;border-bottom:1px solid rgba(200,184,144,.25);cursor:pointer;transition:background .1s}
+  .kt-hist-row:hover{background:rgba(200,184,144,.1)}
+  .kt-hist-date{font-family:'Cinzel',serif;font-size:.78rem;color:var(--text);font-weight:600}
+  .kt-hist-kills{font-size:.73rem;color:var(--text-muted);margin-top:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kt-hist-dkp{font-family:'Cinzel',serif;font-size:.85rem;font-weight:700;color:var(--gold-light);white-space:nowrap;margin-left:auto}
 </style>
 </head>
 <body>
@@ -360,6 +394,7 @@
   <div class="top-nav-item active" data-view="characters">Characters</div>
   <div class="top-nav-item" data-view="dkp">DKP History</div>
   <div class="top-nav-item" data-view="plat">Plat Prices</div>
+  <div class="top-nav-item" data-view="kills">Kill Tracker</div>
 </div>
 
 <div id="dkpView" style="display:none">
@@ -368,6 +403,10 @@
 
 <div id="platView" style="display:none">
   <div class="rc-panel" id="platPanel"></div>
+</div>
+
+<div id="killsView" style="display:none">
+  <div class="rc-panel" id="killsPanel"></div>
 </div>
 
 <div class="tab-bar" id="tabBar">
@@ -551,13 +590,16 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     const isChars=activeTopView==='characters';
     const isDkp=activeTopView==='dkp';
     const isPlat=activeTopView==='plat';
+    const isKills=activeTopView==='kills';
     document.getElementById('tabBar').style.display=isChars?'flex':'none';
     document.getElementById('dropzone').style.display='none';
     document.getElementById('mainView').style.display='none';
     document.getElementById('dkpView').style.display=isDkp?'block':'none';
     document.getElementById('platView').style.display=isPlat?'block':'none';
+    document.getElementById('killsView').style.display=isKills?'block':'none';
     if(isDkp){renderDkpPanel();}
     else if(isPlat){renderPlatPanel();}
+    else if(isKills){renderKillsPanel();}
     else{renderView();}
   });
 });
@@ -1043,15 +1085,17 @@ async function onSignedIn(user){
   document.getElementById('topNav').style.display='flex';
   await loadFromSupabase();
   await loadDkpFromSupabase();
+  await loadKillsFromSupabase();
 }
 
 function onSignedOut(){
   currentUser=null;
-  chars={};charMeta={};gearStats={};watchList=[];factionData={};skyshrineData={};dkpLookup={};dkpMeta={};platData=[];platMeta={};platCachedRows=[];platCacheKey='';platTypeFilter='all';activeTab=null;
+  chars={};charMeta={};gearStats={};watchList=[];factionData={};skyshrineData={};dkpLookup={};dkpMeta={};platData=[];platMeta={};platCachedRows=[];platCacheKey='';platTypeFilter='all';raidSessions=[];activeSession=null;sessionsView='new';activeTab=null;
   document.getElementById('userBar').style.display='none';
   document.getElementById('topNav').style.display='none';
   document.getElementById('dkpView').style.display='none';
   document.getElementById('platView').style.display='none';
+  document.getElementById('killsView').style.display='none';
   showAuthScreen();
   refresh();
 }
@@ -1876,7 +1920,281 @@ window.platSetType=function(val){
   updatePlatBody();
 };
 
-// ─── Raid Consumes ────────────────────────────────────────────────────────────
+// ─── Raid Session Tracker ─────────────────────────────────────────────────────
+
+const TIER_COLORS={
+  'Tier One':  {bg:'rgba(180,30,30,.10)',border:'#a03030',text:'#8a1010'},
+  'Tier Two':  {bg:'rgba(160,60,20,.10)',border:'#904020',text:'#7a3010'},
+  'Tier Three':{bg:'rgba(140,90,10,.10)',border:'#906010',text:'#6a4a00'},
+  'Tier Four': {bg:'rgba(100,100,10,.10)',border:'#706800',text:'#504800'},
+  'Tier Five': {bg:'rgba(20,90,20,.10)', border:'#2a6a2a',text:'#1a4a1a'},
+  'Tier Six':  {bg:'rgba(20,60,120,.10)',border:'#2a4a8a',text:'#1a3060'},
+  'Tier Seven':{bg:'rgba(80,20,120,.10)',border:'#5a2a8a',text:'#3a1060'},
+  'Tier Eight':{bg:'rgba(60,60,60,.10)', border:'#505050',text:'#303030'},
+  'Misc':      {bg:'rgba(100,80,40,.10)',border:'#706040',text:'#504030'},
+  'Farm':      {bg:'rgba(60,80,60,.10)', border:'#405040',text:'#304030'},
+};
+
+const BOSS_ROSTER=[
+  {target:'Dozekar',    full:'Dozekar the Cursed',          tier:'Tier One',   dkp:7.5},
+  {target:'Avatar of War',full:'Avatar of War',              tier:'Tier Two',   dkp:5},
+  {target:'Dain',       full:'Dain Frostreaver IV',          tier:'Tier Two',   dkp:5},
+  {target:'Statue',     full:'Statue of Rallos Zek',         tier:'Tier Two',   dkp:5},
+  {target:'Takish',     full:'Guardian of Takish',           tier:'Tier Two',   dkp:5},
+  {target:'Tormax',     full:'King Tormax',                  tier:'Tier Two',   dkp:5},
+  {target:'Tunare',     full:'Tunare',                       tier:'Tier Two',   dkp:5},
+  {target:'Cazic Thule',full:'Cazic Thule',                  tier:'Tier Three', dkp:4},
+  {target:'Eashen',     full:'Eashen of the Sky',            tier:'Tier Three', dkp:4},
+  {target:'MOTG',       full:'Master of the Guard',          tier:'Tier Three', dkp:4},
+  {target:'Phara Dar',  full:'Phara Dar',                    tier:'Tier Three', dkp:4},
+  {target:'Prog',       full:'The Progenitor',               tier:'Tier Three', dkp:4},
+  {target:'TFA',        full:'The Final Arbiter',            tier:'Tier Three', dkp:4},
+  {target:'Vyemm',      full:'Lord Vyemm',                   tier:'Tier Three', dkp:4},
+  {target:'Yelinak',    full:'Lord Yelinak',                  tier:'Tier Three', dkp:4},
+  {target:'Aaryonar',   full:'Aaryonar',                     tier:'Tier Four',  dkp:2.5},
+  {target:'Dagarn',     full:'Dagarn the Destroyer',         tier:'Tier Four',  dkp:2.5},
+  {target:'Dracoliche', full:'Dracoliche',                   tier:'Tier Four',  dkp:2.5},
+  {target:'Druushk',    full:'Druushk',                      tier:'Tier Four',  dkp:2.5},
+  {target:'Feshlak',    full:'Lord Feshlak',                 tier:'Tier Four',  dkp:2.5},
+  {target:'Hoshkar',    full:'Hoshkar',                      tier:'Tier Four',  dkp:2.5},
+  {target:'Jorlleag',   full:'Jorlleag',                     tier:'Tier Four',  dkp:2.5},
+  {target:'Klandicar',  full:'Klandicar',                    tier:'Tier Four',  dkp:2.5},
+  {target:'Koi',        full:"Lord Koi'Doken",               tier:'Tier Four',  dkp:2.5},
+  {target:'Kreizenn',   full:'Lord Kreizenn',                tier:'Tier Four',  dkp:2.5},
+  {target:'LTK',        full:'Lendiniara the Keeper',        tier:'Tier Four',  dkp:2.5},
+  {target:'Magi P\'Tasa',full:"Magi P'Tasa",                 tier:'Tier Four',  dkp:2.5},
+  {target:'Mirenilla',  full:'Lady Mirenilla',               tier:'Tier Four',  dkp:2.5},
+  {target:'Nevederia',  full:'Lady Nevederia',               tier:'Tier Four',  dkp:2.5},
+  {target:'Sontalak',   full:'Sontalak',                     tier:'Tier Four',  dkp:2.5},
+  {target:'Vulak',      full:"Vulak'Aerr",                   tier:'Tier Four',  dkp:2.5},
+  {target:'Zlandicar',  full:'Zlandicar',                    tier:'Tier Four',  dkp:2.5},
+  {target:'Ash Broodmaster',full:'Ash Broodmaster',          tier:'Tier Five',  dkp:1.5},
+  {target:'Cekenar',    full:'Cekenar',                      tier:'Tier Five',  dkp:1.5},
+  {target:'Essedera',   full:'Essedera',                     tier:'Tier Five',  dkp:1.5},
+  {target:'Gorenaire',  full:'Gorenaire',                    tier:'Tier Five',  dkp:1.5},
+  {target:'Gozzrem',    full:'Gozzrem',                      tier:'Tier Five',  dkp:1.5},
+  {target:'Ikatiar',    full:'Ikatiar the Venom',            tier:'Tier Five',  dkp:1.5},
+  {target:'Kelorek Dar',full:'Kelorek Dar',                  tier:'Tier Five',  dkp:1.5},
+  {target:'Kozzalym',   full:'Kozzalym',                     tier:'Tier Five',  dkp:1.5},
+  {target:'Lepethida',  full:'Lepethida',                    tier:'Tier Five',  dkp:1.5},
+  {target:'Lord of Ire',full:'Lord of Ire',                  tier:'Tier Five',  dkp:1.5},
+  {target:'Nexona',     full:'Nexona',                       tier:'Tier Five',  dkp:1.5},
+  {target:'Sevalak',    full:'Sevalak',                      tier:'Tier Five',  dkp:1.5},
+  {target:'Severilous', full:'Severilous',                   tier:'Tier Five',  dkp:1.5},
+  {target:'Silverwing', full:'Silverwing',                   tier:'Tier Five',  dkp:1.5},
+  {target:'Trakanon',   full:'Trakanon',                     tier:'Tier Five',  dkp:1.5},
+  {target:'VS',         full:'Venril Sathir',                tier:'Tier Five',  dkp:1.5},
+  {target:'Vaniki',     full:'Vaniki',                       tier:'Tier Five',  dkp:1.5},
+  {target:'Vox',        full:'Lady Vox',                     tier:'Tier Five',  dkp:1.5},
+  {target:'Xygoz',      full:'Xygoz',                        tier:'Tier Five',  dkp:1.5},
+  {target:'Zlexak',     full:'Zlexak',                       tier:'Tier Five',  dkp:1.5},
+  {target:'Dread',      full:'Dread',                        tier:'Tier Six',   dkp:1},
+  {target:'Fright',     full:'Fright',                       tier:'Tier Six',   dkp:1},
+  {target:'Naggy',      full:'Lord Nagafen',                 tier:'Tier Six',   dkp:1},
+  {target:'Talendor',   full:'Talendor',                     tier:'Tier Six',   dkp:1},
+  {target:'Telk',       full:'Telkorenar',                   tier:'Tier Six',   dkp:1},
+  {target:'Terror',     full:'Terror',                       tier:'Tier Six',   dkp:1},
+  {target:'Velketor',   full:'Velketor the Sorcerer',        tier:'Tier Six',   dkp:1},
+  {target:'Garzicor',   full:'Garzicor',                     tier:'Tier Seven', dkp:0.5},
+  {target:'Hate Minis', full:'Hate Minis',                   tier:'Tier Seven', dkp:0.5},
+  {target:'Inny',       full:'Innoruuk',                     tier:'Tier Seven', dkp:0.5},
+  {target:'KDT',        full:'Keldor Dek\'Torek',            tier:'Tier Seven', dkp:0.5},
+  {target:'UDB',        full:'Undead Bard (Trakanon)',       tier:'Tier Seven', dkp:0.5},
+  {target:'Vindi',      full:'Derakor the Vindicator',       tier:'Tier Seven', dkp:0.5},
+  {target:'Wuoshi',     full:'Wuoshi',                       tier:'Tier Seven', dkp:0.5},
+  {target:'Yael',       full:'Yael',                         tier:'Tier Seven', dkp:0.5},
+  {target:'Lord Bob',   full:'Lord Doljonijiarnimorinar',    tier:'Tier Eight', dkp:0.3},
+  {target:'Vilefang',   full:'Vilefang',                     tier:'Tier Eight', dkp:0.3},
+  {target:'HoT Minis',  full:'Halls of Testing Minis',      tier:'Tier Eight', dkp:0.3},
+];
+
+// Sessions: [{id, date, kills:[target,...], roles:[{desc,value,qty},...], note}]
+let raidSessions=[];
+let activeSession=null;
+let sessionsView='new'; // 'new' | 'history'
+
+const RAID_ROLES=[
+  {desc:'Vulak Sheet',                      value:15,  repeats:false},
+  {desc:'Vulak Sheet - Fail',               value:5,   repeats:false},
+  {desc:'Playmaker Bonus',                  value:5,   repeats:true},
+  {desc:'Quad',                             value:2,   repeats:true},
+  {desc:'Kite',                             value:2,   repeats:true},
+  {desc:'Bump (ST/Doze/Takish engages)',    value:2,   repeats:true},
+  {desc:'Bonewalk',                         value:1,   repeats:true},
+  {desc:'96%/97% DBs (doze, yeli)',         value:2,   repeats:true},
+  {desc:'ToV Pulling (hourly)',             value:1,   repeats:true},
+  {desc:'PR Trainout',                      value:0.5, repeats:true},
+  {desc:'Low HP Train',                     value:1,   repeats:true},
+  {desc:'LTK Coth / Pets',                  value:1,   repeats:false},
+  {desc:'Tunare Bard/Enc Kite Team',        value:2,   repeats:false},
+  {desc:'Tank Bonus',                       value:2,   repeats:false},
+  {desc:'Cleric Bonus',                     value:null,repeats:false},
+  {desc:'Ticks - Standard (hourly)',        value:1,   repeats:true},
+  {desc:'Ticks - NToV/Sky/VP (hourly)',     value:2,   repeats:true},
+  {desc:'Ticks - Training Events',          value:3,   repeats:true},
+];
+
+function newSession(){
+  return{id:Date.now().toString(),date:new Date().toISOString().slice(0,10),kills:[],roles:[],note:''};
+}
+
+function sessionDkpTotal(session){
+  const killDkp=session.kills.reduce((s,t)=>{const b=BOSS_ROSTER.find(x=>x.target===t);return s+(b?b.dkp:0);},0);
+  const roleDkp=session.roles.reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
+  return Math.round((killDkp+roleDkp)*10)/10;
+}
+
+async function loadKillsFromSupabase(){
+  try{
+    const{data}=await sb.from('guild_data').select('raid_sessions').eq('pool','SoV').single();
+    if(data?.raid_sessions)raidSessions=data.raid_sessions;
+  }catch(e){console.warn('[Sessions] Load error',e);}
+}
+
+async function saveSessionsToSupabase(){
+  try{
+    await sb.from('guild_data').upsert({pool:'SoV',raid_sessions:raidSessions,updated_at:new Date().toISOString()},{onConflict:'pool'});
+    renderKillsPanel();
+  }catch(e){console.error('[Sessions] Save error',e);}
+}
+
+function renderKillsPanel(){
+  const panel=document.getElementById('killsPanel');
+  if(!panel)return;
+  if(!activeSession)activeSession=newSession();
+  const tiers=[...new Set(BOSS_ROSTER.map(b=>b.tier))];
+
+  let bossHtml='';
+  for(const tier of tiers){
+    const bosses=BOSS_ROSTER.filter(b=>b.tier===tier);
+    const c=TIER_COLORS[tier]||TIER_COLORS['Misc'];
+    bossHtml+=`<div class="kt-tier-header" style="color:${c.text};border-color:${c.border};background:${c.bg}">${tier} — ${bosses[0].dkp} Kill DKP</div>`;
+    for(const b of bosses){
+      const checked=activeSession.kills.includes(b.target);
+      bossHtml+=`<label class="kt-check-row${checked?' kt-checked':''}">
+        <input type="checkbox" ${checked?'checked':''} onchange="ktToggleBoss('${esc(b.target)}',this.checked)">
+        <span class="kt-check-name">${esc(b.target)}</span>
+        ${b.target!==b.full?`<span class="kt-check-full">${esc(b.full)}</span>`:''}
+        <span class="kt-check-dkp">${b.dkp}</span>
+      </label>`;
+    }
+  }
+
+  let rolesHtml='';
+  for(const role of RAID_ROLES){
+    const existing=activeSession.roles.find(r=>r.desc===role.desc);
+    const qty=existing?existing.qty:0;
+    if(role.repeats){
+      rolesHtml+=`<div class="kt-role-row${qty>0?' kt-role-active':''}">
+        <span class="kt-role-desc">${esc(role.desc)}</span>
+        <span class="kt-role-val">${role.value!=null?role.value+' DKP':'TBD'}</span>
+        <div class="kt-role-qty">
+          <button class="kt-qty-btn" onclick="ktRoleAdj('${esc(role.desc)}',${role.value},-1)">−</button>
+          <span class="kt-qty-num">${qty}</span>
+          <button class="kt-qty-btn" onclick="ktRoleAdj('${esc(role.desc)}',${role.value},1)">+</button>
+        </div>
+      </div>`;
+    } else {
+      rolesHtml+=`<label class="kt-role-row${qty>0?' kt-role-active':''}">
+        <input type="checkbox" ${qty>0?'checked':''} onchange="ktRoleToggle('${esc(role.desc)}',${role.value},this.checked)">
+        <span class="kt-role-desc">${esc(role.desc)}</span>
+        <span class="kt-role-val">${role.value!=null?role.value+' DKP':'TBD'}</span>
+      </label>`;
+    }
+  }
+
+  const total=sessionDkpTotal(activeSession);
+  const killCount=activeSession.kills.length;
+
+  const sorted=[...raidSessions].sort((a,b)=>b.date.localeCompare(a.date));
+  let histHtml=sorted.length===0?`<div class="dkp-empty">No saved sessions yet.</div>`:
+    sorted.map(s=>{
+      const t=sessionDkpTotal(s);
+      const d=new Date(s.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+      return`<div class="kt-hist-row" onclick="ktLoadSession('${esc(s.id)}')">
+        <div style="flex:1;min-width:0">
+          <div class="kt-hist-date">${d}${s.note?` — <em>${esc(s.note)}</em>`:''}</div>
+          <div class="kt-hist-kills">${s.kills.length} kill${s.kills.length!==1?'s':''}: ${s.kills.slice(0,6).map(esc).join(', ')}${s.kills.length>6?' …':''}</div>
+        </div>
+        <div class="kt-hist-dkp">${t} DKP</div>
+        <button class="kt-undo-btn" onclick="event.stopPropagation();ktDeleteSession('${esc(s.id)}')">✕</button>
+      </div>`;
+    }).join('');
+
+  panel.innerHTML=`
+    <div style="display:flex;border-bottom:1px solid var(--border)">
+      <div class="kt-view-tab${sessionsView==='new'?' active':''}" onclick="ktSetView('new')">⚔ New Session</div>
+      <div class="kt-view-tab${sessionsView==='history'?' active':''}" onclick="ktSetView('history')">📜 History (${raidSessions.length})</div>
+    </div>
+    ${sessionsView==='history'?`<div style="padding:.5rem 0">${histHtml}</div>`:`
+      <div style="display:flex;gap:.75rem;padding:.6rem 1rem;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap;background:var(--surface2)">
+        <div style="display:flex;align-items:center;gap:.4rem">
+          <label style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted)">DATE</label>
+          <input type="date" value="${activeSession.date}" class="kt-date-input" onchange="activeSession.date=this.value">
+        </div>
+        <div style="display:flex;align-items:center;gap:.4rem;flex:1;min-width:180px">
+          <label style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted)">NOTE</label>
+          <input type="text" value="${esc(activeSession.note||'')}" placeholder="e.g. Full ToV clear" class="kt-date-input" style="flex:1" oninput="activeSession.note=this.value">
+        </div>
+        <div class="kt-dkp-badge">${total} DKP &nbsp;·&nbsp; ${killCount} kill${killCount!==1?'s':''}</div>
+        <button class="kt-save-btn" onclick="ktSaveSession()">💾 Save Session</button>
+        <button class="kt-undo-btn" onclick="ktClearSession()">Clear</button>
+      </div>
+      <div style="display:flex;overflow:hidden">
+        <div style="flex:1;border-right:1px solid var(--border);overflow-y:auto;max-height:72vh">${bossHtml}</div>
+        <div style="width:290px;overflow-y:auto;max-height:72vh">${rolesHtml}</div>
+      </div>
+    `}`;
+}
+
+window.ktToggleBoss=function(target,checked){
+  if(checked){if(!activeSession.kills.includes(target))activeSession.kills.push(target);}
+  else{activeSession.kills=activeSession.kills.filter(t=>t!==target);}
+  // Partial re-render: just update badge
+  const badge=document.querySelector('.kt-dkp-badge');
+  if(badge){const t=sessionDkpTotal(activeSession);badge.textContent=t+' DKP \u00a0·\u00a0 '+activeSession.kills.length+' kill'+(activeSession.kills.length!==1?'s':'');}
+};
+
+window.ktRoleToggle=function(desc,value,checked){
+  activeSession.roles=activeSession.roles.filter(r=>r.desc!==desc);
+  if(checked)activeSession.roles.push({desc,value,qty:1});
+  const badge=document.querySelector('.kt-dkp-badge');
+  if(badge){const t=sessionDkpTotal(activeSession);badge.textContent=t+' DKP \u00a0·\u00a0 '+activeSession.kills.length+' kill'+(activeSession.kills.length!==1?'s':'');}
+};
+
+window.ktRoleAdj=function(desc,value,delta){
+  const existing=activeSession.roles.find(r=>r.desc===desc);
+  if(existing){existing.qty=Math.max(0,existing.qty+delta);if(existing.qty===0)activeSession.roles=activeSession.roles.filter(r=>r.desc!==desc);}
+  else if(delta>0){activeSession.roles.push({desc,value,qty:1});}
+  renderKillsPanel();
+};
+
+window.ktSaveSession=function(){
+  const idx=raidSessions.findIndex(s=>s.id===activeSession.id);
+  if(idx>=0)raidSessions[idx]={...activeSession,kills:[...activeSession.kills],roles:activeSession.roles.map(r=>({...r}))};
+  else raidSessions.push({...activeSession,kills:[...activeSession.kills],roles:activeSession.roles.map(r=>({...r}))});
+  saveSessionsToSupabase();
+  activeSession=newSession();
+  sessionsView='history';
+  renderKillsPanel();
+};
+
+window.ktClearSession=function(){activeSession=newSession();renderKillsPanel();};
+
+window.ktLoadSession=function(id){
+  const s=raidSessions.find(x=>x.id===id);
+  if(!s)return;
+  activeSession={...s,kills:[...s.kills],roles:s.roles.map(r=>({...r}))};
+  sessionsView='new';
+  renderKillsPanel();
+};
+
+window.ktDeleteSession=function(id){
+  confirmAction('Delete this session?',()=>{raidSessions=raidSessions.filter(s=>s.id!==id);saveSessionsToSupabase();});
+};
+
+window.ktSetView=function(v){sessionsView=v;renderKillsPanel();};
+
 
 // Classes that can self-cast SoW (don't need JBoots)
 const SOW_CLASSES = new Set(['Druid','Ranger','Shaman']);
