@@ -962,7 +962,7 @@ function loadFiles(files){const arr=[...files];if(!arr.length)return;let loaded=
 
 document.getElementById('fileInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
 document.getElementById('charRefreshInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const cn=extractCharName(file.name);chars[cn]=parseInventory(ev.target.result,cn);if(!charMeta[cn])charMeta[cn]={};if(activeTab!==cn)activeTab=cn;refresh();};reader.readAsText(file);e.target.value='';});
-document.getElementById('dkpCsvInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const {lookup,txCount}=parseDkpCsv(ev.target.result);dkpLookup=lookup;dkpMeta={updatedAt:new Date().toISOString(),txCount};saveDkpToSupabase();renderDkpPanel();};reader.readAsText(file);e.target.value='';});
+document.getElementById('dkpCsvInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const {lookup,txCount}=parseDkpCsv(ev.target.result);dkpLookup=lookup;dkpMeta={updatedAt:new Date().toISOString(),txCount};dkpCacheKey='';saveDkpToSupabase();renderDkpPanel();};reader.readAsText(file);e.target.value='';});
 document.getElementById('dzInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
 document.getElementById('tabAdd').addEventListener('click',()=>document.getElementById('fileInput').click());
 const dz=document.getElementById('dropzone');
@@ -1473,6 +1473,8 @@ function renderSkyshrinePanel(){
 // dkpLookup[itemName] = [high, low, avg, count, [[char,dkp,date],...]]
 let dkpLookup = {};
 let dkpMeta = {updatedAt: null, txCount: 0};
+let dkpCachedRows = [];
+let dkpCacheKey = '';
 let dkpSort = {col:'avg', dir:'desc'};
 let dkpSearchTimer=null;
 let dkpPage=0;
@@ -1541,6 +1543,25 @@ async function saveDkpToSupabase(){
   }catch(e){console.error('DKP save error',e);}
 }
 
+function getDkpRows(){
+  const key=dkpQuery+'|'+dkpSort.col+'|'+dkpSort.dir;
+  if(key===dkpCacheKey)return dkpCachedRows;
+  const q=dkpQuery.toLowerCase().trim();
+  let rows=Object.entries(dkpLookup);
+  if(q)rows=rows.filter(([name])=>name.toLowerCase().includes(q));
+  const colIdx={high:0,low:1,avg:2,count:3,r60:5,name:-1};
+  const{col,dir}=dkpSort;
+  rows.sort((a,b)=>{
+    let av,bv;
+    if(col==='name'){av=a[0].toLowerCase();bv=b[0].toLowerCase();return dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);}
+    av=a[1][colIdx[col]]??-1;bv=b[1][colIdx[col]]??-1;
+    return dir==='asc'?av-bv:bv-av;
+  });
+  dkpCachedRows=rows;
+  dkpCacheKey=key;
+  return rows;
+}
+
 function getDkp(itemName){
   const n=itemName.replace(/[\u2018\u2019]/g,"'");
   return dkpLookup[n]||dkpLookup[itemName]||null;
@@ -1557,26 +1578,14 @@ function renderDkpPanel(){
   if(!panel)return;
 
   const hasData=Object.keys(dkpLookup).length>0;
-  const q=dkpQuery.toLowerCase().trim();
-
-  let rows=Object.entries(dkpLookup);
-  if(q)rows=rows.filter(([name])=>name.toLowerCase().includes(q));
-
-  // Sort
-  const {col,dir}=dkpSort;
-  const colIdx={high:0,low:1,avg:2,count:3,r60:5,name:-1};
-  rows.sort((a,b)=>{
-    let av,bv;
-    if(col==='name'){av=a[0].toLowerCase();bv=b[0].toLowerCase();return dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);}
-    av=a[1][colIdx[col]];bv=b[1][colIdx[col]];
-    return dir==='asc'?av-bv:bv-av;
-  });
+  const rows=getDkpRows();
+  const totalRows=rows.length;
 
   const metaStr=dkpMeta.updatedAt?`${Object.keys(dkpLookup).length.toLocaleString()} items · ${(dkpMeta.txCount||0).toLocaleString()} transactions · Updated ${new Date(dkpMeta.updatedAt).toLocaleDateString()}`:'No data loaded';
 
+  const colIdx={high:0,low:1,avg:2,count:3,r60:5,name:-1};
   const th=(label,c)=>`<th class="${colIdx[c]===-1?'':'dkp-th-right'}${dkpSort.col===c?' sort-'+dkpSort.dir:''}" onclick="dkpSortBy('${c}')">${label}</th>`;
 
-  const totalRows=rows.length;
   const visibleRows=rows.slice(0,(dkpPage+1)*DKP_PAGE_SIZE);
 
   let tableRows='';
@@ -1586,11 +1595,11 @@ function renderDkpPanel(){
     const r60cell=r60avg!=null?`<span class="dkp-avg">${r60avg}</span> <span class="dkp-count">(${r60count})</span>`:`<span class="dkp-no-data">—</span>`;
     tableRows+=`<tr class="${isExp?'dkp-expanded':''}" onclick="dkpToggle('${esc(name)}')">
       <td>${esc(name)}</td>
+      <td class="dkp-td-right">${r60cell}</td>
       <td class="dkp-td-right dkp-high">${high}</td>
       <td class="dkp-td-right dkp-avg">${avg}</td>
       <td class="dkp-td-right dkp-low">${low}</td>
       <td class="dkp-td-right dkp-count">${count}</td>
-      <td class="dkp-td-right">${r60cell}</td>
     </tr>`;
     if(isExp&&hist?.length){
       const hRows=hist.map(([c,v,dt,raid])=>`<tr><td>${esc(c)}</td><td style="text-align:right;font-weight:600">${v}</td><td style="color:var(--text-muted)">${esc(dt)}</td><td style="color:var(--text-muted);font-size:.75rem">${esc(raid||'')}</td></tr>`).join('');
@@ -1612,7 +1621,7 @@ function renderDkpPanel(){
     ${!hasData?`<div class="dkp-empty">No DKP data loaded yet.<br>Upload your ODKP items CSV to get started.</div>`:`
     <div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;overflow-x:auto">
       <table class="dkp-table">
-        <thead><tr>${th('Item','name')}${th('High','high')}${th('Avg','avg')}${th('Low','low')}${th('Sales','count')}${th('60d Avg','r60')}</tr></thead>
+        <thead><tr>${th('Item','name')}${th('60d Avg','r60')}${th('High','high')}${th('Avg','avg')}${th('Low','low')}${th('Sales','count')}</tr></thead>
         <tbody>${tableRows||'<tr><td colspan="6" class="dkp-empty">No items match your search.</td></tr>'}${loadMore}</tbody>
       </table>
     </div>`}`;
@@ -1625,7 +1634,7 @@ function renderDkpPanel(){
 window.dkpSortBy=function(col){
   if(dkpSort.col===col)dkpSort.dir=dkpSort.dir==='asc'?'desc':'asc';
   else{dkpSort.col=col;dkpSort.dir=col==='name'?'asc':'desc';}
-  dkpPage=0;
+  dkpPage=0;dkpCacheKey='';
   renderDkpPanel();
 };
 
