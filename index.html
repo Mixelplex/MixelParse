@@ -1447,6 +1447,7 @@ function renderSkyshrinePanel(){
 // dkpLookup[itemName] = [high, low, avg, count, [[char,dkp,date],...]]
 let dkpLookup = {};
 let dkpMeta = {updatedAt: null, txCount: 0};
+let dkpSort = {col:'avg', dir:'desc'};
 let dkpSearchTimer=null;
 let dkpPage=0;
 const DKP_PAGE_SIZE=100;
