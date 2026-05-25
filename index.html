@@ -232,6 +232,26 @@
   .tov-chip-yellow{background:rgba(176,120,0,.12);border:1px solid #b07800;color:#7a5000}
   .tov-chip-warn{background:rgba(160,48,48,.15);border:1px solid #c03030;color:#8a1010}
   .tov-chip-none{background:rgba(120,100,60,.12);border:1px solid var(--border);color:var(--text-muted)}
+  /* ── Skyshrine ── */
+  .ss-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem}
+  .ss-title{font-family:'Cinzel',serif;font-size:.75rem;letter-spacing:.1em;color:var(--gold);text-transform:uppercase}
+  .ss-progress{font-size:.8rem;color:var(--text-muted);font-style:italic}
+  .ss-table{width:100%;border-collapse:collapse;font-size:.88rem}
+  .ss-table th{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.07em;color:var(--gold);padding:.5rem .75rem;text-align:left;border-bottom:2px solid var(--border-glow);background:var(--surface2);white-space:nowrap}
+  .ss-table th.ss-th-center{text-align:center}
+  .ss-table td{padding:.45rem .75rem;border-bottom:1px solid rgba(74,58,26,.2);vertical-align:middle}
+  .ss-table tr:hover td{background:rgba(160,120,50,.06)}
+  .ss-table tr.ss-done td{opacity:.5}
+  .ss-item-name{font-weight:500;color:var(--text)}
+  .ss-sub{font-size:.75rem;color:var(--text-muted);font-style:italic;margin-top:.1rem}
+  .ss-check{text-align:center;font-size:1rem}
+  .ss-check-green{color:#3a7a3a}
+  .ss-check-red{color:#a03030}
+  .ss-check-na{color:var(--text-muted)}
+  .ss-done-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:.15rem .5rem;font-size:.75rem;cursor:pointer;font-family:'Cinzel',serif;color:var(--text-muted);transition:all .15s;white-space:nowrap}
+  .ss-done-btn:hover{border-color:var(--gold);color:var(--gold)}
+  .ss-done-btn.done{border-color:#5a9a5a;color:#1a5a1a;background:rgba(58,122,58,.1)}
+  .ss-wrist-note{font-size:.68rem;color:var(--text-muted);font-style:italic}
 </style>
 </head>
 <body>
@@ -341,6 +361,7 @@
     <div class="subtab" data-sub="upgrades">Upgrades</div>
     <div class="subtab" data-sub="consumes">Raid Consumes</div>
     <div class="subtab" data-sub="factions">Factions</div>
+    <div class="subtab" data-sub="skyshrine">Skyshrine</div>
   </div>
 
   <div id="subInventory">
@@ -398,6 +419,10 @@
   <div id="subFactions" style="display:none">
     <div class="rc-panel" id="factionsPanel"></div>
   </div>
+
+  <div id="subSkyshrine" style="display:none">
+    <div class="rc-panel" id="skyshrinePanel"></div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="modalOverlay">
@@ -442,7 +467,7 @@ let itemDB = Object.assign({}, BAKED_ITEM_DB);
 let itemDBSources = Object.keys(itemDB).length > 0 ? ['baked'] : [];
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let chars={},charMeta={},gearStats={},factionData={};
+let chars={},charMeta={},gearStats={},factionData={},skyshrineData={};
 let activeTab=null,activeSub='inventory';
 let sortCol='name',sortDir=1;
 
@@ -456,9 +481,9 @@ function getEquippedItems(cn){return(chars[cn]||[]).filter(i=>locationType(i.loc
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 function buildTabs(){const bar=document.getElementById('tabBar');bar.querySelectorAll('.tab').forEach(t=>t.remove());const names=charNames();if(names.length>1)bar.insertBefore(makeTab('__all__','&#9876; All Characters'),document.getElementById('tabAdd'));names.forEach(n=>bar.insertBefore(makeTab(n,n),document.getElementById('tabAdd')));if(activeTab==='__all__'&&names.length<2)activeTab=names[0]||null;if(activeTab&&activeTab!=='__all__'&&!chars[activeTab])activeTab=names[0]||null;if(!activeTab&&names.length===1)activeTab=names[0];if(!activeTab&&names.length>1)activeTab='__all__';bar.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.char===activeTab));document.getElementById('subtabBar').style.display=(activeTab&&activeTab!=='__all__')?'flex':'none';}
 function makeTab(charKey,label){const t=document.createElement('div');t.className='tab';t.dataset.char=charKey;const span=document.createElement('span');span.innerHTML=label;t.appendChild(span);if(charKey!=='__all__'){const status=getOverallStatus(charKey);const dot=document.createElement('span');dot.className='tab-rc-dot';dot.title='Raid Consumes: '+(status==='green'?'Ready':status==='yellow'?'Mostly Ready':'Not Ready');dot.style.cssText='font-size:.7rem;line-height:1;margin-left:.1rem;';dot.textContent=status==='green'?'✔':status==='yellow'?'◐':'✘';dot.style.color=status==='green'?'#3a7a3a':status==='yellow'?'#b07800':'#a03030';t.appendChild(dot);const x=document.createElement('span');x.className='remove-char';x.textContent='✕';x.addEventListener('click',e=>{e.stopPropagation();confirmAction('Remove '+charKey+'?',()=>{delete chars[charKey];delete charMeta[charKey];delete gearStats[charKey];if(activeTab===charKey)activeTab=charNames()[0]||null;refresh();});});t.appendChild(x);}t.addEventListener('click',()=>{activeTab=charKey;if(charKey==='__all__')activeSub='inventory';buildTabs();renderView();});return t;}
-document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();});});
+document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();});});
 function refresh(){buildTabs();renderView();saveState();}
-function renderView(){const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderTovBar();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();}
+function renderView(){const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderTovBar();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();}
 
 // ─── Inventory Table ──────────────────────────────────────────────────────────
 function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.values(chars).flat():(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;return ms&&ml;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=source.reduce((s,i)=>s+i.count,0);const unique=new Set(source.map(i=>i.id)).size;const stacks=source.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span>':'');}
@@ -938,7 +963,7 @@ async function onSignedIn(user){
 
 function onSignedOut(){
   currentUser=null;
-  chars={};charMeta={};gearStats={};watchList=[];factionData={};activeTab=null;
+  chars={};charMeta={};gearStats={};watchList=[];factionData={};skyshrineData={};activeTab=null;
   document.getElementById('userBar').style.display='none';
   showAuthScreen();
   refresh();
@@ -1006,11 +1031,12 @@ async function loadFromSupabase(){
     // Load characters
     const{data:charRows}=await sb.from('characters').select('*').eq('user_id',currentUser.id);
     if(charRows&&charRows.length){
-      chars={};charMeta={};gearStats={};factionData={};
+      chars={};charMeta={};gearStats={};factionData={};skyshrineData={};
       for(const row of charRows){
         chars[row.char_name]=row.inventory||[];
         if(row.base_stats?.factions)factionData[row.char_name]=row.base_stats.factions;
-        const{factions:_f,nakedStats:_n,currentStats:_c,...bs}=row.base_stats||{};
+        if(row.base_stats?.skyshrine)skyshrineData[row.char_name]=row.base_stats.skyshrine;
+        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,...bs}=row.base_stats||{};
         const hasRealStats=bs.stats||bs.resists;
         charMeta[row.char_name]={
           class:row.class||'',race:row.race||'',level:row.level||1,
@@ -1050,7 +1076,7 @@ async function saveToSupabase(){
       class:charMeta[cn]?.class||null,
       race:charMeta[cn]?.race||null,
       level:charMeta[cn]?.level||1,
-      base_stats:charMeta[cn]?.baseStats?{...charMeta[cn].baseStats,factions:factionData[cn]||{},nakedStats:charMeta[cn].nakedStats||null,currentStats:charMeta[cn].currentStats||null}:{factions:factionData[cn]||{},nakedStats:charMeta[cn]?.nakedStats||null,currentStats:charMeta[cn]?.currentStats||null},
+      base_stats:charMeta[cn]?.baseStats?{...charMeta[cn].baseStats,factions:factionData[cn]||{},nakedStats:charMeta[cn].nakedStats||null,currentStats:charMeta[cn].currentStats||null,skyshrine:skyshrineData[cn]||{}}:{factions:factionData[cn]||{},nakedStats:charMeta[cn]?.nakedStats||null,currentStats:charMeta[cn]?.currentStats||null,skyshrine:skyshrineData[cn]||{}},
       gear_stats:gearStats[cn]||null,
       inventory:chars[cn]||[],
       updated_at:new Date().toISOString()
@@ -1192,6 +1218,185 @@ function renderFactionsPanel(){
   }
   html+=`</tbody></table></div>`;
   panel.innerHTML=html;
+}
+
+// ─── Skyshrine Armor ──────────────────────────────────────────────────────────
+
+const SS_DATA = {
+  'Bard':        {npc:"Umykith Fe`Dhar",    items:['Helm of Twilight','Breastplate of Twilight','Vambraces of Twilight','Bracer of Twilight','Gauntlets of Twilight','Greaves of Twilight','Boots of Twilight']},
+  'Cleric':      {npc:"Fardonad Fe`Dhar",   items:["Akkirus' Crown of the Risen","Akkirus' Chestplate of the Risen","Akkirus' Vambraces of the Risen","Akkirus' Bracelet of the Risen","Akkirus' Gauntlets of the Risen","Akkirus' Greaves of the Risen","Akkirus' Boots of the Risen"]},
+  'Druid':       {npc:"Qynydd Fe`Dhar",     items:['Woven Grass Headband','Woven Grass Chestguard','Woven Grass Vambraces','Woven Grass Bracelet','Woven Grass Gauntlets','Woven Grass Greaves','Woven Grass Boots']},
+  'Enchanter':   {npc:"Lothieder Fe`Dhar",  items:["Illusionist's Headband","Illusionist's Robe","Illusionist's Sleeves","Illusionist's Wristguard","Illusionist's Gloves","Illusionist's Pantaloons","Illusionist's Slippers"]},
+  'Magician':    {npc:"Ocoenydd Fe`Dhar",   items:["Prestidigitator's Headband","Prestidigitator's Robe","Prestidigitator's Sleeves","Prestidigitator's Wristband","Prestidigitator's Gloves","Prestidigitator's Trousers","Prestidigitator's Boots"]},
+  'Monk':        {npc:"Komawin Fe`Dhar",    items:['White Lotus Headband','White Lotus Chest Wraps','White Lotus Arm Wraps','White Lotus Wrist Wraps','Fist of the White Lotus','White Lotus Pants','White Lotus Slippers']},
+  'Necromancer': {npc:"Abudan Fe`Dhar",     items:['Rotting Crown','Rotting Robe','Rotting Sleeves','Rotting Wristguard','Rotting Gloves','Rotting Trousers','Rotting Boots']},
+  'Paladin':     {npc:"Adwetram Fe`Dhar",   items:["Scaled Knight's Helm","Scaled Knight's Breastplate","Scaled Knight's Vambraces","Scaled Knight's Bracer","Scaled Knight's Gauntlets","Scaled Knight's Greaves","Scaled Knight's Boots"]},
+  'Ranger':      {npc:"Nalelin Fe`Dhar",    items:['Golden Leaf Helm','Golden Leaf Breastplate','Golden Leaf Vambraces','Golden Leaf Bracer','Golden Leaf Gauntlets','Golden Leaf Greaves','Golden Leaf Boots']},
+  'Rogue':       {npc:"Crendatha Fe`Dhar",  items:['Shadow Crown','Shadow Chestguard','Shadow Vambraces','Shadow Bracer','Shadow Gauntlets','Shadow Greaves','Shadow Boots']},
+  'Shadow Knight':{npc:"Onerind Fe`Dhar",   items:["Blood Lord's Crown","Blood Lord's Breastplate","Blood Lord's Vambraces","Blood Lord's Bracer","Blood Lord's Gauntlets","Blood Lord's Greaves","Blood Lord's Boots"]},
+  'Shaman':      {npc:"Asteinnon Fe`Dhar",  items:["Wolf Caller's Helm","Wolf Caller's Breastplate","Wolf Caller's Vambraces","Wolf Caller's Bracer","Wolf Caller's Gauntlets","Wolf Caller's Greaves","Wolf Caller's Boots"]},
+  'Warrior':     {npc:"Jendavudd Fe`Dhar",  items:['Crown of the Myrmidon','Breastplate of the Myrmidon','Vambraces of the Myrmidon','Bracer of the Myrmidon','Gauntlets of the Myrmidon','Greaves of the Myrmidon','Boots of the Myrmidon']},
+  'Wizard':      {npc:"Elaend Fe`Dhar",     items:['Icicle Circlet','Robe of Icicles','Icicle Sleeves','Icicle Bracelet','Icicle Gloves','Icicle Pantaloons','Icicle Boots']},
+};
+
+// Gem group A: Priest classes (CLR, DRU, SHM) + Casters (ENC, MAG, NEC, WIZ)
+// Wait — Priest and Caster use DIFFERENT gems. Priest uses Onyx Sapphire for head, Black Marble for chest etc.
+// Casters use Crushed Flame Opal for head, Pristine Emerald for chest etc.
+// Melee group: WAR, PAL, SHD, BRD, RNG, ROG, MNK use Crushed Coral/Flawless Diamond etc.
+
+const SS_GEMS = {
+  'priest': [
+    {gem:'Crushed Onyx Sapphire',  tattered:'head'},
+    {gem:'Black Marble',           tattered:'chest'},
+    {gem:'Jaundice Gem',           tattered:'arms'},
+    {gem:'Crushed Opal',           tattered:'wrist'},
+    {gem:'Crushed Lava Ruby',      tattered:'hands'},
+    {gem:'Chipped Onyx Sapphire',  tattered:'legs'},
+    {gem:'Crushed Flame Emerald',  tattered:'feet'},
+  ],
+  'caster': [
+    {gem:'Crushed Flame Opal',     tattered:'head'},
+    {gem:'Pristine Emerald',       tattered:'chest'},
+    {gem:'Flawed Topaz',           tattered:'arms'},
+    {gem:'Crushed Onyx Sapphire',  tattered:'wrist'},
+    {gem:'Crushed Topaz',          tattered:'hands'},
+    {gem:'Nephrite',               tattered:'legs'},
+    {gem:'Crushed Jaundice Gem',   tattered:'feet'},
+  ],
+  'melee': [
+    {gem:'Crushed Coral',          tattered:'head'},
+    {gem:'Flawless Diamond',       tattered:'chest'},
+    {gem:'Flawed Emerald',         tattered:'arms'},
+    {gem:'Crushed Flame Emerald',  tattered:'wrist'},
+    {gem:'Crushed Topaz',          tattered:'hands'},
+    {gem:'Flawed Sea Sapphire',    tattered:'legs'},
+    {gem:'Crushed Black Marble',   tattered:'feet'},
+  ],
+};
+
+const SS_GEM_GROUP = {
+  'Cleric':'priest','Druid':'priest','Shaman':'priest',
+  'Enchanter':'caster','Magician':'caster','Necromancer':'caster','Wizard':'caster',
+  'Warrior':'melee','Paladin':'melee','Shadow Knight':'melee','Bard':'melee',
+  'Ranger':'melee','Rogue':'melee','Monk':'melee',
+};
+
+// Armor type per class (determines tattered piece name prefix)
+const SS_ARMOR_TYPE = {
+  'Warrior':'Unadorned Plate','Paladin':'Unadorned Plate','Shadow Knight':'Unadorned Plate',
+  'Cleric':'Unadorned Plate','Bard':'Unadorned Plate',
+  'Ranger':'Unadorned Chain','Rogue':'Unadorned Chain','Shaman':'Unadorned Chain',
+  'Druid':'Unadorned Leather','Monk':'Unadorned Leather',
+  'Enchanter':'Tattered Silk','Magician':'Tattered Silk','Necromancer':'Tattered Silk','Wizard':'Tattered Silk',
+};
+
+// Slot suffix for tattered piece names
+const SS_TATTERED_SUFFIX = {
+  'head':  {'Unadorned Plate':'Helmet',     'Unadorned Chain':'Coif',     'Unadorned Leather':'Cap',      'Tattered Silk':'Turban'},
+  'chest': {'Unadorned Plate':'Breastplate','Unadorned Chain':'Tunic',    'Unadorned Leather':'Tunic',    'Tattered Silk':'Robe'},
+  'arms':  {'Unadorned Plate':'Vambraces',  'Unadorned Chain':'Sleeves',  'Unadorned Leather':'Sleeves',  'Tattered Silk':'Sleeves'},
+  'wrist': {'Unadorned Plate':'Bracer',     'Unadorned Chain':'Bracer',   'Unadorned Leather':'Bracelet', 'Tattered Silk':'Wristband'},
+  'hands': {'Unadorned Plate':'Gauntlets',  'Unadorned Chain':'Gauntlets','Unadorned Leather':'Gloves',   'Tattered Silk':'Gloves'},
+  'legs':  {'Unadorned Plate':'Greaves',    'Unadorned Chain':'Leggings', 'Unadorned Leather':'Leggings', 'Tattered Silk':'Pantaloons'},
+  'feet':  {'Unadorned Plate':'Boots',      'Unadorned Chain':'Boots',    'Unadorned Leather':'Boots',    'Tattered Silk':'Boots'},
+};
+
+const SS_SLOTS = ['head','chest','arms','wrist','hands','legs','feet'];
+const SS_SLOT_LABELS = ['Head','Chest','Arms','Wrist','Hands','Legs','Feet'];
+
+// skyshrineData[charName][slotIndex or 'wrist2'] = true (done)
+
+function getSSDone(charName, key){return !!(skyshrineData[charName]||{})[key];}
+window.setSSDone=function(charName, key, val){
+  if(!skyshrineData[charName])skyshrineData[charName]={};
+  if(val)skyshrineData[charName][key]=true;
+  else delete skyshrineData[charName][key];
+  saveState();
+  renderSkyshrinePanel();
+}
+
+function tatteredName(armorType, slotKey){
+  return armorType + ' ' + SS_TATTERED_SUFFIX[slotKey][armorType];
+}
+
+function renderSkyshrinePanel(){
+  const panel=document.getElementById('skyshrinePanel');
+  if(!panel)return;
+  const name=activeTab;
+  if(!name||name==='__all__'){panel.innerHTML='<div class="empty-state">Select a character to view Skyshrine armor progress.</div>';return;}
+  const meta=charMeta[name]||{};
+  const cls=meta.class||'';
+  if(!SS_DATA[cls]){panel.innerHTML=`<div class="empty-state">No Skyshrine armor data for class: ${esc(cls||'(not set)')}. Set your class in Character Stats.</div>`;return;}
+
+  const classData=SS_DATA[cls];
+  const gemGroup=SS_GEM_GROUP[cls]||'melee';
+  const gems=SS_GEMS[gemGroup];
+  const armorType=SS_ARMOR_TYPE[cls]||'Unadorned Plate';
+  const wikiBase='https://wiki.project1999.com/';
+
+  // Count completion: 8 pieces (7 slots + wrist2)
+  let done=0,total=8;
+  for(let i=0;i<7;i++){if(getSSDone(name,i))done++;}
+  if(getSSDone(name,'wrist2'))done++;
+
+  let rows='';
+  for(let i=0;i<7;i++){
+    const rewardName=classData.items[i];
+    const gem=gems[i];
+    const slotKey=SS_SLOTS[i];
+    const tattered=tatteredName(armorType,slotKey);
+    const isDone=getSSDone(name,i);
+    const hasReward=charHasItem(name,rewardName);
+    const hasTattered=charHasItem(name,tattered);
+    const hasGem=charHasItem(name,gem.gem);
+    const rewardLink=`<a href="${wikiBase}${encodeURIComponent(rewardName.replace(/ /g,'_'))}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold)">${esc(rewardName)}</a>`;
+    const tattLink=`<a href="${wikiBase}${encodeURIComponent(tattered.replace(/ /g,'_'))}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--border)">${esc(tattered)}</a>`;
+    const gemLink=`<a href="${wikiBase}${encodeURIComponent(gem.gem.replace(/ /g,'_'))}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--border)">${esc(gem.gem)}</a>`;
+    const wristNote=slotKey==='wrist'?'<div class="ss-wrist-note">Not LORE — can have ×2</div>':'';
+    rows+=`<tr class="${isDone?'ss-done':''}">
+      <td><div class="ss-item-name">${rewardLink}</div><div class="ss-sub">${esc(SS_SLOT_LABELS[i])}</div>${wristNote}</td>
+      <td><div class="ss-sub">${tattLink}</div></td>
+      <td><div class="ss-sub">${gemLink} ×3</div></td>
+      <td class="ss-check">${hasReward?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
+      <td class="ss-check">${hasTattered?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
+      <td class="ss-check">${hasGem?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
+      <td class="ss-th-center"><button class="ss-done-btn ${isDone?'done':''}" onclick="setSSDone('${esc(name)}',${i},${!isDone})">${isDone?'✔ Done':'Mark Done'}</button></td>
+    </tr>`;
+
+    // Second wrist row
+    if(slotKey==='wrist'){
+      const isDone2=getSSDone(name,'wrist2');
+      rows+=`<tr class="${isDone2?'ss-done':''}">
+        <td><div class="ss-item-name">${rewardLink}</div><div class="ss-sub">Wrist 2</div></td>
+        <td><div class="ss-sub">${tattLink}</div></td>
+        <td><div class="ss-sub">${gemLink} ×3</div></td>
+        <td class="ss-check">—</td>
+        <td class="ss-check">—</td>
+        <td class="ss-check">—</td>
+        <td class="ss-th-center"><button class="ss-done-btn ${isDone2?'done':''}" onclick="setSSDone('${esc(name)}','wrist2',${!isDone2})">${isDone2?'✔ Done':'Mark Done'}</button></td>
+      </tr>`;
+    }
+  }
+
+  panel.innerHTML=`
+    <div class="ss-header">
+      <div class="ss-title">🐉 Skyshrine Armor — ${esc(cls)}</div>
+      <div class="ss-progress">${done}/${total} pieces complete · Turn-in: ${esc(classData.npc)}</div>
+    </div>
+    <div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;overflow-x:auto">
+      <table class="ss-table">
+        <thead><tr>
+          <th>Reward</th>
+          <th>Tattered Piece</th>
+          <th>Gem ×3</th>
+          <th class="ss-th-center">Have It</th>
+          <th class="ss-th-center">Have Tattered</th>
+          <th class="ss-th-center">Have Gem</th>
+          <th class="ss-th-center">Status</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 // ─── Raid Consumes ────────────────────────────────────────────────────────────
