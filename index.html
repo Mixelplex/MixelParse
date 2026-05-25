@@ -1348,7 +1348,7 @@ function renderSkyshrinePanel(){
     const slotKey=SS_SLOTS[i];
     const tattered=tatteredName(armorType,slotKey);
     const isDone=getSSDone(name,i);
-    const rewardAlias=rewardName.replace("'s ","'s Custom ");
+    const rewardAlias=rewardName.replace(/^(\S+)\s/,'$1 Custom ');
     const hasReward=charHasItem(name,rewardName)||charHasItem(name,rewardAlias);
     const hasTattered=charHasItem(name,tattered);
     const hasGem=charHasItem(name,gem.gem);
