@@ -430,7 +430,7 @@
         <option value="bag">Bags</option>
         <option value="bank">Bank</option>
       </select>
-      <button class="btn danger" id="clearAllBtn">&#128465; Clear All</button>
+      <button class="btn danger" id="clearAllBtn">✕ Clear Search</button>
     </div>
     <div class="stats-bar" id="statsBar"></div>
     <div id="combinedHeader" class="combined-header" style="display:none"><span>All Characters Combined</span><hr></div>
@@ -971,7 +971,7 @@ dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
 dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');loadFiles(e.dataTransfer.files);});
 
 // ─── Clear All ────────────────────────────────────────────────────────────────
-document.getElementById('clearAllBtn').addEventListener('click',()=>{confirmAction('Clear ALL characters and start fresh?',()=>{chars={};charMeta={};gearStats={};activeTab=null;document.getElementById('searchBox').value='';document.getElementById('locationFilter').value='';refresh();});});
+document.getElementById('clearAllBtn').addEventListener('click',()=>{document.getElementById('searchBox').value='';document.getElementById('locationFilter').value='';refresh();});
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 let _confirmCb=null;
