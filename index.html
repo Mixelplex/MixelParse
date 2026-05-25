@@ -1348,8 +1348,8 @@ function renderSkyshrinePanel(){
     const slotKey=SS_SLOTS[i];
     const tattered=tatteredName(armorType,slotKey);
     const isDone=getSSDone(name,i);
-    const normalize=s=>s.replace(/\u2019/g,"'").replace(/\u2018/g,"'");
-    const hasReward=charHasItem(name,rewardName)||chars[name]?.some(i=>normalize(i.name)===normalize(rewardName.replace("'s ","'s Custom ")));
+    const rewardAlias=rewardName.replace("'s ","'s Custom ");
+    const hasReward=charHasItem(name,rewardName)||charHasItem(name,rewardAlias);
     const hasTattered=charHasItem(name,tattered);
     const hasGem=charHasItem(name,gem.gem);
     const rewardLink=`<a href="${wikiBase}${encodeURIComponent(rewardName.replace(/ /g,'_'))}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold)">${esc(rewardName)}</a>`;
@@ -1369,7 +1369,7 @@ function renderSkyshrinePanel(){
     // Second wrist row
     if(slotKey==='wrist'){
       const isDone2=getSSDone(name,'wrist2');
-      const hasReward2=charHasItem(name,rewardName)||chars[name]?.some(i=>normalize(i.name)===normalize(rewardName.replace("'s ","'s Custom ")));
+      const hasReward2=charHasItem(name,rewardName)||charHasItem(name,rewardAlias);
       const hasTattered2=charHasItem(name,tattered);
       const hasGem2=charHasItem(name,gem.gem);
       rows+=`<tr class="${isDone2?'ss-done':''}">
