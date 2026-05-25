@@ -315,6 +315,7 @@
   <div class="tab-add" id="tabAdd" title="Add character files">&#65291;</div>
 </div>
 <input type="file" id="fileInput" accept=".txt" multiple style="display:none">
+<input type="file" id="charRefreshInput" accept=".txt" style="display:none">
 
 <div class="upload-zone" id="dropzone" style="display:none">
   <input type="file" id="dzInput" accept=".txt" multiple>
@@ -480,7 +481,7 @@ function getEquippedItems(cn){return(chars[cn]||[]).filter(i=>locationType(i.loc
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 function buildTabs(){const bar=document.getElementById('tabBar');bar.querySelectorAll('.tab').forEach(t=>t.remove());const names=charNames();if(names.length>1)bar.insertBefore(makeTab('__all__','&#9876; All Characters'),document.getElementById('tabAdd'));names.forEach(n=>bar.insertBefore(makeTab(n,n),document.getElementById('tabAdd')));if(activeTab==='__all__'&&names.length<2)activeTab=names[0]||null;if(activeTab&&activeTab!=='__all__'&&!chars[activeTab])activeTab=names[0]||null;if(!activeTab&&names.length===1)activeTab=names[0];if(!activeTab&&names.length>1)activeTab='__all__';bar.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.char===activeTab));document.getElementById('subtabBar').style.display=(activeTab&&activeTab!=='__all__')?'flex':'none';}
-function makeTab(charKey,label){const t=document.createElement('div');t.className='tab';t.dataset.char=charKey;const span=document.createElement('span');span.innerHTML=label;t.appendChild(span);if(charKey!=='__all__'){const status=getOverallStatus(charKey);const dot=document.createElement('span');dot.className='tab-rc-dot';dot.title='Raid Consumes: '+(status==='green'?'Ready':status==='yellow'?'Mostly Ready':'Not Ready');dot.style.cssText='font-size:.7rem;line-height:1;margin-left:.1rem;';dot.textContent=status==='green'?'✔':status==='yellow'?'◐':'✘';dot.style.color=status==='green'?'#3a7a3a':status==='yellow'?'#b07800':'#a03030';t.appendChild(dot);const x=document.createElement('span');x.className='remove-char';x.textContent='✕';x.addEventListener('click',e=>{e.stopPropagation();confirmAction('Remove '+charKey+'?',()=>{delete chars[charKey];delete charMeta[charKey];delete gearStats[charKey];if(activeTab===charKey)activeTab=charNames()[0]||null;refresh();});});t.appendChild(x);}t.addEventListener('click',()=>{activeTab=charKey;if(charKey==='__all__')activeSub='inventory';buildTabs();renderView();});return t;}
+function makeTab(charKey,label){const t=document.createElement('div');t.className='tab';t.dataset.char=charKey;const span=document.createElement('span');span.innerHTML=label;t.appendChild(span);if(charKey!=='__all__'){const status=getOverallStatus(charKey);const dot=document.createElement('span');dot.className='tab-rc-dot';dot.title='Raid Consumes: '+(status==='green'?'Ready':status==='yellow'?'Mostly Ready':'Not Ready');dot.style.cssText='font-size:.7rem;line-height:1;margin-left:.1rem;';dot.textContent=status==='green'?'✔':status==='yellow'?'◐':'✘';dot.style.color=status==='green'?'#3a7a3a':status==='yellow'?'#b07800':'#a03030';t.appendChild(dot);const reload=document.createElement('span');reload.className='remove-char';reload.textContent='↻';reload.title='Refresh inventory';reload.style.cssText='font-size:.9rem;';reload.addEventListener('click',e=>{e.stopPropagation();const inp=document.getElementById('charRefreshInput');inp.dataset.charkey=charKey;inp.click();});t.appendChild(reload);const x=document.createElement('span');x.className='remove-char';x.textContent='✕';x.addEventListener('click',e=>{e.stopPropagation();confirmAction('Remove '+charKey+'?',()=>{delete chars[charKey];delete charMeta[charKey];delete gearStats[charKey];if(activeTab===charKey)activeTab=charNames()[0]||null;refresh();});});t.appendChild(x);}t.addEventListener('click',()=>{activeTab=charKey;if(charKey==='__all__')activeSub='inventory';buildTabs();renderView();});return t;}
 document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();});});
 function refresh(){buildTabs();renderView();saveState();}
 function renderView(){const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderTovBar();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();}
@@ -902,6 +903,7 @@ document.getElementById('locationFilter').addEventListener('change',renderTable)
 function loadFiles(files){const arr=[...files];if(!arr.length)return;let loaded=0,lastName=null;arr.forEach(file=>{const reader=new FileReader();reader.onload=e=>{const cn=extractCharName(file.name);chars[cn]=parseInventory(e.target.result,cn);if(!charMeta[cn])charMeta[cn]={};lastName=cn;if(++loaded===arr.length){activeTab=arr.length>1&&Object.keys(chars).length>1?'__all__':lastName;refresh();}};reader.readAsText(file);});}
 
 document.getElementById('fileInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
+document.getElementById('charRefreshInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const cn=extractCharName(file.name);chars[cn]=parseInventory(ev.target.result,cn);if(!charMeta[cn])charMeta[cn]={};if(activeTab!==cn)activeTab=cn;refresh();};reader.readAsText(file);e.target.value='';});
 document.getElementById('dzInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
 document.getElementById('tabAdd').addEventListener('click',()=>document.getElementById('fileInput').click());
 const dz=document.getElementById('dropzone');
@@ -1346,7 +1348,7 @@ function renderSkyshrinePanel(){
     const slotKey=SS_SLOTS[i];
     const tattered=tatteredName(armorType,slotKey);
     const isDone=getSSDone(name,i);
-    const hasReward=charHasItem(name,rewardName);
+    const hasReward=charHasItem(name,rewardName)||charHasItem(name,rewardName.replace("'s ","'s Custom "));
     const hasTattered=charHasItem(name,tattered);
     const hasGem=charHasItem(name,gem.gem);
     const rewardLink=`<a href="${wikiBase}${encodeURIComponent(rewardName.replace(/ /g,'_'))}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold)">${esc(rewardName)}</a>`;
@@ -1366,13 +1368,16 @@ function renderSkyshrinePanel(){
     // Second wrist row
     if(slotKey==='wrist'){
       const isDone2=getSSDone(name,'wrist2');
+      const hasReward2=charHasItem(name,rewardName)||charHasItem(name,rewardName.replace("'s ","'s Custom "));
+      const hasTattered2=charHasItem(name,tattered);
+      const hasGem2=charHasItem(name,gem.gem);
       rows+=`<tr class="${isDone2?'ss-done':''}">
         <td><div class="ss-item-name">${rewardLink}</div><div class="ss-sub">Wrist 2</div></td>
         <td><div class="ss-sub">${tattLink}</div></td>
         <td><div class="ss-sub">${gemLink} ×3</div></td>
-        <td class="ss-check">—</td>
-        <td class="ss-check">—</td>
-        <td class="ss-check">—</td>
+        <td class="ss-check">${hasReward2?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
+        <td class="ss-check">${hasTattered2?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
+        <td class="ss-check">${hasGem2?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
         <td class="ss-th-center"><button class="ss-done-btn ${isDone2?'done':''}" onclick="setSSDone('${esc(name)}','wrist2',${!isDone2})">${isDone2?'✔ Done':'Mark Done'}</button></td>
       </tr>`;
     }
