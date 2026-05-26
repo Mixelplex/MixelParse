@@ -2382,10 +2382,10 @@ function getConsumeStatus(consume, charName){
   if(consume.classOnly && !consume.classOnly.has(cls)) return 'na';
   if(consume.skipClasses && consume.skipClasses.has(cls)) return 'na';
 
-  // Invis items — having either one satisfies both; show which one
+  // Invis items — having either one satisfies both
   if(consume.name && INVIS_ALTS.includes(consume.name)){
-    const found = charFoundAnyOf(charName, INVIS_ALTS);
-    if(found) return 'present';
+    const has = charHasAnyOf(charName, INVIS_ALTS);
+    if(has) return 'present';
     return 'missing_yellow';
   }
 
