@@ -318,8 +318,9 @@
   .kt-expand-btn{font-size:.65rem;color:var(--text-muted);cursor:pointer;padding:0 .2rem;margin-left:.25rem;flex-shrink:0}
   .kt-expand-btn:hover{color:var(--gold-dim)}
   .kt-boss-roles-panel{border-top:1px solid rgba(200,184,144,.3)}
-  .kt-boss-roles-panel .kt-role-row{padding:.32rem 1rem .32rem 2rem;font-size:.76rem}
-  .kt-qty-num{font-family:'Cinzel',serif;font-size:.8rem;min-width:18px;text-align:center}
+  .kt-boss-roles-panel .kt-role-row{padding:.3rem 1rem .3rem 2rem;gap:.5rem}
+  .kt-role-val-inline{font-size:.7rem;color:var(--gold-dim);font-family:'Cinzel',serif;white-space:nowrap;margin-left:.35rem;flex-shrink:0}
+  .kt-boss-role-total{font-family:'Cinzel',serif;font-size:.72rem;font-weight:700;color:var(--gold-light);padding:.35rem 1rem .35rem 2rem;border-top:1px solid rgba(200,184,144,.3);background:rgba(122,80,16,.06);text-align:right}
   .kt-dkp-badge{font-family:'Cinzel',serif;font-size:.82rem;font-weight:700;color:var(--gold-light);background:rgba(122,80,16,.1);border:1px solid var(--border-glow);border-radius:4px;padding:.3rem .7rem;white-space:nowrap}
   .kt-date-input{font-family:'Crimson Pro',serif;font-size:.85rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.25rem .5rem;color:var(--text)}
   .kt-date-input:focus{outline:none;border-color:var(--gold-dim)}
@@ -2100,15 +2101,17 @@ function buildHourlyHtml(){
 function buildBossRoleHtml(target){
   const roles=rolesForBoss(target);
   const bossRoles=activeSession.bossRoles[target]||[];
+  const total=bossRoles.reduce((s,r)=>s+(r.value||0),0);
   let html=`<div class="kt-boss-roles-panel">`;
   for(const role of roles){
     const checked=bossRoles.some(r=>r.desc===role.desc);
     html+=`<label class="kt-role-row${checked?' kt-role-active':''}">
       <input type="checkbox" ${checked?'checked':''} onchange="ktBossRoleToggle('${esc(target)}','${esc(role.desc)}',${role.value},this.checked)">
       <span class="kt-role-desc">${esc(role.desc)}</span>
-      <span class="kt-role-val">${role.value!=null?role.value+' DKP':'TBD'}</span>
+      <span class="kt-role-val-inline">${role.value!=null?role.value+' DKP':'TBD'}</span>
     </label>`;
   }
+  html+=`<div class="kt-boss-role-total">= ${total} DKP in roles</div>`;
   html+='</div>';
   return html;
 }
@@ -2220,9 +2223,7 @@ window.ktBossRoleToggle=function(target,desc,value,checked){
   if(checked)activeSession.bossRoles[target].push({desc,value,qty:1});
   const el=document.getElementById('ktbr_'+target);
   if(el)el.innerHTML=buildBossRoleHtml(target);
-  // update dkp shown on boss row
-  const bossRoles=activeSession.bossRoles[target]||[];
-  const extra=bossRoles.reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
+  const extra=activeSession.bossRoles[target].reduce((s,r)=>s+(r.value||0),0);
   const b=BOSS_ROSTER.find(x=>x.target===target);
   const rows=document.querySelectorAll('.kt-check-row');
   for(const r of rows){
