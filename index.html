@@ -2130,6 +2130,8 @@ function renderKillsPanel(){
   const panel=document.getElementById('killsPanel');
   if(!panel)return;
   if(!activeSession)activeSession=newSession();
+  if(!activeSession.bossRoles)activeSession.bossRoles={};
+  if(!activeSession.hourly)activeSession.hourly=[];
   const tiers=[...new Set(BOSS_ROSTER.map(b=>b.tier))];
 
   let bossHtml='';
