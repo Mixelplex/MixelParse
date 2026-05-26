@@ -2145,7 +2145,6 @@ function renderKillsPanel(){
       const bossRoles=activeSession.bossRoles[b.target]||[];
       const bossRoleDkp=bossRoles.reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
       const rolesAvail=rolesForBoss(b.target).length;
-      html+=''; // satisfy linter
       bossHtml+=`<div>
         <div class="kt-check-row${checked?' kt-checked':''}">
           <input type="checkbox" ${checked?'checked':''} onchange="ktToggleBoss('${esc(b.target)}',this.checked)" onclick="event.stopPropagation()">
