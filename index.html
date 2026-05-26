@@ -2291,32 +2291,6 @@ window.ktDeleteSession=function(id){
 window.ktSetView=function(v){sessionsView=v;renderKillsPanel();};
 
 
-
-function newSession(){
-  return{id:Date.now().toString(),date:new Date().toISOString().slice(0,10),kills:[],roles:[],note:''};
-}
-
-function sessionDkpTotal(session){
-  const killDkp=session.kills.reduce((s,t)=>{const b=BOSS_ROSTER.find(x=>x.target===t);return s+(b?b.dkp:0);},0);
-  const roleDkp=session.roles.reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
-  return Math.round((killDkp+roleDkp)*10)/10;
-}
-
-async function loadKillsFromSupabase(){
-  try{
-    const{data}=await sb.from('guild_data').select('raid_sessions').eq('pool','SoV').single();
-    if(data?.raid_sessions)raidSessions=data.raid_sessions;
-  }catch(e){console.warn('[Sessions] Load error',e);}
-}
-
-async function saveSessionsToSupabase(){
-  try{
-    await sb.from('guild_data').upsert({pool:'SoV',raid_sessions:raidSessions,updated_at:new Date().toISOString()},{onConflict:'pool'});
-    renderKillsPanel();
-  }catch(e){console.error('[Sessions] Save error',e);}
-}
-
-
 // Classes that can self-cast SoW (don't need JBoots)
 const SOW_CLASSES = new Set(['Druid','Ranger','Shaman']);
 // Classes that can self-cast Invisibility (don't need invis item)
