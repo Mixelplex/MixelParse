@@ -2381,10 +2381,10 @@ function getConsumeStatus(consume, charName){
   if(consume.classOnly && !consume.classOnly.has(cls)) return 'na';
   if(consume.skipClasses && consume.skipClasses.has(cls)) return 'na';
 
-  // Invis items — having either one satisfies both
+  // Invis items — having either one satisfies both; show which one
   if(consume.name && INVIS_ALTS.includes(consume.name)){
-    const has = charHasAnyOf(charName, INVIS_ALTS);
-    if(has) return 'present';
+    const found = charFoundAnyOf(charName, INVIS_ALTS);
+    if(found) return 'present';
     return 'missing_yellow';
   }
 
@@ -2416,11 +2416,17 @@ function statusBadge(status){
   return '<span class="rc-status-badge rc-status-red">✘ Not Ready</span>';
 }
 
-function checkCell(status){
-  if(status==='na')            return '<td class="rc-check"><span class="rc-check-na">N/A</span></td>';
-  if(status==='present')       return '<td class="rc-check"><span class="rc-check-green">✔</span></td>';
-  if(status==='missing_red')   return '<td class="rc-check"><span class="rc-check-red">✘</span></td>';
-  if(status==='missing_yellow')return '<td class="rc-check"><span class="rc-check-yellow">◐</span></td>';
+function charFoundAnyOf(charName, names){
+  return names.find(n => charHasItem(charName, n)) || null;
+}
+
+function checkCell(status, foundItem){
+  if(status==='na')             return '<td class="rc-check"><span class="rc-check-na">N/A</span></td>';
+  if(status==='present')        return foundItem
+    ? `<td class="rc-check" title="${esc(foundItem)}"><span class="rc-check-green" style="font-size:.7rem;letter-spacing:0;font-family:'Crimson Pro',serif;font-style:italic">${esc(foundItem)}</span></td>`
+    : '<td class="rc-check"><span class="rc-check-green">✔</span></td>';
+  if(status==='missing_red')    return '<td class="rc-check"><span class="rc-check-red">✘</span></td>';
+  if(status==='missing_yellow') return '<td class="rc-check"><span class="rc-check-yellow">◐</span></td>';
   if(status==='missing_tracked')return '<td class="rc-check"><span class="rc-check-yellow">◐</span></td>';
   return '<td></td>';
 }
@@ -2442,7 +2448,13 @@ function renderConsumesPanel(){
       const nameHtml = wikiName
         ? `<a href="${wikiUrl(wikiName)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold)">${esc(label)}</a>`
         : esc(label);
-      const checks = names.map(n => checkCell(getConsumeStatus(c, n))).join('');
+      const checks = names.map(n => {
+        const status = getConsumeStatus(c, n);
+        const foundItem = status==='present' && (c.anyOf || (c.name && INVIS_ALTS.includes(c.name)))
+          ? charFoundAnyOf(n, c.anyOf || INVIS_ALTS)
+          : null;
+        return checkCell(status, foundItem);
+      }).join('');
       return `<tr>
         <td><div class="rc-item-name">${nameHtml}</div><div class="rc-item-note">${esc(c.note||'')}</div></td>
         ${checks}
