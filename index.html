@@ -2360,6 +2360,7 @@ const RAID_CONSUMES = [
   {name:'Journeyman\'s Boots',         required:'yellow', note:'SoW — required if no self-SoW', skipClasses:SOW_CLASSES},
   {name:'Ring of Shadows',             required:'yellow', note:'Invis — required if no self-invis', skipClasses:INVIS_CLASSES},
   {name:'Larrikan\'s Mask',            required:'yellow', note:'Invis (alt) — required if no self-invis', skipClasses:INVIS_CLASSES},
+  {name:'Stalking Probe',              required:'yellow', note:'5× tracking (instant)'},
   // ── Tracked utility (yellow check only, never red) ──────────────────────────
   {name:'Pegasus Feather Cloak',       required:'tracked', note:'Levitate clicky — nice to have'},
 ];
@@ -2416,15 +2417,9 @@ function statusBadge(status){
   return '<span class="rc-status-badge rc-status-red">✘ Not Ready</span>';
 }
 
-function charFoundAnyOf(charName, names){
-  return names.find(n => charHasItem(charName, n)) || null;
-}
-
-function checkCell(status, foundItem){
+function checkCell(status){
   if(status==='na')             return '<td class="rc-check"><span class="rc-check-na">N/A</span></td>';
-  if(status==='present')        return foundItem
-    ? `<td class="rc-check" title="${esc(foundItem)}"><span class="rc-check-green" style="font-size:.7rem;letter-spacing:0;font-family:'Crimson Pro',serif;font-style:italic">${esc(foundItem)}</span></td>`
-    : '<td class="rc-check"><span class="rc-check-green">✔</span></td>';
+  if(status==='present')        return '<td class="rc-check"><span class="rc-check-green">✔</span></td>';
   if(status==='missing_red')    return '<td class="rc-check"><span class="rc-check-red">✘</span></td>';
   if(status==='missing_yellow') return '<td class="rc-check"><span class="rc-check-yellow">◐</span></td>';
   if(status==='missing_tracked')return '<td class="rc-check"><span class="rc-check-yellow">◐</span></td>';
@@ -2448,13 +2443,7 @@ function renderConsumesPanel(){
       const nameHtml = wikiName
         ? `<a href="${wikiUrl(wikiName)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold)">${esc(label)}</a>`
         : esc(label);
-      const checks = names.map(n => {
-        const status = getConsumeStatus(c, n);
-        const foundItem = status==='present' && (c.anyOf || (c.name && INVIS_ALTS.includes(c.name)))
-          ? charFoundAnyOf(n, c.anyOf || INVIS_ALTS)
-          : null;
-        return checkCell(status, foundItem);
-      }).join('');
+      const checks = names.map(n => checkCell(getConsumeStatus(c, n))).join('');
       return `<tr>
         <td><div class="rc-item-name">${nameHtml}</div><div class="rc-item-note">${esc(c.note||'')}</div></td>
         ${checks}
