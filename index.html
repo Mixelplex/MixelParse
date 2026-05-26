@@ -317,9 +317,9 @@
   .kt-qty-btn:hover{border-color:var(--gold-light)}
   .kt-expand-btn{font-size:.65rem;color:var(--text-muted);cursor:pointer;padding:0 .2rem;margin-left:.25rem;flex-shrink:0}
   .kt-expand-btn:hover{color:var(--gold-dim)}
-  .kt-boss-roles-panel{border-top:1px solid rgba(200,184,144,.3);max-width:420px}
-  .kt-boss-roles-panel .kt-role-row{padding:.3rem 1rem .3rem 2rem;gap:.5rem;display:flex;align-items:center}
-  .kt-role-val-inline{font-size:.7rem;color:var(--gold-dim);font-family:'Cinzel',serif;white-space:nowrap;margin-left:auto;padding-left:1rem;flex-shrink:0}
+  .kt-boss-roles-panel{border-top:1px solid rgba(200,184,144,.3)}
+  .kt-boss-roles-panel .kt-role-row{padding:.3rem 1rem .3rem 2rem;gap:.5rem}
+  .kt-role-val-inline{font-size:.7rem;color:var(--gold-dim);font-family:'Cinzel',serif;white-space:nowrap;margin-left:.35rem;flex-shrink:0}
   .kt-boss-role-total{font-family:'Cinzel',serif;font-size:.72rem;font-weight:700;color:var(--gold-light);padding:.35rem 1rem .35rem 2rem;border-top:1px solid rgba(200,184,144,.3);background:rgba(122,80,16,.06);text-align:right}
   .kt-dkp-badge{font-family:'Cinzel',serif;font-size:.82rem;font-weight:700;color:var(--gold-light);background:rgba(122,80,16,.1);border:1px solid var(--border-glow);border-radius:4px;padding:.3rem .7rem;white-space:nowrap}
   .kt-date-input{font-family:'Crimson Pro',serif;font-size:.85rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.25rem .5rem;color:var(--text)}
@@ -2023,7 +2023,6 @@ let ktExpanded={}; // {target: true} — which boss role panels are open
 const HOURLY_ROLES=[
   {desc:'Ticks - Standard (hourly)',    value:1},
   {desc:'Ticks - NToV/Sky/VP (hourly)',value:2},
-  {desc:'Ticks - Training Events',      value:3},
 ];
 
 // Per-boss roles — filtered by boss target
