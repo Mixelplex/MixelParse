@@ -2238,17 +2238,22 @@ function ktUpdateBadge(){
 
 window.ktSetBossState=function(target,newState){
   if(!activeSession.killState)activeSession.killState={};
-  // clicking same radio again — allow deselect via double-click? For now just set it
   activeSession.killState[target]=newState;
-  // update dkp label on row
   const b=BOSS_ROSTER.find(x=>x.target===target);
   const bossRoleDkp=(activeSession.bossRoles[target]||[]).reduce((s,r)=>s+(r.value||0),0);
   const killTotal=Math.round((b.dkp+b.baseDkp+bossRoleDkp)*10)/10;
   const dkpEl=document.getElementById('ktdkp_'+target);
   if(dkpEl)dkpEl.textContent=newState==='killed'?killTotal+' DKP':newState==='failtick'?'1 DKP':b.dkp+'+'+b.baseDkp;
-  // update row highlight
   const row=dkpEl?.closest('.kt-check-row');
   if(row){row.className='kt-check-row'+(newState==='killed'?' kt-checked':newState==='failtick'?' kt-failtick':'');}
+  // Auto-expand on killed
+  if(newState==='killed'&&!ktExpanded[target]){
+    ktExpanded[target]=true;
+    const el=document.getElementById('ktbr_'+target);
+    if(el)el.style.display='block';
+    const arrow=row?.querySelector('.kt-expand-btn');
+    if(arrow)arrow.textContent='▲';
+  }
   ktUpdateBadge();
 };
 
@@ -2270,13 +2275,10 @@ window.ktBossRoleToggle=function(target,desc,value,checked){
   if(el)el.innerHTML=buildBossRoleHtml(target);
   const extra=activeSession.bossRoles[target].reduce((s,r)=>s+(r.value||0),0);
   const b=BOSS_ROSTER.find(x=>x.target===target);
-  const rows=document.querySelectorAll('.kt-check-row');
-  for(const r of rows){
-    if(r.querySelector('.kt-check-name')?.textContent?.trim()===target){
-      const dkpSpan=r.querySelector('.kt-check-dkp');
-      if(dkpSpan&&b)dkpSpan.textContent=b.dkp+(extra>0?` +${extra}`:'');
-    }
-  }
+  const state=activeSession.killState[target]||null;
+  const killTotal=Math.round((b.dkp+b.baseDkp+extra)*10)/10;
+  const dkpEl=document.getElementById('ktdkp_'+target);
+  if(dkpEl)dkpEl.textContent=state==='killed'?killTotal+' DKP':state==='failtick'?'1 DKP':b.dkp+'+'+b.baseDkp;
   ktUpdateBadge();
 };
 
