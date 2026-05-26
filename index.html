@@ -2216,16 +2216,42 @@ function renderKillsPanel(){
           <label style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted)">NOTE</label>
           <input type="text" value="${esc(activeSession.note||'')}" placeholder="e.g. Full ToV clear" class="kt-date-input" style="flex:1" oninput="activeSession.note=this.value">
         </div>
+        <input type="text" id="ktSearch" class="kt-date-input" placeholder="Search bosses…" style="width:160px" oninput="ktFilterBosses(this.value)">
         <div class="kt-dkp-badge" id="ktBadge">${total} DKP &nbsp;·&nbsp; ${killCount} kill${killCount!==1?'s':''}${failtickCount>0?` · ${failtickCount} failtick${failtickCount!==1?'s':''}`:''}</div>
         <button class="kt-save-btn" onclick="ktSaveSession()">💾 Save Session</button>
         <button class="kt-undo-btn" onclick="ktClearSession()">Clear</button>
       </div>
       <div style="display:flex;overflow:hidden">
-        <div style="flex:1;border-right:1px solid var(--border);overflow-y:auto;max-height:72vh">${bossHtml}</div>
+        <div style="flex:1;border-right:1px solid var(--border);overflow-y:auto;max-height:72vh" id="ktBossCol">${bossHtml}</div>
         <div style="width:260px;overflow-y:auto;max-height:72vh">${buildHourlyHtml()}</div>
       </div>
     `}`;
 }
+
+window.ktFilterBosses=function(q){
+  const col=document.getElementById('ktBossCol');
+  if(!col)return;
+  const term=q.toLowerCase().trim();
+  // Show/hide tier headers and boss rows based on search
+  const tierHeaders=col.querySelectorAll('.kt-tier-header');
+  for(const hdr of tierHeaders){
+    const nextRows=[];
+    let el=hdr.nextElementSibling;
+    while(el&&!el.classList.contains('kt-tier-header')){
+      nextRows.push(el);
+      el=el.nextElementSibling;
+    }
+    let anyVisible=false;
+    for(const row of nextRows){
+      const name=row.querySelector('.kt-check-name')?.textContent?.toLowerCase()||'';
+      const full=row.querySelector('.kt-check-full')?.textContent?.toLowerCase()||'';
+      const match=!term||name.includes(term)||full.includes(term);
+      row.style.display=match?'':'none';
+      if(match)anyVisible=true;
+    }
+    hdr.style.display=anyVisible||!term?'':'none';
+  }
+};
 
 function ktUpdateBadge(){
   const badge=document.getElementById('ktBadge');
