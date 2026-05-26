@@ -2028,21 +2028,21 @@ const HOURLY_ROLES=[
 // Per-boss roles — filtered by boss target
 // bosses:[] = all bosses. bosses:['X'] = only those bosses.
 const BOSS_ROLES=[
-  {desc:'Playmaker Bonus',              value:5,   repeats:true,  bosses:[]},
-  {desc:'Quad',                         value:2,   repeats:true,  bosses:[]},
-  {desc:'Kite',                         value:2,   repeats:true,  bosses:[]},
-  {desc:'Tank Bonus',                   value:2,   repeats:false, bosses:[]},
-  {desc:'Cleric Bonus',                 value:null,repeats:false, bosses:[]},
-  {desc:'PR Trainout',                  value:0.5, repeats:true,  bosses:[]},
-  {desc:'Low HP Train',                 value:1,   repeats:true,  bosses:[]},
-  {desc:'Bump',                         value:2,   repeats:true,  bosses:['Dozekar','Statue','Takish']},
-  {desc:'Bonewalk',                     value:1,   repeats:true,  bosses:['Dozekar']},
-  {desc:'96%/97% DBs',                  value:2,   repeats:true,  bosses:['Dozekar','Yelinak']},
-  {desc:'LTK Coth / Pets',             value:1,   repeats:false, bosses:['LTK']},
-  {desc:'Tunare Bard/Enc Kite Team',   value:2,   repeats:false, bosses:['Tunare']},
-  {desc:'Vulak Sheet',                  value:15,  repeats:false, bosses:['Vulak']},
-  {desc:'Vulak Sheet - Fail',           value:5,   repeats:false, bosses:['Vulak']},
-  {desc:'ToV Pulling (hourly)',         value:1,   repeats:true,
+  {desc:'Playmaker Bonus',              value:5,   bosses:[]},
+  {desc:'Quad',                         value:2,   bosses:[]},
+  {desc:'Kite',                         value:2,   bosses:[]},
+  {desc:'Tank Bonus',                   value:2,   bosses:[]},
+  {desc:'Cleric Bonus',                 value:null,bosses:[]},
+  {desc:'PR Trainout',                  value:0.5, bosses:[]},
+  {desc:'Low HP Train',                 value:1,   bosses:[]},
+  {desc:'Bump',                         value:2,   bosses:['Dozekar','Statue','Takish']},
+  {desc:'Bonewalk',                     value:1,   bosses:['Dozekar']},
+  {desc:'96%/97% DBs',                  value:2,   bosses:['Dozekar','Yelinak']},
+  {desc:'LTK Coth / Pets',             value:1,   bosses:['LTK']},
+  {desc:'Tunare Bard/Enc Kite Team',   value:2,   bosses:['Tunare']},
+  {desc:'Vulak Sheet',                  value:15,  bosses:['Vulak']},
+  {desc:'Vulak Sheet - Fail',           value:5,   bosses:['Vulak']},
+  {desc:'ToV Pulling (hourly)',         value:1,
     bosses:['Aaryonar','Dagarn','Dracoliche','Druushk','Feshlak','Hoshkar','Jorlleag',
              'Klandicar','Koi','Kreizenn','LTK','Magi P\'Tasa','Mirenilla','Nevederia',
              'Sontalak','Vulak','Zlandicar']},
@@ -2102,25 +2102,12 @@ function buildBossRoleHtml(target){
   const bossRoles=activeSession.bossRoles[target]||[];
   let html=`<div class="kt-boss-roles-panel">`;
   for(const role of roles){
-    const existing=bossRoles.find(r=>r.desc===role.desc);
-    const qty=existing?existing.qty:0;
-    if(role.repeats){
-      html+=`<div class="kt-role-row${qty>0?' kt-role-active':''}">
-        <span class="kt-role-desc">${esc(role.desc)}</span>
-        <span class="kt-role-val">${role.value!=null?role.value+' DKP':'TBD'}</span>
-        <div class="kt-role-qty">
-          <button class="kt-qty-btn" onclick="ktBossRoleAdj('${esc(target)}','${esc(role.desc)}',${role.value},-1)">−</button>
-          <span class="kt-qty-num" style="color:${qty>0?'var(--gold-light)':'var(--text-muted)'}">${qty}</span>
-          <button class="kt-qty-btn" onclick="ktBossRoleAdj('${esc(target)}','${esc(role.desc)}',${role.value},1)">+</button>
-        </div>
-      </div>`;
-    } else {
-      html+=`<label class="kt-role-row${qty>0?' kt-role-active':''}">
-        <input type="checkbox" ${qty>0?'checked':''} onchange="ktBossRoleToggle('${esc(target)}','${esc(role.desc)}',${role.value},this.checked)">
-        <span class="kt-role-desc">${esc(role.desc)}</span>
-        <span class="kt-role-val">${role.value!=null?role.value+' DKP':'TBD'}</span>
-      </label>`;
-    }
+    const checked=bossRoles.some(r=>r.desc===role.desc);
+    html+=`<label class="kt-role-row${checked?' kt-role-active':''}">
+      <input type="checkbox" ${checked?'checked':''} onchange="ktBossRoleToggle('${esc(target)}','${esc(role.desc)}',${role.value},this.checked)">
+      <span class="kt-role-desc">${esc(role.desc)}</span>
+      <span class="kt-role-val">${role.value!=null?role.value+' DKP':'TBD'}</span>
+    </label>`;
   }
   html+='</div>';
   return html;
@@ -2231,31 +2218,19 @@ window.ktBossRoleToggle=function(target,desc,value,checked){
   if(!activeSession.bossRoles[target])activeSession.bossRoles[target]=[];
   activeSession.bossRoles[target]=activeSession.bossRoles[target].filter(r=>r.desc!==desc);
   if(checked)activeSession.bossRoles[target].push({desc,value,qty:1});
-  ktUpdateBadge();
+  const el=document.getElementById('ktbr_'+target);
+  if(el)el.innerHTML=buildBossRoleHtml(target);
   // update dkp shown on boss row
   const bossRoles=activeSession.bossRoles[target]||[];
   const extra=bossRoles.reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
   const b=BOSS_ROSTER.find(x=>x.target===target);
-  const dkpEl=document.querySelector(`[onclick*="ktToggleBossRoles('${target}')"] ~ .kt-check-dkp, .kt-check-row .kt-check-dkp`);
-  // simpler: just re-render the dkp span via the check-row
   const rows=document.querySelectorAll('.kt-check-row');
   for(const r of rows){
-    const cb=r.querySelector('input[type=checkbox]');
-    if(cb&&r.querySelector('.kt-check-name')?.textContent?.trim()===target){
+    if(r.querySelector('.kt-check-name')?.textContent?.trim()===target){
       const dkpSpan=r.querySelector('.kt-check-dkp');
       if(dkpSpan&&b)dkpSpan.textContent=b.dkp+(extra>0?` +${extra}`:'');
     }
   }
-};
-
-window.ktBossRoleAdj=function(target,desc,value,delta){
-  if(!activeSession.bossRoles[target])activeSession.bossRoles[target]=[];
-  const existing=activeSession.bossRoles[target].find(r=>r.desc===desc);
-  if(existing){existing.qty=Math.max(0,existing.qty+delta);if(existing.qty===0)activeSession.bossRoles[target]=activeSession.bossRoles[target].filter(r=>r.desc!==desc);}
-  else if(delta>0){activeSession.bossRoles[target].push({desc,value,qty:1});}
-  // Re-render just the boss roles panel to update qty display
-  const el=document.getElementById('ktbr_'+target);
-  if(el)el.innerHTML=buildBossRoleHtml(target);
   ktUpdateBadge();
 };
 
