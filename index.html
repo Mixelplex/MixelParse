@@ -315,7 +315,11 @@
   .kt-role-qty{display:flex;align-items:center;gap:.3rem;margin-left:.3rem}
   .kt-qty-btn{width:20px;height:20px;border:1px solid var(--border);border-radius:3px;background:var(--surface2);color:var(--gold);font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;transition:border-color .1s}
   .kt-qty-btn:hover{border-color:var(--gold-light)}
-  .kt-qty-num{font-family:'Cinzel',serif;font-size:.8rem;min-width:16px;text-align:center;color:${0>0?'var(--gold-light)':'var(--text-muted)' }}
+  .kt-expand-btn{font-size:.65rem;color:var(--text-muted);cursor:pointer;padding:0 .2rem;margin-left:.25rem;flex-shrink:0}
+  .kt-expand-btn:hover{color:var(--gold-dim)}
+  .kt-boss-roles-panel{border-top:1px solid rgba(200,184,144,.3)}
+  .kt-boss-roles-panel .kt-role-row{padding:.32rem 1rem .32rem 2rem;font-size:.76rem}
+  .kt-qty-num{font-family:'Cinzel',serif;font-size:.8rem;min-width:18px;text-align:center}
   .kt-dkp-badge{font-family:'Cinzel',serif;font-size:.82rem;font-weight:700;color:var(--gold-light);background:rgba(122,80,16,.1);border:1px solid var(--border-glow);border-radius:4px;padding:.3rem .7rem;white-space:nowrap}
   .kt-date-input{font-family:'Crimson Pro',serif;font-size:.85rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.25rem .5rem;color:var(--text)}
   .kt-date-input:focus{outline:none;border-color:var(--gold-dim)}
@@ -2012,27 +2016,299 @@ const BOSS_ROSTER=[
 let raidSessions=[];
 let activeSession=null;
 let sessionsView='new'; // 'new' | 'history'
+let ktExpanded={}; // {target: true} — which boss role panels are open
 
-const RAID_ROLES=[
-  {desc:'Vulak Sheet',                      value:15,  repeats:false},
-  {desc:'Vulak Sheet - Fail',               value:5,   repeats:false},
-  {desc:'Playmaker Bonus',                  value:5,   repeats:true},
-  {desc:'Quad',                             value:2,   repeats:true},
-  {desc:'Kite',                             value:2,   repeats:true},
-  {desc:'Bump (ST/Doze/Takish engages)',    value:2,   repeats:true},
-  {desc:'Bonewalk',                         value:1,   repeats:true},
-  {desc:'96%/97% DBs (doze, yeli)',         value:2,   repeats:true},
-  {desc:'ToV Pulling (hourly)',             value:1,   repeats:true},
-  {desc:'PR Trainout',                      value:0.5, repeats:true},
-  {desc:'Low HP Train',                     value:1,   repeats:true},
-  {desc:'LTK Coth / Pets',                  value:1,   repeats:false},
-  {desc:'Tunare Bard/Enc Kite Team',        value:2,   repeats:false},
-  {desc:'Tank Bonus',                       value:2,   repeats:false},
-  {desc:'Cleric Bonus',                     value:null,repeats:false},
-  {desc:'Ticks - Standard (hourly)',        value:1,   repeats:true},
-  {desc:'Ticks - NToV/Sky/VP (hourly)',     value:2,   repeats:true},
-  {desc:'Ticks - Training Events',          value:3,   repeats:true},
+// Hourly ticks — session level, shown at top
+const HOURLY_ROLES=[
+  {desc:'Ticks - Standard (hourly)',    value:1},
+  {desc:'Ticks - NToV/Sky/VP (hourly)',value:2},
+  {desc:'Ticks - Training Events',      value:3},
 ];
+
+// Per-boss roles — filtered by boss target
+// bosses:[] = all bosses. bosses:['X'] = only those bosses.
+const BOSS_ROLES=[
+  {desc:'Playmaker Bonus',              value:5,   repeats:true,  bosses:[]},
+  {desc:'Quad',                         value:2,   repeats:true,  bosses:[]},
+  {desc:'Kite',                         value:2,   repeats:true,  bosses:[]},
+  {desc:'Tank Bonus',                   value:2,   repeats:false, bosses:[]},
+  {desc:'Cleric Bonus',                 value:null,repeats:false, bosses:[]},
+  {desc:'PR Trainout',                  value:0.5, repeats:true,  bosses:[]},
+  {desc:'Low HP Train',                 value:1,   repeats:true,  bosses:[]},
+  {desc:'Bump',                         value:2,   repeats:true,  bosses:['Dozekar','Statue','Takish']},
+  {desc:'Bonewalk',                     value:1,   repeats:true,  bosses:['Dozekar']},
+  {desc:'96%/97% DBs',                  value:2,   repeats:true,  bosses:['Dozekar','Yelinak']},
+  {desc:'LTK Coth / Pets',             value:1,   repeats:false, bosses:['LTK']},
+  {desc:'Tunare Bard/Enc Kite Team',   value:2,   repeats:false, bosses:['Tunare']},
+  {desc:'Vulak Sheet',                  value:15,  repeats:false, bosses:['Vulak']},
+  {desc:'Vulak Sheet - Fail',           value:5,   repeats:false, bosses:['Vulak']},
+  {desc:'ToV Pulling (hourly)',         value:1,   repeats:true,
+    bosses:['Aaryonar','Dagarn','Dracoliche','Druushk','Feshlak','Hoshkar','Jorlleag',
+             'Klandicar','Koi','Kreizenn','LTK','Magi P\'Tasa','Mirenilla','Nevederia',
+             'Sontalak','Vulak','Zlandicar']},
+];
+
+function rolesForBoss(target){
+  return BOSS_ROLES.filter(r=>r.bosses.length===0||r.bosses.includes(target));
+}
+
+function newSession(){
+  return{id:Date.now().toString(),date:new Date().toISOString().slice(0,10),kills:[],hourly:[],bossRoles:{},note:''};
+}
+
+function sessionDkpTotal(session){
+  const killDkp=session.kills.reduce((s,t)=>{const b=BOSS_ROSTER.find(x=>x.target===t);return s+(b?b.dkp:0);},0);
+  const hourlyDkp=(session.hourly||[]).reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
+  const bossRoleDkp=Object.values(session.bossRoles||{}).flat().reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
+  return Math.round((killDkp+hourlyDkp+bossRoleDkp)*10)/10;
+}
+
+async function loadKillsFromSupabase(){
+  try{
+    const{data}=await sb.from('guild_data').select('raid_sessions').eq('pool','SoV').single();
+    if(data?.raid_sessions)raidSessions=data.raid_sessions;
+  }catch(e){console.warn('[Sessions] Load error',e);}
+}
+
+async function saveSessionsToSupabase(){
+  try{
+    await sb.from('guild_data').upsert({pool:'SoV',raid_sessions:raidSessions,updated_at:new Date().toISOString()},{onConflict:'pool'});
+    renderKillsPanel();
+  }catch(e){console.error('[Sessions] Save error',e);}
+}
+
+function buildHourlyHtml(){
+  let html='<div style="border-bottom:1px solid var(--border)">';
+  html+=`<div style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">HOURLY TICKS — SESSION</div>`;
+  for(const role of HOURLY_ROLES){
+    const existing=(activeSession.hourly||[]).find(r=>r.desc===role.desc);
+    const qty=existing?existing.qty:0;
+    html+=`<div class="kt-role-row${qty>0?' kt-role-active':''}">
+      <span class="kt-role-desc">${esc(role.desc)}</span>
+      <span class="kt-role-val">${role.value} DKP</span>
+      <div class="kt-role-qty">
+        <button class="kt-qty-btn" onclick="ktHourlyAdj('${esc(role.desc)}',${role.value},-1)">−</button>
+        <span class="kt-qty-num" style="color:${qty>0?'var(--gold-light)':'var(--text-muted)'}">${qty}</span>
+        <button class="kt-qty-btn" onclick="ktHourlyAdj('${esc(role.desc)}',${role.value},1)">+</button>
+      </div>
+    </div>`;
+  }
+  html+='</div>';
+  return html;
+}
+
+function buildBossRoleHtml(target){
+  const roles=rolesForBoss(target);
+  const bossRoles=activeSession.bossRoles[target]||[];
+  let html=`<div class="kt-boss-roles-panel">`;
+  for(const role of roles){
+    const existing=bossRoles.find(r=>r.desc===role.desc);
+    const qty=existing?existing.qty:0;
+    if(role.repeats){
+      html+=`<div class="kt-role-row${qty>0?' kt-role-active':''}">
+        <span class="kt-role-desc">${esc(role.desc)}</span>
+        <span class="kt-role-val">${role.value!=null?role.value+' DKP':'TBD'}</span>
+        <div class="kt-role-qty">
+          <button class="kt-qty-btn" onclick="ktBossRoleAdj('${esc(target)}','${esc(role.desc)}',${role.value},-1)">−</button>
+          <span class="kt-qty-num" style="color:${qty>0?'var(--gold-light)':'var(--text-muted)'}">${qty}</span>
+          <button class="kt-qty-btn" onclick="ktBossRoleAdj('${esc(target)}','${esc(role.desc)}',${role.value},1)">+</button>
+        </div>
+      </div>`;
+    } else {
+      html+=`<label class="kt-role-row${qty>0?' kt-role-active':''}">
+        <input type="checkbox" ${qty>0?'checked':''} onchange="ktBossRoleToggle('${esc(target)}','${esc(role.desc)}',${role.value},this.checked)">
+        <span class="kt-role-desc">${esc(role.desc)}</span>
+        <span class="kt-role-val">${role.value!=null?role.value+' DKP':'TBD'}</span>
+      </label>`;
+    }
+  }
+  html+='</div>';
+  return html;
+}
+
+function renderKillsPanel(){
+  const panel=document.getElementById('killsPanel');
+  if(!panel)return;
+  if(!activeSession)activeSession=newSession();
+  const tiers=[...new Set(BOSS_ROSTER.map(b=>b.tier))];
+
+  let bossHtml='';
+  for(const tier of tiers){
+    const bosses=BOSS_ROSTER.filter(b=>b.tier===tier);
+    const c=TIER_COLORS[tier]||TIER_COLORS['Misc'];
+    bossHtml+=`<div class="kt-tier-header" style="color:${c.text};border-color:${c.border};background:${c.bg}">${tier} — ${bosses[0].dkp} Kill DKP</div>`;
+    for(const b of bosses){
+      const checked=activeSession.kills.includes(b.target);
+      const isOpen=!!ktExpanded[b.target];
+      const bossRoles=activeSession.bossRoles[b.target]||[];
+      const bossRoleDkp=bossRoles.reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
+      const rolesAvail=rolesForBoss(b.target).length;
+      html+=''; // satisfy linter
+      bossHtml+=`<div>
+        <div class="kt-check-row${checked?' kt-checked':''}">
+          <input type="checkbox" ${checked?'checked':''} onchange="ktToggleBoss('${esc(b.target)}',this.checked)" onclick="event.stopPropagation()">
+          <span class="kt-check-name" onclick="if(document.getElementById('ktbr_${esc(b.target)}'))ktToggleBossRoles('${esc(b.target)}')" style="cursor:pointer">${esc(b.target)}</span>
+          ${b.target!==b.full?`<span class="kt-check-full">${esc(b.full)}</span>`:''}
+          <span class="kt-check-dkp">${b.dkp}${bossRoleDkp>0?` +${bossRoleDkp}`:''}</span>
+          <span class="kt-expand-btn" onclick="ktToggleBossRoles('${esc(b.target)}')" title="${rolesAvail} roles available">${isOpen?'▲':'▼'}</span>
+        </div>
+        <div id="ktbr_${esc(b.target)}" style="display:${isOpen?'block':'none'};border-bottom:1px solid var(--border);background:var(--surface)">
+          ${buildBossRoleHtml(b.target)}
+        </div>
+      </div>`;
+    }
+  }
+
+  const total=sessionDkpTotal(activeSession);
+  const killCount=activeSession.kills.length;
+
+  const sorted=[...raidSessions].sort((a,b)=>b.date.localeCompare(a.date));
+  let histHtml=sorted.length===0?`<div class="dkp-empty">No saved sessions yet.</div>`:
+    sorted.map(s=>{
+      const t=sessionDkpTotal(s);
+      const d=new Date(s.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+      return`<div class="kt-hist-row" onclick="ktLoadSession('${esc(s.id)}')">
+        <div style="flex:1;min-width:0">
+          <div class="kt-hist-date">${d}${s.note?` — <em>${esc(s.note)}</em>`:''}</div>
+          <div class="kt-hist-kills">${s.kills.length} kill${s.kills.length!==1?'s':''}: ${s.kills.slice(0,6).map(esc).join(', ')}${s.kills.length>6?' …':''}</div>
+        </div>
+        <div class="kt-hist-dkp">${t} DKP</div>
+        <button class="kt-undo-btn" onclick="event.stopPropagation();ktDeleteSession('${esc(s.id)}')">✕</button>
+      </div>`;
+    }).join('');
+
+  panel.innerHTML=`
+    <div style="display:flex;border-bottom:1px solid var(--border)">
+      <div class="kt-view-tab${sessionsView==='new'?' active':''}" onclick="ktSetView('new')">⚔ New Session</div>
+      <div class="kt-view-tab${sessionsView==='history'?' active':''}" onclick="ktSetView('history')">📜 History (${raidSessions.length})</div>
+    </div>
+    ${sessionsView==='history'?`<div style="padding:.5rem 0">${histHtml}</div>`:`
+      <div style="display:flex;gap:.75rem;padding:.6rem 1rem;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap;background:var(--surface2)">
+        <div style="display:flex;align-items:center;gap:.4rem">
+          <label style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted)">DATE</label>
+          <input type="date" value="${activeSession.date}" class="kt-date-input" onchange="activeSession.date=this.value">
+        </div>
+        <div style="display:flex;align-items:center;gap:.4rem;flex:1;min-width:180px">
+          <label style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted)">NOTE</label>
+          <input type="text" value="${esc(activeSession.note||'')}" placeholder="e.g. Full ToV clear" class="kt-date-input" style="flex:1" oninput="activeSession.note=this.value">
+        </div>
+        <div class="kt-dkp-badge" id="ktBadge">${total} DKP &nbsp;·&nbsp; ${killCount} kill${killCount!==1?'s':''}</div>
+        <button class="kt-save-btn" onclick="ktSaveSession()">💾 Save Session</button>
+        <button class="kt-undo-btn" onclick="ktClearSession()">Clear</button>
+      </div>
+      <div style="display:flex;overflow:hidden">
+        <div style="flex:1;border-right:1px solid var(--border);overflow-y:auto;max-height:72vh">${bossHtml}</div>
+        <div style="width:260px;overflow-y:auto;max-height:72vh">${buildHourlyHtml()}</div>
+      </div>
+    `}`;
+}
+
+function ktUpdateBadge(){
+  const badge=document.getElementById('ktBadge');
+  if(!badge)return;
+  const t=sessionDkpTotal(activeSession);
+  badge.textContent=t+' DKP \u00a0·\u00a0 '+activeSession.kills.length+' kill'+(activeSession.kills.length!==1?'s':'');
+}
+
+window.ktToggleBoss=function(target,checked){
+  if(checked){if(!activeSession.kills.includes(target))activeSession.kills.push(target);}
+  else{activeSession.kills=activeSession.kills.filter(t=>t!==target);}
+  ktUpdateBadge();
+};
+
+window.ktToggleBossRoles=function(target){
+  ktExpanded[target]=!ktExpanded[target];
+  const el=document.getElementById('ktbr_'+target);
+  if(el)el.style.display=ktExpanded[target]?'block':'none';
+  // flip arrow
+  const row=el?.previousElementSibling;
+  const arrow=row?.querySelector('.kt-expand-btn');
+  if(arrow)arrow.textContent=ktExpanded[target]?'▲':'▼';
+};
+
+window.ktBossRoleToggle=function(target,desc,value,checked){
+  if(!activeSession.bossRoles[target])activeSession.bossRoles[target]=[];
+  activeSession.bossRoles[target]=activeSession.bossRoles[target].filter(r=>r.desc!==desc);
+  if(checked)activeSession.bossRoles[target].push({desc,value,qty:1});
+  ktUpdateBadge();
+  // update dkp shown on boss row
+  const bossRoles=activeSession.bossRoles[target]||[];
+  const extra=bossRoles.reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
+  const b=BOSS_ROSTER.find(x=>x.target===target);
+  const dkpEl=document.querySelector(`[onclick*="ktToggleBossRoles('${target}')"] ~ .kt-check-dkp, .kt-check-row .kt-check-dkp`);
+  // simpler: just re-render the dkp span via the check-row
+  const rows=document.querySelectorAll('.kt-check-row');
+  for(const r of rows){
+    const cb=r.querySelector('input[type=checkbox]');
+    if(cb&&r.querySelector('.kt-check-name')?.textContent?.trim()===target){
+      const dkpSpan=r.querySelector('.kt-check-dkp');
+      if(dkpSpan&&b)dkpSpan.textContent=b.dkp+(extra>0?` +${extra}`:'');
+    }
+  }
+};
+
+window.ktBossRoleAdj=function(target,desc,value,delta){
+  if(!activeSession.bossRoles[target])activeSession.bossRoles[target]=[];
+  const existing=activeSession.bossRoles[target].find(r=>r.desc===desc);
+  if(existing){existing.qty=Math.max(0,existing.qty+delta);if(existing.qty===0)activeSession.bossRoles[target]=activeSession.bossRoles[target].filter(r=>r.desc!==desc);}
+  else if(delta>0){activeSession.bossRoles[target].push({desc,value,qty:1});}
+  // Re-render just the boss roles panel to update qty display
+  const el=document.getElementById('ktbr_'+target);
+  if(el)el.innerHTML=buildBossRoleHtml(target);
+  ktUpdateBadge();
+};
+
+window.ktHourlyAdj=function(desc,value,delta){
+  if(!activeSession.hourly)activeSession.hourly=[];
+  const existing=activeSession.hourly.find(r=>r.desc===desc);
+  if(existing){existing.qty=Math.max(0,existing.qty+delta);if(existing.qty===0)activeSession.hourly=activeSession.hourly.filter(r=>r.desc!==desc);}
+  else if(delta>0){activeSession.hourly.push({desc,value,qty:1});}
+  // Re-render right panel only
+  const right=document.querySelector('#killsPanel .kt-role-row')?.closest('div[style*="width:260px"]');
+  const panel=document.getElementById('killsPanel');
+  // Find the hourly panel div and replace
+  const allDivs=panel?.querySelectorAll('div');
+  // Simplest: just update the qty display inline
+  const rows=panel?.querySelectorAll('.kt-role-row');
+  const qty=activeSession.hourly.find(r=>r.desc===desc)?.qty||0;
+  for(const row of (rows||[])){
+    const descEl=row.querySelector('.kt-role-desc');
+    if(descEl?.textContent===desc){
+      const qtyEl=row.querySelector('.kt-qty-num');
+      if(qtyEl){qtyEl.textContent=qty;qtyEl.style.color=qty>0?'var(--gold-light)':'var(--text-muted)';}
+      row.className='kt-role-row'+(qty>0?' kt-role-active':'');
+    }
+  }
+  ktUpdateBadge();
+};
+
+window.ktSaveSession=function(){
+  const s={...activeSession,kills:[...activeSession.kills],hourly:(activeSession.hourly||[]).map(r=>({...r})),bossRoles:Object.fromEntries(Object.entries(activeSession.bossRoles||{}).map(([k,v])=>[k,v.map(r=>({...r}))]))};
+  const idx=raidSessions.findIndex(x=>x.id===s.id);
+  if(idx>=0)raidSessions[idx]=s;else raidSessions.push(s);
+  saveSessionsToSupabase();
+  activeSession=newSession();ktExpanded={};
+  sessionsView='history';
+  renderKillsPanel();
+};
+
+window.ktClearSession=function(){activeSession=newSession();ktExpanded={};renderKillsPanel();};
+
+window.ktLoadSession=function(id){
+  const s=raidSessions.find(x=>x.id===id);
+  if(!s)return;
+  activeSession={...s,kills:[...s.kills],hourly:(s.hourly||[]).map(r=>({...r})),bossRoles:Object.fromEntries(Object.entries(s.bossRoles||{}).map(([k,v])=>[k,v.map(r=>({...r}))]))};
+  ktExpanded={};sessionsView='new';
+  renderKillsPanel();
+};
+
+window.ktDeleteSession=function(id){
+  confirmAction('Delete this session?',()=>{raidSessions=raidSessions.filter(s=>s.id!==id);saveSessionsToSupabase();});
+};
+
+window.ktSetView=function(v){sessionsView=v;renderKillsPanel();};
+
+
 
 function newSession(){
   return{id:Date.now().toString(),date:new Date().toISOString().slice(0,10),kills:[],roles:[],note:''};
