@@ -1005,7 +1005,8 @@ function renderUpgradesPanel(){
     html+=row('AC',baselineTotals.ac||0);
     if(curHP!==null){html+=row('HP',curHP);html+=row('Mana',curMana);}
     const primaryKeys=STAT_KEYS.filter(k=>(weights[k]||0)>0);
-    if(primaryKeys.length){html+=`<div class="upg-stat-section">Primary</div>`;primaryKeys.forEach(k=>html+=row(k.toUpperCase(),baselineTotals[k]||0));}
+    const displayKeys=primaryKeys.length?primaryKeys:STAT_KEYS;
+    if(displayKeys.length){html+=`<div class="upg-stat-section">Primary</div>`;displayKeys.forEach(k=>html+=row(k.toUpperCase(),baselineTotals[k]||0));}
     html+=`<div class="upg-stat-section">Resists</div>`;
     const RS=['SvPo','SvMa','SvDi','SvFi','SvCo'];
     RESIST_KEYS.forEach((k,i)=>html+=row(RS[i],baselineTotals[k]||0));
@@ -1138,9 +1139,10 @@ window.upgRefreshStatSheet=function(){
   if(curHP!==null){html+=row('HP',curHP,projHP);html+=row('Mana',curMana,projMana);}
   const weights=getStatWeights(charClass,cur);
   const primaryKeys=STAT_KEYS.filter(k=>(weights[k]||0)>0);
-  if(primaryKeys.length){
+  const displayKeys=primaryKeys.length?primaryKeys:STAT_KEYS;
+  if(displayKeys.length){
     html+=`<div class="upg-stat-section">Primary</div>`;
-    primaryKeys.forEach(k=>html+=row(k.toUpperCase(),cur[k]||0,proj[k]||0));
+    displayKeys.forEach(k=>html+=row(k.toUpperCase(),cur[k]||0,proj[k]||0));
   }
   html+=`<div class="upg-stat-section">Resists</div>`;
   const RESIST_SHORT=['SvPo','SvMa','SvDi','SvFi','SvCo'];
