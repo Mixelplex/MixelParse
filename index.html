@@ -564,6 +564,73 @@ const STAT_KEYS_ALL=[...STAT_KEYS,...RESIST_KEYS,...BONUS_KEYS];
 const STAT_DISPLAY={str:'STR',sta:'STA',dex:'DEX',agi:'AGI',wis:'WIS',int:'INT',cha:'CHA',hpbonus:'+HP',manabonus:'+Mana',svpoison:'SvPo',svmagic:'SvMa',svdisease:'SvDi',svfire:'SvFi',svcold:'SvCo'};
 const HP_RATIOS={'Warrior':[4.5,6.0],'Shadow Knight':[3.8,5.2],'Paladin':[3.8,5.2],'Ranger':[3.3,4.2],'Bard':[3.0,4.0],'Monk':[3.0,4.0],'Rogue':[3.0,4.0],'Cleric':[2.5,3.0],'Druid':[2.5,3.0],'Shaman':[2.5,3.0],'Enchanter':[2.0,2.4],'Magician':[2.0,2.4],'Necromancer':[2.0,2.4],'Wizard':[2.0,2.4]};
 const WIS_CLASSES=new Set(['Cleric','Druid','Paladin','Ranger','Shaman']);
+
+// ─── Stat Weight System ───────────────────────────────────────────────────────
+// Base weights per class. Keys match STAT_KEYS_ALL: str/sta/dex/agi/wis/int/cha/svpoison/svmagic/svdisease/svfire/svcold/hpbonus/manabonus
+// AC handled separately (item ac field). Softcap multiplier (0.33×) applied at scoring time for 200–255.
+const CLASS_STAT_WEIGHTS = {
+  'Warrior':       {str:3.0,sta:6.0,dex:0,  agi:0.5,wis:0,  int:0,  cha:0,  ac:5.0,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:0  },
+  'Monk':          {str:3.5,sta:3.0,dex:1.0,agi:2.0,wis:0,  int:0,  cha:0,  ac:2.5,svpoison:0.5,svmagic:0.5,svdisease:0.5,svfire:0.5,svcold:0.5,hpbonus:1.5,manabonus:0  },
+  'Rogue':         {str:4.0,sta:3.5,dex:1.0,agi:0,  wis:0,  int:0,  cha:0,  ac:0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:0  },
+  'Bard':          {str:1.5,sta:4.0,dex:1.5,agi:0,  wis:0,  int:0,  cha:3.0,ac:1.5,svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0  },
+  'Ranger':        {str:2.0,sta:3.5,dex:2.0,agi:0,  wis:4.0,int:0,  cha:0,  ac:0,  svpoison:0.6,svmagic:0.6,svdisease:0.6,svfire:0.6,svcold:0.6,hpbonus:1.5,manabonus:0.5},
+  'Paladin':       {str:2.0,sta:5.2,dex:0,  agi:0,  wis:4.0,int:0,  cha:1.0,ac:1.5,svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.5},
+  'Shadow Knight': {str:2.5,sta:5.2,dex:0,  agi:0,  wis:0,  int:4.0,cha:0,  ac:1.5,svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.5},
+  'Cleric':        {str:0,  sta:2.5,dex:0,  agi:0,  wis:5.0,int:0,  cha:0,  ac:0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0},
+  'Druid':         {str:0,  sta:2.5,dex:0,  agi:0,  wis:5.0,int:0,  cha:0,  ac:0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0},
+  'Shaman':        {str:0,  sta:3.0,dex:0,  agi:0,  wis:5.0,int:0,  cha:0,  ac:0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0},
+  'Enchanter':     {str:0,  sta:2.0,dex:0,  agi:0,  wis:0,  int:4.0,cha:5.0,ac:0,  svpoison:1.2,svmagic:1.2,svdisease:1.2,svfire:1.2,svcold:1.2,hpbonus:2.0,manabonus:1.0},
+  'Magician':      {str:0,  sta:2.0,dex:0,  agi:0,  wis:0,  int:5.0,cha:0,  ac:0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0},
+  'Necromancer':   {str:0,  sta:2.0,dex:0,  agi:0,  wis:0,  int:5.0,cha:0,  ac:0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0},
+  'Wizard':        {str:0,  sta:2.0,dex:0,  agi:0,  wis:0,  int:5.0,cha:0,  ac:0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0},
+};
+
+// INT/WIS caster classes — primary stat is the mana stat
+const INT_CLASSES = new Set(['Enchanter','Magician','Necromancer','Wizard','Shadow Knight','Bard']);
+
+// Returns a weight object for the given class, dynamically adjusting manabonus and hpbonus
+// based on how close the character's primary stat is to the soft/hard cap.
+// baseTotals: current total of all stats (base + gear) — used to detect cap proximity.
+function getStatWeights(cls, baseTotals) {
+  const base = CLASS_STAT_WEIGHTS[cls];
+  if (!base) return {}; // unknown class — no weights
+  const w = Object.assign({}, base);
+
+  // Determine primary mana stat and current total
+  const manaKey = WIS_CLASSES.has(cls) ? 'wis' : INT_CLASSES.has(cls) ? 'int' : null;
+  const isMagicCaster = manaKey !== null && w[manaKey] >= 2.0;
+
+  if (isMagicCaster) {
+    const total = baseTotals ? (baseTotals[manaKey] || 0) : 0;
+    if (total >= 255) {
+      // Hard capped — primary stat worthless, +mana is now the only mana growth lever
+      w[manaKey] = 0;
+      w.manabonus = 4.0;
+    } else if (total >= 200) {
+      // Softcap zone — stat returns drop to 33%, +mana items now compete
+      // Keep stat weight but reduce it; elevate manabonus
+      w[manaKey] = w[manaKey] * 0.33;
+      w.manabonus = Math.max(w.manabonus, 2.5);
+    }
+    // Below 200: base weights unchanged
+  }
+
+  // Same logic for STA → hpbonus on melee/tank classes
+  const isHpClass = (baseTotals && w.sta >= 3.0);
+  if (isHpClass) {
+    const staTotal = baseTotals ? (baseTotals.sta || 0) : 0;
+    if (staTotal >= 255) {
+      w.sta = 0;
+      w.hpbonus = Math.max(w.hpbonus, 4.0);
+    } else if (staTotal >= 200) {
+      w.sta = w.sta * 0.33;
+      w.hpbonus = Math.max(w.hpbonus, 2.5);
+    }
+  }
+
+  return w;
+}
+
 function staRatio(cls,lvl){const r=HP_RATIOS[cls];if(!r)return 0;if(lvl<=50)return r[0]*(lvl/50);if(lvl>=60)return r[1];return r[0]+(r[1]-r[0])*((lvl-50)/10);}
 function calcHP(sta,cls,lvl){return Math.floor(12.1*lvl+sta*staRatio(cls,lvl));}
 function calcMana(intWis,lvl){
@@ -802,15 +869,42 @@ function renderUpgradesPanel(){
     return t;
   }
   const NO_CAP=new Set(['hpbonus','manabonus']);
+  const SOFTCAP=200, HARDCAP=255, SOFTCAP_MULT=0.33;
+  // Get class-aware weights, dynamically adjusted for cap proximity
+  const weights=getStatWeights(charClass, baselineTotals);
+
   function effectiveGain(curItemData,candData,baseTotals){
     let total=0;
     for(const k of STAT_KEYS_ALL){
       const cur=Number(curItemData[k]||0),nxt=Number(candData[k]||0),raw=nxt-cur;
       if(!raw)continue;
-      if(raw>0&&!NO_CAP.has(k)){const headroom=Math.max(0,255-(baseTotals[k]||0)-cur);total+=Math.min(raw,headroom);}
-      else total+=raw;
+      const w=weights[k]||0;
+      if(!w)continue; // zero weight — skip entirely
+      if(raw>0){
+        if(NO_CAP.has(k)){
+          // Direct bonus — no cap, full weight
+          total+=raw*w;
+        } else {
+          const currentTotal=baseTotals[k]||0;
+          // Points that land below softcap get full weight
+          const belowSoft=Math.max(0,Math.min(raw, SOFTCAP-currentTotal-cur));
+          // Points that land in softcap zone (200–255) get reduced weight
+          const inSoftZone=Math.max(0,Math.min(raw-belowSoft, HARDCAP-Math.max(currentTotal+cur,SOFTCAP)));
+          // Points above hardcap score 0
+          total+=belowSoft*w + inSoftZone*w*SOFTCAP_MULT;
+        }
+      } else {
+        // Stat loss — always penalise at full weight regardless of cap
+        total+=raw*w;
+      }
     }
-    return total;
+    // AC is a separate field on items — score it with ac weight if present
+    const acW=weights.ac||0;
+    if(acW){
+      const curAc=Number(curItemData.ac||0),nxtAc=Number(candData.ac||0),rawAc=nxtAc-curAc;
+      if(rawAc)total+=rawAc*acW;
+    }
+    return Math.round(total*10)/10;
   }
   window._upgData={};
   const bySlot={};
@@ -947,27 +1041,36 @@ window.upgShowDelta=function(rowId,idx){
   const currentTotals={};
   if(base){STAT_KEYS.forEach((k,i)=>{currentTotals[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{currentTotals[k]=base.resists[i]||0;});}
   for(const item of equipped){const gs=charGear[item.name]||itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){if(gs[k])currentTotals[k]=(currentTotals[k]||0)+Number(gs[k]);}}
-  const allKeys=STAT_KEYS_ALL.filter(k=>(currentData[k]||0)!==0||(sel[k]||0)!==0);
+  const allKeys=[...STAT_KEYS_ALL,'ac'].filter(k=>(currentData[k]||0)!==0||(sel[k]||0)!==0);
   const NO_CAP=new Set(['hpbonus','manabonus']);
+  const SOFTCAP=200,HARDCAP=255,SOFTCAP_MULT=0.33;
+  const dWeights=getStatWeights(meta.class||'',currentTotals);
   let totalEff=0,rows='';
   for(const k of allKeys){
     const cur=Number(currentData[k]||0),nxt=Number(sel[k]||0),raw=nxt-cur;
     const label=STAT_DISPLAY[k]||k;
+    const w=dWeights[k]||0;
     let changeCell='<td style="color:var(--text-muted)">&#8212;</td>';
     if(raw!==0){
       if(raw>0){
-        if(NO_CAP.has(k)){
-          totalEff+=raw;
-          changeCell=`<td class="upg-delta-pos">+${raw}</td>`;
+        let eff=0,wasted=0;
+        if(NO_CAP.has(k)||k==='ac'){
+          eff=raw*w;
         } else {
-          const headroom=Math.max(0,255-(currentTotals[k]||0)-cur);
-          const eff=Math.min(raw,headroom);
-          totalEff+=eff;
-          const wasted=raw-eff;
-          changeCell=`<td class="upg-delta-pos">+${raw}${wasted>0?`<span class="upg-cap-note"> (${wasted} capped)</span>`:''}</td>`;
+          const belowSoft=Math.max(0,Math.min(raw,SOFTCAP-(currentTotals[k]||0)-cur));
+          const inSoft=Math.max(0,Math.min(raw-belowSoft,HARDCAP-Math.max((currentTotals[k]||0)+cur,SOFTCAP)));
+          wasted=Math.max(0,raw-belowSoft-inSoft);
+          eff=belowSoft*w+inSoft*w*SOFTCAP_MULT;
         }
+        totalEff+=eff;
+        const effStr=w?(` <span class="upg-cap-note">${eff>=0?'+':''}${Math.round(eff*10)/10} eff</span>`):'';
+        const wastedStr=wasted>0?`<span class="upg-cap-note"> (${wasted} capped)</span>`:'';
+        const zeroW=!w?`<span class="upg-cap-note"> (no weight)</span>`:'';
+        changeCell=`<td class="upg-delta-pos">+${raw}${wastedStr}${zeroW}${effStr}</td>`;
       } else {
-        totalEff+=raw;
+        const w2=dWeights[k]||0;
+        const eff=raw*(w2||0);
+        totalEff+=eff;
         changeCell=`<td class="upg-delta-neg">${raw}</td>`;
       }
     }
@@ -1653,6 +1756,8 @@ window.wikiUrl          = wikiUrl;
 window.applyDkpToItemDB = applyDkpToItemDB;
 window.applyPlatToItemDB= applyPlatToItemDB;
 window.renderBridgePanel= renderBridgePanel;
+window.CLASS_STAT_WEIGHTS= CLASS_STAT_WEIGHTS;
+window.getStatWeights    = getStatWeights;
 window.saveState        = saveState;
 window.saveItemDB       = saveItemDB;
 window.loadItemDB       = loadItemDB;
