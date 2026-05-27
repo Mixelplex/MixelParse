@@ -91,75 +91,51 @@
   .legend{font-size:.75rem;color:var(--text-muted);font-style:italic;margin-bottom:.75rem}
   .combined-header{margin:.75rem 1rem 0;display:flex;align-items:center;gap:.5rem;font-family:'Cinzel',serif;font-size:.8rem;color:var(--gold-dim);letter-spacing:.07em}
   .combined-header hr{flex:1;border:none;border-top:1px solid var(--border)}
-  /* ── Upgrades layout ── */
-  .upg-layout{display:grid;grid-template-columns:1fr 210px;gap:.85rem;margin:0 1rem 2rem;align-items:start}
-  /* ── Shopping list (left panel) ── */
-  .upg-shop-panel{border:1px solid var(--border);border-radius:5px;overflow:hidden}
-  .upg-shop-head{padding:.5rem .85rem;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem}
-  .upg-shop-title{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.08em;color:var(--gold);text-transform:uppercase}
-  .upg-shop-char{font-family:'Crimson Pro',serif;font-size:.78rem;color:var(--text-muted);font-style:italic;margin-left:auto}
-  .upg-tier-label{padding:.28rem .85rem;font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.09em;color:var(--text-muted);text-transform:uppercase;background:var(--surface2);border-top:1px solid rgba(74,58,26,.2);border-bottom:1px solid rgba(74,58,26,.2)}
-  .upg-tier-label:first-child{border-top:none}
-  .upg-item-row{display:flex;align-items:center;gap:.65rem;padding:.48rem .85rem;border-bottom:1px solid rgba(74,58,26,.18);cursor:pointer;transition:background .1s}
-  .upg-item-row:last-child{border-bottom:none}
-  .upg-item-row:hover{background:rgba(160,120,50,.07)}
-  .upg-item-row.upg-row-expanded{background:rgba(160,120,50,.06)}
-  .upg-score-pill{min-width:44px;text-align:center;padding:.1rem .4rem;border-radius:20px;font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.03em;font-weight:600;flex-shrink:0;border:1px solid transparent}
+  /* ── Gear Planner layout ── */
+  .upg-layout{display:grid;grid-template-columns:1fr 190px;gap:.85rem;margin:0 1rem 2rem;align-items:start}
+  /* ── Stacked panes (left) ── */
+  .upg-slots-panel{display:flex;flex-direction:column;gap:.55rem}
+  .upg-slot-card{border:1px solid var(--border);border-radius:5px;overflow:hidden}
+  .upg-slot-head{display:flex;align-items:center;gap:.6rem;padding:.35rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border)}
+  .upg-slot-label{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.09em;color:var(--text-muted);text-transform:uppercase}
+  .upg-score-pill{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.03em;font-weight:600;padding:.1rem .45rem;border-radius:20px;margin-left:auto;border:1px solid transparent;white-space:nowrap}
   .upg-score-hi{background:rgba(58,122,58,.18);border-color:#5a9a5a;color:#1a5a1a}
   .upg-score-mid{background:rgba(160,120,0,.13);border-color:#a08000;color:#6a5000}
   .upg-score-lo{background:var(--surface2);border-color:var(--border);color:var(--text-muted)}
-  .upg-score-none{background:transparent;border-color:transparent;color:var(--text-muted);font-size:.7rem}
-  .upg-item-info{flex:1;min-width:0}
-  .upg-item-name{font-size:.85rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .upg-item-meta{font-size:.73rem;color:var(--text-muted);margin-top:.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .upg-item-slot{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.06em;color:var(--text-muted);text-transform:uppercase}
-  .upg-item-right{display:flex;flex-direction:column;align-items:flex-end;gap:.2rem;flex-shrink:0}
-  .upg-acq-badge{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.05em;padding:.08rem .45rem;border-radius:3px;white-space:nowrap;font-weight:600;border:1px solid transparent}
-  .upg-badge-raid{background:rgba(160,48,48,.12);border-color:#c05050;color:#8a1010}
-  .upg-badge-buy{background:rgba(160,120,0,.12);border-color:#a08000;color:#6a5000}
-  .upg-badge-craft{background:rgba(58,122,58,.12);border-color:#5a9a5a;color:#1a5a1a}
-  .upg-badge-quest{background:rgba(80,80,180,.1);border-color:#8888d0;color:#303090}
-  .upg-badge-unknown{background:var(--surface2);border-color:var(--border);color:var(--text-muted)}
-  .upg-item-cost{font-size:.72rem;color:var(--text-muted)}
-  /* bis rows */
-  .upg-bis-row{display:flex;align-items:center;gap:.65rem;padding:.38rem .85rem;border-bottom:1px solid rgba(74,58,26,.12);opacity:.45}
-  .upg-bis-row:last-child{border-bottom:none}
-  .upg-bis-name{font-size:.8rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
-  .upg-bis-slot{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.06em;color:var(--text-muted);text-transform:uppercase}
-  /* expand panel */
-  .upg-expand{display:none;padding:.5rem .85rem .6rem 2.8rem;border-bottom:1px solid rgba(74,58,26,.15);background:rgba(160,120,50,.04)}
-  .upg-expand.open{display:block}
-  .upg-exp-stat-table{border-collapse:collapse;font-size:.78rem;width:100%;margin-bottom:.35rem}
-  .upg-exp-stat-table th{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.06em;color:var(--text-muted);padding:.15rem .4rem;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
-  .upg-exp-stat-table th:first-child{text-align:left}
-  .upg-exp-stat-table td{padding:.15rem .4rem;border-bottom:1px solid rgba(74,58,26,.08);text-align:right;color:var(--text-dim)}
-  .upg-exp-stat-table td:first-child{text-align:left;color:var(--text-muted);font-size:.74rem}
-  .upg-exp-pos{color:#1a6a1a;font-weight:600}
-  .upg-exp-neg{color:#a03030;font-weight:600}
-  .upg-cap-note{font-size:.65rem;color:var(--text-muted)}
-  .upg-exp-footer{display:flex;gap:1rem;align-items:center;font-size:.74rem;color:var(--text-muted);flex-wrap:wrap;margin-top:.2rem}
-  .upg-exp-score{font-family:'Cinzel',serif;font-size:.72rem;color:var(--gold)}
-  /* alt picker */
-  .upg-alt-wrap{margin-top:.45rem;display:flex;align-items:center;gap:.5rem}
-  .upg-alt-label{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.07em;color:var(--text-muted);text-transform:uppercase;white-space:nowrap}
-  .upg-alt-select{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.25rem .4rem;font-family:'Crimson Pro',serif;font-size:.8rem;outline:none;cursor:pointer}
+  .upg-panes{display:grid;grid-template-columns:minmax(0,1fr) 1px minmax(0,1fr)}
+  .upg-pane-divider{background:var(--border)}
+  .upg-pane{padding:.5rem .75rem}
+  .upg-pane-label{font-family:'Cinzel',serif;font-size:.56rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;margin-bottom:.25rem}
+  .upg-pane-name{font-size:.88rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.2rem}
+  .upg-pane-name.upg-pane-upgrade{color:#1a5a1a}
+  .upg-pane-name.upg-pane-bis{color:var(--text-muted);font-style:italic;font-weight:400}
+  .upg-pane-stats{display:flex;flex-wrap:wrap;gap:.2rem .45rem;margin-bottom:.2rem}
+  .upg-stat-cur{font-size:.75rem;color:var(--text-muted)}
+  .upg-stat-pos{font-size:.75rem;color:#1a6a1a;font-weight:500}
+  .upg-stat-neg{font-size:.75rem;color:#a03030;font-weight:500}
+  .upg-pane-from{font-size:.72rem;color:var(--text-muted);font-style:italic}
+  .upg-pane-cost{font-size:.72rem;color:var(--text-muted)}
+  /* alt picker row */
+  .upg-alt-row{padding:.3rem .75rem .4rem;border-top:1px solid rgba(74,58,26,.12);background:rgba(160,120,50,.03);display:flex;align-items:center;gap:.5rem}
+  .upg-alt-label{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.07em;color:var(--text-muted);text-transform:uppercase;white-space:nowrap}
+  .upg-alt-select{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.2rem .4rem;font-family:'Crimson Pro',serif;font-size:.8rem;outline:none;cursor:pointer;min-width:0}
   .upg-alt-select:focus{border-color:var(--gold)}
-  /* ── Stat budget panel (right) ── */
-  .upg-budget-panel{border:1px solid var(--border);border-radius:5px;overflow:hidden;position:sticky;top:1rem}
-  .upg-budget-head{padding:.5rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.08em;color:var(--gold);text-transform:uppercase}
-  .upg-budget-body{padding:.55rem .65rem}
-  .upg-budget-section{font-family:'Cinzel',serif;font-size:.56rem;letter-spacing:.09em;color:var(--text-muted);text-transform:uppercase;padding:.4rem 0 .18rem;border-bottom:1px solid rgba(74,58,26,.15);margin-bottom:.2rem}
-  .upg-budget-section:first-child{padding-top:0}
-  .upg-budget-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.28rem}
-  .upg-budget-key{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.04em;color:var(--text-muted);width:30px;flex-shrink:0;text-transform:uppercase}
-  .upg-budget-track{flex:1;height:6px;background:rgba(74,58,26,.18);border-radius:3px;position:relative}
-  .upg-budget-cur{position:absolute;top:0;left:0;height:100%;background:var(--gold-dim);border-radius:3px}
-  .upg-budget-gain{position:absolute;top:0;height:100%;background:#4a8a2a;border-radius:0 3px 3px 0;opacity:.85}
-  .upg-budget-cap{position:absolute;top:-3px;width:1.5px;height:12px;background:#c03030;opacity:.55;border-radius:1px}
-  .upg-budget-num{font-family:'Crimson Pro',serif;font-size:.8rem;font-weight:600;min-width:32px;text-align:right;color:var(--text)}
-  .upg-budget-legend{display:flex;flex-direction:column;gap:.25rem;margin-top:.6rem;padding-top:.5rem;border-top:1px solid rgba(74,58,26,.15)}
-  .upg-budget-leg-row{display:flex;align-items:center;gap:.4rem;font-size:.68rem;color:var(--text-muted)}
-  .upg-budget-leg-swatch{width:10px;height:6px;border-radius:2px;flex-shrink:0}
+  /* bis card */
+  .upg-bis-pane{padding:.45rem .75rem;opacity:.45;font-size:.82rem;color:var(--text-dim)}
+  /* ── Stat sheet (right) ── */
+  .upg-stat-panel{border:1px solid var(--border);border-radius:5px;overflow:hidden;position:sticky;top:1rem}
+  .upg-stat-head{padding:.5rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.08em;color:var(--gold);text-transform:uppercase}
+  .upg-stat-body{padding:.5rem .65rem}
+  .upg-stat-section{font-family:'Cinzel',serif;font-size:.56rem;letter-spacing:.09em;color:var(--text-muted);text-transform:uppercase;padding:.4rem 0 .15rem;border-bottom:1px solid rgba(74,58,26,.15);margin-bottom:.15rem}
+  .upg-stat-section:first-child{padding-top:0}
+  .upg-stat-row{display:flex;justify-content:space-between;align-items:center;padding:.1rem .1rem;border-radius:2px}
+  .upg-stat-row.upg-stat-changed{background:rgba(58,122,58,.1)}
+  .upg-stat-key{font-size:.75rem;color:var(--text-muted)}
+  .upg-stat-vals{display:flex;align-items:center;gap:.3rem;font-family:'Crimson Pro',serif}
+  .upg-stat-cur-val{font-size:.78rem;color:var(--text-muted)}
+  .upg-stat-proj-val{font-size:.82rem;font-weight:600;color:var(--text)}
+  .upg-stat-delta{font-size:.68rem;font-weight:700;color:#1a6a1a}
+  .upg-stat-delta.neg{color:#a03030}
   .upg-none{color:var(--text-muted);font-size:.82rem;font-style:italic;padding:.4rem .75rem}
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;align-items:center;justify-content:center}
   .modal-overlay.open{display:flex}
@@ -498,7 +474,7 @@
   <div class="subtab-bar" id="subtabBar" style="display:none">
     <div class="subtab active" data-sub="inventory">Inventory</div>
     <div class="subtab" data-sub="stats">Character Stats</div>
-    <div class="subtab" data-sub="upgrades">Upgrades</div>
+    <div class="subtab" data-sub="upgrades">Gear Planner</div>
     <div class="subtab" data-sub="consumes">Raid Consumes</div>
     <div class="subtab" data-sub="factions">Factions</div>
     <div class="subtab" data-sub="skyshrine">Skyshrine</div>
@@ -858,7 +834,7 @@ const breakdownRows=equipped.map(item=>{const gs=charGear[item.name];if(!gs)retu
 return `<div class="stat-grid"><div class="stat-card"><div class="stat-card-title">PRIMARY STATS</div>${statRows}</div><div class="stat-card"><div class="stat-card-title">RESISTANCES</div>${resistRows}</div><div class="stat-card"><div class="stat-card-title">POOLS &amp; COMBAT</div>${poolRows}</div></div><div class="legend">Base &middot; <span style="color:#3a7a3a">+Gear</span> &middot; <span style="color:var(--gold-light)">Total</span>${cls&&level?' &middot; HP/Mana calculated from stats at level '+level:' <span style="color:#a06020">&mdash; set class &amp; level for calculated HP/Mana</span>'}</div>${equipped.length?`<div class="gear-breakdown"><div class="gear-breakdown-title">GEAR BREAKDOWN</div><div style="overflow-x:auto"><table class="gear-table"><thead><tr><th>Item</th>${STAT_LABELS.map(l=>`<th>${l.slice(0,3)}</th>`).join('')}${RESIST_LABELS.map(l=>`<th>Sv${l.slice(0,2)}</th>`).join('')}<th>+HP</th><th>+Mana</th></tr></thead><tbody>${breakdownRows}</tbody></table></div></div>`:''}`;
 }
 
-// ─── Upgrades Panel ───────────────────────────────────────────────────────────
+// ─── Gear Planner Panel ───────────────────────────────────────────────────────
 function renderUpgradesPanel(){
   const panel=document.getElementById('upgradesPanel');
   if(!panel)return;
@@ -894,7 +870,6 @@ function renderUpgradesPanel(){
       const dbSlot=invSlotToDBSlot(item.location);
       const data=(overrides&&overrides[dbSlot])||charGear[item.name]||itemDB[item.name]||{};
       for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)t[k]=(t[k]||0)+v;}
-      // AC from item field
       const acv=Number(data.ac||0);if(acv)t.ac=(t.ac||0)+acv;
     }
     return t;
@@ -914,38 +889,22 @@ function renderUpgradesPanel(){
       if(raw>0){
         if(NO_CAP.has(k)){total+=raw*w;}
         else{
-          const currentTotal=baseTotals[k]||0;
-          const belowSoft=Math.max(0,Math.min(raw,SOFTCAP-currentTotal-cur));
-          const inSoftZone=Math.max(0,Math.min(raw-belowSoft,HARDCAP-Math.max(currentTotal+cur,SOFTCAP)));
+          const ct=baseTotals[k]||0;
+          const belowSoft=Math.max(0,Math.min(raw,SOFTCAP-ct-cur));
+          const inSoftZone=Math.max(0,Math.min(raw-belowSoft,HARDCAP-Math.max(ct+cur,SOFTCAP)));
           total+=belowSoft*w+inSoftZone*w*SOFTCAP_MULT;
         }
       } else {total+=raw*w;}
     }
     const acW=weights.ac||0;
-    if(acW){const curAc=Number(curItemData.ac||0),nxtAc=Number(candData.ac||0),rawAc=nxtAc-curAc;if(rawAc)total+=rawAc*acW;}
+    if(acW){const ca=Number(curItemData.ac||0),na=Number(candData.ac||0);if(na-ca)total+=(na-ca)*acW;}
     return Math.round(total*10)/10;
-  }
-
-  // Infer acquisition tier from item data
-  function acqTier(data){
-    const from=(data._from||'').toLowerCase();
-    if(data.dkp&&data.dkp>0)return'raid';
-    const raidZones=['veeshan','sleeper','kael','ntov','stov','ssra','ssraeshza','velketor','cobalt','dragon necropolis','plane of','halls of testing','boss','warder','aaryonar','lord'];
-    if(raidZones.some(z=>from.includes(z)))return'raid';
-    if(data.plat&&data.plat>0)return'buy';
-    const craftWords=['tradeskill','smithing','tailoring','pottery','brewing','baking','fletching','jewel','craft','combine'];
-    if(craftWords.some(w=>from.includes(w)))return'craft';
-    const questWords=['quest','epics','epic','turn in','turnin','turn-in'];
-    if(questWords.some(w=>from.includes(w)))return'quest';
-    if(from)return'buy'; // has a source but no other signal — assume obtainable
-    return'unknown';
   }
 
   // Build candidate list per slot
   const bySlot={};
   for(const[itemName,data]of Object.entries(itemDB)){const slot=data._slot;if(!slot)continue;if(!bySlot[slot])bySlot[slot]=[];bySlot[slot].push({name:itemName,...data});}
 
-  // Per-slot best upgrade data
   const slotResults=[];
   for(const item of equipped){
     const dbSlot=invSlotToDBSlot(item.location);
@@ -956,307 +915,239 @@ function renderUpgradesPanel(){
       .sort((a,b)=>b._effGain-a._effGain);
     slotResults.push({item,dbSlot,currentData,candidates});
   }
-
-  // Store for click handlers
   window._upgSlots=slotResults;
 
-  // Build shopping list HTML grouped by tier
-  const TIER_ORDER=['raid','buy','craft','quest','unknown'];
-  const TIER_LABELS={raid:'Raid drops',buy:'Purchasable / tradeable',craft:'Craftable',quest:'Quest rewards',unknown:'Other sources'};
-  const TIER_BADGE={raid:'upg-badge-raid',buy:'upg-badge-buy',craft:'upg-badge-craft',quest:'upg-badge-quest',unknown:'upg-badge-unknown'};
-  const TIER_BADGE_LABEL={raid:'Raid',buy:'Buy',craft:'Craft',quest:'Quest',unknown:'?'};
-  const SCORE_HI=20,SCORE_MID=8;
+  function scoreClass(v){return v>=20?'upg-score-hi':v>=8?'upg-score-mid':'upg-score-lo';}
 
-  // Collect upgrades (slot has at least 1 positive candidate) and bis (no upgrade)
-  const upgrades=[];
-  const bisSlots=[];
-  for(const sr of slotResults){
-    const best=sr.candidates[0];
-    if(best&&best._effGain>0){
-      upgrades.push({...sr,best,tier:acqTier(best)});
-    } else {
-      bisSlots.push(sr);
-    }
-  }
-
-  // Group upgrades by tier, within tier sort by score desc
-  const byTier={};
-  for(const u of upgrades){if(!byTier[u.tier])byTier[u.tier]=[];byTier[u.tier].push(u);}
-  for(const t of TIER_ORDER){if(byTier[t])byTier[t].sort((a,b)=>b.best._effGain-a.best._effGain);}
-
-  function scoreClass(v){return v>=SCORE_HI?'upg-score-hi':v>=SCORE_MID?'upg-score-mid':'upg-score-lo';}
-
-  function buildExpandPanel(sr,selIdx){
-    const cand=sr.candidates[selIdx];
-    if(!cand)return'';
-    const {currentData}=sr;
-    const allKeys=[...STAT_KEYS_ALL,'ac'].filter(k=>(currentData[k]||0)!==0||(cand[k]||0)!==0);
-    const dWeights=getStatWeights(charClass,baselineTotals);
-    let totalEff=0,rows='';
-    for(const k of allKeys){
-      const cur=Number(currentData[k]||0),nxt=Number(cand[k]||0),raw=nxt-cur;
-      const label=STAT_DISPLAY[k]||k.toUpperCase();
-      const w=dWeights[k]||0;
-      let changeCell=`<td style="color:var(--text-muted)">&#8212;</td>`;
-      if(raw!==0){
-        if(raw>0){
-          let eff=0,wasted=0;
-          if(NO_CAP.has(k)||k==='ac'){eff=raw*w;}
-          else{
-            const belowSoft=Math.max(0,Math.min(raw,SOFTCAP-(baselineTotals[k]||0)-cur));
-            const inSoft=Math.max(0,Math.min(raw-belowSoft,HARDCAP-Math.max((baselineTotals[k]||0)+cur,SOFTCAP)));
-            wasted=Math.max(0,raw-belowSoft-inSoft);
-            eff=belowSoft*w+inSoft*w*SOFTCAP_MULT;
-          }
-          totalEff+=eff;
-          const effStr=w?` <span class="upg-cap-note">${eff>=0?'+':''}${Math.round(eff*10)/10} eff</span>`:'';
-          const wastStr=wasted>0?`<span class="upg-cap-note"> (${wasted} capped)</span>`:'';
-          const zeroStr=!w?`<span class="upg-cap-note"> (no weight)</span>`:'';
-          changeCell=`<td class="upg-exp-pos">+${raw}${wastStr}${zeroStr}${effStr}</td>`;
-        } else {
-          totalEff+=raw*(w||0);
-          changeCell=`<td class="upg-exp-neg">${raw}</td>`;
-        }
+  function paneStats(fromData,toData,showDelta){
+    const keys=['ac',...STAT_KEYS_ALL].filter(k=>(fromData[k]||0)!==0||(toData[k]||0)!==0);
+    let html='';
+    for(const k of keys){
+      const fv=Number(fromData[k]||0),tv=Number(toData[k]||0);
+      if(showDelta){
+        const raw=tv-fv;
+        if(!raw)continue;
+        const label=k==='ac'?'AC':(STAT_DISPLAY[k]||k.toUpperCase());
+        html+=raw>0?`<span class="upg-stat-pos">${label} +${raw}</span>`:`<span class="upg-stat-neg">${label} ${raw}</span>`;
+      } else {
+        if(!fv)continue;
+        const label=k==='ac'?'AC':(STAT_DISPLAY[k]||k.toUpperCase());
+        html+=`<span class="upg-stat-cur">${label} ${fv}</span>`;
       }
-      rows+=`<tr><td>${label}</td><td>${cur||'&#8212;'}</td><td>${nxt||'&#8212;'}</td>${changeCell}</tr>`;
     }
-    if(!rows)rows=`<tr><td colspan="4" style="color:var(--text-muted);font-style:italic">No stat differences</td></tr>`;
-    const sign=totalEff>=0?'+':'';
-    const cost=[cand.plat?`${cand.plat}k pp`:'',cand.dkp?`${cand.dkp} DKP`:''].filter(Boolean).join(' · ')||'&#8212;';
-    const opts=sr.candidates.map((c,i)=>`<option value="${i}"${i===selIdx?' selected':''}>${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join('');
-    const slotId='upgexp_'+sr.dbSlot;
-    return `<table class="upg-exp-stat-table">
-      <thead><tr><th>Stat</th><th>Cur</th><th>New</th><th>Change</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div class="upg-exp-footer">
-      <span class="upg-exp-score">${sign}${Math.round(totalEff*10)/10} weighted score</span>
-      <span>&#128197; ${esc(cand._from||'Unknown')}</span>
-      <span>&#128176; ${cost}</span>
-    </div>
-    <div class="upg-alt-wrap">
-      <span class="upg-alt-label">Compare</span>
-      <select class="upg-alt-select" onchange="upgSwapAlt('${sr.dbSlot}',this.value)">${opts}</select>
-    </div>`;
+    return html||`<span class="upg-stat-cur" style="font-style:italic">No stats</span>`;
   }
 
-  // Render tier sections
-  let listHtml='';
-  for(const tier of TIER_ORDER){
-    const items=byTier[tier];
-    if(!items||!items.length)continue;
-    listHtml+=`<div class="upg-tier-label">${TIER_LABELS[tier]}</div>`;
-    for(const u of items){
-      const {item,dbSlot,candidates,best}=u;
-      const sc=scoreClass(best._effGain);
-      const scoreSign=best._effGain>=0?'+':'';
-      const cost=[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' · ');
-      const metaStr=[best._from||'',cost].filter(Boolean).join(' · ');
-      const rowId='upgrow_'+dbSlot;
-      const expandId='upgexp_'+dbSlot;
-      listHtml+=`<div class="upg-item-row" id="${rowId}" onclick="upgToggleRow('${dbSlot}')">
-        <div class="upg-score-pill ${sc}">${scoreSign}${best._effGain}</div>
-        <div class="upg-item-info">
-          <div class="upg-item-name">${esc(best.name)}</div>
-          <div class="upg-item-meta">${esc(metaStr)}</div>
-          <div class="upg-item-slot">${dbSlot} &rsaquo; replaces ${esc(item.name)}</div>
+  // Build slot cards
+  let cardsHtml='';
+  for(const sr of slotResults){
+    const {item,dbSlot,currentData,candidates}=sr;
+    const best=candidates[0];
+    const hasBest=best&&best._effGain>0;
+    const sc=hasBest?scoreClass(best._effGain):'upg-score-lo';
+    const scoreStr=hasBest?(best._effGain>=0?'+':'')+best._effGain+' pts':'—';
+    const opts=candidates.length?candidates.map((c,i)=>`<option value="${i}">${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join(''):'';
+    const cost=hasBest?[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' · '):'';
+
+    cardsHtml+=`<div class="upg-slot-card">
+      <div class="upg-slot-head">
+        <span class="upg-slot-label">${dbSlot}</span>
+        <span class="upg-score-pill ${sc}" id="upgscore_${dbSlot}">${scoreStr}</span>
+      </div>
+      <div class="upg-panes">
+        <div class="upg-pane">
+          <div class="upg-pane-label">Equipped</div>
+          <div class="upg-pane-name">${esc(item.name)}</div>
+          <div class="upg-pane-stats">${paneStats(currentData,currentData,false)}</div>
+          ${currentData._from?`<div class="upg-pane-from">${esc(currentData._from)}</div>`:''}
         </div>
-        <div class="upg-item-right">
-          <span class="upg-acq-badge ${TIER_BADGE[tier]}">${TIER_BADGE_LABEL[tier]}</span>
+        <div class="upg-pane-divider"></div>
+        <div class="upg-pane" id="upgpane_${dbSlot}">
+          ${hasBest?`
+          <div class="upg-pane-label">Best upgrade</div>
+          <div class="upg-pane-name upg-pane-upgrade">${itemLink(best.name)}</div>
+          <div class="upg-pane-stats">${paneStats(currentData,best,true)}</div>
+          ${best._from?`<div class="upg-pane-from">${esc(best._from)}</div>`:''}
+          ${cost?`<div class="upg-pane-cost">${esc(cost)}</div>`:''}
+          `:`<div class="upg-pane-name upg-pane-bis">Best in slot</div><div class="upg-pane-from">Nothing better in database</div>`}
         </div>
       </div>
-      <div class="upg-expand" id="${expandId}">${buildExpandPanel({item,dbSlot,currentData:slotResults.find(s=>s.dbSlot===dbSlot).currentData,candidates},0)}</div>`;
-    }
+      ${candidates.length>1?`<div class="upg-alt-row" id="upgalt_${dbSlot}">
+        <span class="upg-alt-label">Compare</span>
+        <select class="upg-alt-select" data-slot="${dbSlot}" onchange="upgSwapAlt('${dbSlot}',this.value)">${opts}</select>
+      </div>`:''}
+    </div>`;
   }
 
-  // BIS / no upgrade rows
-  if(bisSlots.length){
-    listHtml+=`<div class="upg-tier-label">Best in slot &#8212; no upgrade found</div>`;
-    for(const sr of bisSlots){
-      listHtml+=`<div class="upg-bis-row">
-        <div class="upg-score-pill upg-score-none">&#8212;</div>
-        <div class="upg-bis-name">${esc(sr.item.name)}</div>
-        <div class="upg-bis-slot">${sr.dbSlot}</div>
-      </div>`;
-    }
-  }
-
-  // Build stat budget panel
-  function budgetPanel(){
-    // Compute best-all-upgrades totals: apply best candidate per slot
+  // Build stat sheet (initial state = best upgrades applied)
+  function buildStatSheet(){
     const bestOverrides={};
-    for(const u of upgrades){if(u.best)bestOverrides[u.dbSlot]=u.best;}
-    const projTotals=buildTotals(bestOverrides);
-
+    for(const sr of slotResults){if(sr.candidates[0]&&sr.candidates[0]._effGain>0)bestOverrides[sr.dbSlot]=sr.candidates[0];}
+    const proj=buildTotals(bestOverrides);
     const manaKey=WIS_CLASSES.has(charClass)?'wis':'int';
     const curHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,baselineTotals.sta||0),charClass,charLevel):null;
-    const projHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,projTotals.sta||0),charClass,charLevel):null;
+    const projHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,proj.sta||0),charClass,charLevel):null;
     const curMana=charClass?calcMana(Math.min(255,baselineTotals[manaKey]||0),charLevel):null;
-    const projMana=charClass?calcMana(Math.min(255,projTotals[manaKey]||0),charLevel):null;
-
-    // Bar scale: primary stats cap at 255, resists/pools use sensible max
-    function bar(key,cur,proj,max,hasCap){
-      const capPct=hasCap?(200/max*100):null;
-      const curPct=Math.min(cur/max*100,100);
-      const gainRaw=proj-cur;
-      const gainPct=Math.max(0,Math.min(gainRaw/max*100,100-curPct));
-      const capLine=hasCap&&capPct<=100?`<div class="upg-budget-cap" style="left:${capPct.toFixed(1)}%"></div>`:'';
-      const gainBar=gainPct>0.2?`<div class="upg-budget-gain" style="left:${curPct.toFixed(1)}%;width:${gainPct.toFixed(1)}%"></div>`:'';
-      return `<div class="upg-budget-track">
-        <div class="upg-budget-cur" style="width:${curPct.toFixed(1)}%"></div>
-        ${gainBar}${capLine}
-      </div>`;
+    const projMana=charClass?calcMana(Math.min(255,proj[manaKey]||0),charLevel):null;
+    function row(label,cv,pv){
+      const diff=pv-cv,changed=diff!==0;
+      const delta=changed?`<span class="upg-stat-delta${diff<0?' neg':''}">${diff>0?'+':''}${diff}</span>`:'';
+      return `<div class="upg-stat-row${changed?' upg-stat-changed':''}"><span class="upg-stat-key">${label}</span><span class="upg-stat-vals"><span class="upg-stat-cur-val">${cv}</span><span class="upg-stat-proj-val">${pv}${delta}</span></span></div>`;
     }
-    function row(label,cur,proj,max,hasCap){
-      return `<div class="upg-budget-row">
-        <span class="upg-budget-key">${label}</span>
-        ${bar(label,cur,proj,max,hasCap)}
-        <span class="upg-budget-num">${proj}</span>
-      </div>`;
+    let html=`<div class="upg-stat-section">Combat pools</div>`;
+    html+=row('AC',baselineTotals.ac||0,proj.ac||0);
+    if(curHP!==null){html+=row('HP',curHP,projHP);html+=row('Mana',curMana,projMana);}
+    const primaryKeys=STAT_KEYS.filter(k=>(weights[k]||0)>0);
+    if(primaryKeys.length){html+=`<div class="upg-stat-section">Primary</div>`;primaryKeys.forEach(k=>html+=row(k.toUpperCase(),baselineTotals[k]||0,proj[k]||0));}
+    const anyBonus=BONUS_KEYS.some(k=>(baselineTotals[k]||0)+(proj[k]||0)>0);
+    if(anyBonus){
+      html+=`<div class="upg-stat-section">Bonus pools</div>`;
+      if((baselineTotals.hpbonus||0)+(proj.hpbonus||0)>0)html+=row('HP+',baselineTotals.hpbonus||0,proj.hpbonus||0);
+      if((baselineTotals.manabonus||0)+(proj.manabonus||0)>0)html+=row('Mn+',baselineTotals.manabonus||0,proj.manabonus||0);
     }
-
-    // Pools section: AC / HP / Mana — no softcap line
-    const curAC=baselineTotals.ac||0,projAC=projTotals.ac||0;
-    const acMax=Math.max(projAC*1.4,200);
-    const hpMax=Math.max((projHP||0)*1.3,500);
-    const manaMax=Math.max((projMana||0)*1.3,500);
-
-    let html=`<div class="upg-budget-section">Combat pools</div>`;
-    html+=row('AC',curAC,projAC,acMax,false);
-    if(projHP!==null){
-      html+=row('HP',curHP,projHP,hpMax,false);
-      html+=row('Mana',curMana,projMana,manaMax,false);
-    }
-
-    // Primary stats — softcap at 200, hard at 255, scale 0–255
-    html+=`<div class="upg-budget-section">Primary</div>`;
-    const primaryStatKeys=STAT_KEYS.filter(k=>(weights[k]||0)>0);
-    for(const k of primaryStatKeys){
-      html+=row(k.toUpperCase(),baselineTotals[k]||0,projTotals[k]||0,255,true);
-    }
-
-    // Bonus pools HP+ / Mana+ — no cap
-    const hasHpBonus=(baselineTotals.hpbonus||0)+(projTotals.hpbonus||0)>0;
-    const hasManaBonus=(baselineTotals.manabonus||0)+(projTotals.manabonus||0)>0;
-    if(hasHpBonus||hasManaBonus){
-      html+=`<div class="upg-budget-section">Bonus pools</div>`;
-      if(hasHpBonus){const mx=Math.max(projTotals.hpbonus||0,50)*1.4;html+=row('HP+',baselineTotals.hpbonus||0,projTotals.hpbonus||0,mx,false);}
-      if(hasManaBonus){const mx=Math.max(projTotals.manabonus||0,50)*1.4;html+=row('Mn+',baselineTotals.manabonus||0,projTotals.manabonus||0,mx,false);}
-    }
-
-    // Resists — no softcap
-    html+=`<div class="upg-budget-section">Resists</div>`;
-    const RESIST_SHORT=['SvPo','SvMa','SvDi','SvFi','SvCo'];
-    const resistMax=Math.max(...RESIST_KEYS.map(k=>projTotals[k]||0),100)*1.3;
-    RESIST_KEYS.forEach((k,i)=>{html+=row(RESIST_SHORT[i],baselineTotals[k]||0,projTotals[k]||0,resistMax,false);});
-
-    html+=`<div class="upg-budget-legend">
-      <div class="upg-budget-leg-row"><div class="upg-budget-leg-swatch" style="background:var(--gold-dim)"></div>Current</div>
-      <div class="upg-budget-leg-row"><div class="upg-budget-leg-swatch" style="background:#4a8a2a"></div>Best upgrade gain</div>
-      <div class="upg-budget-leg-row"><div class="upg-budget-leg-swatch" style="background:#c03030;width:3px;height:12px;border-radius:1px"></div>Softcap (200)</div>
-    </div>`;
+    html+=`<div class="upg-stat-section">Resists</div>`;
+    const RS=['SvPo','SvMa','SvDi','SvFi','SvCo'];
+    RESIST_KEYS.forEach((k,i)=>html+=row(RS[i],baselineTotals[k]||0,proj[k]||0));
     return html;
   }
 
   panel.innerHTML=`<div class="upg-layout">
-    <div class="upg-shop-panel">
-      <div class="upg-shop-head">
-        <span class="upg-shop-title">&#9876; Upgrade priority</span>
-        <span class="upg-shop-char">${esc(name)}${charClass?' &middot; '+esc(charClass):''}</span>
-      </div>
-      ${listHtml||'<div class="upg-none">No upgrades found in database for equipped slots.</div>'}
-    </div>
-    <div class="upg-budget-panel">
-      <div class="upg-budget-head">Stat budget</div>
-      <div class="upg-budget-body" id="upgBudgetBody">${budgetPanel()}</div>
+    <div class="upg-slots-panel">${cardsHtml||'<div class="upg-none">No equipped items found.</div>'}</div>
+    <div class="upg-stat-panel">
+      <div class="upg-stat-head">Stat sheet</div>
+      <div class="upg-stat-body" id="upgStatSheetBody">${buildStatSheet()}</div>
     </div>
   </div>`;
 }
 
-window.upgToggleRow=function(dbSlot){
-  const rowEl=document.getElementById('upgrow_'+dbSlot);
-  const expEl=document.getElementById('upgexp_'+dbSlot);
-  if(!rowEl||!expEl)return;
-  const isOpen=expEl.classList.contains('open');
-  // Close all others
-  document.querySelectorAll('.upg-expand.open').forEach(e=>e.classList.remove('open'));
-  document.querySelectorAll('.upg-item-row.upg-row-expanded').forEach(e=>e.classList.remove('upg-row-expanded'));
-  if(!isOpen){expEl.classList.add('open');rowEl.classList.add('upg-row-expanded');}
-};
-
+// ─── Gear Planner: swap alternate candidate ───────────────────────────────────
 window.upgSwapAlt=function(dbSlot,idx){
-  const expEl=document.getElementById('upgexp_'+dbSlot);
-  if(!expEl)return;
   const sr=window._upgSlots&&window._upgSlots.find(s=>s.dbSlot===dbSlot);
   if(!sr)return;
-  // Rebuild expand content with new selection
-  const meta=charMeta[activeTab]||{};
-  const charClass=meta.class||'';
-  const charLevel=meta.level||1;
-  const base=meta.baseStats||null;
-  const charGear=gearStats[activeTab]||{};
-  const equipped=getEquippedItems(activeTab);
-  function invSlotToDBSlot(loc){const s=loc.toUpperCase();if(s.includes('EAR'))return'EAR';if(s.includes('FINGER'))return'FINGERS';if(s.includes('WRIST'))return'WRIST';return s;}
-  function buildTotals2(){
-    const t={};
-    if(base){STAT_KEYS.forEach((k,i)=>{t[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{t[k]=base.resists[i]||0;});}
-    for(const item of equipped){const data=charGear[item.name]||itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)t[k]=(t[k]||0)+v;}const acv=Number(data.ac||0);if(acv)t.ac=(t.ac||0)+acv;}
-    return t;
-  }
-  const baseTotals=buildTotals2();
-  const weights=getStatWeights(charClass,baseTotals);
-  const NO_CAP=new Set(['hpbonus','manabonus']);
-  const SOFTCAP=200,HARDCAP=255,SOFTCAP_MULT=0.33;
   const selIdx=parseInt(idx);
   const cand=sr.candidates[selIdx];
   if(!cand)return;
+  // Re-render the upgrade pane and alt picker for this card
+  const upgPaneEl=document.getElementById('upgpane_'+dbSlot);
+  const altRowEl=document.getElementById('upgalt_'+dbSlot);
+  const scoreEl=document.getElementById('upgscore_'+dbSlot);
+  if(!upgPaneEl)return;
+  const meta=charMeta[activeTab]||{};
+  const charClass=meta.class||'';
+  const base=meta.baseStats||null;
+  const charGear=gearStats[activeTab]||{};
+  const equipped=getEquippedItems(activeTab);
+  const t={};
+  if(base){STAT_KEYS.forEach((k,i)=>{t[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{t[k]=base.resists[i]||0;});}
+  for(const item of equipped){const data=charGear[item.name]||itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)t[k]=(t[k]||0)+v;}const acv=Number(data.ac||0);if(acv)t.ac=(t.ac||0)+acv;}
   const {currentData}=sr;
-  const allKeys=[...STAT_KEYS_ALL,'ac'].filter(k=>(currentData[k]||0)!==0||(cand[k]||0)!==0);
-  let totalEff=0,rows='';
+  const allKeys=['ac',...STAT_KEYS_ALL].filter(k=>(currentData[k]||0)!==0||(cand[k]||0)!==0);
+  let statsHtml='';
   for(const k of allKeys){
     const cur=Number(currentData[k]||0),nxt=Number(cand[k]||0),raw=nxt-cur;
-    const label=STAT_DISPLAY[k]||k.toUpperCase();
-    const w=weights[k]||0;
-    let changeCell=`<td style="color:var(--text-muted)">&#8212;</td>`;
-    if(raw!==0){
-      if(raw>0){
-        let eff=0,wasted=0;
-        if(NO_CAP.has(k)||k==='ac'){eff=raw*w;}
-        else{
-          const belowSoft=Math.max(0,Math.min(raw,SOFTCAP-(baseTotals[k]||0)-cur));
-          const inSoft=Math.max(0,Math.min(raw-belowSoft,HARDCAP-Math.max((baseTotals[k]||0)+cur,SOFTCAP)));
-          wasted=Math.max(0,raw-belowSoft-inSoft);
-          eff=belowSoft*w+inSoft*w*SOFTCAP_MULT;
-        }
-        totalEff+=eff;
-        const effStr=w?` <span class="upg-cap-note">${eff>=0?'+':''}${Math.round(eff*10)/10} eff</span>`:'';
-        const wastStr=wasted>0?`<span class="upg-cap-note"> (${wasted} capped)</span>`:'';
-        const zeroStr=!w?`<span class="upg-cap-note"> (no weight)</span>`:'';
-        changeCell=`<td class="upg-exp-pos">+${raw}${wastStr}${zeroStr}${effStr}</td>`;
-      } else {
-        totalEff+=raw*(w||0);
-        changeCell=`<td class="upg-exp-neg">${raw}</td>`;
-      }
-    }
-    rows+=`<tr><td>${label}</td><td>${cur||'&#8212;'}</td><td>${nxt||'&#8212;'}</td>${changeCell}</tr>`;
+    if(!raw)continue;
+    const label=k==='ac'?'AC':(STAT_DISPLAY[k]||k.toUpperCase());
+    if(raw>0)statsHtml+=`<span class="upg-stat-pos">${label} +${raw}</span>`;
+    else statsHtml+=`<span class="upg-stat-neg">${label} ${raw}</span>`;
   }
-  if(!rows)rows=`<tr><td colspan="4" style="color:var(--text-muted);font-style:italic">No stat differences</td></tr>`;
-  const sign=totalEff>=0?'+':'';
-  const cost=[cand.plat?`${cand.plat}k pp`:'',cand.dkp?`${cand.dkp} DKP`:''].filter(Boolean).join(' · ')||'&#8212;';
-  const opts=sr.candidates.map((c,i)=>`<option value="${i}"${i===selIdx?' selected':''}>${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join('');
-  expEl.innerHTML=`<table class="upg-exp-stat-table">
-    <thead><tr><th>Stat</th><th>Cur</th><th>New</th><th>Change</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
-  <div class="upg-exp-footer">
-    <span class="upg-exp-score">${sign}${Math.round(totalEff*10)/10} weighted score</span>
-    <span>&#128197; ${esc(cand._from||'Unknown')}</span>
-    <span>&#128176; ${cost}</span>
-  </div>
-  <div class="upg-alt-wrap">
-    <span class="upg-alt-label">Compare</span>
-    <select class="upg-alt-select" onchange="upgSwapAlt('${dbSlot}',this.value)">${opts}</select>
-  </div>`;
+  const cost=[cand.plat?`${cand.plat}k pp`:'',cand.dkp?`${cand.dkp} DKP`:''].filter(Boolean).join(' · ');
+  upgPaneEl.innerHTML=`
+    <div class="upg-pane-label">Best upgrade</div>
+    <div class="upg-pane-name upg-pane-upgrade">${itemLink(cand.name)}</div>
+    <div class="upg-pane-stats">${statsHtml||'<span class="upg-stat-cur">No stat changes</span>'}</div>
+    ${cand._from?`<div class="upg-pane-from">${esc(cand._from)}</div>`:''}
+    ${cost?`<div class="upg-pane-cost">${esc(cost)}</div>`:''}`;
+  if(scoreEl){
+    const sc=cand._effGain>=20?'upg-score-hi':cand._effGain>=8?'upg-score-mid':'upg-score-lo';
+    scoreEl.className='upg-score-pill '+sc;
+    scoreEl.textContent=(cand._effGain>=0?'+':'')+cand._effGain+' pts';
+  }
+  if(altRowEl){
+    const opts=sr.candidates.map((c,i)=>`<option value="${i}"${i===selIdx?' selected':''}>${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join('');
+    altRowEl.innerHTML=`<span class="upg-alt-label">Compare</span>
+      <select class="upg-alt-select" onchange="upgSwapAlt('${dbSlot}',this.value)">${opts}</select>`;
+  }
+  // Refresh stat sheet
+  upgRefreshStatSheet();
+};
+
+// ─── Gear Planner: stat sheet ─────────────────────────────────────────────────
+window.upgRefreshStatSheet=function(){
+  const body=document.getElementById('upgStatSheetBody');
+  if(!body)return;
+  const name=activeTab;
+  const meta=charMeta[name]||{};
+  const charClass=meta.class||'';
+  const charLevel=meta.level||1;
+  const base=meta.baseStats||null;
+  const charGear=gearStats[name]||{};
+  const equipped=getEquippedItems(name);
+  function invSlotToDBSlot(loc){const s=loc.toUpperCase();if(s.includes('EAR'))return'EAR';if(s.includes('FINGER'))return'FINGERS';if(s.includes('WRIST'))return'WRIST';return s;}
+  // Baseline totals
+  const cur={};
+  if(base){STAT_KEYS.forEach((k,i)=>{cur[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{cur[k]=base.resists[i]||0;});}
+  for(const item of equipped){const data=charGear[item.name]||itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)cur[k]=(cur[k]||0)+v;}const acv=Number(data.ac||0);if(acv)cur.ac=(cur.ac||0)+acv;}
+  // Projected: apply current alt-select choices
+  const proj=Object.assign({},cur);
+  if(window._upgSlots){
+    for(const sr of window._upgSlots){
+      const selEl=document.querySelector(`.upg-alt-select[data-slot="${sr.dbSlot}"]`);
+      const idx=selEl?parseInt(selEl.value):0;
+      const cand=sr.candidates[idx];
+      if(!cand||cand._effGain<=0)continue;
+      // Remove current item stats, add candidate stats
+      const curData=sr.currentData;
+      for(const k of STAT_KEYS_ALL){proj[k]=(proj[k]||0)-Number(curData[k]||0)+Number(cand[k]||0);}
+      proj.ac=(proj.ac||0)-Number(curData.ac||0)+Number(cand.ac||0);
+    }
+  }
+  const manaKey=WIS_CLASSES.has(charClass)?'wis':'int';
+  const curHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,cur.sta||0),charClass,charLevel):null;
+  const projHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,proj.sta||0),charClass,charLevel):null;
+  const curMana=charClass?calcMana(Math.min(255,cur[manaKey]||0),charLevel):null;
+  const projMana=charClass?calcMana(Math.min(255,proj[manaKey]||0),charLevel):null;
+
+  function row(label,cVal,pVal){
+    const diff=pVal-cVal;
+    const changed=diff!==0;
+    const deltaHtml=changed?`<span class="upg-stat-delta${diff<0?' neg':''}">${diff>0?'+':''}${diff}</span>`:'';
+    return `<div class="upg-stat-row${changed?' upg-stat-changed':''}">
+      <span class="upg-stat-key">${label}</span>
+      <span class="upg-stat-vals">
+        <span class="upg-stat-cur-val">${cVal}</span>
+        <span class="upg-stat-proj-val">${pVal}${deltaHtml}</span>
+      </span>
+    </div>`;
+  }
+
+  let html='';
+  // Combat pools: AC / HP / Mana
+  html+=`<div class="upg-stat-section">Combat pools</div>`;
+  html+=row('AC',cur.ac||0,proj.ac||0);
+  if(curHP!==null){html+=row('HP',curHP,projHP);html+=row('Mana',curMana,projMana);}
+
+  // Primary stats — only those with non-zero weight for this class
+  const weights=getStatWeights(charClass,cur);
+  const primaryKeys=STAT_KEYS.filter(k=>(weights[k]||0)>0);
+  if(primaryKeys.length){
+    html+=`<div class="upg-stat-section">Primary</div>`;
+    primaryKeys.forEach(k=>html+=row(k.toUpperCase(),cur[k]||0,proj[k]||0));
+  }
+
+  // HP+ / Mana+ bonuses if any exist
+  const anyBonus=BONUS_KEYS.some(k=>(cur[k]||0)+(proj[k]||0)>0);
+  if(anyBonus){
+    html+=`<div class="upg-stat-section">Bonus pools</div>`;
+    if((cur.hpbonus||0)+(proj.hpbonus||0)>0)html+=row('HP+',cur.hpbonus||0,proj.hpbonus||0);
+    if((cur.manabonus||0)+(proj.manabonus||0)>0)html+=row('Mn+',cur.manabonus||0,proj.manabonus||0);
+  }
+
+  // Resists
+  html+=`<div class="upg-stat-section">Resists</div>`;
+  const RESIST_SHORT=['SvPo','SvMa','SvDi','SvFi','SvCo'];
+  RESIST_KEYS.forEach((k,i)=>html+=row(RESIST_SHORT[i],cur[k]||0,proj[k]||0));
+
+  body.innerHTML=html;
 };
 
 
