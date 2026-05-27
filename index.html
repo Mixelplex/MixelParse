@@ -865,7 +865,7 @@ function renderUpgradesPanel(){
 
   function buildTotals(overrides){
     const t={};
-    if(base){STAT_KEYS.forEach((k,i)=>{t[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{t[k]=base.resists[i]||0;});}
+    if(base){STAT_KEYS.forEach((k,i)=>{t[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{t[k]=base.resists[i]||0;});if(base.pools)t.ac=base.pools[3]||0;}
     for(const item of equipped){
       const dbSlot=invSlotToDBSlot(item.location);
       const data=(overrides&&overrides[dbSlot])||charGear[item.name]||itemDB[item.name]||{};
@@ -1076,7 +1076,7 @@ window.upgRefreshStatSheet=function(){
   function invSlotToDBSlot(loc){const s=loc.toUpperCase();if(s.includes('EAR'))return'EAR';if(s.includes('FINGER'))return'FINGERS';if(s.includes('WRIST'))return'WRIST';return s;}
   // Baseline totals
   const cur={};
-  if(base){STAT_KEYS.forEach((k,i)=>{cur[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{cur[k]=base.resists[i]||0;});}
+  if(base){STAT_KEYS.forEach((k,i)=>{cur[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{cur[k]=base.resists[i]||0;});if(base.pools)cur.ac=base.pools[3]||0;}
   for(const item of equipped){const data=charGear[item.name]||itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)cur[k]=(cur[k]||0)+v;}const acv=Number(data.ac||0);if(acv)cur.ac=(cur.ac||0)+acv;}
   // Projected: apply current alt-select choices; also tally costs
   const proj=Object.assign({},cur);
