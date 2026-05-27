@@ -386,7 +386,7 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
 
 <script>
 // ── APP REFERENCE ──
-const A = window.opener || window.parent;
+const A = window.opener || {};
 let appReady = false;
 
 function getApp(fn) {
@@ -968,6 +968,7 @@ SUITES.skyshrine = [
 // SUPABASE
 SUITES.supabase = [
   makeTest('Supabase client — initialized', () => {
+    if (!window.opener) return { msg: 'Open via ⚙ Admin button in MixelParse for full Supabase tests', asserts: [warn('opened via window.opener', true, 'skipped — direct navigation')] };
     const sb = A.sb;
     return { asserts: [
       assert('sb client exists', !!sb),
@@ -976,18 +977,15 @@ SUITES.supabase = [
     ]};
   }),
   makeTest('Auth state — user signed in', () => {
+    if (!window.opener) return { msg: 'Open via ⚙ Admin button in MixelParse for auth tests', asserts: [warn('opened via window.opener', true, 'skipped — direct navigation')] };
     const user = A.currentUser;
-    const viaOpener = !!window.opener;
-    if (!viaOpener) return {
-      msg: 'Open admin via the ⚙ Admin button in MixelParse — direct navigation has no opener context',
-      asserts: [warn('opened via window.opener', true, 'skipped — direct navigation')]
-    };
     return { asserts: [
       assert('currentUser set', !!user),
       assert('has email', !!(user?.email)),
     ], output: user ? `Signed in as: ${user.email}\nID: ${user.id}` : 'Not signed in' };
   }),
   makeTest('Save/load functions — exist and are wired', () => {
+    if (!window.opener) return { msg: 'Open via ⚙ Admin button in MixelParse for full function checks', asserts: [warn('opened via window.opener', true, 'skipped — direct navigation')] };
     return { asserts: [
       assert('saveState exists', typeof A.saveState === 'function'),
       assert('saveItemDB exists', typeof A.saveItemDB === 'function'),
@@ -1096,10 +1094,29 @@ const SUITE_LABELS = {
 
 let allResults = {};
 
+// Suites that require window.opener (i.e. the live app)
+const REQUIRES_OPENER = new Set(['itemdb','calcs','upgrades','bridge','dkp','plat','consumes','factions','skyshrine','supabase','state','parsing']);
+
 async function runSuite(id) {
   const tests = SUITES[id];
   if (!tests) return;
   checkConnection();
+
+  // If this suite needs opener and we don't have it, short-circuit all tests
+  if (REQUIRES_OPENER.has(id) && !window.opener) {
+    const el = document.getElementById(`results-${id}`);
+    const dot = document.getElementById(`dot-${id}`);
+    const badge = document.getElementById(`badge-${id}`);
+    dot.className = 'sb-dot warn';
+    badge.textContent = 'NO OPENER'; badge.className = 'sb-badge warn';
+    el.innerHTML = `<div style="padding:.75rem;font-family:var(--mono);font-size:.78rem;color:var(--amber-l);background:var(--surface);border:1px solid var(--border);border-radius:4px">
+      ⚠ Open admin via the <strong>⚙ Admin</strong> button in MixelParse to run this suite.<br>
+      Direct navigation has no window.opener — app state is inaccessible.
+    </div>`;
+    allResults[id] = tests.map(t => ({ name: t.name||'test', status: 'warn', msg: 'No opener', asserts: [], output: '', ms: 0 }));
+    updateSummary();
+    return;
+  }
   const el = document.getElementById(`results-${id}`);
   const dot = document.getElementById(`dot-${id}`);
   const badge = document.getElementById(`badge-${id}`);
