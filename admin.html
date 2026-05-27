@@ -597,7 +597,7 @@ SUITES.wikiparse = [
   }),
   makeTest('parseWikiStats — strips scripts/styles', () => {
     const f = A.parseWikiStats;
-    const html = `<html><head><style>HP: 999</style><script>Mana: 999</script></head><body>HP: +50</body></html>`;
+    const html = '<html><head><style>HP: 999<\/style><scr'+'ipt>Mana: 999<\/sc'+'ript></head><body>HP: +50</body></html>';
     const s = f(html);
     return { asserts: [
       assertEq('hp from body only', s.hpbonus, 50),
@@ -1037,7 +1037,7 @@ SUITES.utils = [
       assertEq('ampersand', f('a&b'), 'a&amp;b'),
       assertEq('less-than', f('a<b'), 'a&lt;b'),
       assertEq('greater-than', f('a>b'), 'a&gt;b'),
-      assertEq('combined', f('<script>'), '&lt;script&gt;'),
+      assertEq('combined', f('<scr'+'ipt>'), '&lt;script&gt;'),
       assertEq('clean string unchanged', f('hello'), 'hello'),
     ]};
   }),
