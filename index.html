@@ -573,20 +573,20 @@ const WIS_CLASSES=new Set(['Cleric','Druid','Paladin','Ranger','Shaman']);
 // Base weights per class. Keys match STAT_KEYS_ALL: str/sta/dex/agi/wis/int/cha/svpoison/svmagic/svdisease/svfire/svcold/hpbonus/manabonus
 // AC handled separately (item ac field). Softcap multiplier (0.33×) applied at scoring time for 200–255.
 const CLASS_STAT_WEIGHTS = {
-  'Warrior':       {str:3.0,sta:6.0,dex:0,  agi:0.5,wis:0,  int:0,  cha:0,  ac:5.0,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:0  },
-  'Monk':          {str:3.5,sta:3.0,dex:1.0,agi:2.0,wis:0,  int:0,  cha:0,  ac:2.5,svpoison:0.5,svmagic:0.5,svdisease:0.5,svfire:0.5,svcold:0.5,hpbonus:1.5,manabonus:0  },
-  'Rogue':         {str:4.0,sta:3.5,dex:1.0,agi:0,  wis:0,  int:0,  cha:0,  ac:0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:0  },
-  'Bard':          {str:1.5,sta:4.0,dex:1.5,agi:0,  wis:0,  int:0,  cha:3.0,ac:1.5,svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0  },
-  'Ranger':        {str:2.0,sta:3.5,dex:2.0,agi:0,  wis:4.0,int:0,  cha:0,  ac:0,  svpoison:0.6,svmagic:0.6,svdisease:0.6,svfire:0.6,svcold:0.6,hpbonus:1.5,manabonus:0.5},
-  'Paladin':       {str:2.0,sta:5.2,dex:0,  agi:0,  wis:4.0,int:0,  cha:1.0,ac:1.5,svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.5},
-  'Shadow Knight': {str:2.5,sta:5.2,dex:0,  agi:0,  wis:0,  int:4.0,cha:0,  ac:1.5,svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.5},
-  'Cleric':        {str:0,  sta:2.5,dex:0,  agi:0,  wis:5.0,int:0,  cha:0,  ac:0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0},
-  'Druid':         {str:0,  sta:2.5,dex:0,  agi:0,  wis:5.0,int:0,  cha:0,  ac:0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0},
-  'Shaman':        {str:0,  sta:3.0,dex:0,  agi:0,  wis:5.0,int:0,  cha:0,  ac:0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0},
-  'Enchanter':     {str:0,  sta:2.0,dex:0,  agi:0,  wis:0,  int:4.0,cha:5.0,ac:0,  svpoison:1.2,svmagic:1.2,svdisease:1.2,svfire:1.2,svcold:1.2,hpbonus:2.0,manabonus:1.0},
-  'Magician':      {str:0,  sta:2.0,dex:0,  agi:0,  wis:0,  int:5.0,cha:0,  ac:0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0},
-  'Necromancer':   {str:0,  sta:2.0,dex:0,  agi:0,  wis:0,  int:5.0,cha:0,  ac:0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0},
-  'Wizard':        {str:0,  sta:2.0,dex:0,  agi:0,  wis:0,  int:5.0,cha:0,  ac:0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0},
+  'Warrior':       {str:3.0,   sta:6.0,  dex:0.0001,agi:0.5,  wis:0.0001,int:0.0001,cha:0.0001,ac:5.0,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,  manabonus:0.0001},
+  'Monk':          {str:3.5,   sta:3.0,  dex:1.0,   agi:2.0,  wis:0.0001,int:0.0001,cha:0.0001,ac:2.5,svpoison:0.5,svmagic:0.5,svdisease:0.5,svfire:0.5,svcold:0.5,hpbonus:1.5,  manabonus:0.0001},
+  'Rogue':         {str:4.0,   sta:3.5,  dex:1.0,   agi:0.0001,wis:0.0001,int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:0.0001},
+  'Bard':          {str:1.5,   sta:4.0,  dex:1.5,   agi:0.0001,wis:0.0001,int:0.0001,cha:3.0,   ac:1.5,svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,  manabonus:0.0001},
+  'Ranger':        {str:2.0,   sta:3.5,  dex:2.0,   agi:0.0001,wis:4.0,   int:0.0001,cha:0.0001,ac:0.0001,svpoison:0.6,svmagic:0.6,svdisease:0.6,svfire:0.6,svcold:0.6,hpbonus:1.5,manabonus:0.5},
+  'Paladin':       {str:2.0,   sta:5.2,  dex:0.0001,agi:0.0001,wis:4.0,   int:0.0001,cha:1.0,   ac:1.5,svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,  manabonus:0.5},
+  'Shadow Knight': {str:2.5,   sta:5.2,  dex:0.0001,agi:0.0001,wis:0.0001,int:4.0,   cha:0.0001,ac:1.5,svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,  manabonus:0.5},
+  'Cleric':        {str:0.0001,sta:2.5,  dex:0.0001,agi:0.0001,wis:5.0,   int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0},
+  'Druid':         {str:0.0001,sta:2.5,  dex:0.0001,agi:0.0001,wis:5.0,   int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0},
+  'Shaman':        {str:0.0001,sta:3.0,  dex:0.0001,agi:0.0001,wis:5.0,   int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0},
+  'Enchanter':     {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:4.0,   cha:5.0,   ac:0.0001,svpoison:1.2,svmagic:1.2,svdisease:1.2,svfire:1.2,svcold:1.2,hpbonus:2.0,manabonus:1.0},
+  'Magician':      {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:5.0,   cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0},
+  'Necromancer':   {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:5.0,   cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0},
+  'Wizard':        {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:5.0,   cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0},
 };
 
 // INT/WIS caster classes — primary stat is the mana stat
@@ -1004,9 +1004,8 @@ function renderUpgradesPanel(){
     let html=`<div class="upg-stat-section">Combat pools</div>`;
     html+=row('AC',baselineTotals.ac||0);
     if(curHP!==null){html+=row('HP',curHP);html+=row('Mana',curMana);}
-    const primaryKeys=STAT_KEYS.filter(k=>(weights[k]||0)>0);
-    const displayKeys=primaryKeys.length?primaryKeys:STAT_KEYS;
-    if(displayKeys.length){html+=`<div class="upg-stat-section">Primary</div>`;displayKeys.forEach(k=>html+=row(k.toUpperCase(),baselineTotals[k]||0));}
+    html+=`<div class="upg-stat-section">Primary</div>`;
+    STAT_KEYS.forEach(k=>html+=row(k.toUpperCase(),baselineTotals[k]||0));
     html+=`<div class="upg-stat-section">Resists</div>`;
     const RS=['SvPo','SvMa','SvDi','SvFi','SvCo'];
     RESIST_KEYS.forEach((k,i)=>html+=row(RS[i],baselineTotals[k]||0));
@@ -1138,12 +1137,8 @@ window.upgRefreshStatSheet=function(){
   html+=row('AC',cur.ac||0,proj.ac||0);
   if(curHP!==null){html+=row('HP',curHP,projHP);html+=row('Mana',curMana,projMana);}
   const weights=getStatWeights(charClass,cur);
-  const primaryKeys=STAT_KEYS.filter(k=>(weights[k]||0)>0);
-  const displayKeys=primaryKeys.length?primaryKeys:STAT_KEYS;
-  if(displayKeys.length){
-    html+=`<div class="upg-stat-section">Primary</div>`;
-    displayKeys.forEach(k=>html+=row(k.toUpperCase(),cur[k]||0,proj[k]||0));
-  }
+  html+=`<div class="upg-stat-section">Primary</div>`;
+  STAT_KEYS.forEach(k=>html+=row(k.toUpperCase(),cur[k]||0,proj[k]||0));
   html+=`<div class="upg-stat-section">Resists</div>`;
   const RESIST_SHORT=['SvPo','SvMa','SvDi','SvFi','SvCo'];
   RESIST_KEYS.forEach((k,i)=>html+=row(RESIST_SHORT[i],cur[k]||0,proj[k]||0));
