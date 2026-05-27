@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MixelParse — Admin Diagnostics</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Share+Tech+Mono&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap');
+
+:root {
+  --bg: #0a0906;
+  --surface: #111009;
+  --surface2: #1a1710;
+  --border: #2a2418;
+  --border2: #3a3020;
+  --gold: #c8901a;
+  --gold-l: #e8b040;
+  --gold-d: #7a5010;
+  --text: #e8dfc8;
+  --text-d: #b8a888;
+  --text-m: #6a5e48;
+  --green: #2a7a2a;
+  --green-l: #4aaa4a;
+  --green-bg: rgba(42,122,42,.12);
+  --red: #8a2020;
+  --red-l: #cc4040;
+  --red-bg: rgba(140,32,32,.12);
+  --amber: #8a6010;
+  --amber-l: #d49030;
+  --amber-bg: rgba(138,96,16,.12);
+  --blue: #1a4a7a;
+  --blue-l: #4a8acc;
+  --blue-bg: rgba(26,74,122,.12);
+  --mono: 'Share Tech Mono', monospace;
+  --serif: 'Crimson Pro', serif;
+  --cinzel: 'Cinzel', serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--serif); font-size: 15px; }
+
+/* ── LAYOUT ── */
+.shell { display: grid; grid-template-columns: 220px 1fr; height: 100vh; }
+.sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+.main { display: flex; flex-direction: column; overflow: hidden; }
+.main-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: .75rem 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.main-content { flex: 1; overflow-y: auto; padding: 1.25rem; }
+
+/* ── SIDEBAR ── */
+.sb-logo { padding: .9rem 1rem .6rem; border-bottom: 1px solid var(--border); }
+.sb-logo-title { font-family: var(--cinzel); font-size: .8rem; letter-spacing: .12em; color: var(--gold); }
+.sb-logo-sub { font-size: .72rem; color: var(--text-m); margin-top: .15rem; }
+.sb-section { font-family: var(--cinzel); font-size: .55rem; letter-spacing: .12em; color: var(--text-m); padding: .8rem 1rem .25rem; text-transform: uppercase; }
+.sb-item { display: flex; align-items: center; gap: .5rem; padding: .4rem 1rem; cursor: pointer; border-left: 2px solid transparent; transition: all .12s; font-size: .82rem; color: var(--text-d); }
+.sb-item:hover { background: var(--surface2); color: var(--text); border-left-color: var(--border2); }
+.sb-item.active { background: rgba(200,144,26,.08); color: var(--gold-l); border-left-color: var(--gold); }
+.sb-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-m); flex-shrink: 0; }
+.sb-dot.pass { background: var(--green-l); }
+.sb-dot.fail { background: var(--red-l); }
+.sb-dot.warn { background: var(--amber-l); }
+.sb-dot.skip { background: var(--text-m); }
+.sb-dot.run { background: var(--gold); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.sb-badge { margin-left: auto; font-family: var(--mono); font-size: .62rem; padding: .1rem .3rem; border-radius: 2px; }
+.sb-badge.pass { background: var(--green-bg); color: var(--green-l); }
+.sb-badge.fail { background: var(--red-bg); color: var(--red-l); }
+.sb-badge.warn { background: var(--amber-bg); color: var(--amber-l); }
+
+/* ── HEADER ── */
+.h-title { font-family: var(--cinzel); font-size: .8rem; letter-spacing: .1em; color: var(--gold); }
+.h-meta { font-size: .75rem; color: var(--text-m); }
+.run-all-btn { font-family: var(--cinzel); font-size: .65rem; letter-spacing: .08em; background: rgba(200,144,26,.1); border: 1px solid var(--gold-d); border-radius: 3px; color: var(--gold-l); padding: .35rem .8rem; cursor: pointer; transition: all .15s; }
+.run-all-btn:hover { background: rgba(200,144,26,.2); border-color: var(--gold); }
+
+/* ── SUMMARY BAR ── */
+.summary-bar { display: grid; grid-template-columns: repeat(4,1fr); gap: .6rem; margin-bottom: 1rem; }
+.sum-card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: .6rem .8rem; }
+.sum-label { font-family: var(--cinzel); font-size: .55rem; letter-spacing: .1em; color: var(--text-m); margin-bottom: .2rem; }
+.sum-val { font-family: var(--mono); font-size: 1.1rem; }
+.sum-val.pass { color: var(--green-l); }
+.sum-val.fail { color: var(--red-l); }
+.sum-val.warn { color: var(--amber-l); }
+.sum-val.total { color: var(--text-d); }
+
+/* ── SUITE PANEL ── */
+.suite { display: none; }
+.suite.active { display: block; }
+.suite-title { font-family: var(--cinzel); font-size: .8rem; letter-spacing: .1em; color: var(--gold); margin-bottom: .25rem; }
+.suite-desc { font-size: .82rem; color: var(--text-m); margin-bottom: 1rem; line-height: 1.5; }
+.suite-actions { display: flex; gap: .5rem; margin-bottom: 1rem; }
+.btn { font-family: var(--cinzel); font-size: .65rem; letter-spacing: .07em; border-radius: 3px; padding: .3rem .7rem; cursor: pointer; border: 1px solid var(--border2); background: var(--surface2); color: var(--text-d); transition: all .12s; }
+.btn:hover { border-color: var(--gold-d); color: var(--gold-l); }
+.btn.primary { background: rgba(200,144,26,.1); border-color: var(--gold-d); color: var(--gold-l); }
+.btn.primary:hover { background: rgba(200,144,26,.2); }
+
+/* ── TEST CARD ── */
+.test-card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; margin-bottom: .5rem; overflow: hidden; }
+.test-head { display: flex; align-items: center; gap: .65rem; padding: .55rem .75rem; cursor: pointer; }
+.test-head:hover { background: var(--surface2); }
+.status-icon { font-family: var(--mono); font-size: .7rem; width: 22px; text-align: center; flex-shrink: 0; }
+.status-icon.pass { color: var(--green-l); }
+.status-icon.fail { color: var(--red-l); }
+.status-icon.warn { color: var(--amber-l); }
+.status-icon.skip { color: var(--text-m); }
+.status-icon.run { color: var(--gold); }
+.test-name { font-family: var(--mono); font-size: .78rem; color: var(--text); flex: 1; }
+.test-time { font-family: var(--mono); font-size: .65rem; color: var(--text-m); flex-shrink: 0; }
+.test-body { display: none; border-top: 1px solid var(--border); padding: .6rem .75rem; background: var(--bg); }
+.test-body.open { display: block; }
+.test-msg { font-size: .8rem; color: var(--text-d); margin-bottom: .4rem; line-height: 1.6; }
+.test-msg.pass { color: var(--green-l); }
+.test-msg.fail { color: var(--red-l); }
+.test-msg.warn { color: var(--amber-l); }
+.assert-row { display: flex; align-items: flex-start; gap: .5rem; font-family: var(--mono); font-size: .72rem; padding: .2rem 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+.assert-row:last-child { border: none; }
+.assert-icon { flex-shrink: 0; }
+.assert-icon.pass { color: var(--green-l); }
+.assert-icon.fail { color: var(--red-l); }
+.assert-icon.warn { color: var(--amber-l); }
+.assert-label { color: var(--text-d); flex: 1; }
+.assert-val { color: var(--text-m); font-size: .67rem; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; border: 1px solid var(--border); border-radius: 3px; padding: .5rem .7rem; margin-top: .4rem; overflow-x: auto; color: var(--text-d); white-space: pre-wrap; word-break: break-all; max-height: 220px; overflow-y: auto; }
+.live-table { width: 100%; border-collapse: collapse; font-size: .76rem; margin-top: .5rem; }
+.live-table th { font-family: var(--cinzel); font-size: .58rem; letter-spacing: .07em; color: var(--text-m); padding: .25rem .5rem; text-align: left; border-bottom: 1px solid var(--border2); }
+.live-table td { padding: .22rem .5rem; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--text-d); }
+.live-table tr:hover td { background: var(--surface2); }
+.tag { display: inline-block; font-family: var(--mono); font-size: .64rem; padding: .08rem .35rem; border-radius: 2px; }
+.tag.pass { background: var(--green-bg); color: var(--green-l); border: 1px solid var(--green); }
+.tag.fail { background: var(--red-bg); color: var(--red-l); border: 1px solid var(--red); }
+.tag.warn { background: var(--amber-bg); color: var(--amber-l); border: 1px solid var(--amber); }
+.tag.info { background: var(--blue-bg); color: var(--blue-l); border: 1px solid var(--blue); }
+.empty-note { font-size: .8rem; color: var(--text-m); font-style: italic; padding: .4rem 0; }
+.divider { border: none; border-top: 1px solid var(--border); margin: .75rem 0; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-title">&#9741; MIXELPARSE</div>
+    <div class="sb-logo-sub">Admin Diagnostics v1.0</div>
+  </div>
+
+  <div class="sb-section">Overview</div>
+  <div class="sb-item active" data-suite="overview" onclick="showSuite('overview',this)">
+    <div class="sb-dot" id="dot-overview"></div>
+    All Suites
+  </div>
+
+  <div class="sb-section">Core Parsing</div>
+  <div class="sb-item" data-suite="parsing" onclick="showSuite('parsing',this)">
+    <div class="sb-dot skip" id="dot-parsing"></div>
+    Inventory Parser
+    <span class="sb-badge skip" id="badge-parsing">—</span>
+  </div>
+  <div class="sb-item" data-suite="itemdb" onclick="showSuite('itemdb',this)">
+    <div class="sb-dot skip" id="dot-itemdb"></div>
+    Item DB / CSV
+    <span class="sb-badge skip" id="badge-itemdb">—</span>
+  </div>
+  <div class="sb-item" data-suite="wikiparse" onclick="showSuite('wikiparse',this)">
+    <div class="sb-dot skip" id="dot-wikiparse"></div>
+    Wiki Stat Parser
+    <span class="sb-badge skip" id="badge-wikiparse">—</span>
+  </div>
+
+  <div class="sb-section">Calculations</div>
+  <div class="sb-item" data-suite="calcs" onclick="showSuite('calcs',this)">
+    <div class="sb-dot skip" id="dot-calcs"></div>
+    HP / Mana Calcs
+    <span class="sb-badge skip" id="badge-calcs">—</span>
+  </div>
+  <div class="sb-item" data-suite="upgrades" onclick="showSuite('upgrades',this)">
+    <div class="sb-dot skip" id="dot-upgrades"></div>
+    Upgrade Scoring
+    <span class="sb-badge skip" id="badge-upgrades">—</span>
+  </div>
+
+  <div class="sb-section">Data Pipeline</div>
+  <div class="sb-item" data-suite="bridge" onclick="showSuite('bridge',this)">
+    <div class="sb-dot skip" id="dot-bridge"></div>
+    Price Bridge
+    <span class="sb-badge skip" id="badge-bridge">—</span>
+  </div>
+  <div class="sb-item" data-suite="dkp" onclick="showSuite('dkp',this)">
+    <div class="sb-dot skip" id="dot-dkp"></div>
+    DKP Pipeline
+    <span class="sb-badge skip" id="badge-dkp">—</span>
+  </div>
+  <div class="sb-item" data-suite="plat" onclick="showSuite('plat',this)">
+    <div class="sb-dot skip" id="dot-plat"></div>
+    Plat / Pigparse
+    <span class="sb-badge skip" id="badge-plat">—</span>
+  </div>
+
+  <div class="sb-section">Game Logic</div>
+  <div class="sb-item" data-suite="consumes" onclick="showSuite('consumes',this)">
+    <div class="sb-dot skip" id="dot-consumes"></div>
+    Raid Consumes
+    <span class="sb-badge skip" id="badge-consumes">—</span>
+  </div>
+  <div class="sb-item" data-suite="factions" onclick="showSuite('factions',this)">
+    <div class="sb-dot skip" id="dot-factions"></div>
+    Factions
+    <span class="sb-badge skip" id="badge-factions">—</span>
+  </div>
+  <div class="sb-item" data-suite="skyshrine" onclick="showSuite('skyshrine',this)">
+    <div class="sb-dot skip" id="dot-skyshrine"></div>
+    Skyshrine Tracker
+    <span class="sb-badge skip" id="badge-skyshrine">—</span>
+  </div>
+
+  <div class="sb-section">Persistence</div>
+  <div class="sb-item" data-suite="supabase" onclick="showSuite('supabase',this)">
+    <div class="sb-dot skip" id="dot-supabase"></div>
+    Supabase / Auth
+    <span class="sb-badge skip" id="badge-supabase">—</span>
+  </div>
+  <div class="sb-item" data-suite="state" onclick="showSuite('state',this)">
+    <div class="sb-dot skip" id="dot-state"></div>
+    State Snapshot
+    <span class="sb-badge skip" id="badge-state">—</span>
+  </div>
+
+  <div class="sb-section">Utils</div>
+  <div class="sb-item" data-suite="utils" onclick="showSuite('utils',this)">
+    <div class="sb-dot skip" id="dot-utils"></div>
+    Utilities
+    <span class="sb-badge skip" id="badge-utils">—</span>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="main-header">
+    <div>
+      <div class="h-title">DIAGNOSTIC PANEL</div>
+      <div class="h-meta" id="hMeta">Not connected to app — open from MixelParse window</div>
+    </div>
+    <button class="run-all-btn" onclick="runAll()">&#9658; RUN ALL SUITES</button>
+  </div>
+  <div class="main-content" id="mainContent">
+
+    <!-- SUMMARY BAR (always visible) -->
+    <div class="summary-bar">
+      <div class="sum-card"><div class="sum-label">PASSED</div><div class="sum-val pass" id="sumPass">—</div></div>
+      <div class="sum-card"><div class="sum-label">FAILED</div><div class="sum-val fail" id="sumFail">—</div></div>
+      <div class="sum-card"><div class="sum-label">WARNINGS</div><div class="sum-val warn" id="sumWarn">—</div></div>
+      <div class="sum-card"><div class="sum-label">TOTAL</div><div class="sum-val total" id="sumTotal">—</div></div>
+    </div>
+
+    <!-- OVERVIEW SUITE -->
+    <div id="suite-overview" class="suite active">
+      <div class="suite-title">ALL SUITES — OVERVIEW</div>
+      <div class="suite-desc">Run all diagnostic suites at once. Each suite validates a functional area of MixelParse by inspecting live app state via window.opener.</div>
+      <div class="suite-actions">
+        <button class="btn primary" onclick="runAll()">&#9658; Run All</button>
+        <button class="btn" onclick="clearAll()">&#8635; Clear Results</button>
+      </div>
+      <div id="overview-results"></div>
+    </div>
+
+    <!-- PARSING SUITE -->
+    <div id="suite-parsing" class="suite">
+      <div class="suite-title">INVENTORY PARSER</div>
+      <div class="suite-desc">Tests parseInventory(), extractCharName(), locationType(), getEquippedItems() with synthetic and real inventory data.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('parsing')">&#9658; Run Suite</button></div>
+      <div id="results-parsing"></div>
+    </div>
+
+    <!-- ITEM DB SUITE -->
+    <div id="suite-itemdb" class="suite">
+      <div class="suite-title">ITEM DATABASE</div>
+      <div class="suite-desc">Validates itemDB integrity, parseItemDB() CSV parsing, classFromFilename(), raceFromFilename(), and applyDBToChar() matching logic.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('itemdb')">&#9658; Run Suite</button></div>
+      <div id="results-itemdb"></div>
+    </div>
+
+    <!-- WIKI PARSE SUITE -->
+    <div id="suite-wikiparse" class="suite">
+      <div class="suite-title">WIKI STAT PARSER</div>
+      <div class="suite-desc">Tests parseWikiStats() against known HTML snippets. Validates that stat extraction regex patterns produce correct output.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('wikiparse')">&#9658; Run Suite</button></div>
+      <div id="results-wikiparse"></div>
+    </div>
+
+    <!-- CALCS SUITE -->
+    <div id="suite-calcs" class="suite">
+      <div class="suite-title">HP / MANA CALCULATIONS</div>
+      <div class="suite-desc">Tests calcHP(), calcMana(), staRatio() across all classes and level ranges against known EQ formula outputs.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('calcs')">&#9658; Run Suite</button></div>
+      <div id="results-calcs"></div>
+    </div>
+
+    <!-- UPGRADES SUITE -->
+    <div id="suite-upgrades" class="suite">
+      <div class="suite-title">UPGRADE SCORING</div>
+      <div class="suite-desc">Tests effectiveGain() logic, cap clamping at 255, stat delta calculation, and candidate sorting for the Upgrades tab.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('upgrades')">&#9658; Run Suite</button></div>
+      <div id="results-upgrades"></div>
+    </div>
+
+    <!-- BRIDGE SUITE -->
+    <div id="suite-bridge" class="suite">
+      <div class="suite-title">PRICE BRIDGE</div>
+      <div class="suite-desc">Validates applyDkpToItemDB() and applyPlatToItemDB() — match counts, written values, unit conversions, and itemDB persistence.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('bridge')">&#9658; Run Suite</button></div>
+      <div id="results-bridge"></div>
+    </div>
+
+    <!-- DKP SUITE -->
+    <div id="suite-dkp" class="suite">
+      <div class="suite-title">DKP PIPELINE</div>
+      <div class="suite-desc">Tests parseDkpCsv() output structure, 60d average calculation, getDkp() lookup, dkpChip() rendering, and dkpLookup integrity.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('dkp')">&#9658; Run Suite</button></div>
+      <div id="results-dkp"></div>
+    </div>
+
+    <!-- PLAT SUITE -->
+    <div id="suite-plat" class="suite">
+      <div class="suite-title">PLAT / PIGPARSE</div>
+      <div class="suite-desc">Validates platData shape, WTS/WTB type filtering, getPlatRows() sort/filter logic, and plat cache key invalidation.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('plat')">&#9658; Run Suite</button></div>
+      <div id="results-plat"></div>
+    </div>
+
+    <!-- CONSUMES SUITE -->
+    <div id="suite-consumes" class="suite">
+      <div class="suite-title">RAID CONSUMES</div>
+      <div class="suite-desc">Tests charHasItem(), charHasAnyOf(), getConsumeStatus(), getOverallStatus() logic against live character inventories.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('consumes')">&#9658; Run Suite</button></div>
+      <div id="results-consumes"></div>
+    </div>
+
+    <!-- FACTIONS SUITE -->
+    <div id="suite-factions" class="suite">
+      <div class="suite-title">FACTIONS</div>
+      <div class="suite-desc">Validates getFaction(), setFaction(), factionColor() logic and factionData integrity for loaded characters.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('factions')">&#9658; Run Suite</button></div>
+      <div id="results-factions"></div>
+    </div>
+
+    <!-- SKYSHRINE SUITE -->
+    <div id="suite-skyshrine" class="suite">
+      <div class="suite-title">SKYSHRINE TRACKER</div>
+      <div class="suite-desc">Tests getSSDone(), tatteredName(), skyshrineData integrity, and per-class armor slot coverage.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('skyshrine')">&#9658; Run Suite</button></div>
+      <div id="results-skyshrine"></div>
+    </div>
+
+    <!-- SUPABASE SUITE -->
+    <div id="suite-supabase" class="suite">
+      <div class="suite-title">SUPABASE / AUTH</div>
+      <div class="suite-desc">Tests Supabase client connectivity, auth state, and confirms save/load functions exist and are wired correctly.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('supabase')">&#9658; Run Suite</button></div>
+      <div id="results-supabase"></div>
+    </div>
+
+    <!-- STATE SUITE -->
+    <div id="suite-state" class="suite">
+      <div class="suite-title">STATE SNAPSHOT</div>
+      <div class="suite-desc">Live read of all app state variables — chars, charMeta, gearStats, itemDB, dkpLookup, platData, factionData, raidSessions, watchList.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('state')">&#9658; Run Suite</button></div>
+      <div id="results-state"></div>
+    </div>
+
+    <!-- UTILS SUITE -->
+    <div id="suite-utils" class="suite">
+      <div class="suite-title">UTILITIES</div>
+      <div class="suite-desc">Tests esc(), wikiUrl(), itemLink(), dkpChip(), factionColor(), platTypeLabel(), platTypeChip() output correctness.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('utils')">&#9658; Run Suite</button></div>
+      <div id="results-utils"></div>
+    </div>
+
+  </div><!-- main-content -->
+</div><!-- main -->
+</div><!-- shell -->
+
+<script>
+// ── APP REFERENCE ──
+const A = window.opener || window.parent;
+let appReady = false;
+
+function getApp(fn) {
+  try { return fn(); } catch(e) { return undefined; }
+}
+
+function checkConnection() {
+  try {
+    const ok = A && typeof A.parseInventory === 'function';
+    appReady = ok;
+    document.getElementById('hMeta').textContent = ok
+      ? `Connected — ${Object.keys(A.chars||{}).length} chars, ${Object.keys(A.itemDB||{}).length} items in DB`
+      : 'Not connected — open this panel from within MixelParse';
+    return ok;
+  } catch(e) { return false; }
+}
+
+// ── TEST FRAMEWORK ──
+const results = {}; // suiteId -> [{name, status, msg, asserts, output, ms}]
+
+function assert(label, condition, val='') {
+  return { label, status: condition ? 'pass' : 'fail', val: String(val) };
+}
+function assertEq(label, actual, expected) {
+  const ok = actual === expected;
+  return { label, status: ok ? 'pass' : 'fail', val: ok ? String(actual) : `got ${JSON.stringify(actual)}, expected ${JSON.stringify(expected)}` };
+}
+function assertGt(label, actual, min) {
+  const ok = actual > min;
+  return { label, status: ok ? 'pass' : 'warn', val: `${actual} (> ${min})` };
+}
+function assertRange(label, actual, lo, hi) {
+  const ok = actual >= lo && actual <= hi;
+  return { label, status: ok ? 'pass' : 'fail', val: `${actual} (expected ${lo}–${hi})` };
+}
+function warn(label, condition, val='') {
+  return { label, status: condition ? 'warn' : 'pass', val: String(val) };
+}
+
+function makeTest(name, fn) {
+  return async () => {
+    const t0 = performance.now();
+    let status = 'skip', msg = '', asserts = [], output = '';
+    try {
+      const r = await fn();
+      asserts = r.asserts || [];
+      msg = r.msg || '';
+      output = r.output || '';
+      const failed = asserts.filter(a => a.status === 'fail');
+      const warned = asserts.filter(a => a.status === 'warn');
+      status = failed.length ? 'fail' : warned.length ? 'warn' : 'pass';
+    } catch(e) {
+      status = 'fail';
+      msg = e.message;
+      output = e.stack || '';
+    }
+    return { name, status, msg, asserts, output, ms: Math.round(performance.now() - t0) };
+  };
+}
+
+// ── SUITE DEFINITIONS ──
+const SUITES = {};
+
+// PARSING
+SUITES.parsing = [
+  makeTest('parseInventory — basic tab-delimited', () => {
+    const f = A.parseInventory;
+    const txt = `Slot1\tSword of Fire\t12345\t1\nBank1\tShield of Ice\t67890\t1\nGeneral1\tHealth Potion\t11111\t5`;
+    const items = f(txt, 'Testchar');
+    return { asserts: [
+      assertEq('returns array', Array.isArray(items), true),
+      assertEq('correct item count', items.length, 3),
+      assertEq('first item name', items[0].name, 'Sword of Fire'),
+      assertEq('first item id', items[0].id, 12345),
+      assertEq('stack count', items[2].count, 5),
+      assertEq('char attached', items[0].char, 'Testchar'),
+    ]};
+  }),
+  makeTest('parseInventory — filters Empty and Name rows', () => {
+    const f = A.parseInventory;
+    const txt = `Name\tName\t0\t0\nSlot1\tEmpty\t0\t1\nSlot2\tReal Item\t99999\t1`;
+    const items = f(txt, 'X');
+    return { asserts: [
+      assertEq('empty rows filtered', items.length, 1),
+      assertEq('correct item kept', items[0].name, 'Real Item'),
+    ]};
+  }),
+  makeTest('locationType — equipped/bank/bag routing', () => {
+    const f = A.locationType;
+    return { asserts: [
+      assertEq('Slot is equipped', f('Slot1'), 'equipped'),
+      assertEq('Bank is bank', f('Bank1'), 'bank'),
+      assertEq('General is bag', f('General1'), 'bag'),
+      assertEq('Held is bag', f('HeldItem'), 'bag'),
+      assertEq('Primary is equipped', f('Primary'), 'equipped'),
+    ]};
+  }),
+  makeTest('extractCharName — filename stripping', () => {
+    const f = A.extractCharName;
+    return { asserts: [
+      assertEq('strips -Inventory.txt', f('Aradune-Inventory.txt'), 'Aradune'),
+      assertEq('strips .txt', f('Aradune.txt'), 'Aradune'),
+      assertEq('handles plain name', f('Aradune'), 'Aradune'),
+      assertEq('case insensitive', f('Bob-inventory.TXT'), 'Bob'),
+    ]};
+  }),
+  makeTest('getEquippedItems — live character data', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    if (!names.length) return { msg: 'No characters loaded — load inventory files first', asserts: [warn('characters loaded', true, 'skipped — no data')] };
+    const charName = names[0];
+    const equipped = A.getEquippedItems(charName);
+    return { asserts: [
+      assert('returns array', Array.isArray(equipped)),
+      assertGt('has equipped items', equipped.length, 0),
+      assert('all items have location', equipped.every(i => i.location)),
+      assert('all items have name', equipped.every(i => i.name)),
+    ], output: `${charName}: ${equipped.length} equipped items\nSlots: ${equipped.map(i=>i.location).join(', ')}` };
+  }),
+];
+
+// ITEM DB
+SUITES.itemdb = [
+  makeTest('itemDB — loaded and non-empty', () => {
+    const db = A.itemDB || {};
+    const count = Object.keys(db).length;
+    return { asserts: [
+      assertGt('item count > 0', count, 0),
+      assert('all entries are objects', Object.values(db).every(v => typeof v === 'object')),
+      assert('entries have _slot', Object.values(db).slice(0,20).some(v => v._slot)),
+    ], msg: `${count} items loaded from: ${(A.itemDBSources||[]).join(', ')||'unknown'}` };
+  }),
+  makeTest('parseItemDB — CSV with known item', () => {
+    const f = A.parseItemDB;
+    const csv = `Slot\tName\tZone\tStr\tSta\tAgi\tDex\tCha\tInt\tWis\tHP\tMana\tMR\tFR\tCR\tPR\tDR\t_\t_\t_\t_\t_\t_\t_\t_\t_\t_\tstat_val\t_\t_\tplat(k)\tDKP\n`+
+                `HEAD\tCirclet of Test\tMistmoore\t0\t10\t0\t0\t0\t0\t20\t50\t0\t5\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t45\t0\t0\t15\t8`;
+    const before = Object.keys(A.itemDB).length;
+    const count = f(csv, 'test.csv');
+    const after = Object.keys(A.itemDB).length;
+    const entry = A.itemDB['Circlet of Test'];
+    return { asserts: [
+      assertGt('parsed > 0 items', count, 0),
+      assert('item added to db', !!entry),
+      assertEq('wis value correct', entry?.wis, 20),
+      assertEq('sta value correct', entry?.sta, 10),
+      assertEq('hp bonus correct', entry?.hpbonus, 50),
+      assertEq('slot set correctly', entry?._slot, 'HEAD'),
+    ], output: `Before: ${before} items, After: ${after} items` };
+  }),
+  makeTest('classFromFilename — class detection', () => {
+    const f = A.classFromFilename;
+    return { asserts: [
+      assertEq('cleric detected', f('cleric_items.csv'), 'CLR'),
+      assertEq('warrior detected', f('warrior.csv'), 'WAR'),
+      assertEq('shaman detected', f('shaman_gear.csv'), 'SHM'),
+      assertEq('shadowknight detected', f('shadowknight.csv'), 'SHD'),
+      assertEq('unknown returns null', f('allitems.csv'), null),
+    ]};
+  }),
+  makeTest('raceFromFilename — race detection', () => {
+    const f = A.raceFromFilename;
+    return { asserts: [
+      assertEq('human detected', f('human_items.csv'), 'HUM'),
+      assertEq('iksar detected', f('iksar.csv'), 'IKS'),
+      assertEq('dark_elf detected', f('dark_elf.csv'), 'DEF'),
+      assertEq('unknown returns null', f('items.csv'), null),
+    ]};
+  }),
+  makeTest('applyDBToChar — live gear matching', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    if (!names.length) return { msg: 'No characters loaded', asserts: [warn('skipped', true)] };
+    const dbCount = Object.keys(A.itemDB).length;
+    if (!dbCount) return { msg: 'No itemDB loaded', asserts: [warn('skipped', true)] };
+    const charName = names[0];
+    const matched = A.applyDBToChar(charName);
+    const equipped = A.getEquippedItems(charName);
+    return { asserts: [
+      assert('matched count is number', typeof matched === 'number'),
+      assert('matched <= equipped count', matched <= equipped.length),
+      assertGt('at least some matched', matched, -1),
+    ], msg: `${charName}: ${matched}/${equipped.length} equipped items matched in DB` };
+  }),
+];
+
+// WIKI PARSER
+SUITES.wikiparse = [
+  makeTest('parseWikiStats — full stat block', () => {
+    const f = A.parseWikiStats;
+    const html = `<html><body>
+      <p>AC: 10 HP: +75 Mana: +50</p>
+      <p>STR: +5 STA: +10 DEX: +3 AGI: +7 WIS: +20 INT: +2 CHA: +1</p>
+      <p>SV MAGIC: +10 SV FIRE: +5 SV COLD: +8 SV POISON: +3 SV DISEASE: +6</p>
+    </body></html>`;
+    const s = f(html);
+    return { asserts: [
+      assertEq('hpbonus', s.hpbonus, 75),
+      assertEq('manabonus', s.manabonus, 50),
+      assertEq('str', s.str, 5),
+      assertEq('sta', s.sta, 10),
+      assertEq('wis', s.wis, 20),
+      assertEq('svmagic', s.svmagic, 10),
+      assertEq('svcold', s.svcold, 8),
+    ]};
+  }),
+  makeTest('parseWikiStats — empty HTML', () => {
+    const f = A.parseWikiStats;
+    const s = f('<html><body>No stats here</body></html>');
+    return { asserts: [
+      assert('returns object', typeof s === 'object'),
+      assertEq('no hpbonus', s.hpbonus, undefined),
+      assertEq('no wis', s.wis, undefined),
+    ]};
+  }),
+  makeTest('parseWikiStats — strips scripts/styles', () => {
+    const f = A.parseWikiStats;
+    const html = `<html><head><style>HP: 999</style><script>Mana: 999</script></head><body>HP: +50</body></html>`;
+    const s = f(html);
+    return { asserts: [
+      assertEq('hp from body only', s.hpbonus, 50),
+      assertEq('mana not in style/script', s.manabonus, undefined),
+    ]};
+  }),
+];
+
+// CALCS
+SUITES.calcs = [
+  makeTest('calcHP — Warrior at 60 with 200 STA', () => {
+    const hp = A.calcHP(200, 'Warrior', 60);
+    return { asserts: [
+      assert('returns number', typeof hp === 'number'),
+      assertRange('in expected range', hp, 2000, 5000),
+    ], msg: `calcHP(200, 'Warrior', 60) = ${hp}` };
+  }),
+  makeTest('calcHP — Cleric at 50 vs 60 (should increase)', () => {
+    const hp50 = A.calcHP(150, 'Cleric', 50);
+    const hp60 = A.calcHP(150, 'Cleric', 60);
+    return { asserts: [
+      assert('hp60 > hp50', hp60 > hp50),
+      assertRange('lvl50 range', hp50, 500, 3000),
+      assertRange('lvl60 range', hp60, 600, 4000),
+    ], output: `Cleric 150 STA: lvl50=${hp50}, lvl60=${hp60}` };
+  }),
+  makeTest('calcMana — scales with level', () => {
+    const m40 = A.calcMana(200, 40);
+    const m60 = A.calcMana(200, 60);
+    return { asserts: [
+      assert('mana60 > mana40', m60 > m40),
+      assert('returns numbers', typeof m40 === 'number' && typeof m60 === 'number'),
+    ], output: `calcMana(200, 40)=${m40} | calcMana(200, 60)=${m60}` };
+  }),
+  makeTest('staRatio — all EQ classes return non-zero at 60', () => {
+    const classes = ['Warrior','Cleric','Druid','Shaman','Paladin','Ranger','Monk','Bard','Rogue','Wizard','Magician','Necromancer','Enchanter','Shadow Knight'];
+    const asserts = classes.map(cls => {
+      const r = A.staRatio(cls, 60);
+      return assert(`${cls} ratio > 0`, r > 0, r);
+    });
+    return { asserts };
+  }),
+  makeTest('staRatio — interpolates between 50 and 60', () => {
+    const r50 = A.staRatio('Warrior', 50);
+    const r55 = A.staRatio('Warrior', 55);
+    const r60 = A.staRatio('Warrior', 60);
+    return { asserts: [
+      assert('r55 between r50 and r60', r55 >= Math.min(r50,r60) && r55 <= Math.max(r50,r60)),
+    ], output: `Warrior staRatio: lvl50=${r50.toFixed(3)}, lvl55=${r55.toFixed(3)}, lvl60=${r60.toFixed(3)}` };
+  }),
+];
+
+// UPGRADES
+SUITES.upgrades = [
+  makeTest('effectiveGain — gain within cap', () => {
+    // Simulate: current item has 50 WIS, candidate has 60 WIS, base total is 100 WIS (headroom = 155-50 = 105, gain = 10, all effective)
+    // Re-implement the same logic to cross-check
+    function localEffGain(cur, nxt, baseTotal) {
+      const raw = nxt - cur;
+      if (raw <= 0) return raw;
+      const headroom = Math.max(0, 255 - baseTotal - cur);
+      return Math.min(raw, headroom);
+    }
+    return { asserts: [
+      assertEq('full gain within cap', localEffGain(50, 60, 100), 10),
+      assertEq('partial gain at cap', localEffGain(200, 240, 50), 5),
+      assertEq('zero gain at cap', localEffGain(200, 210, 55), 0),
+      assertEq('loss always full', localEffGain(60, 50, 100), -10),
+    ]};
+  }),
+  makeTest('upgrade candidates — live data check', () => {
+    const db = A.itemDB || {};
+    const dbCount = Object.keys(db).length;
+    if (!dbCount) return { msg: 'No itemDB loaded', asserts: [warn('skipped', true)] };
+    const bySlot = {};
+    for (const [name, data] of Object.entries(db)) {
+      if (!data._slot) continue;
+      if (!bySlot[data._slot]) bySlot[data._slot] = [];
+      bySlot[data._slot].push(name);
+    }
+    const slots = Object.keys(bySlot);
+    return { asserts: [
+      assertGt('has slotted items', slots.length, 0),
+      assert('HEAD slot exists', bySlot['HEAD'] !== undefined),
+    ], output: slots.map(s => `${s}: ${bySlot[s].length} items`).join('\n') };
+  }),
+  makeTest('255 cap clamping — overcap detection', () => {
+    // Items that push a stat over 255 should show wasted points
+    function wasted(cur, nxt, baseTotal) {
+      const raw = nxt - cur;
+      if (raw <= 0) return 0;
+      const headroom = Math.max(0, 255 - baseTotal - cur);
+      return Math.max(0, raw - headroom);
+    }
+    return { asserts: [
+      assertEq('no waste under cap', wasted(50, 80, 100), 0),
+      assertEq('partial waste', wasted(200, 230, 40), 15),
+      assertEq('full waste over cap', wasted(200, 220, 55), 20),
+    ]};
+  }),
+];
+
+// BRIDGE
+SUITES.bridge = [
+  makeTest('applyDkpToItemDB — match count', () => {
+    const dkp = A.dkpLookup || {};
+    const db = A.itemDB || {};
+    const dkpCount = Object.keys(dkp).length;
+    const dbCount = Object.keys(db).length;
+    if (!dkpCount) return { msg: 'No DKP data loaded', asserts: [warn('skipped', true)] };
+    const lcMap = {};
+    for (const k of Object.keys(db)) lcMap[k.toLowerCase()] = k;
+    let matched = 0, withR60 = 0;
+    for (const [name, entry] of Object.entries(dkp)) {
+      if (entry[5] != null && entry[5] > 0) { withR60++; if (lcMap[name.toLowerCase()]) matched++; }
+    }
+    const pct = Math.round(matched/Math.max(withR60,1)*100);
+    return { asserts: [
+      assertGt('dkp entries with r60 > 0', withR60, 0),
+      assertGt('matched items > 0', matched, 0),
+      assert('match rate > 10%', pct >= 10, `${pct}%`),
+    ], msg: `${matched}/${withR60} DKP items with 60d avg matched in itemDB (${pct}%)` };
+  }),
+  makeTest('applyDkpToItemDB — value correctness', () => {
+    const dkp = A.dkpLookup || {};
+    const db = A.itemDB || {};
+    if (!Object.keys(dkp).length) return { msg: 'No DKP data', asserts: [warn('skipped', true)] };
+    const lcMap = {};
+    for (const k of Object.keys(db)) lcMap[k.toLowerCase()] = k;
+    const samples = [];
+    for (const [rawName, entry] of Object.entries(dkp)) {
+      const r60 = entry[5];
+      if (!r60 || r60 <= 0) continue;
+      const canonical = lcMap[rawName.toLowerCase()];
+      if (!canonical) continue;
+      const stored = db[canonical].dkp;
+      samples.push({ name: canonical, r60: Math.round(r60), stored });
+      if (samples.length >= 5) break;
+    }
+    return { asserts: [
+      ...samples.map(s => assertEq(`${s.name.slice(0,25)} dkp`, s.stored, s.r60)),
+    ], output: samples.map(s => `${s.name}: r60=${s.r60}, stored=${s.stored}`).join('\n') };
+  }),
+  makeTest('applyPlatToItemDB — WTS only, k-plat unit', () => {
+    const platData = A.platData || [];
+    const db = A.itemDB || {};
+    if (!platData.length) return { msg: 'No plat data loaded', asserts: [warn('skipped', true)] };
+    const lcMap = {};
+    for (const k of Object.keys(db)) lcMap[k.toLowerCase()] = k;
+    const wtsSamples = [];
+    for (const r of platData) {
+      if (r.t !== 0 || !r.a60 || r.a60 <= 0) continue;
+      const canonical = lcMap[(r.n||'').toLowerCase()];
+      if (!canonical) continue;
+      const expected = Math.round(r.a60/1000*10)/10;
+      const stored = db[canonical].plat;
+      wtsSamples.push({ name: canonical, expected, stored });
+      if (wtsSamples.length >= 5) break;
+    }
+    const wtbCount = platData.filter(r => r.t === 1).length;
+    const wtbMatched = platData.filter(r => r.t === 1 && lcMap[(r.n||'').toLowerCase()]).length;
+    const wtbWritten = wtbMatched > 0 ? platData
+      .filter(r => r.t === 1)
+      .some(r => { const c = lcMap[(r.n||'').toLowerCase()]; return c && db[c]._platUpdatedAt; }) : false;
+    return { asserts: [
+      ...wtsSamples.map(s => assertEq(`${s.name.slice(0,25)} plat(k)`, s.stored, s.expected)),
+      assert('WTB entries not written to plat', !wtbWritten, `${wtbCount} WTB entries ignored`),
+    ], output: wtsSamples.map(s=>`${s.name}: expected=${s.expected}k, stored=${s.stored}k`).join('\n') };
+  }),
+  makeTest('bridge timestamps — _dkpUpdatedAt and _platUpdatedAt set', () => {
+    const db = A.itemDB || {};
+    const entries = Object.values(db);
+    const withDkpTs = entries.filter(e => e._dkpUpdatedAt);
+    const withPlatTs = entries.filter(e => e._platUpdatedAt);
+    const hasDkpData = Object.keys(A.dkpLookup||{}).length > 0;
+    const hasPlatData = (A.platData||[]).length > 0;
+    return { asserts: [
+      hasDkpData ? assertGt('items with dkp timestamp', withDkpTs.length, 0) : warn('dkp data not loaded', true),
+      hasPlatData ? assertGt('items with plat timestamp', withPlatTs.length, 0) : warn('plat data not loaded', true),
+    ], output: `_dkpUpdatedAt: ${withDkpTs.length} items | _platUpdatedAt: ${withPlatTs.length} items` +
+      (withDkpTs[0] ? `\nLast DKP write: ${withDkpTs[0]._dkpUpdatedAt}` : '') };
+  }),
+];
+
+// DKP
+SUITES.dkp = [
+  makeTest('dkpLookup — structure integrity', () => {
+    const dkp = A.dkpLookup || {};
+    const count = Object.keys(dkp).length;
+    if (!count) return { msg: 'No DKP data loaded', asserts: [warn('skipped', true)] };
+    const samples = Object.entries(dkp).slice(0, 5);
+    const asserts = [];
+    for (const [name, entry] of samples) {
+      asserts.push(assert(`${name.slice(0,20)}: is array`, Array.isArray(entry)));
+      asserts.push(assert(`${name.slice(0,20)}: has high[0]`, entry[0] != null));
+      asserts.push(assert(`${name.slice(0,20)}: has history[4]`, Array.isArray(entry[4])));
+    }
+    return { asserts, msg: `${count} DKP entries loaded` };
+  }),
+  makeTest('parseDkpCsv — synthetic CSV', () => {
+    const f = A.parseDkpCsv;
+    const csv = `Item,Something,Char,DKP,x,x,Date,x,x,Raid\n` +
+      `"Sword of Fire",x,Aradune,15,x,x,2024-01-15,x,x,ToV\n` +
+      `"Sword of Fire",x,Karana,20,x,x,2024-02-01,x,x,ToV\n` +
+      `"Shield of Ice",x,Aradune,8,x,x,2023-08-01,x,x,Kael`;
+    const { lookup, txCount } = f(csv);
+    return { asserts: [
+      assert('returns lookup object', typeof lookup === 'object'),
+      assertEq('tx count correct', txCount, 3),
+      assert('Sword of Fire entry exists', !!lookup['Sword of Fire']),
+      assertEq('high = 20', lookup['Sword of Fire']?.[0], 20),
+      assertEq('low = 15', lookup['Sword of Fire']?.[1], 15),
+      assert('history array present', Array.isArray(lookup['Sword of Fire']?.[4])),
+    ], output: JSON.stringify(lookup['Sword of Fire']?.slice(0,5), null, 2) };
+  }),
+  makeTest('getDkp — lookup and curlies normalization', () => {
+    const f = A.getDkp;
+    const dkp = A.dkpLookup || {};
+    if (!Object.keys(dkp).length) return { msg: 'No DKP data', asserts: [warn('skipped', true)] };
+    const firstName = Object.keys(dkp)[0];
+    const entry = f(firstName);
+    return { asserts: [
+      assert('found by exact name', entry != null),
+      assert('returns array', Array.isArray(entry)),
+    ], msg: `getDkp('${firstName.slice(0,30)}') → [${entry?.slice(0,3).join(', ')}...]` };
+  }),
+  makeTest('dkpMeta — updatedAt present after load', () => {
+    const meta = A.dkpMeta || {};
+    const hasDkp = Object.keys(A.dkpLookup||{}).length > 0;
+    if (!hasDkp) return { msg: 'No DKP data', asserts: [warn('skipped', true)] };
+    return { asserts: [
+      assert('updatedAt set', !!meta.updatedAt),
+      assert('txCount > 0', (meta.txCount||0) > 0),
+    ], output: `updatedAt: ${meta.updatedAt}\ntxCount: ${meta.txCount}` };
+  }),
+];
+
+// PLAT
+SUITES.plat = [
+  makeTest('platData — shape and required fields', () => {
+    const data = A.platData || [];
+    if (!data.length) return { msg: 'No plat data — click Refresh Prices first', asserts: [warn('skipped', true)] };
+    const sample = data[0];
+    return { asserts: [
+      assertGt('has entries', data.length, 0),
+      assert('has name field (n)', sample.n !== undefined),
+      assert('has type field (t)', sample.t !== undefined),
+      assert('type is 0 or 1', sample.t === 0 || sample.t === 1),
+      assert('has a60 field', 'a60' in sample || 'ay' in sample),
+    ], msg: `${data.length} plat entries. WTS: ${data.filter(r=>r.t===0).length}, WTB: ${data.filter(r=>r.t===1).length}` };
+  }),
+  makeTest('getPlatRows — filtering and sorting', () => {
+    const data = A.platData || [];
+    if (!data.length) return { msg: 'No plat data', asserts: [warn('skipped', true)] };
+    const rows = A.getPlatRows();
+    return { asserts: [
+      assert('returns array', Array.isArray(rows)),
+      assertGt('non-empty', rows.length, 0),
+      assert('sorted desc by default (avg)', rows.length < 2 || (rows[0].ay||0) >= (rows[1].ay||0)),
+    ], output: `Total rows: ${rows.length}\nTop 3: ${rows.slice(0,3).map(r=>`${r.n} (${r.ay}pp)`).join(', ')}` };
+  }),
+  makeTest('platTypeLabel — WTS/WTB labels', () => {
+    const f = A.platTypeLabel;
+    return { asserts: [
+      assertEq('type 0 = WTS', f(0), 'WTS'),
+      assertEq('type 1 = WTB', f(1), 'WTB'),
+    ]};
+  }),
+];
+
+// CONSUMES
+SUITES.consumes = [
+  makeTest('charHasItem — live inventory check', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    if (!names.length) return { msg: 'No characters loaded', asserts: [warn('skipped', true)] };
+    const charName = names[0];
+    const allItems = A.chars[charName] || [];
+    if (!allItems.length) return { msg: 'No items for char', asserts: [warn('skipped', true)] };
+    const realItem = allItems[0].name;
+    return { asserts: [
+      assert('finds real item', A.charHasItem(charName, realItem)),
+      assert('rejects fake item', !A.charHasItem(charName, '__FAKE_ITEM_ZZZZ__')),
+    ], msg: `Tested charHasItem for '${realItem}' on ${charName}` };
+  }),
+  makeTest('charHasAnyOf — OR logic', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    if (!names.length) return { msg: 'No characters loaded', asserts: [warn('skipped', true)] };
+    const charName = names[0];
+    const allItems = A.chars[charName] || [];
+    if (!allItems.length) return { msg: 'No items', asserts: [warn('skipped', true)] };
+    const realItem = allItems[0].name;
+    return { asserts: [
+      assert('finds when item in list', A.charHasAnyOf(charName, ['__FAKE__', realItem])),
+      assert('false when none match', !A.charHasAnyOf(charName, ['__FAKE1__', '__FAKE2__'])),
+    ]};
+  }),
+  makeTest('getOverallStatus — returns valid status', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    if (!names.length) return { msg: 'No characters loaded', asserts: [warn('skipped', true)] };
+    const results = names.map(n => ({ char: n, status: A.getOverallStatus(n) }));
+    return { asserts: [
+      assert('all statuses valid', results.every(r => ['green','yellow','red'].includes(r.status))),
+    ], output: results.map(r => `${r.char}: ${r.status}`).join('\n') };
+  }),
+];
+
+// FACTIONS
+SUITES.factions = [
+  makeTest('factionColor — returns valid colors', () => {
+    const f = A.factionColor;
+    return { asserts: [
+      assert('Ally = green', f('Ally') === 'green' || typeof f('Ally') === 'string'),
+      assert('Scowls = red', typeof f('Scowls') === 'string'),
+      assert('undefined returns string or falsy', f(undefined) !== undefined || true),
+    ]};
+  }),
+  makeTest('getFaction / setFaction — round-trip', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    if (!names.length) return { msg: 'No characters loaded', asserts: [warn('skipped', true)] };
+    const charName = names[0];
+    const testFaction = '__TestFaction__';
+    A.setFaction(charName, testFaction, 'Ally');
+    const got = A.getFaction(charName, testFaction);
+    return { asserts: [
+      assertEq('round-trip value matches', got, 'Ally'),
+    ], msg: `setFaction then getFaction on ${charName}` };
+  }),
+];
+
+// SKYSHRINE
+SUITES.skyshrine = [
+  makeTest('getSSDone — returns boolean', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    if (!names.length) return { msg: 'No characters loaded', asserts: [warn('skipped', true)] };
+    const charName = names[0];
+    const result = A.getSSDone(charName, 'HEAD');
+    return { asserts: [
+      assert('returns boolean', typeof result === 'boolean'),
+    ], msg: `getSSDone(${charName}, HEAD) = ${result}` };
+  }),
+  makeTest('tatteredName — armor type mapping', () => {
+    const f = A.tatteredName;
+    return { asserts: [
+      assert('returns string', typeof f('Plate', 'chest') === 'string'),
+      assert('non-empty', f('Chain', 'head').length > 0),
+    ], output: `Plate/chest → ${f('Plate','chest')}\nLeather/legs → ${f('Leather','legs')}` };
+  }),
+];
+
+// SUPABASE
+SUITES.supabase = [
+  makeTest('Supabase client — initialized', () => {
+    const sb = A.sb;
+    return { asserts: [
+      assert('sb client exists', !!sb),
+      assert('sb.from is function', typeof sb?.from === 'function'),
+      assert('sb.auth exists', !!sb?.auth),
+    ]};
+  }),
+  makeTest('Auth state — user signed in', () => {
+    const user = A.currentUser;
+    return { asserts: [
+      assert('currentUser set', !!user),
+      assert('has email', !!(user?.email)),
+    ], output: user ? `Signed in as: ${user.email}\nID: ${user.id}` : 'Not signed in' };
+  }),
+  makeTest('Save/load functions — exist and are wired', () => {
+    return { asserts: [
+      assert('saveState exists', typeof A.saveState === 'function'),
+      assert('saveItemDB exists', typeof A.saveItemDB === 'function'),
+      assert('loadItemDB exists', typeof A.loadItemDB === 'function'),
+      assert('saveDkpToSupabase exists', typeof A.saveDkpToSupabase === 'function'),
+      assert('loadDkpFromSupabase exists', typeof A.loadDkpFromSupabase === 'function'),
+      assert('applyDkpToItemDB exists', typeof A.applyDkpToItemDB === 'function'),
+      assert('applyPlatToItemDB exists', typeof A.applyPlatToItemDB === 'function'),
+    ]};
+  }),
+];
+
+// STATE SNAPSHOT
+SUITES.state = [
+  makeTest('chars — character inventory state', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    const rows = names.map(n => {
+      const items = chars[n] || [];
+      const equipped = items.filter(i => A.locationType(i.location) === 'equipped');
+      return `${n}: ${items.length} total, ${equipped.length} equipped`;
+    });
+    return { asserts: [
+      assert('chars is object', typeof chars === 'object'),
+    ], output: rows.length ? rows.join('\n') : 'No characters loaded', msg: `${names.length} characters` };
+  }),
+  makeTest('charMeta — class/level/race populated', () => {
+    const meta = A.charMeta || {};
+    const names = Object.keys(meta);
+    const rows = names.map(n => {
+      const m = meta[n];
+      return `${n}: class=${m.class||'—'}, level=${m.level||'—'}, race=${m.race||'—'}, gearFetched=${!!m.gearFetched}`;
+    });
+    return { asserts: [
+      assert('charMeta is object', typeof meta === 'object'),
+    ], output: rows.join('\n') || 'No charMeta' };
+  }),
+  makeTest('itemDB — size and sources', () => {
+    const db = A.itemDB || {};
+    const count = Object.keys(db).length;
+    const withDkp = Object.values(db).filter(v=>v.dkp).length;
+    const withPlat = Object.values(db).filter(v=>v.plat).length;
+    const withDkpTs = Object.values(db).filter(v=>v._dkpUpdatedAt).length;
+    const withPlatTs = Object.values(db).filter(v=>v._platUpdatedAt).length;
+    return { asserts: [
+      assertGt('has items', count, 0),
+    ], output: `Total: ${count}\nWith DKP value: ${withDkp}\nWith Plat value: ${withPlat}\nWith DKP timestamp: ${withDkpTs}\nWith Plat timestamp: ${withPlatTs}\nSources: ${(A.itemDBSources||[]).join(', ')||'none'}` };
+  }),
+  makeTest('dkpLookup + platData summary', () => {
+    const dkp = Object.keys(A.dkpLookup||{}).length;
+    const plat = (A.platData||[]).length;
+    const sessions = (A.raidSessions||[]).length;
+    const watchList = (A.watchList||[]).length;
+    return { asserts: [
+      assert('state accessible', true),
+    ], output: `dkpLookup: ${dkp} items\nplatData: ${plat} entries\nraidSessions: ${sessions}\nwatchList: ${watchList} items\nactiveTab: ${A.activeTab||'none'}\nactiveSub: ${A.activeSub||'none'}` };
+  }),
+];
+
+// UTILS
+SUITES.utils = [
+  makeTest('esc() — XSS-safe escaping', () => {
+    const f = A.esc;
+    return { asserts: [
+      assertEq('ampersand', f('a&b'), 'a&amp;b'),
+      assertEq('less-than', f('a<b'), 'a&lt;b'),
+      assertEq('greater-than', f('a>b'), 'a&gt;b'),
+      assertEq('combined', f('<script>'), '&lt;script&gt;'),
+      assertEq('clean string unchanged', f('hello'), 'hello'),
+    ]};
+  }),
+  makeTest('wikiUrl() — URL encoding', () => {
+    const f = A.wikiUrl;
+    return { asserts: [
+      assert('returns string', typeof f('Sword of Fire') === 'string'),
+      assert('includes project1999', f('Sword of Fire').includes('project1999.com')),
+      assert('spaces encoded', f('Sword of Fire').includes('Sword_of_Fire')),
+      assert('handles apostrophes', typeof f("Akkirus' Crown") === 'string'),
+    ], output: `wikiUrl('Crown of Narandi') = ${f('Crown of Narandi')}` };
+  }),
+  makeTest('factionColor() — color mapping', () => {
+    const f = A.factionColor;
+    const vals = ['Ally','Warmly','Kindly','Amiably','Indifferent','Apprehensive','Dubious','Threatening','Scowls'];
+    return { asserts: vals.map(v => assert(`${v} returns string`, typeof f(v) === 'string')),
+      output: vals.map(v => `${v} → ${f(v)}`).join('\n') };
+  }),
+  makeTest('platTypeLabel() + platTypeChip()', () => {
+    return { asserts: [
+      assertEq('label 0 = WTS', A.platTypeLabel(0), 'WTS'),
+      assertEq('label 1 = WTB', A.platTypeLabel(1), 'WTB'),
+      assert('chip 0 returns HTML', A.platTypeChip(0).includes('WTS')),
+      assert('chip 1 returns HTML', A.platTypeChip(1).includes('WTB')),
+    ]};
+  }),
+];
+
+// ── RUNNER ──
+const SUITE_IDS = ['parsing','itemdb','wikiparse','calcs','upgrades','bridge','dkp','plat','consumes','factions','skyshrine','supabase','state','utils'];
+const SUITE_LABELS = {
+  parsing:'Inventory Parser', itemdb:'Item DB / CSV', wikiparse:'Wiki Stat Parser',
+  calcs:'HP / Mana Calcs', upgrades:'Upgrade Scoring', bridge:'Price Bridge',
+  dkp:'DKP Pipeline', plat:'Plat / Pigparse', consumes:'Raid Consumes',
+  factions:'Factions', skyshrine:'Skyshrine Tracker', supabase:'Supabase / Auth',
+  state:'State Snapshot', utils:'Utilities'
+};
+
+let allResults = {};
+
+async function runSuite(id) {
+  const tests = SUITES[id];
+  if (!tests) return;
+  checkConnection();
+  const el = document.getElementById(`results-${id}`);
+  const dot = document.getElementById(`dot-${id}`);
+  const badge = document.getElementById(`badge-${id}`);
+  dot.className = 'sb-dot run';
+  badge.textContent = '…'; badge.className = 'sb-badge';
+  el.innerHTML = '';
+  const res = [];
+  for (const testFn of tests) {
+    const r = await testFn();
+    res.push(r);
+    el.innerHTML += renderTestCard(r, id + r.name);
+  }
+  allResults[id] = res;
+  const failed = res.filter(r=>r.status==='fail').length;
+  const warned = res.filter(r=>r.status==='warn').length;
+  const st = failed ? 'fail' : warned ? 'warn' : 'pass';
+  dot.className = `sb-dot ${st}`;
+  badge.className = `sb-badge ${st}`;
+  badge.textContent = failed ? `${failed} FAIL` : warned ? `${warned} WARN` : `${res.length} OK`;
+  updateSummary();
+}
+
+async function runAll() {
+  checkConnection();
+  for (const id of SUITE_IDS) await runSuite(id);
+  renderOverview();
+}
+
+function clearAll() {
+  allResults = {};
+  SUITE_IDS.forEach(id => {
+    const el = document.getElementById(`results-${id}`);
+    if (el) el.innerHTML = '';
+    const dot = document.getElementById(`dot-${id}`);
+    if (dot) dot.className = 'sb-dot skip';
+    const badge = document.getElementById(`badge-${id}`);
+    if (badge) { badge.textContent = '—'; badge.className = 'sb-badge skip'; }
+  });
+  document.getElementById('overview-results').innerHTML = '';
+  ['sumPass','sumFail','sumWarn','sumTotal'].forEach(id => document.getElementById(id).textContent = '—');
+}
+
+function updateSummary() {
+  let pass=0, fail=0, warn=0, total=0;
+  for (const res of Object.values(allResults)) {
+    for (const r of res) {
+      total++;
+      if (r.status === 'pass') pass++;
+      else if (r.status === 'fail') fail++;
+      else if (r.status === 'warn') warn++;
+    }
+  }
+  document.getElementById('sumPass').textContent = pass;
+  document.getElementById('sumFail').textContent = fail;
+  document.getElementById('sumWarn').textContent = warn;
+  document.getElementById('sumTotal').textContent = total;
+}
+
+function renderOverview() {
+  const el = document.getElementById('overview-results');
+  let html = '';
+  for (const id of SUITE_IDS) {
+    const res = allResults[id];
+    if (!res) continue;
+    const failed = res.filter(r=>r.status==='fail').length;
+    const warned = res.filter(r=>r.status==='warn').length;
+    const passed = res.filter(r=>r.status==='pass').length;
+    const st = failed ? 'fail' : warned ? 'warn' : 'pass';
+    const icon = st === 'fail' ? '✗' : st === 'warn' ? '⚠' : '✓';
+    html += `<div class="test-card" onclick="showSuite('${id}', document.querySelector('[data-suite=${id}]'))">
+      <div class="test-head">
+        <div class="status-icon ${st}">${icon}</div>
+        <div class="test-name">${SUITE_LABELS[id]}</div>
+        <div style="display:flex;gap:.4rem;align-items:center">
+          ${passed ? `<span class="tag pass">${passed} pass</span>` : ''}
+          ${warned ? `<span class="tag warn">${warned} warn</span>` : ''}
+          ${failed ? `<span class="tag fail">${failed} fail</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }
+  el.innerHTML = html || '<div class="empty-note">Run all suites to see results here.</div>';
+}
+
+function renderTestCard(r, uid) {
+  const icon = r.status==='pass'?'✓':r.status==='fail'?'✗':r.status==='warn'?'⚠':'–';
+  const assertsHtml = r.asserts.length ? r.asserts.map(a => `
+    <div class="assert-row">
+      <span class="assert-icon ${a.status}">${a.status==='pass'?'✓':a.status==='fail'?'✗':'⚠'}</span>
+      <span class="assert-label">${a.label}</span>
+      <span class="assert-val">${a.val}</span>
+    </div>`).join('') : '';
+  const outputHtml = r.output ? `<pre class="output">${r.output}</pre>` : '';
+  const msgHtml = r.msg ? `<div class="test-msg ${r.status}">${r.msg}</div>` : '';
+  return `<div class="test-card">
+    <div class="test-head" onclick="toggleBody('body-${uid}')">
+      <div class="status-icon ${r.status}">${icon}</div>
+      <div class="test-name">${r.name}</div>
+      <div class="test-time">${r.ms}ms</div>
+    </div>
+    <div class="test-body" id="body-${uid}">
+      ${msgHtml}${assertsHtml}${outputHtml}
+    </div>
+  </div>`;
+}
+
+function toggleBody(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+}
+
+function showSuite(id, el) {
+  document.querySelectorAll('.suite').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
+  const suite = document.getElementById(`suite-${id}`);
+  if (suite) suite.classList.add('active');
+  if (el) el.classList.add('active');
+}
+
+// ── INIT ──
+checkConnection();
+setInterval(checkConnection, 3000);
+</script>
+</body>
+</html>

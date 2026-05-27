@@ -406,6 +406,8 @@
   <div class="top-nav-item" data-view="dkp">DKP History</div>
   <div class="top-nav-item" data-view="plat">Plat Prices</div>
   <div class="top-nav-item" data-view="kills">Raid Kill Tracker</div>
+  <div class="top-nav-item" data-view="bridge">&#9741; Price Bridge</div>
+  <div class="top-nav-item" style="margin-left:auto;color:var(--text-muted);font-size:.65rem" onclick="openAdminPanel()">&#9881; Admin</div>
 </div>
 
 <div id="dkpView" style="display:none">
@@ -418,6 +420,10 @@
 
 <div id="killsView" style="display:none">
   <div class="rc-panel" id="killsPanel"></div>
+</div>
+
+<div id="bridgeView" style="display:none">
+  <div class="rc-panel" id="bridgePanel"></div>
 </div>
 
 <div class="tab-bar" id="tabBar">
@@ -602,15 +608,18 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     const isDkp=activeTopView==='dkp';
     const isPlat=activeTopView==='plat';
     const isKills=activeTopView==='kills';
+    const isBridge=activeTopView==='bridge';
     document.getElementById('tabBar').style.display=isChars?'flex':'none';
     document.getElementById('dropzone').style.display='none';
     document.getElementById('mainView').style.display='none';
     document.getElementById('dkpView').style.display=isDkp?'block':'none';
     document.getElementById('platView').style.display=isPlat?'block':'none';
     document.getElementById('killsView').style.display=isKills?'block':'none';
+    document.getElementById('bridgeView').style.display=isBridge?'block':'none';
     if(isDkp){renderDkpPanel();}
     else if(isPlat){renderPlatPanel();}
     else if(isKills){renderKillsPanel();}
+    else if(isBridge){renderBridgePanel();}
     else{renderView();}
   });
 });
@@ -1110,6 +1119,7 @@ function onSignedOut(){
   document.getElementById('dkpView').style.display='none';
   document.getElementById('platView').style.display='none';
   document.getElementById('killsView').style.display='none';
+  document.getElementById('bridgeView').style.display='none';
   showAuthScreen();
   refresh();
 }
@@ -1601,7 +1611,210 @@ function applyPlatToItemDB(){
   return updated;
 }
 
-// ─── DKP History ──────────────────────────────────────────────────────────────
+// ─── Admin Panel ──────────────────────────────────────────────────────────────
+
+function openAdminPanel(){
+  const w = window.open('admin.html','mixelparse_admin','width=1200,height=800,menubar=no,toolbar=no');
+  if(!w) alert('Pop-up blocked — please allow pop-ups for this page.');
+}
+
+// Expose globals the admin panel reads via window.opener
+window.parseInventory   = parseInventory;
+window.locationType     = locationType;
+window.extractCharName  = extractCharName;
+window.getEquippedItems = getEquippedItems;
+window.parseItemDB      = parseItemDB;
+window.applyDBToChar    = applyDBToChar;
+// classFromFilename and raceFromFilename are scoped inside parseItemDB;
+// expose via thin wrappers so the admin panel can call them directly
+window.classFromFilename= function(fn){
+  const FILE_CLASS_MAP={'bard':'BRD','cleric':'CLR','druid':'DRU','enchanter':'ENC','mage':'MAG','magician':'MAG','monk':'MNK','necromancer':'NEC','paladin':'PAL','ranger':'RNG','rogue':'ROG','shadowknight':'SHD','shadow_knight':'SHD','shaman':'SHM','warrior':'WAR','wizard':'WIZ'};
+  const low=fn.toLowerCase().replace(/[^a-z_]/g,'');
+  for(const[k,v]of Object.entries(FILE_CLASS_MAP)){if(low.includes(k))return v;}
+  return null;
+};
+window.raceFromFilename = function(fn){
+  const FILE_RACE_MAP={'human':'HUM','barbarian':'BAR','erudite':'ERU','woodelf':'WEF','wood_elf':'WEF','highelf':'HEF','high_elf':'HEF','darkelf':'DEF','dark_elf':'DEF','halfelf':'HEF','half_elf':'HEF','dwarf':'DWF','troll':'TRL','ogre':'OGR','halfling':'HFL','gnome':'GNM','iksar':'IKS'};
+  const low=fn.toLowerCase().replace(/[^a-z_]/g,'');
+  for(const[k,v]of Object.entries(FILE_RACE_MAP)){if(low.includes(k))return v;}
+  return null;
+};
+window.parseWikiStats   = parseWikiStats;
+window.calcHP           = calcHP;
+window.calcMana         = calcMana;
+window.staRatio         = staRatio;
+window.getDkp           = getDkp;
+window.parseDkpCsv      = parseDkpCsv;
+window.getPlatRows      = getPlatRows;
+window.platTypeLabel    = platTypeLabel;
+window.platTypeChip     = platTypeChip;
+window.charHasItem      = charHasItem;
+window.charHasAnyOf     = charHasAnyOf;
+window.getConsumeStatus = getConsumeStatus;
+window.getOverallStatus = getOverallStatus;
+window.getFaction       = getFaction;
+window.setFaction       = setFaction;
+window.factionColor     = factionColor;
+window.getSSDone        = getSSDone;
+window.tatteredName     = tatteredName;
+window.esc              = esc;
+window.wikiUrl          = wikiUrl;
+window.applyDkpToItemDB = applyDkpToItemDB;
+window.applyPlatToItemDB= applyPlatToItemDB;
+window.saveState        = saveState;
+window.saveItemDB       = saveItemDB;
+window.loadItemDB       = loadItemDB;
+window.saveDkpToSupabase= saveDkpToSupabase;
+window.loadDkpFromSupabase = loadDkpFromSupabase;
+
+
+
+function renderBridgePanel(){
+  const panel=document.getElementById('bridgePanel');
+  if(!panel)return;
+
+  const dbCount=Object.keys(itemDB).length;
+  const dkpCount=Object.keys(dkpLookup).length;
+  const platCount=platData.length;
+
+  // ── DKP dry-run ──
+  const lcMap={};
+  for(const k of Object.keys(itemDB))lcMap[k.toLowerCase()]=k;
+
+  const dkpMatched=[],dkpMissed=[];
+  for(const rawName of Object.keys(dkpLookup)){
+    const entry=dkpLookup[rawName];
+    const r60=entry[5];
+    if(r60==null||r60<=0)continue;
+    const canonical=lcMap[rawName.toLowerCase()];
+    if(canonical){
+      dkpMatched.push({name:canonical,r60:Math.round(r60),prev:itemDB[canonical].dkp,ts:itemDB[canonical]._dkpUpdatedAt});
+    } else {
+      dkpMissed.push(rawName);
+    }
+  }
+  dkpMatched.sort((a,b)=>b.r60-a.r60);
+
+  // ── Plat dry-run ──
+  const platMatched=[],platMissed=[];
+  for(const r of platData){
+    if(r.t!==0)continue;
+    const a60=r.a60;
+    if(a60==null||a60<=0)continue;
+    const rawName=r.n||'';
+    const canonical=lcMap[rawName.toLowerCase()];
+    if(canonical){
+      platMatched.push({name:canonical,kplat:Math.round(a60/1000*10)/10,prev:itemDB[canonical].plat,ts:itemDB[canonical]._platUpdatedAt});
+    } else {
+      platMissed.push(rawName);
+    }
+  }
+  platMatched.sort((a,b)=>b.kplat-a.kplat);
+
+  const ts=(iso)=>iso?new Date(iso).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'}):'never';
+  const pill=(txt,col)=>`<span style="display:inline-block;padding:.1rem .4rem;border-radius:3px;font-size:.72rem;font-family:'Cinzel',serif;letter-spacing:.04em;background:${col==='g'?'rgba(26,90,26,.12)':col==='r'?'rgba(160,48,48,.1)':'rgba(160,120,50,.1)'};border:1px solid ${col==='g'?'#3a7a3a':col==='r'?'#a03030':'#c8b890'};color:${col==='g'?'#1a5a1a':col==='r'?'#a03030':'#7a5010'}">${txt}</span>`;
+
+  const noData=(label)=>`<div style="color:var(--text-muted);font-style:italic;font-size:.82rem;padding:.5rem 0">${label}</div>`;
+
+  const dkpTable=dkpMatched.length?`
+    <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+      <thead><tr>
+        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:left;border-bottom:2px solid var(--border)">Item</th>
+        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:right;border-bottom:2px solid var(--border)">60d Avg</th>
+        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:right;border-bottom:2px solid var(--border)">Stored</th>
+        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:left;border-bottom:2px solid var(--border)">Last Written</th>
+      </tr></thead>
+      <tbody>${dkpMatched.map(m=>{
+        const changed=m.prev!==m.r60;
+        return`<tr style="border-bottom:1px solid rgba(74,58,26,.12)">
+          <td style="padding:.28rem .5rem;color:var(--text-dim)">${esc(m.name)}</td>
+          <td style="padding:.28rem .5rem;text-align:right;font-weight:600;color:var(--gold-light)">${m.r60} DKP</td>
+          <td style="padding:.28rem .5rem;text-align:right">${m.prev!=null?`<span style="color:${changed?'#3a7a3a':'var(--text-muted)'}">${m.prev} DKP${changed?' ✓':''}</span>`:'<span style="color:var(--text-muted);font-style:italic">—</span>'}</td>
+          <td style="padding:.28rem .5rem;color:var(--text-muted);font-size:.72rem">${ts(m.ts)}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`:noData('No DKP data loaded — upload an ODKP CSV first.');
+
+  const platTable=platMatched.length?`
+    <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+      <thead><tr>
+        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:left;border-bottom:2px solid var(--border)">Item</th>
+        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:right;border-bottom:2px solid var(--border)">60d WTS Avg</th>
+        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:right;border-bottom:2px solid var(--border)">Stored</th>
+        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:left;border-bottom:2px solid var(--border)">Last Written</th>
+      </tr></thead>
+      <tbody>${platMatched.map(m=>{
+        const changed=m.prev!==m.kplat;
+        return`<tr style="border-bottom:1px solid rgba(74,58,26,.12)">
+          <td style="padding:.28rem .5rem;color:var(--text-dim)">${esc(m.name)}</td>
+          <td style="padding:.28rem .5rem;text-align:right;font-weight:600;color:var(--gold-light)">${m.kplat}k pp</td>
+          <td style="padding:.28rem .5rem;text-align:right">${m.prev!=null?`<span style="color:${changed?'#3a7a3a':'var(--text-muted)'}">${m.prev}k pp${changed?' ✓':''}</span>`:'<span style="color:var(--text-muted);font-style:italic">—</span>'}</td>
+          <td style="padding:.28rem .5rem;color:var(--text-muted);font-size:.72rem">${ts(m.ts)}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`:noData('No plat data loaded — click Refresh Prices on the Plat Prices tab first.');
+
+  const missedBlock=(items,label)=>items.length?`
+    <details style="margin-top:.75rem">
+      <summary style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted);cursor:pointer">${label} (${items.length})</summary>
+      <div style="margin-top:.4rem;display:flex;flex-wrap:wrap;gap:.3rem;padding:.4rem 0">
+        ${items.slice(0,100).map(n=>`<span style="font-size:.72rem;color:var(--text-muted);background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:.1rem .4rem">${esc(n)}</span>`).join('')}
+        ${items.length>100?`<span style="font-size:.72rem;color:var(--text-muted);font-style:italic">…+${items.length-100} more</span>`:''}
+      </div>
+    </details>`:'';
+
+  panel.innerHTML=`
+    <div style="padding:1rem 1.25rem">
+      <div style="font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.09em;color:var(--gold);margin-bottom:1rem">&#9741; PRICE BRIDGE DIAGNOSTICS</div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1.25rem">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.5rem .75rem">
+          <div style="font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted)">ITEM DB</div>
+          <div style="font-size:1.1rem;font-family:'Crimson Pro',serif;font-weight:600;color:var(--text)">${dbCount.toLocaleString()} items</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.5rem .75rem">
+          <div style="font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted)">DKP SOURCE</div>
+          <div style="font-size:1.1rem;font-family:'Crimson Pro',serif;font-weight:600;color:var(--text)">${dkpCount.toLocaleString()} items</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.5rem .75rem">
+          <div style="font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted)">PLAT SOURCE</div>
+          <div style="font-size:1.1rem;font-family:'Crimson Pro',serif;font-weight:600;color:var(--text)">${platCount.toLocaleString()} entries</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:1.5rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+          <div style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.08em;color:var(--gold)">&#9876; DKP MATCHES</div>
+          <div style="display:flex;gap:.4rem;align-items:center">
+            ${pill(dkpMatched.length+' matched','g')}
+            ${dkpMissed.length?pill(dkpMissed.length+' unmatched','r'):''}
+            <button onclick="applyDkpToItemDB();renderBridgePanel()" style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.06em;background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:.25rem .6rem;color:var(--gold);cursor:pointer">&#8635; Apply Now</button>
+          </div>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;max-height:280px;overflow-y:auto">
+          ${dkpTable}
+        </div>
+        ${missedBlock(dkpMissed,'DKP items with no DB match')}
+      </div>
+
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+          <div style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.08em;color:var(--gold)">&#128176; PLAT MATCHES</div>
+          <div style="display:flex;gap:.4rem;align-items:center">
+            ${pill(platMatched.length+' matched','g')}
+            ${platMissed.length?pill(platMissed.length+' unmatched','r'):''}
+            <button onclick="applyPlatToItemDB();renderBridgePanel()" style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.06em;background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:.25rem .6rem;color:var(--gold);cursor:pointer">&#8635; Apply Now</button>
+          </div>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;max-height:280px;overflow-y:auto">
+          ${platTable}
+        </div>
+        ${missedBlock(platMissed,'Plat entries with no DB match')}
+      </div>
+    </div>`;
+}
+
+
 
 // dkpLookup[itemName] = [high, low, avg, count, [[char,dkp,date],...]]
 let dkpLookup = {};
