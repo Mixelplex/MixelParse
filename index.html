@@ -799,8 +799,28 @@ document.getElementById('saveCurrentBtn').addEventListener('click',()=>{
   const pools=POOL_KEYS.map(k=>parsed[k]||0);
   if(!charMeta[name])charMeta[name]={};
   charMeta[name].currentStats={stats,resists,pools};
-  // Only use as baseStats if no naked stats
-  if(!charMeta[name].nakedStats){charMeta[name].baseStats={stats,resists,pools};}
+  // Derive naked stats by subtracting gear contributions from itemDB/charGear
+  if(!charMeta[name].nakedStats){
+    const equipped=getEquippedItems(name);
+    const cg=gearStats[name]||{};
+    // Sum gear contributions for each stat
+    const gearStats_stats=STAT_KEYS.map(()=>0);
+    const gearStats_resists=RESIST_KEYS.map(()=>0);
+    const gearStats_pools=POOL_KEYS.map(()=>0);
+    for(const item of equipped){
+      const d=cg[item.name]||itemDB[item.name]||{};
+      STAT_KEYS.forEach((k,i)=>{gearStats_stats[i]+=Number(d[k]||0);});
+      RESIST_KEYS.forEach((k,i)=>{gearStats_resists[i]+=Number(d[k]||0);});
+      // pools: hpbonus→hp(0), manabonus→mana(1), ac(3)
+      gearStats_pools[0]+=Number(d.hpbonus||0);
+      gearStats_pools[1]+=Number(d.manabonus||0);
+      gearStats_pools[3]+=Number(d.ac||0);
+    }
+    const nakedStats=stats.map((v,i)=>Math.max(0,v-gearStats_stats[i]));
+    const nakedResists=resists.map((v,i)=>Math.max(0,v-gearStats_resists[i]));
+    const nakedPools=pools.map((v,i)=>Math.max(0,v-gearStats_pools[i]));
+    charMeta[name].baseStats={stats:nakedStats,resists:nakedResists,pools:nakedPools};
+  }
   saveState();renderStatsPanel();
 });
 if(document.getElementById('clearCurrentBtn')){
@@ -1029,7 +1049,7 @@ window.upgSwapAlt=function(dbSlot,idx){
   const charGear=gearStats[activeTab]||{};
   const equipped=getEquippedItems(activeTab);
   const t={};
-  if(base){STAT_KEYS.forEach((k,i)=>{t[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{t[k]=base.resists[i]||0;});}
+  if(base){STAT_KEYS.forEach((k,i)=>{t[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{t[k]=base.resists[i]||0;});if(base.pools)t.ac=base.pools[3]||0;}
   for(const item of equipped){const data=charGear[item.name]||itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)t[k]=(t[k]||0)+v;}const acv=Number(data.ac||0);if(acv)t.ac=(t.ac||0)+acv;}
   const {currentData}=sr;
   const allKeys=['ac',...STAT_KEYS_ALL].filter(k=>(currentData[k]||0)!==0||(cand[k]||0)!==0);
@@ -1074,7 +1094,7 @@ window.upgRefreshStatSheet=function(){
   const charGear=gearStats[name]||{};
   const equipped=getEquippedItems(name);
   function invSlotToDBSlot(loc){const s=loc.toUpperCase();if(s.includes('EAR'))return'EAR';if(s.includes('FINGER'))return'FINGERS';if(s.includes('WRIST'))return'WRIST';return s;}
-  // Baseline totals
+  // Baseline totals — baseStats is always naked (derived or manually entered)
   const cur={};
   if(base){STAT_KEYS.forEach((k,i)=>{cur[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{cur[k]=base.resists[i]||0;});if(base.pools)cur.ac=base.pools[3]||0;}
   for(const item of equipped){const data=charGear[item.name]||itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)cur[k]=(cur[k]||0)+v;}const acv=Number(data.ac||0);if(acv)cur.ac=(cur.ac||0)+acv;}
@@ -1135,7 +1155,7 @@ window.upgRefreshStatSheet=function(){
 
 // ─── Item Database ─ CSV loading ──────────────────────────────────────────────
 function parseItemDB(csvText,filename){const lines=csvText.split('\n');let headerIdx=-1,headers=[],sep='\t';for(let i=0;i<Math.min(lines.length,5);i++){for(const s of['\t',',']){const cols=lines[i].split(s);if(cols[0].trim()==='Slot'&&cols[1].trim()==='Name'){headerIdx=i;sep=s;headers=cols.map(h=>h.trim().toLowerCase().replace(/"/g,''));break;}}if(headerIdx>=0)break;}if(headerIdx<0){return 0;}
-const idxMap={str:7,sta:8,agi:9,dex:10,cha:11,int:12,wis:13,hpbonus:14,manabonus:15,svmagic:16,svfire:17,svcold:18,svpoison:19,svdisease:20,stat_val:27,plat:30,dkp:31};const col=n=>headers.indexOf(n);const dynMap={str:col('str'),sta:col('sta'),agi:col('agi'),dex:col('dex'),cha:col('cha'),int:col('int'),wis:col('wis'),hpbonus:col('hp'),manabonus:col('mana'),svmagic:col('mr'),svfire:col('fr'),svcold:col('cr'),svpoison:col('pr'),svdisease:col('dr'),stat_val:col('stat_val'),plat:col('plat(k)'),dkp:col('dkp')};const allFound=Object.values(dynMap).filter(v=>v>=0).length>10;const colMap=allFound?dynMap:idxMap;
+const idxMap={str:7,sta:8,agi:9,dex:10,cha:11,int:12,wis:13,hpbonus:14,manabonus:15,svmagic:16,svfire:17,svcold:18,svpoison:19,svdisease:20,ac:6,stat_val:27,plat:30,dkp:31};const col=n=>headers.indexOf(n);const dynMap={str:col('str'),sta:col('sta'),agi:col('agi'),dex:col('dex'),cha:col('cha'),int:col('int'),wis:col('wis'),hpbonus:col('hp'),manabonus:col('mana'),svmagic:col('mr'),svfire:col('fr'),svcold:col('cr'),svpoison:col('pr'),svdisease:col('dr'),ac:col('ac'),stat_val:col('stat_val'),plat:col('plat(k)'),dkp:col('dkp')};const allFound=Object.values(dynMap).filter(v=>v>=0).length>10;const colMap=allFound?dynMap:idxMap;
 const validSlots=new Set(['EAR','HEAD','FACE','NECK','SHOULDERS','ARMS','BACK','WRIST','RANGE','HANDS','PRIMARY','SECONDARY','FINGERS','CHEST','LEGS','FEET','WAIST','AMMO','TWOHANDER','ONEHANDER','SHIELD']);
 const FILE_CLASS_MAP={'bard':'BRD','cleric':'CLR','druid':'DRU','enchanter':'ENC','mage':'MAG','magician':'MAG','monk':'MNK','necromancer':'NEC','paladin':'PAL','ranger':'RNG','rogue':'ROG','shadowknight':'SHD','shadow_knight':'SHD','shaman':'SHM','warrior':'WAR','wizard':'WIZ'};
 const FILE_RACE_MAP={'human':'HUM','barbarian':'BAR','erudite':'ERU','woodelf':'WEF','wood_elf':'WEF','highelf':'HEF','high_elf':'HEF','darkelf':'DEF','dark_elf':'DEF','halfelf':'HEF','half_elf':'HEF','dwarf':'DWF','troll':'TRL','ogre':'OGR','halfling':'HFL','gnome':'GNM','iksar':'IKS'};
