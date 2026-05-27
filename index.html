@@ -868,6 +868,9 @@ function renderUpgradesPanel(){
     }
     return t;
   }
+  const baselineTotals=buildTotals(null);
+  // Weights computed after baselineTotals so dynamic cap logic has current totals
+  const weights=getStatWeights(charClass, baselineTotals);
   const NO_CAP=new Set(['hpbonus','manabonus']);
   const SOFTCAP=200, HARDCAP=255, SOFTCAP_MULT=0.33;
 
@@ -907,9 +910,6 @@ function renderUpgradesPanel(){
   window._upgData={};
   const bySlot={};
   for(const[itemName,data]of Object.entries(itemDB)){const slot=data._slot;if(!slot)continue;if(!bySlot[slot])bySlot[slot]=[];bySlot[slot].push({name:itemName,...data});}
-  const baselineTotals=buildTotals(null);
-  // Weights computed after baselineTotals so dynamic cap logic has current totals
-  const weights=getStatWeights(charClass, baselineTotals);
   let slotHtml='';
   for(const item of equipped){
     const dbSlot=invSlotToDBSlot(item.location);
@@ -921,7 +921,7 @@ function renderUpgradesPanel(){
     const rowId='upg_'+dbSlot+'_'+Math.random().toString(36).slice(2,7);
     window._upgData[rowId]={currentData,candidates,dbSlot};
     const options=candidates.length
-      ?candidates.map((c,i)=>`<option value="${i}">${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain} eff)</option>`).join('')
+      ?candidates.map((c,i)=>`<option value="${i}">${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain} pts)</option>`).join('')
       :'<option disabled>No alternatives in database</option>';
     slotHtml+=`<div class="upg-slot-row" id="${rowId}">
       <div class="upg-slot-header">
@@ -1087,7 +1087,7 @@ window.upgShowDelta=function(rowId,idx){
       <tbody>${rows}</tbody>
     </table>
     <div class="upg-delta-meta">
-      <span class="upg-delta-eff">${sign}${totalEff} eff gain</span>
+      <span class="upg-delta-eff">${sign}${Math.round(totalEff*10)/10} weighted score</span>
       <span style="font-style:italic">&#128197; ${esc(sel._from||'Unknown source')}</span>
       <span>&#128176; ${cost}</span>
     </div>`;
