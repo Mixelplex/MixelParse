@@ -1036,7 +1036,7 @@ function loadFiles(files){const arr=[...files];if(!arr.length)return;let loaded=
 
 document.getElementById('fileInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
 document.getElementById('charRefreshInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const cn=extractCharName(file.name);chars[cn]=parseInventory(ev.target.result,cn);if(!charMeta[cn])charMeta[cn]={};if(activeTab!==cn)activeTab=cn;refresh();};reader.readAsText(file);e.target.value='';});
-document.getElementById('dkpCsvInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const {lookup,txCount}=parseDkpCsv(ev.target.result);dkpLookup=lookup;dkpMeta={updatedAt:new Date().toISOString(),txCount};dkpCacheKey='';saveDkpToSupabase();renderDkpPanel();};reader.readAsText(file);e.target.value='';});
+document.getElementById('dkpCsvInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const {lookup,txCount}=parseDkpCsv(ev.target.result);dkpLookup=lookup;dkpMeta={updatedAt:new Date().toISOString(),txCount};dkpCacheKey='';saveDkpToSupabase();renderDkpPanel();applyDkpToItemDB();};reader.readAsText(file);e.target.value='';});
 document.getElementById('dzInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
 document.getElementById('tabAdd').addEventListener('click',()=>document.getElementById('fileInput').click());
 const dz=document.getElementById('dropzone');
@@ -1097,6 +1097,9 @@ async function onSignedIn(user){
   await loadFromSupabase();
   await loadDkpFromSupabase();
   await loadKillsFromSupabase();
+  // Sync any already-loaded price data into itemDB
+  applyDkpToItemDB();
+  applyPlatToItemDB();
 }
 
 function onSignedOut(){
@@ -1545,6 +1548,59 @@ function renderSkyshrinePanel(){
     </div>`;
 }
 
+// ─── Price → ItemDB Bridge ────────────────────────────────────────────────────
+
+function applyDkpToItemDB(){
+  const names=Object.keys(dkpLookup);
+  if(!names.length)return 0;
+  // Build a lowercase map of itemDB keys for case-insensitive matching
+  const lcMap={};
+  for(const k of Object.keys(itemDB))lcMap[k.toLowerCase()]=k;
+  let updated=0;
+  for(const rawName of names){
+    const entry=dkpLookup[rawName];
+    const r60=entry[5]; // index 5 = 60-day avg
+    if(r60==null||r60<=0)continue;
+    const canonical=lcMap[rawName.toLowerCase()];
+    if(!canonical)continue;
+    itemDB[canonical].dkp=Math.round(r60);
+    itemDB[canonical]._dkpUpdatedAt=new Date().toISOString();
+    updated++;
+  }
+  if(updated){
+    saveItemDB();
+    console.log(`[Bridge] DKP: updated ${updated} items from 60d avg`);
+    if(activeSub==='upgrades')renderUpgradesPanel();
+  }
+  return updated;
+}
+
+function applyPlatToItemDB(){
+  if(!platData.length)return 0;
+  // Build a lowercase map of itemDB keys for case-insensitive matching
+  const lcMap={};
+  for(const k of Object.keys(itemDB))lcMap[k.toLowerCase()]=k;
+  let updated=0;
+  for(const r of platData){
+    if(r.t!==0)continue; // WTS only
+    const a60=r.a60;
+    if(a60==null||a60<=0)continue;
+    const rawName=r.n||'';
+    const canonical=lcMap[rawName.toLowerCase()];
+    if(!canonical)continue;
+    // Store in k-plat (same unit the upgrade tab displays as "Xk pp")
+    itemDB[canonical].plat=Math.round(a60/1000*10)/10;
+    itemDB[canonical]._platUpdatedAt=new Date().toISOString();
+    updated++;
+  }
+  if(updated){
+    saveItemDB();
+    console.log(`[Bridge] Plat: updated ${updated} items from 60d WTS avg`);
+    if(activeSub==='upgrades')renderUpgradesPanel();
+  }
+  return updated;
+}
+
 // ─── DKP History ──────────────────────────────────────────────────────────────
 
 // dkpLookup[itemName] = [high, low, avg, count, [[char,dkp,date],...]]
@@ -1753,11 +1809,12 @@ async function fetchPlatData(){
     // Normalize: handle array or object response
     platData=Array.isArray(json)?json:Object.values(json);
     platMeta={fetchedAt:new Date().toISOString(),count:platData.length};
-    platCacheKey='';
+    platCacheKey=''
     platPage=0;
     platExpanded=null;
     console.log('[Plat] Sample record:',platData[0]); // so we can see the shape
     renderPlatPanel();
+    applyPlatToItemDB();
   }catch(e){
     console.error('[Plat] Fetch error',e);
     const panel=document.getElementById('platPanel');
