@@ -305,8 +305,14 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
     <!-- BRIDGE SUITE -->
     <div id="suite-bridge" class="suite">
       <div class="suite-title">PRICE BRIDGE</div>
-      <div class="suite-desc">Validates applyDkpToItemDB() and applyPlatToItemDB() — match counts, written values, unit conversions, and itemDB persistence.</div>
-      <div class="suite-actions"><button class="btn primary" onclick="runSuite('bridge')">&#9658; Run Suite</button></div>
+      <div class="suite-desc">Live diagnostics for applyDkpToItemDB() and applyPlatToItemDB() — match counts, written values, unit conversions, and itemDB persistence. Apply bridges directly from here.</div>
+      <div class="suite-actions">
+        <button class="btn primary" onclick="runSuite('bridge')">&#9658; Run Tests</button>
+        <button class="btn" onclick="applyBridgeAndRefresh('dkp')">&#9876; Apply DKP Now</button>
+        <button class="btn" onclick="applyBridgeAndRefresh('plat')">&#128176; Apply Plat Now</button>
+        <button class="btn" onclick="renderLiveBridge()">&#8635; Refresh View</button>
+      </div>
+      <div id="bridge-live" style="margin-bottom:1rem"></div>
       <div id="results-bridge"></div>
     </div>
 
@@ -1199,6 +1205,118 @@ function showSuite(id, el) {
   const suite = document.getElementById(`suite-${id}`);
   if (suite) suite.classList.add('active');
   if (el) el.classList.add('active');
+  if (id === 'bridge') renderLiveBridge();
+}
+
+// ── LIVE BRIDGE VIEW ──
+function renderLiveBridge() {
+  const el = document.getElementById('bridge-live');
+  if (!el) return;
+  if (!checkConnection()) { el.innerHTML = '<div class="empty-note">Not connected to app.</div>'; return; }
+
+  const db = A.itemDB || {};
+  const dkp = A.dkpLookup || {};
+  const plat = A.platData || [];
+  const dbCount = Object.keys(db).length;
+  const dkpCount = Object.keys(dkp).length;
+  const platCount = plat.length;
+
+  const lcMap = {};
+  for (const k of Object.keys(db)) lcMap[k.toLowerCase()] = k;
+
+  // DKP matches
+  const dkpMatched = [], dkpMissed = [];
+  for (const [rawName, entry] of Object.entries(dkp)) {
+    const r60 = entry[5];
+    if (r60 == null || r60 <= 0) continue;
+    const canonical = lcMap[rawName.toLowerCase()];
+    if (canonical) dkpMatched.push({ name: canonical, r60: Math.round(r60), stored: db[canonical].dkp, ts: db[canonical]._dkpUpdatedAt });
+    else dkpMissed.push(rawName);
+  }
+  dkpMatched.sort((a, b) => b.r60 - a.r60);
+
+  // Plat matches
+  const platMatched = [], platMissed = [];
+  for (const r of plat) {
+    if (r.t !== 0 || !r.a60 || r.a60 <= 0) continue;
+    const canonical = lcMap[(r.n || '').toLowerCase()];
+    if (canonical) platMatched.push({ name: canonical, kplat: Math.round(r.a60 / 1000 * 10) / 10, stored: db[canonical].plat, ts: db[canonical]._platUpdatedAt });
+    else platMissed.push(r.n || '?');
+  }
+  platMatched.sort((a, b) => b.kplat - a.kplat);
+
+  const ts = iso => iso ? new Date(iso).toLocaleString('en-US', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'never';
+
+  function statCard(label, val) {
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.5rem .75rem">
+      <div style="font-family:var(--cinzel);font-size:.55rem;letter-spacing:.1em;color:var(--text-m);margin-bottom:.2rem">${label}</div>
+      <div style="font-family:var(--mono);font-size:1rem;color:var(--text-d)">${val}</div>
+    </div>`;
+  }
+
+  function matchTable(rows, cols, unit, missedList, missedLabel) {
+    if (!rows.length) return `<div class="empty-note">No data loaded.</div>`;
+    const tableRows = rows.map(m => {
+      const changed = m.stored !== (unit === 'dkp' ? m.r60 : m.kplat);
+      const val = unit === 'dkp' ? m.r60 + ' DKP' : m.kplat + 'k pp';
+      const storedVal = m.stored != null ? (unit === 'dkp' ? m.stored + ' DKP' : m.stored + 'k pp') : '—';
+      return `<tr>
+        <td style="padding:.22rem .5rem;color:var(--text-d);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.name}</td>
+        <td style="padding:.22rem .5rem;text-align:right;color:var(--gold-l);font-family:var(--mono);font-size:.72rem">${val}</td>
+        <td style="padding:.22rem .5rem;text-align:right;font-family:var(--mono);font-size:.72rem;color:${changed ? 'var(--green-l)' : 'var(--text-m)'}">${storedVal}${changed ? ' ✓' : ''}</td>
+        <td style="padding:.22rem .5rem;color:var(--text-m);font-size:.67rem">${ts(m.ts)}</td>
+      </tr>`;
+    }).join('');
+    const missed = missedList.length ? `<details style="margin-top:.5rem">
+      <summary style="font-family:var(--mono);font-size:.68rem;color:var(--text-m);cursor:pointer">${missedLabel} (${missedList.length})</summary>
+      <div style="margin-top:.35rem;display:flex;flex-wrap:wrap;gap:.25rem">
+        ${missedList.slice(0, 80).map(n => `<span style="font-family:var(--mono);font-size:.65rem;color:var(--text-m);background:var(--surface2);border:1px solid var(--border);border-radius:2px;padding:.06rem .3rem">${n}</span>`).join('')}
+        ${missedList.length > 80 ? `<span style="font-size:.65rem;color:var(--text-m);font-style:italic">+${missedList.length - 80} more</span>` : ''}
+      </div>
+    </details>` : '';
+    return `<div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;max-height:260px;overflow-y:auto">
+      <table class="live-table">
+        <thead><tr><th>Item</th><th style="text-align:right">60d Avg</th><th style="text-align:right">Stored</th><th>Last Written</th></tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>${missed}`;
+  }
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:1rem">
+      ${statCard('ITEM DB', dbCount.toLocaleString() + ' items')}
+      ${statCard('DKP SOURCE', dkpCount.toLocaleString() + ' items')}
+      ${statCard('PLAT SOURCE', platCount.toLocaleString() + ' entries')}
+    </div>
+
+    <div style="margin-bottom:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+        <div style="font-family:var(--cinzel);font-size:.65rem;letter-spacing:.08em;color:var(--gold)">&#9876; DKP MATCHES</div>
+        <div style="display:flex;gap:.4rem">
+          <span class="tag pass">${dkpMatched.length} matched</span>
+          ${dkpMissed.length ? `<span class="tag fail">${dkpMissed.length} unmatched</span>` : ''}
+        </div>
+      </div>
+      ${matchTable(dkpMatched, ['name','r60','stored','ts'], 'dkp', dkpMissed, 'DKP items with no DB match')}
+    </div>
+
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+        <div style="font-family:var(--cinzel);font-size:.65rem;letter-spacing:.08em;color:var(--gold)">&#128176; PLAT MATCHES</div>
+        <div style="display:flex;gap:.4rem">
+          <span class="tag pass">${platMatched.length} matched</span>
+          ${platMissed.length ? `<span class="tag fail">${platMissed.length} unmatched</span>` : ''}
+        </div>
+      </div>
+      ${matchTable(platMatched, ['name','kplat','stored','ts'], 'plat', platMissed, 'Plat entries with no DB match')}
+    </div>`;
+}
+
+function applyBridgeAndRefresh(which) {
+  if (!checkConnection()) return;
+  if (which === 'dkp') A.applyDkpToItemDB();
+  else A.applyPlatToItemDB();
+  setTimeout(renderLiveBridge, 200);
 }
 
 // ── INIT ──
