@@ -946,7 +946,7 @@ function renderUpgradesPanel(){
     const hasBest=best&&best._effGain>0;
     const sc=hasBest?scoreClass(best._effGain):'upg-score-lo';
     const scoreStr=hasBest?(best._effGain>=0?'+':'')+best._effGain+' pts':'—';
-    const opts=candidates.length?candidates.map((c,i)=>`<option value="${i}">${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join(''):'';
+    const opts=candidates.length?`<option value="">— Select —</option>`+candidates.map((c,i)=>`<option value="${i}">${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join(''):'';
     const cost=hasBest?[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' · '):'';
 
     cardsHtml+=`<div class="upg-slot-card">
@@ -963,16 +963,10 @@ function renderUpgradesPanel(){
         </div>
         <div class="upg-pane-divider"></div>
         <div class="upg-pane" id="upgpane_${dbSlot}">
-          ${hasBest?`
-          <div class="upg-pane-label">Best upgrade</div>
-          <div class="upg-pane-name upg-pane-upgrade">${itemLink(best.name)}</div>
-          <div class="upg-pane-stats">${paneStats(currentData,best,true)}</div>
-          ${best._from?`<div class="upg-pane-from">${esc(best._from)}</div>`:''}
-          ${cost?`<div class="upg-pane-cost">${esc(cost)}</div>`:''}
-          `:`<div class="upg-pane-name upg-pane-bis">Best in slot</div><div class="upg-pane-from">Nothing better in database</div>`}
+          <div class="upg-pane-name upg-pane-bis" style="opacity:.5">— select upgrade —</div>
         </div>
       </div>
-      ${candidates.length>1?`<div class="upg-alt-row" id="upgalt_${dbSlot}">
+      ${candidates.length?`<div class="upg-alt-row" id="upgalt_${dbSlot}">
         <span class="upg-alt-label">Compare</span>
         <select class="upg-alt-select" data-slot="${dbSlot}" onchange="upgSwapAlt('${dbSlot}',this.value)">${opts}</select>
       </div>`:''}
@@ -981,33 +975,23 @@ function renderUpgradesPanel(){
 
   // Build stat sheet (initial state = best upgrades applied)
   function buildStatSheet(){
-    const bestOverrides={};
-    for(const sr of slotResults){if(sr.candidates[0]&&sr.candidates[0]._effGain>0)bestOverrides[sr.dbSlot]=sr.candidates[0];}
-    const proj=buildTotals(bestOverrides);
     const manaKey=WIS_CLASSES.has(charClass)?'wis':'int';
     const curHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,baselineTotals.sta||0),charClass,charLevel):null;
-    const projHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,proj.sta||0),charClass,charLevel):null;
     const curMana=charClass?calcMana(Math.min(255,baselineTotals[manaKey]||0),charLevel):null;
-    const projMana=charClass?calcMana(Math.min(255,proj[manaKey]||0),charLevel):null;
-    function row(label,cv,pv){
-      const diff=pv-cv,changed=diff!==0;
-      const delta=changed?`<span class="upg-stat-delta${diff<0?' neg':''}">${diff>0?'+':''}${diff}</span>`:'';
-      return `<div class="upg-stat-row${changed?' upg-stat-changed':''}"><span class="upg-stat-key">${label}</span><span class="upg-stat-vals"><span class="upg-stat-cur-val">${cv}</span><span class="upg-stat-proj-val">${pv}${delta}</span></span></div>`;
+    function row(label,cv){
+      return `<div class="upg-stat-row"><span class="upg-stat-key">${label}</span><span class="upg-stat-vals"><span class="upg-stat-proj-val">${cv}</span></span></div>`;
     }
     let html=`<div class="upg-stat-section">Combat pools</div>`;
-    html+=row('AC',baselineTotals.ac||0,proj.ac||0);
-    if(curHP!==null){html+=row('HP',curHP,projHP);html+=row('Mana',curMana,projMana);}
+    html+=row('AC',baselineTotals.ac||0);
+    if(curHP!==null){html+=row('HP',curHP);html+=row('Mana',curMana);}
     const primaryKeys=STAT_KEYS.filter(k=>(weights[k]||0)>0);
-    if(primaryKeys.length){html+=`<div class="upg-stat-section">Primary</div>`;primaryKeys.forEach(k=>html+=row(k.toUpperCase(),baselineTotals[k]||0,proj[k]||0));}
-    const anyBonus=BONUS_KEYS.some(k=>(baselineTotals[k]||0)+(proj[k]||0)>0);
-    if(anyBonus){
-      html+=`<div class="upg-stat-section">Bonus pools</div>`;
-      if((baselineTotals.hpbonus||0)+(proj.hpbonus||0)>0)html+=row('HP+',baselineTotals.hpbonus||0,proj.hpbonus||0);
-      if((baselineTotals.manabonus||0)+(proj.manabonus||0)>0)html+=row('Mn+',baselineTotals.manabonus||0,proj.manabonus||0);
-    }
+    if(primaryKeys.length){html+=`<div class="upg-stat-section">Primary</div>`;primaryKeys.forEach(k=>html+=row(k.toUpperCase(),baselineTotals[k]||0));}
     html+=`<div class="upg-stat-section">Resists</div>`;
     const RS=['SvPo','SvMa','SvDi','SvFi','SvCo'];
-    RESIST_KEYS.forEach((k,i)=>html+=row(RS[i],baselineTotals[k]||0,proj[k]||0));
+    RESIST_KEYS.forEach((k,i)=>html+=row(RS[i],baselineTotals[k]||0));
+    html+=`<div class="upg-stat-section">Cost</div>`;
+    html+=`<div class="upg-stat-row"><span class="upg-stat-key">DKP</span><span class="upg-stat-vals"><span class="upg-stat-proj-val" id="upgTotalDkp">—</span></span></div>`;
+    html+=`<div class="upg-stat-row"><span class="upg-stat-key">Plat</span><span class="upg-stat-vals"><span class="upg-stat-proj-val" id="upgTotalPlat">—</span></span></div>`;
     return html;
   }
 
@@ -1024,14 +1008,21 @@ function renderUpgradesPanel(){
 window.upgSwapAlt=function(dbSlot,idx){
   const sr=window._upgSlots&&window._upgSlots.find(s=>s.dbSlot===dbSlot);
   if(!sr)return;
+  const upgPaneEl=document.getElementById('upgpane_'+dbSlot);
+  const scoreEl=document.getElementById('upgscore_'+dbSlot);
+
+  // Blank selection — clear pane and score
+  if(idx===''||idx===undefined){
+    if(upgPaneEl)upgPaneEl.innerHTML=`<div class="upg-pane-name upg-pane-bis" style="opacity:.5">— select upgrade —</div>`;
+    if(scoreEl){scoreEl.className='upg-score-pill upg-score-lo';scoreEl.textContent='—';}
+    upgRefreshStatSheet();
+    return;
+  }
+  if(!upgPaneEl)return;
   const selIdx=parseInt(idx);
   const cand=sr.candidates[selIdx];
   if(!cand)return;
-  // Re-render the upgrade pane and alt picker for this card
-  const upgPaneEl=document.getElementById('upgpane_'+dbSlot);
   const altRowEl=document.getElementById('upgalt_'+dbSlot);
-  const scoreEl=document.getElementById('upgscore_'+dbSlot);
-  if(!upgPaneEl)return;
   const meta=charMeta[activeTab]||{};
   const charClass=meta.class||'';
   const base=meta.baseStats||null;
@@ -1063,9 +1054,9 @@ window.upgSwapAlt=function(dbSlot,idx){
     scoreEl.textContent=(cand._effGain>=0?'+':'')+cand._effGain+' pts';
   }
   if(altRowEl){
-    const opts=sr.candidates.map((c,i)=>`<option value="${i}"${i===selIdx?' selected':''}>${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join('');
+    const opts=`<option value="">— Select —</option>`+sr.candidates.map((c,i)=>`<option value="${i}"${i===selIdx?' selected':''}>${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join('');
     altRowEl.innerHTML=`<span class="upg-alt-label">Compare</span>
-      <select class="upg-alt-select" onchange="upgSwapAlt('${dbSlot}',this.value)">${opts}</select>`;
+      <select class="upg-alt-select" data-slot="${dbSlot}" onchange="upgSwapAlt('${dbSlot}',this.value)">${opts}</select>`;
   }
   // Refresh stat sheet
   upgRefreshStatSheet();
@@ -1087,18 +1078,21 @@ window.upgRefreshStatSheet=function(){
   const cur={};
   if(base){STAT_KEYS.forEach((k,i)=>{cur[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{cur[k]=base.resists[i]||0;});}
   for(const item of equipped){const data=charGear[item.name]||itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)cur[k]=(cur[k]||0)+v;}const acv=Number(data.ac||0);if(acv)cur.ac=(cur.ac||0)+acv;}
-  // Projected: apply current alt-select choices
+  // Projected: apply current alt-select choices; also tally costs
   const proj=Object.assign({},cur);
+  let totalDkp=0,totalPlat=0;
   if(window._upgSlots){
     for(const sr of window._upgSlots){
       const selEl=document.querySelector(`.upg-alt-select[data-slot="${sr.dbSlot}"]`);
-      const idx=selEl?parseInt(selEl.value):0;
+      const idx=selEl?parseInt(selEl.value):NaN;
+      if(isNaN(idx))continue;
       const cand=sr.candidates[idx];
-      if(!cand||cand._effGain<=0)continue;
-      // Remove current item stats, add candidate stats
+      if(!cand)continue;
       const curData=sr.currentData;
       for(const k of STAT_KEYS_ALL){proj[k]=(proj[k]||0)-Number(curData[k]||0)+Number(cand[k]||0);}
       proj.ac=(proj.ac||0)-Number(curData.ac||0)+Number(cand.ac||0);
+      if(cand.dkp)totalDkp+=Number(cand.dkp);
+      if(cand.plat)totalPlat+=Number(cand.plat);
     }
   }
   const manaKey=WIS_CLASSES.has(charClass)?'wis':'int';
@@ -1108,8 +1102,7 @@ window.upgRefreshStatSheet=function(){
   const projMana=charClass?calcMana(Math.min(255,proj[manaKey]||0),charLevel):null;
 
   function row(label,cVal,pVal){
-    const diff=pVal-cVal;
-    const changed=diff!==0;
+    const diff=pVal-cVal,changed=diff!==0;
     const deltaHtml=changed?`<span class="upg-stat-delta${diff<0?' neg':''}">${diff>0?'+':''}${diff}</span>`:'';
     return `<div class="upg-stat-row${changed?' upg-stat-changed':''}">
       <span class="upg-stat-key">${label}</span>
@@ -1120,32 +1113,21 @@ window.upgRefreshStatSheet=function(){
     </div>`;
   }
 
-  let html='';
-  // Combat pools: AC / HP / Mana
-  html+=`<div class="upg-stat-section">Combat pools</div>`;
+  let html=`<div class="upg-stat-section">Combat pools</div>`;
   html+=row('AC',cur.ac||0,proj.ac||0);
   if(curHP!==null){html+=row('HP',curHP,projHP);html+=row('Mana',curMana,projMana);}
-
-  // Primary stats — only those with non-zero weight for this class
   const weights=getStatWeights(charClass,cur);
   const primaryKeys=STAT_KEYS.filter(k=>(weights[k]||0)>0);
   if(primaryKeys.length){
     html+=`<div class="upg-stat-section">Primary</div>`;
     primaryKeys.forEach(k=>html+=row(k.toUpperCase(),cur[k]||0,proj[k]||0));
   }
-
-  // HP+ / Mana+ bonuses if any exist
-  const anyBonus=BONUS_KEYS.some(k=>(cur[k]||0)+(proj[k]||0)>0);
-  if(anyBonus){
-    html+=`<div class="upg-stat-section">Bonus pools</div>`;
-    if((cur.hpbonus||0)+(proj.hpbonus||0)>0)html+=row('HP+',cur.hpbonus||0,proj.hpbonus||0);
-    if((cur.manabonus||0)+(proj.manabonus||0)>0)html+=row('Mn+',cur.manabonus||0,proj.manabonus||0);
-  }
-
-  // Resists
   html+=`<div class="upg-stat-section">Resists</div>`;
   const RESIST_SHORT=['SvPo','SvMa','SvDi','SvFi','SvCo'];
   RESIST_KEYS.forEach((k,i)=>html+=row(RESIST_SHORT[i],cur[k]||0,proj[k]||0));
+  html+=`<div class="upg-stat-section">Cost</div>`;
+  html+=`<div class="upg-stat-row${totalDkp?'  upg-stat-changed':''}"><span class="upg-stat-key">DKP</span><span class="upg-stat-vals"><span class="upg-stat-proj-val">${totalDkp?totalDkp+' DKP':'—'}</span></span></div>`;
+  html+=`<div class="upg-stat-row${totalPlat?' upg-stat-changed':''}"><span class="upg-stat-key">Plat</span><span class="upg-stat-vals"><span class="upg-stat-proj-val">${totalPlat?totalPlat+'k pp':'—'}</span></span></div>`;
 
   body.innerHTML=html;
 };
