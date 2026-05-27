@@ -870,8 +870,6 @@ function renderUpgradesPanel(){
   }
   const NO_CAP=new Set(['hpbonus','manabonus']);
   const SOFTCAP=200, HARDCAP=255, SOFTCAP_MULT=0.33;
-  // Get class-aware weights, dynamically adjusted for cap proximity
-  const weights=getStatWeights(charClass, baselineTotals);
 
   function effectiveGain(curItemData,candData,baseTotals){
     let total=0;
@@ -910,6 +908,8 @@ function renderUpgradesPanel(){
   const bySlot={};
   for(const[itemName,data]of Object.entries(itemDB)){const slot=data._slot;if(!slot)continue;if(!bySlot[slot])bySlot[slot]=[];bySlot[slot].push({name:itemName,...data});}
   const baselineTotals=buildTotals(null);
+  // Weights computed after baselineTotals so dynamic cap logic has current totals
+  const weights=getStatWeights(charClass, baselineTotals);
   let slotHtml='';
   for(const item of equipped){
     const dbSlot=invSlotToDBSlot(item.location);
