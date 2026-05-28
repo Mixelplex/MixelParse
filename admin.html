@@ -1383,14 +1383,14 @@ let _scrapeRunning = false;
 let _scrapeStop = false;
 
 function parseDropsFromWiki(html) {
-  // P99 wiki "Dropped by" section — wikitable with NPC and Zone columns
+  // P99 wiki drop section — either "Drops From" or "Dropped by" heading, then a wikitable
   // Strip scripts/styles, normalize whitespace
   const clean = html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '');
 
-  // Find "Dropped by" section — look for the heading then grab the next table
-  const dropIdx = clean.search(/dropped\s+by/i);
+  // Find drop section — wiki uses both "Dropped by" and "Drops From" inconsistently
+  const dropIdx = clean.search(/drops?\s+from|dropped\s+by/i);
   if (dropIdx < 0) return null;
 
   const tableStart = clean.indexOf('<table', dropIdx);
