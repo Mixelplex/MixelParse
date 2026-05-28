@@ -1446,7 +1446,7 @@ async function startDropScrape() {
   log.innerHTML      = '';
 
   const items = Object.keys(A.itemDB);
-  const todo  = items.filter(name => !A.itemDB[name]._mob);
+  const todo  = items.filter(name => !('_mob' in A.itemDB[name]) && !A.itemDB[name]._mobAttempted);
   const total = todo.length;
   let done = 0, enriched = 0, failed = 0, saveQueue = [];
 
@@ -1485,6 +1485,7 @@ async function startDropScrape() {
         logLine(`✓ ${name} — ${drops[0].mob} (${drops[0].zone})`, 'ok');
       } else {
         A.itemDB[name]._mob = ''; // mark as attempted so we skip next time
+        A.itemDB[name]._mobAttempted = true;
         logLine(`· ${name} — no drop data found`, 'skip');
       }
     } catch(e) {
@@ -1538,6 +1539,7 @@ function resetDropScrape() {
     if ('_mob' in A.itemDB[name]) { delete A.itemDB[name]._mob; cleared++; }
     if ('_zone' in A.itemDB[name]) delete A.itemDB[name]._zone;
     if ('_mobs' in A.itemDB[name]) delete A.itemDB[name]._mobs;
+    if ('_mobAttempted' in A.itemDB[name]) delete A.itemDB[name]._mobAttempted;
   }
   const log = document.getElementById('scrape-log');
   log.style.display = 'block';
