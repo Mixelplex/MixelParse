@@ -1105,6 +1105,8 @@ window.saveGearPlan=function(){
       dkp:cand?cand.dkp||null:null,
       plat:cand?cand.plat||null:null,
       from:cand?cand._from||null:null,
+      mob:cand?cand._mob||null:null,
+      zone:cand?cand._zone||null:null,
       score:cand?cand._effGain:null,
     });
   }
@@ -1172,7 +1174,7 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
     <div class="upg-pane-label">Best upgrade</div>
     <div class="upg-pane-name upg-pane-upgrade">${itemLink(cand.name)}</div>
     <div class="upg-pane-stats">${statsHtml||'<span class="upg-stat-cur">No stat changes</span>'}</div>
-    ${cand._from?`<div class="upg-pane-from">${esc(cand._from)}</div>`:''}
+    ${(cand._mob||cand._from)?`<div class="upg-pane-from">${cand._mob?esc(cand._mob)+' · ':''} ${esc(cand._zone||cand._from||'')}</div>`:''}
     ${cost?`<div class="upg-pane-cost">${esc(cost)}</div>`:''}`;
   if(scoreEl){
     const sc=cand._effGain>=20?'upg-score-hi':cand._effGain>=8?'upg-score-mid':'upg-score-lo';
@@ -1925,6 +1927,8 @@ window.getStatWeights    = getStatWeights;
 window.saveState        = saveState;
 window.saveItemDB       = saveItemDB;
 window.loadItemDB       = loadItemDB;
+window.fetchWithProxy   = fetchWithProxy;
+window.saveItemDBToSupabase = saveItemDBToSupabase;
 window.saveDkpToSupabase= saveDkpToSupabase;
 window.loadDkpFromSupabase = loadDkpFromSupabase;
 
@@ -2725,7 +2729,10 @@ function renderGearReportsPanel(){
       return `<tr>
         <td class="gpr-slot">${esc(slotLabel)}</td>
         <td><span class="gpr-item">${esc(e.upgradeName)}</span></td>
-        <td><span class="gpr-from">${esc(e.from||'—')}</span></td>
+        <td>
+          ${e.mob?`<span class="gpr-item" style="font-size:.82rem">${esc(e.mob)}</span><br>`:''}
+          <span class="gpr-from">${esc(e.zone||e.from||'—')}</span>
+        </td>
         <td style="text-align:right;white-space:nowrap">${costHtml||'<span style="color:var(--text-muted);font-size:.75rem">—</span>'}</td>
         <td style="text-align:right"><span class="upg-score-pill ${sc}">${esc(scoreStr)}</span></td>
       </tr>`;

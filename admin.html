@@ -218,6 +218,11 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
     Supabase / Auth
     <span class="sb-badge skip" id="badge-supabase">—</span>
   </div>
+  <div class="sb-item" data-suite="dropscrape" onclick="showSuite('dropscrape',this)">
+    <div class="sb-dot skip" id="dot-dropscrape"></div>
+    Drop Data Scrape
+    <span class="sb-badge skip" id="badge-dropscrape">—</span>
+  </div>
   <div class="sb-item" data-suite="state" onclick="showSuite('state',this)">
     <div class="sb-dot skip" id="dot-state"></div>
     State Snapshot
@@ -362,6 +367,27 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
       <div class="suite-desc">Tests Supabase client connectivity, auth state, and confirms save/load functions exist and are wired correctly.</div>
       <div class="suite-actions"><button class="btn primary" onclick="runSuite('supabase')">&#9658; Run Suite</button></div>
       <div id="results-supabase"></div>
+    </div>
+
+    <!-- DROP SCRAPE SUITE -->
+    <div id="suite-dropscrape" class="suite">
+      <div class="suite-title">DROP DATA SCRAPE</div>
+      <div class="suite-desc">One-time scrape of the P99 wiki to enrich itemDB with mob name and zone for each item. Skips items already enriched. Results are saved back to Supabase — no re-scrape needed after completion. Rate-limited to 3 items/sec to avoid wiki blocks.</div>
+      <div class="suite-actions">
+        <button class="btn primary" id="scrapeStartBtn" onclick="startDropScrape()">&#9658; Start Scrape</button>
+        <button class="btn" id="scrapeStopBtn" onclick="stopDropScrape()" disabled>&#9646;&#9646; Stop</button>
+        <button class="btn" id="scrapeResetBtn" onclick="resetDropScrape()">&#8635; Reset (re-scrape all)</button>
+      </div>
+      <div id="scrape-progress-wrap" style="margin-bottom:.75rem;display:none">
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;color:var(--text-m);margin-bottom:.3rem">
+          <span id="scrape-status">Starting…</span>
+          <span id="scrape-count">0 / 0</span>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:3px;height:8px;overflow:hidden">
+          <div id="scrape-bar" style="height:100%;width:0%;background:var(--gold);transition:width .3s"></div>
+        </div>
+      </div>
+      <div id="scrape-log" style="font-size:.75rem;font-family:monospace;max-height:320px;overflow-y:auto;background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:.5rem;display:none"></div>
     </div>
 
     <!-- STATE SUITE -->
@@ -1351,6 +1377,167 @@ function applyBridgeAndRefresh(which) {
 // ── INIT ──
 checkConnection();
 setInterval(checkConnection, 3000);
+
+// ─── Drop Data Scrape ─────────────────────────────────────────────────────────
+let _scrapeRunning = false;
+let _scrapeStop = false;
+
+function parseDropsFromWiki(html) {
+  // P99 wiki "Dropped by" section — wikitable with NPC and Zone columns
+  // Strip scripts/styles, normalize whitespace
+  const clean = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '');
+
+  // Find "Dropped by" section — look for the heading then grab the next table
+  const dropIdx = clean.search(/dropped\s+by/i);
+  if (dropIdx < 0) return null;
+
+  const tableStart = clean.indexOf('<table', dropIdx);
+  if (tableStart < 0) return null;
+  const tableEnd = clean.indexOf('</table>', tableStart);
+  const tableHtml = clean.slice(tableStart, tableEnd + 8);
+
+  // Extract all <tr> rows, strip tags, split by </td>
+  const rows = tableHtml.match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  const results = [];
+
+  for (let i = 1; i < rows.length; i++) { // skip header row
+    const cells = rows[i].match(/<td[\s\S]*?<\/td>/gi) || [];
+    if (cells.length < 2) continue;
+
+    const stripTags = s => s.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+
+    const mob  = stripTags(cells[0]);
+    const zone = stripTags(cells[1]);
+    if (mob && zone && mob.length < 80 && zone.length < 80) {
+      results.push({ mob, zone });
+    }
+  }
+  return results.length ? results : null;
+}
+
+async function startDropScrape() {
+  const A = window.opener;
+  if (!A || !A.itemDB) { alert('Open via Admin button in MixelParse'); return; }
+  if (!A.fetchWithProxy) { alert('fetchWithProxy not exposed — update index.html'); return; }
+
+  _scrapeStop = false;
+  _scrapeRunning = true;
+
+  const startBtn = document.getElementById('scrapeStartBtn');
+  const stopBtn  = document.getElementById('scrapeStopBtn');
+  const wrap     = document.getElementById('scrape-progress-wrap');
+  const bar      = document.getElementById('scrape-bar');
+  const status   = document.getElementById('scrape-status');
+  const countEl  = document.getElementById('scrape-count');
+  const log      = document.getElementById('scrape-log');
+
+  startBtn.disabled = true;
+  stopBtn.disabled  = false;
+  wrap.style.display = 'block';
+  log.style.display  = 'block';
+  log.innerHTML      = '';
+
+  const items = Object.keys(A.itemDB);
+  const todo  = items.filter(name => !A.itemDB[name]._mob);
+  const total = todo.length;
+  let done = 0, enriched = 0, failed = 0, saveQueue = [];
+
+  const logLine = (msg, cls='') => {
+    const d = document.createElement('div');
+    if (cls) d.style.color = cls === 'ok' ? 'var(--gold)' : cls === 'err' ? '#a03030' : 'var(--text-m)';
+    d.textContent = msg;
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+  };
+
+  logLine(`Starting — ${total} items to enrich, ${items.length - total} already done`);
+
+  const BATCH_SAVE = 50; // upsert every N items
+
+  for (const name of todo) {
+    if (_scrapeStop) { logLine('— stopped by user —', 'skip'); break; }
+
+    done++;
+    const pct = Math.round((done / total) * 100);
+    bar.style.width = pct + '%';
+    countEl.textContent = `${done} / ${total}`;
+    status.textContent = name;
+
+    try {
+      const url = A.wikiUrl(name);
+      const html = await A.fetchWithProxy(url);
+      const drops = parseDropsFromWiki(html);
+
+      if (drops && drops.length) {
+        A.itemDB[name]._mob  = drops[0].mob;
+        A.itemDB[name]._zone = drops[0].zone;
+        // Store all mobs as array for future use
+        if (drops.length > 1) A.itemDB[name]._mobs = drops;
+        enriched++;
+        logLine(`✓ ${name} — ${drops[0].mob} (${drops[0].zone})`, 'ok');
+      } else {
+        A.itemDB[name]._mob = ''; // mark as attempted so we skip next time
+        logLine(`· ${name} — no drop data found`, 'skip');
+      }
+    } catch(e) {
+      A.itemDB[name]._mob = '';
+      failed++;
+      logLine(`✗ ${name} — fetch failed`, 'err');
+    }
+
+    saveQueue.push(name);
+
+    // Batch save every BATCH_SAVE items
+    if (saveQueue.length >= BATCH_SAVE) {
+      logLine(`  → saving batch of ${saveQueue.length} to Supabase…`, 'skip');
+      await A.saveItemDBToSupabase();
+      saveQueue = [];
+    }
+
+    // Rate limit — 3 items/sec
+    await new Promise(r => setTimeout(r, 333));
+  }
+
+  // Final save
+  if (saveQueue.length) {
+    logLine(`  → final save to Supabase…`, 'skip');
+    await A.saveItemDBToSupabase();
+  }
+
+  _scrapeRunning = false;
+  startBtn.disabled = false;
+  stopBtn.disabled  = true;
+  status.textContent = _scrapeStop ? 'Stopped.' : 'Complete!';
+  bar.style.width = '100%';
+  logLine(`─ Done: ${enriched} enriched, ${failed} failed, ${total - done} skipped ─`);
+
+  // Update badge
+  const badge = document.getElementById('badge-dropscrape');
+  if (badge) { badge.textContent = enriched + ' enriched'; badge.className = 'sb-badge pass'; }
+}
+
+function stopDropScrape() {
+  _scrapeStop = true;
+  document.getElementById('scrapeStopBtn').disabled = true;
+}
+
+function resetDropScrape() {
+  if (!confirm('This will clear _mob and _zone from all items and allow a full re-scrape. Continue?')) return;
+  const A = window.opener;
+  if (!A || !A.itemDB) return;
+  let cleared = 0;
+  for (const name of Object.keys(A.itemDB)) {
+    if ('_mob' in A.itemDB[name]) { delete A.itemDB[name]._mob; cleared++; }
+    if ('_zone' in A.itemDB[name]) delete A.itemDB[name]._zone;
+    if ('_mobs' in A.itemDB[name]) delete A.itemDB[name]._mobs;
+  }
+  const log = document.getElementById('scrape-log');
+  log.style.display = 'block';
+  log.innerHTML = `<div>Reset complete — ${cleared} items cleared. Ready to re-scrape.</div>`;
+  document.getElementById('scrape-progress-wrap').style.display = 'none';
+}
+
 </script>
-</body>
-</html>
