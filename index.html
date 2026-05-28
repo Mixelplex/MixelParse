@@ -1000,7 +1000,10 @@ function renderUpgradesPanel(){
   const slotResults=[];
   for(const item of equipped){
     const dbSlot=invSlotToDBSlot(item.location);
-    const currentData=itemDB[item.name]||charGear[item.name]||{};
+    // Merge both sources: charGear has wiki-fetched stats, itemDB has CSV stats.
+    // Neither is complete alone — charGear may lack ac (old fetches), itemDB may lack some items.
+    const _cg=charGear[item.name]||{}, _db=itemDB[item.name]||{};
+    const currentData={..._db,..._cg, ac:Number(_cg.ac||_db.ac||0)||undefined};
     const candidates=(bySlot[dbSlot]||[])
       .filter(c=>c.name!==item.name&&itemUsableByChar(c))
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
@@ -1241,7 +1244,16 @@ window.upgRefreshStatSheet=function(){
   // Baseline totals — baseStats is always naked (derived or manually entered)
   const cur={};
   if(base){STAT_KEYS.forEach((k,i)=>{cur[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{cur[k]=base.resists[i]||0;});if(base.pools)cur.ac=base.pools[3]||0;}
-  for(const item of equipped){const data=charGear[item.name]||itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)cur[k]=(cur[k]||0)+v;}const acv=Number(data.ac||0);if(acv)cur.ac=(cur.ac||0)+acv;}
+  // Build a lookup of equipped item AC so proj.ac delta uses the same source as cur.ac
+  const equippedAcBySlot={};
+  for(const item of equipped){
+    const data=charGear[item.name]||itemDB[item.name]||{};
+    const acv=Number(data.ac||0);
+    if(acv)cur.ac=(cur.ac||0)+acv;
+    const dbSlot=invSlotToDBSlot(item.location);
+    equippedAcBySlot[item.name]={ac:acv,dbSlot};
+    for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)cur[k]=(cur[k]||0)+v;}
+  }
   // Projected: apply current alt-select choices; also tally costs
   const proj=Object.assign({},cur);
   let totalDkp=0,totalPlat=0;
@@ -1254,7 +1266,10 @@ window.upgRefreshStatSheet=function(){
       if(!cand)continue;
       const curData=sr.currentData;
       for(const k of STAT_KEYS_ALL){proj[k]=(proj[k]||0)-Number(curData[k]||0)+Number(cand[k]||0);}
-      proj.ac=(proj.ac||0)-Number(curData.ac||0)+Number(cand.ac||0);
+      // Use the AC that was actually added into cur.ac for this slot (same source as cur build)
+      const equippedItem=sr.item;
+      const curItemAc=equippedAcBySlot[equippedItem.name]?.ac||0;
+      proj.ac=(proj.ac||0)-curItemAc+Number(cand.ac||0);
       if(cand.dkp)totalDkp+=Number(cand.dkp);
       if(cand.plat)totalPlat+=Number(cand.plat);
     }
