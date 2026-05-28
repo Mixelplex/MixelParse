@@ -137,6 +137,34 @@
   .upg-stat-delta{font-size:.68rem;font-weight:700;color:#1a6a1a}
   .upg-stat-delta.neg{color:#a03030}
   .upg-none{color:var(--text-muted);font-size:.82rem;font-style:italic;padding:.4rem .75rem}
+  .upg-save-bar{display:flex;align-items:center;gap:.75rem;margin:0 1rem .6rem;padding:.4rem .75rem;background:var(--surface2);border:1px solid var(--border);border-radius:5px}
+  .upg-save-label{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;flex:1}
+  .upg-save-btn{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;background:var(--surface2);border:1px solid var(--border-glow);border-radius:4px;padding:.3rem .75rem;color:var(--gold);cursor:pointer;white-space:nowrap;transition:border-color .15s}
+  .upg-save-btn:hover{border-color:var(--gold-light);color:var(--gold-light)}
+  .gpr-toolbar{display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap}
+  .gpr-plan-chips{display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:.85rem}
+  .gpr-chip{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.06em;padding:.28rem .65rem;border:1px solid var(--border);border-radius:12px;background:var(--surface2);color:var(--text-muted);cursor:pointer;transition:border-color .15s,color .15s;display:flex;align-items:center;gap:.35rem}
+  .gpr-chip:hover{border-color:var(--gold);color:var(--gold)}
+  .gpr-chip.active{border-color:var(--gold);color:var(--gold-light);background:rgba(122,80,16,.12)}
+  .gpr-chip-date{font-size:.55rem;color:var(--text-muted);opacity:.7}
+  .gpr-chip-del{opacity:.5;font-size:.65rem;cursor:pointer;margin-left:.15rem;line-height:1}
+  .gpr-chip-del:hover{opacity:1;color:#a03030}
+  .gpr-section-head{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;padding:.3rem 0 .5rem;border-bottom:1px solid var(--border);margin-bottom:.7rem}
+  .gpr-table{width:100%;border-collapse:collapse;font-size:.88rem}
+  .gpr-table th{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;padding:.35rem .65rem;text-align:left;border-bottom:1px solid var(--border-glow);background:var(--surface2);white-space:nowrap}
+  .gpr-table td{padding:.42rem .65rem;border-bottom:1px solid rgba(74,58,26,.12);vertical-align:middle}
+  .gpr-table tr:hover td{background:rgba(160,120,50,.05)}
+  .gpr-slot{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;width:70px}
+  .gpr-item{color:var(--gold-light);font-family:'Crimson Pro',serif;font-size:.95rem}
+  .gpr-from{color:var(--text-muted);font-style:italic;font-family:'Crimson Pro',serif;font-size:.82rem}
+  .gpr-cost-dkp{font-family:'Cinzel',serif;font-size:.72rem;color:var(--gold);white-space:nowrap}
+  .gpr-cost-plat{font-family:'Cinzel',serif;font-size:.72rem;color:#6a9a4a;white-space:nowrap}
+  .gpr-none{color:var(--text-muted);font-style:italic;font-family:'Crimson Pro',serif;font-size:.85rem;opacity:.5}
+  .gpr-totals{display:flex;gap:1.5rem;padding:.6rem .75rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px;margin-top:.85rem;flex-wrap:wrap}
+  .gpr-total-item{display:flex;flex-direction:column;gap:.15rem}
+  .gpr-total-label{font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase}
+  .gpr-total-val{font-size:.95rem;color:var(--gold-light);font-family:'Crimson Pro',serif}
+  .gpr-empty{text-align:center;padding:3rem;color:var(--text-muted);font-style:italic;font-family:'Crimson Pro',serif}
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;align-items:center;justify-content:center}
   .modal-overlay.open{display:flex}
   .modal{background:var(--bg);border:2px solid var(--border-glow);border-radius:5px;padding:1.5rem;max-width:480px;width:90%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.4)}
@@ -410,6 +438,7 @@
   <div class="top-nav-item" data-view="dkp">DKP History</div>
   <div class="top-nav-item" data-view="plat">Plat Prices</div>
   <div class="top-nav-item" data-view="kills">Raid Kill Tracker</div>
+  <div class="top-nav-item" data-view="gearreports">Gear Planner Reports</div>
   <div class="top-nav-item" style="margin-left:auto;color:var(--text-muted);font-size:.65rem" onclick="openAdminPanel()">&#9881; Admin</div>
 </div>
 
@@ -423,6 +452,10 @@
 
 <div id="killsView" style="display:none">
   <div class="rc-panel" id="killsPanel"></div>
+</div>
+
+<div id="gearReportsView" style="display:none">
+  <div class="rc-panel" id="gearReportsPanel"></div>
 </div>
 
 <div class="tab-bar" id="tabBar">
@@ -674,15 +707,18 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     const isDkp=activeTopView==='dkp';
     const isPlat=activeTopView==='plat';
     const isKills=activeTopView==='kills';
+    const isGearReports=activeTopView==='gearreports';
     document.getElementById('tabBar').style.display=isChars?'flex':'none';
     document.getElementById('dropzone').style.display='none';
     document.getElementById('mainView').style.display='none';
     document.getElementById('dkpView').style.display=isDkp?'block':'none';
     document.getElementById('platView').style.display=isPlat?'block':'none';
     document.getElementById('killsView').style.display=isKills?'block':'none';
+    document.getElementById('gearReportsView').style.display=isGearReports?'block':'none';
     if(isDkp){renderDkpPanel();}
     else if(isPlat){renderPlatPanel();}
     else if(isKills){renderKillsPanel();}
+    else if(isGearReports){renderGearReportsPanel();}
     else{renderView();}
   });
 });
@@ -1033,7 +1069,14 @@ function renderUpgradesPanel(){
     return html;
   }
 
-  panel.innerHTML=`<div class="upg-layout">
+  // Save bar
+  const plans=(charMeta[name]&&charMeta[name].gearPlans)||[];
+  const saveBar=`<div class="upg-save-bar">
+    <span class="upg-save-label">Gear planner — ${esc(name)}</span>
+    <button type="button" class="upg-save-btn" onclick="saveGearPlan()">⊕ Save plan</button>
+  </div>`;
+
+  panel.innerHTML=saveBar+`<div class="upg-layout">
     <div class="upg-slots-panel">${cardsHtml||'<div class="upg-none">No equipped items found.</div>'}</div>
     <div class="upg-stat-panel">
       <div class="upg-stat-head">Stat sheet</div>
@@ -1041,6 +1084,48 @@ function renderUpgradesPanel(){
     </div>
   </div>`;
 }
+
+// ─── Gear Planner: save / delete plan ─────────────────────────────────────────
+window.saveGearPlan=function(){
+  const name=activeTab;
+  if(!name||name==='__all__')return;
+  if(!charMeta[name])charMeta[name]={};
+  if(!charMeta[name].gearPlans)charMeta[name].gearPlans=[];
+  const slots=window._upgSlots||[];
+  const entries=[];
+  for(const sr of slots){
+    const selEl=document.querySelector(`.upg-alt-select[data-cardid="${sr.cardId||sr.dbSlot}"]`);
+    const idx=selEl?parseInt(selEl.value):NaN;
+    const cand=(!isNaN(idx)&&idx>=0)?sr.candidates[idx]:null;
+    entries.push({
+      slot:sr.dbSlot,
+      cardId:sr.cardId||sr.dbSlot,
+      equippedName:sr.item.name,
+      upgradeName:cand?cand.name:null,
+      dkp:cand?cand.dkp||null:null,
+      plat:cand?cand.plat||null:null,
+      from:cand?cand._from||null:null,
+      score:cand?cand._effGain:null,
+    });
+  }
+  const now=new Date();
+  const ts=now.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  const label=`${name} · ${ts}`;
+  charMeta[name].gearPlans.unshift({label,savedAt:now.toISOString(),entries});
+  // Keep max 20 plans per char
+  if(charMeta[name].gearPlans.length>20)charMeta[name].gearPlans.length=20;
+  saveState();
+  // Flash confirmation
+  const btn=document.querySelector('.upg-save-btn');
+  if(btn){btn.textContent='✓ Saved';btn.style.color='#5aaa5a';setTimeout(()=>{btn.textContent='⊕ Save plan';btn.style.color='';},1800);}
+};
+
+window.deleteGearPlan=function(charName,idx){
+  if(!charMeta[charName]||!charMeta[charName].gearPlans)return;
+  charMeta[charName].gearPlans.splice(idx,1);
+  saveState();
+  renderGearReportsPanel();
+};
 
 // ─── Gear Planner: swap alternate candidate ───────────────────────────────────
 window.upgSwapAlt=function(dbSlot,idx,selectEl){
@@ -2581,6 +2666,102 @@ function buildBossRoleHtml(target){
   html+='</div>';
   return html;
 }
+
+// ─── Gear Planner Reports ─────────────────────────────────────────────────────
+let gprActiveKey=null; // "charName::idx"
+
+function renderGearReportsPanel(){
+  const panel=document.getElementById('gearReportsPanel');
+  if(!panel)return;
+
+  // Collect all plans across all chars
+  const allPlans=[];
+  for(const cn of charNames()){
+    const plans=(charMeta[cn]&&charMeta[cn].gearPlans)||[];
+    plans.forEach((p,i)=>allPlans.push({charName:cn,idx:i,plan:p,key:cn+'::'+i}));
+  }
+
+  if(!allPlans.length){
+    panel.innerHTML=`<div class="gpr-empty">No saved plans yet.<br>Head to the Gear Planner tab and hit ⊕ Save plan.</div>`;
+    return;
+  }
+
+  // Default to first plan if active key gone
+  if(!gprActiveKey||!allPlans.find(p=>p.key===gprActiveKey)){
+    gprActiveKey=allPlans[0].key;
+  }
+  const active=allPlans.find(p=>p.key===gprActiveKey);
+
+  // Chips
+  const chips=allPlans.map(({charName,idx,plan,key})=>{
+    const isActive=key===gprActiveKey;
+    return `<div class="gpr-chip${isActive?' active':''}" onclick="gprSelect('${esc(key)}')">
+      ${esc(plan.label)}
+      <span class="gpr-chip-del" onclick="event.stopPropagation();deleteGearPlan('${esc(charName)}',${idx})" title="Delete">✕</span>
+    </div>`;
+  }).join('');
+
+  // Table rows
+  const {entries}=active.plan;
+  const SLOT_ORDER=['EAR','FINGERS','HEAD','FACE','NECK','SHOULDERS','ARMS','BACK','WRIST','RANGE','HANDS','PRIMARY','SECONDARY','CHEST','LEGS','FEET','WAIST','AMMO'];
+  const sorted=[...entries].sort((a,b)=>{
+    const ai=SLOT_ORDER.indexOf(a.slot),bi=SLOT_ORDER.indexOf(b.slot);
+    return (ai<0?99:ai)-(bi<0?99:bi);
+  });
+
+  let totalDkp=0,totalPlat=0,selectedCount=0,totalScore=0;
+  const rows=sorted.map(e=>{
+    const slotLabel=e.cardId!==e.slot?e.cardId:e.slot;
+    if(e.upgradeName){
+      selectedCount++;
+      if(e.score)totalScore+=e.score;
+      if(e.dkp)totalDkp+=Number(e.dkp);
+      if(e.plat)totalPlat+=Number(e.plat);
+      const sc=e.score>=20?'upg-score-hi':e.score>=8?'upg-score-mid':'upg-score-lo';
+      const scoreStr=e.score!=null?((e.score>=0?'+':'')+e.score+' pts'):'—';
+      const dkpHtml=e.dkp?`<span class="gpr-cost-dkp">${e.dkp} DKP</span>`:'';
+      const platHtml=e.plat?`<span class="gpr-cost-plat">${e.plat}k pp</span>`:'';
+      const costHtml=[dkpHtml,platHtml].filter(Boolean).join(' ');
+      return `<tr>
+        <td class="gpr-slot">${esc(slotLabel)}</td>
+        <td><span class="gpr-item">${esc(e.upgradeName)}</span></td>
+        <td><span class="gpr-from">${esc(e.from||'—')}</span></td>
+        <td style="text-align:right;white-space:nowrap">${costHtml||'<span style="color:var(--text-muted);font-size:.75rem">—</span>'}</td>
+        <td style="text-align:right"><span class="upg-score-pill ${sc}">${esc(scoreStr)}</span></td>
+      </tr>`;
+    } else {
+      return `<tr>
+        <td class="gpr-slot">${esc(slotLabel)}</td>
+        <td colspan="4"><span class="gpr-none">— none selected —</span></td>
+      </tr>`;
+    }
+  }).join('');
+
+  const avgScore=selectedCount>0?(totalScore/selectedCount).toFixed(1):'—';
+
+  panel.innerHTML=`
+    <div class="gpr-plan-chips">${chips}</div>
+    <div class="gpr-section-head">${esc(active.plan.label)} — ${selectedCount} upgrade${selectedCount!==1?'s':''} selected</div>
+    <table class="gpr-table">
+      <thead><tr>
+        <th>Slot</th><th>Upgrade item</th><th>Drops from</th>
+        <th style="text-align:right">Cost</th>
+        <th style="text-align:right">Score</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="gpr-totals">
+      <div class="gpr-total-item"><span class="gpr-total-label">Total DKP</span><span class="gpr-total-val">${totalDkp?totalDkp+' DKP':'—'}</span></div>
+      <div class="gpr-total-item"><span class="gpr-total-label">Total Plat</span><span class="gpr-total-val">${totalPlat?totalPlat+'k pp':'—'}</span></div>
+      <div class="gpr-total-item"><span class="gpr-total-label">Upgrades</span><span class="gpr-total-val">${selectedCount} / ${entries.length} slots</span></div>
+      <div class="gpr-total-item"><span class="gpr-total-label">Avg score</span><span class="gpr-total-val">${avgScore!=='—'?'+'+avgScore+' pts':'—'}</span></div>
+    </div>`;
+}
+
+window.gprSelect=function(key){
+  gprActiveKey=key;
+  renderGearReportsPanel();
+};
 
 function renderKillsPanel(){
   const panel=document.getElementById('killsPanel');
