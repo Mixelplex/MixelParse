@@ -2374,7 +2374,7 @@ function updatePlatBody(){
     html+=`<tr class="${isExp?'dkp-expanded':''}" onclick="platToggle('${esc(key)}')">
       <td style="white-space:nowrap">${platTypeChip(r.t)}</td>
       <td style="white-space:nowrap;font-size:.78rem;color:var(--text-dim)">${lastSeen}</td>
-      <td>${esc(name)}</td>
+      <td><a href="${wikiUrl(name)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--gold-light);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(name)}</a></td>
       <td class="dkp-td-right">${platCntCell(r.t30)}</td>
       <td class="dkp-td-right">${platPpCell(r.a30)}</td>
       <td class="dkp-td-right">${platCntCell(r.t60)}</td>
