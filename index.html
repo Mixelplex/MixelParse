@@ -730,6 +730,8 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     const isKills=activeTopView==='kills';
     const isGearReports=activeTopView==='gearreports';
     document.getElementById('tabBar').style.display=isChars?'flex':'none';
+    document.getElementById('tovBar').style.display=isChars?'':'none';
+    document.getElementById('watchlistBar').style.display=isChars?'':'none';
     document.getElementById('dropzone').style.display='none';
     document.getElementById('mainView').style.display='none';
     document.getElementById('dkpView').style.display=isDkp?'block':'none';
