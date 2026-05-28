@@ -1451,14 +1451,15 @@ async function loadFromSupabase(){
         chars[row.char_name]=row.inventory||[];
         if(row.base_stats?.factions)factionData[row.char_name]=row.base_stats.factions;
         if(row.base_stats?.skyshrine)skyshrineData[row.char_name]=row.base_stats.skyshrine;
-        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,...bs}=row.base_stats||{};
+        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,...bs}=row.base_stats||{};
         const hasRealStats=bs.stats||bs.resists;
         charMeta[row.char_name]={
           class:row.class||'',race:row.race||'',level:row.level||1,
           baseStats:hasRealStats?bs:null,
           nakedStats:row.base_stats?.nakedStats||null,
           currentStats:row.base_stats?.currentStats||null,
-          gearFetched:!!row.gear_stats
+          gearFetched:!!row.gear_stats,
+          gearPlans:row.base_stats?.gearPlans||[]
         };
         if(row.gear_stats)gearStats[row.char_name]=row.gear_stats;
       }
@@ -1491,7 +1492,7 @@ async function saveToSupabase(){
       class:charMeta[cn]?.class||null,
       race:charMeta[cn]?.race||null,
       level:charMeta[cn]?.level||1,
-      base_stats:charMeta[cn]?.baseStats?{...charMeta[cn].baseStats,factions:factionData[cn]||{},nakedStats:charMeta[cn].nakedStats||null,currentStats:charMeta[cn].currentStats||null,skyshrine:skyshrineData[cn]||{}}:{factions:factionData[cn]||{},nakedStats:charMeta[cn]?.nakedStats||null,currentStats:charMeta[cn]?.currentStats||null,skyshrine:skyshrineData[cn]||{}},
+      base_stats:charMeta[cn]?.baseStats?{...charMeta[cn].baseStats,factions:factionData[cn]||{},nakedStats:charMeta[cn].nakedStats||null,currentStats:charMeta[cn].currentStats||null,skyshrine:skyshrineData[cn]||{},gearPlans:charMeta[cn].gearPlans||[]}:{factions:factionData[cn]||{},nakedStats:charMeta[cn]?.nakedStats||null,currentStats:charMeta[cn]?.currentStats||null,skyshrine:skyshrineData[cn]||{},gearPlans:charMeta[cn]?.gearPlans||[]},
       gear_stats:gearStats[cn]||null,
       inventory:chars[cn]||[],
       updated_at:new Date().toISOString()
