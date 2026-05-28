@@ -1689,7 +1689,7 @@ function renderSkyshrinePanel(){
       <td class="ss-check">${hasReward?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
       <td class="ss-check">${hasTattered?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
       <td class="ss-check">${hasGem?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-      <td class="ss-th-center"><button class="ss-done-btn ${isDone?'done':''}" onclick="setSSDone('${esc(name)}',${i},${!isDone})">${isDone?'✔ Done':'Mark Done'}</button></td>
+      <td class="ss-th-center"><button type="button" class="ss-done-btn ${isDone?'done':''}" onclick="setSSDone('${esc(name)}',${i},${!isDone})">${isDone?'✔ Done':'Mark Done'}</button></td>
     </tr>`;
 
     // Second wrist row
@@ -1705,7 +1705,7 @@ function renderSkyshrinePanel(){
         <td class="ss-check">${hasReward2?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
         <td class="ss-check">${hasTattered2?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
         <td class="ss-check">${hasGem2?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-        <td class="ss-th-center"><button class="ss-done-btn ${isDone2?'done':''}" onclick="setSSDone('${esc(name)}','wrist2',${!isDone2})">${isDone2?'✔ Done':'Mark Done'}</button></td>
+        <td class="ss-th-center"><button type="button" class="ss-done-btn ${isDone2?'done':''}" onclick="setSSDone('${esc(name)}','wrist2',${!isDone2})">${isDone2?'✔ Done':'Mark Done'}</button></td>
       </tr>`;
     }
   }
@@ -2122,7 +2122,7 @@ function updateDkpBody(){
     }
   }
   const showing=Math.min((dkpPage+1)*DKP_PAGE_SIZE,totalRows);
-  const loadMore=showing<totalRows?`<tr><td colspan="6" style="text-align:center;padding:.75rem"><button class="dkp-upload-btn" onclick="dkpPage++;updateDkpBody()">Load more (${showing} of ${totalRows})</button></td></tr>`:'';
+  const loadMore=showing<totalRows?`<tr><td colspan="6" style="text-align:center;padding:.75rem"><button type="button" class="dkp-upload-btn" onclick="dkpPage++;updateDkpBody()">Load more (${showing} of ${totalRows})</button></td></tr>`:'';
   tbody.innerHTML=(tableRows||'<tr><td colspan="6" class="dkp-empty">No items match your search.</td></tr>')+loadMore;
   // Update sort indicators
   const colIdx={high:0,low:1,avg:2,count:3,r60:5,name:-1};
@@ -2143,7 +2143,7 @@ function renderDkpPanel(){
     <div class="dkp-toolbar">
       <input class="dkp-search" id="dkpSearch" placeholder="Search items…" value="${esc(dkpQuery)}"
         oninput="clearTimeout(dkpSearchTimer);dkpSearchTimer=setTimeout(()=>{dkpQuery=this.value;dkpPage=0;dkpExpanded=null;updateDkpBody();},150)">
-      <button class="dkp-upload-btn" onclick="document.getElementById('dkpCsvInput').click()">⚔ Update DKP Data</button>
+      <button type="button" class="dkp-upload-btn" onclick="document.getElementById('dkpCsvInput').click()">⚔ Update DKP Data</button>
       <span class="dkp-meta" id="dkpMeta">${metaStr}</span>
     </div>
     ${!hasData?`<div class="dkp-empty">No DKP data loaded yet.<br>Upload your ODKP items CSV to get started.</div>`:`
@@ -2305,7 +2305,7 @@ function updatePlatBody(){
     }
   }
   const showing=Math.min((platPage+1)*PLAT_PAGE_SIZE,totalRows);
-  const loadMore=showing<totalRows?`<tr><td colspan="${COLS}" style="text-align:center;padding:.75rem"><button class="plat-fetch-btn" onclick="platPage++;updatePlatBody()">Load more (${showing} of ${totalRows})</button></td></tr>`:'';
+  const loadMore=showing<totalRows?`<tr><td colspan="${COLS}" style="text-align:center;padding:.75rem"><button type="button" class="plat-fetch-btn" onclick="platPage++;updatePlatBody()">Load more (${showing} of ${totalRows})</button></td></tr>`:'';
   tbody.innerHTML=(html||`<tr><td colspan="${COLS}" class="dkp-empty">No items match your search.</td></tr>`)+loadMore;
   document.querySelectorAll('#platTable th[data-col]').forEach(th=>{
     const isRight=!['type','name','lastseen'].includes(th.dataset.col);
@@ -2986,7 +2986,7 @@ function renderWatchlistBar(){
 function renderWlModal(){
   // Item list
   document.getElementById('wlItemList').innerHTML=watchList.length
-    ?watchList.map((item,i)=>`<div class="wl-item-row"><span>${esc(item)}</span><button class="wl-item-remove" onclick="wlRemove(${i})">✕</button></div>`).join('')
+    ?watchList.map((item,i)=>`<div class="wl-item-row"><span>${esc(item)}</span><button type="button" class="wl-item-remove" onclick="wlRemove(${i})">✕</button></div>`).join('')
     :'<div style="color:var(--text-muted);font-size:.82rem;font-style:italic">No items yet.</div>';
   // Shortcuts from raid consumes
   const shortcuts=[...new Set(RAID_CONSUMES.flatMap(c=>c.anyOf||[c.name||'']).filter(Boolean))];
