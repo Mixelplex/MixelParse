@@ -1255,7 +1255,7 @@ window.upgRefreshStatSheet=function(){
   RESIST_KEYS.forEach((k,i)=>html+=row(RESIST_SHORT[i],cur[k]||0,proj[k]||0));
   html+=`<div class="upg-stat-section">Cost</div>`;
   html+=`<div class="upg-stat-row${totalDkp?'  upg-stat-changed':''}"><span class="upg-stat-key">DKP</span><span class="upg-stat-vals"><span class="upg-stat-proj-val">${totalDkp?totalDkp+' DKP':'—'}</span></span></div>`;
-  html+=`<div class="upg-stat-row${totalPlat?' upg-stat-changed':''}"><span class="upg-stat-key">Plat</span><span class="upg-stat-vals"><span class="upg-stat-proj-val">${totalPlat?totalPlat+'k pp':'—'}</span></span></div>`;
+  html+=`<div class="upg-stat-row${totalPlat?' upg-stat-changed':''}"><span class="upg-stat-key">Plat</span><span class="upg-stat-vals"><span class="upg-stat-proj-val">${totalPlat?Math.round(totalPlat*100)/100+'k pp':'—'}</span></span></div>`;
 
   body.innerHTML=html;
 };
@@ -2730,7 +2730,7 @@ function renderGearReportsPanel(){
       const sc=e.score>=20?'upg-score-hi':e.score>=8?'upg-score-mid':'upg-score-lo';
       const scoreStr=e.score!=null?((e.score>=0?'+':'')+e.score+' pts'):'—';
       const dkpHtml=e.dkp?`<span class="gpr-cost-dkp">${e.dkp} DKP</span>`:'';
-      const platHtml=e.plat?`<span class="gpr-cost-plat">${e.plat}k pp</span>`:'';
+      const platHtml=e.plat?`<span class="gpr-cost-plat">${Math.round(Number(e.plat)*100)/100}k pp</span>`:'';
       const costHtml=[dkpHtml,platHtml].filter(Boolean).join(' ');
       return `<tr>
         <td class="gpr-slot">${esc(slotLabel)}</td>
@@ -2765,7 +2765,7 @@ function renderGearReportsPanel(){
     </table>
     <div class="gpr-totals">
       <div class="gpr-total-item"><span class="gpr-total-label">Total DKP</span><span class="gpr-total-val">${totalDkp?totalDkp+' DKP':'—'}</span></div>
-      <div class="gpr-total-item"><span class="gpr-total-label">Total Plat</span><span class="gpr-total-val">${totalPlat?totalPlat+'k pp':'—'}</span></div>
+      <div class="gpr-total-item"><span class="gpr-total-label">Total Plat</span><span class="gpr-total-val">${totalPlat?Math.round(totalPlat*100)/100+'k pp':'—'}</span></div>
       <div class="gpr-total-item"><span class="gpr-total-label">Upgrades</span><span class="gpr-total-val">${selectedCount} / ${entries.length} slots</span></div>
       <div class="gpr-total-item"><span class="gpr-total-label">Avg score</span><span class="gpr-total-val">${avgScore!=='—'?'+'+avgScore+' pts':'—'}</span></div>
     </div>`;
