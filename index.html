@@ -957,11 +957,26 @@ function renderUpgradesPanel(){
   const NO_CAP=new Set(['hpbonus','manabonus']);
   const SOFTCAP=200,HARDCAP=255,SOFTCAP_MULT=0.33;
 
+  // HP-per-STA at this character's level — used to convert raw STA delta into real HP delta
+  // so effectiveGain doesn't double-count STA (once via sta weight, once via hpbonus weight).
+  const hpPerSta = HP_RATIOS[charClass] ? staRatio(charClass, charLevel) : 0;
+
   function effectiveGain(curItemData,candData,baseTotals){
     let total=0;
     for(const k of STAT_KEYS_ALL){
       const cur=Number(curItemData[k]||0),nxt=Number(candData[k]||0),raw=nxt-cur;
       if(!raw)continue;
+
+      // STA: score via actual HP delta from staRatio rather than flat weight,
+      // so it's on the same scale as hpbonus and avoids double-counting.
+      if(k==='sta' && hpPerSta>0){
+        const curSta=Math.min(255,baseTotals.sta||0);
+        const newSta=Math.min(255,curSta+raw);
+        const hpDelta=(newSta-curSta)*hpPerSta;
+        total+=hpDelta*(weights.hpbonus||1.5);
+        continue;
+      }
+
       const w=weights[k]||0;if(!w)continue;
       if(raw>0){
         if(NO_CAP.has(k)){total+=raw*w;}
