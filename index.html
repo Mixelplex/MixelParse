@@ -625,6 +625,13 @@ const CLASS_STAT_WEIGHTS = {
 // INT/WIS caster classes — primary stat is the mana stat
 const INT_CLASSES = new Set(['Enchanter','Magician','Necromancer','Wizard','Shadow Knight','Bard']);
 
+// Per-class stat thresholds — beyond these values a stat becomes worthless for that class.
+// Add entries here as new cases are discovered. { stat: maxUsefulValue }
+const CLASS_STAT_THRESHOLDS = {
+  'Enchanter': { cha: 205 },  // charm/mez cap — CHA above 205 has no effect at 56+
+  'Bard':      { cha: 205 },  // Bard songs use same CHA cap
+};
+
 // Returns a weight object for the given class, dynamically adjusting manabonus and hpbonus
 // based on how close the character's primary stat is to the soft/hard cap.
 // baseTotals: current total of all stats (base + gear) — used to detect cap proximity.
@@ -662,6 +669,20 @@ function getStatWeights(cls, baseTotals) {
     } else if (staTotal >= 200) {
       w.sta = w.sta * 0.33;
       w.hpbonus = Math.max(w.hpbonus, 2.5);
+    }
+  }
+
+  // Class-specific stat thresholds — zero out stats the character has already maxed
+  // e.g. Enchanter CHA above 205 is worthless; Bard same.
+  // Add new cases to CLASS_STAT_THRESHOLDS above — no code changes needed here.
+  if (baseTotals) {
+    const thresholds = CLASS_STAT_THRESHOLDS[cls];
+    if (thresholds) {
+      for (const [stat, cap] of Object.entries(thresholds)) {
+        if ((baseTotals[stat] || 0) >= cap) {
+          w[stat] = 0.0001;
+        }
+      }
     }
   }
 
@@ -1923,7 +1944,8 @@ window.wikiUrl          = wikiUrl;
 window.applyDkpToItemDB = applyDkpToItemDB;
 window.applyPlatToItemDB= applyPlatToItemDB;
 window.renderBridgePanel= renderBridgePanel;
-window.CLASS_STAT_WEIGHTS= CLASS_STAT_WEIGHTS;
+window.CLASS_STAT_WEIGHTS     = CLASS_STAT_WEIGHTS;
+window.CLASS_STAT_THRESHOLDS  = CLASS_STAT_THRESHOLDS;
 window.getStatWeights    = getStatWeights;
 window.saveState        = saveState;
 window.saveItemDB       = saveItemDB;
