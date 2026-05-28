@@ -1929,6 +1929,12 @@ window.saveItemDB       = saveItemDB;
 window.loadItemDB       = loadItemDB;
 window.fetchWithProxy   = fetchWithProxy;
 window.saveItemDBToSupabase = saveItemDBToSupabase;
+// Core data — exposed so admin.html can read via window.opener
+Object.defineProperty(window,'itemDB',{get:()=>itemDB,set:v=>{itemDB=v;}});
+Object.defineProperty(window,'itemDBSources',{get:()=>itemDBSources});
+Object.defineProperty(window,'chars',{get:()=>chars});
+Object.defineProperty(window,'charMeta',{get:()=>charMeta});
+Object.defineProperty(window,'gearStats',{get:()=>gearStats});
 window.saveDkpToSupabase= saveDkpToSupabase;
 window.loadDkpFromSupabase = loadDkpFromSupabase;
 

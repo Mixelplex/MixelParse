@@ -1420,8 +1420,13 @@ function parseDropsFromWiki(html) {
 
 async function startDropScrape() {
   const A = window.opener;
-  if (!A || !A.itemDB) { alert('Open via Admin button in MixelParse'); return; }
-  if (!A.fetchWithProxy) { alert('fetchWithProxy not exposed — update index.html'); return; }
+  if (!A) { alert('No connection to MixelParse — open via ⚙ Admin button in the app.'); return; }
+  if (!A.fetchWithProxy) { alert('fetchWithProxy not exposed — make sure index.html is up to date.'); return; }
+  const itemCount = Object.keys(A.itemDB||{}).length;
+  if (itemCount === 0) {
+    alert('itemDB is empty.\n\nMake sure you are:\n1. Logged in on the main app\n2. Have loaded an Item Database CSV\n\nThe connection bar should show items > 0 before scraping.');
+    return;
+  }
 
   _scrapeStop = false;
   _scrapeRunning = true;
