@@ -1048,8 +1048,8 @@ function renderUpgradesPanel(){
   // Build stat sheet (initial state = best upgrades applied)
   function buildStatSheet(){
     const manaKey=WIS_CLASSES.has(charClass)?'wis':'int';
-    const curHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,baselineTotals.sta||0),charClass,charLevel):null;
-    const curMana=charClass?calcMana(Math.min(255,baselineTotals[manaKey]||0),charLevel):null;
+    const curHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,baselineTotals.sta||0),charClass,charLevel)+(baselineTotals.hpbonus||0):null;
+    const curMana=charClass?calcMana(Math.min(255,baselineTotals[manaKey]||0),charLevel)+(baselineTotals.manabonus||0):null;
     function capFmtB(v){return v>255?`255 <span style="font-size:.75em;color:#3a7a3a">(${v-255})</span>`:String(v);}
     function row(label,cv,cap=false){
       const disp=cap?capFmtB(cv):cv;
@@ -1224,10 +1224,10 @@ window.upgRefreshStatSheet=function(){
     }
   }
   const manaKey=WIS_CLASSES.has(charClass)?'wis':'int';
-  const curHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,cur.sta||0),charClass,charLevel):null;
-  const projHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,proj.sta||0),charClass,charLevel):null;
-  const curMana=charClass?calcMana(Math.min(255,cur[manaKey]||0),charLevel):null;
-  const projMana=charClass?calcMana(Math.min(255,proj[manaKey]||0),charLevel):null;
+  const curHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,cur.sta||0),charClass,charLevel)+(cur.hpbonus||0):null;
+  const projHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,proj.sta||0),charClass,charLevel)+(proj.hpbonus||0):null;
+  const curMana=charClass?calcMana(Math.min(255,cur[manaKey]||0),charLevel)+(cur.manabonus||0):null;
+  const projMana=charClass?calcMana(Math.min(255,proj[manaKey]||0),charLevel)+(proj.manabonus||0):null;
 
   function capFmt(v){return v>255?`255 <span style="font-size:.75em;color:#3a7a3a">(${v-255})</span>`:String(v);}
   function row(label,cVal,pVal,cap=false){
