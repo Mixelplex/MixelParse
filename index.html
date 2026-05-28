@@ -95,7 +95,6 @@
   .upg-layout{display:grid;grid-template-columns:1fr 190px;gap:.85rem;margin:0 1rem 2rem;align-items:start}
   /* ── Stacked panes (left) ── */
   .upg-slots-panel{display:flex;flex-direction:column;gap:.55rem}
-  .upg-slot-pair{display:grid;grid-template-columns:1fr 1fr;gap:.55rem}
   .upg-slot-card{border:1px solid var(--border);border-radius:5px;overflow:hidden}
   .upg-slot-head{display:flex;align-items:center;gap:.6rem;padding:.35rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border)}
   .upg-slot-label{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.09em;color:var(--text-muted);text-transform:uppercase}
@@ -959,19 +958,37 @@ function renderUpgradesPanel(){
     return html||`<span class="upg-stat-cur" style="font-style:italic">No stats</span>`;
   }
 
-  // Build slot cards — EAR and FINGERS slots are paired side by side
-  function buildCard(sr){
-    const {item,dbSlot,currentData,candidates}=sr;
+  // Build slot cards — EAR and FINGERS sorted to top, duplicates consecutive
+  const SLOT_ORDER=['EAR','FINGERS','HEAD','FACE','NECK','SHOULDERS','ARMS','BACK','WRIST','RANGE','HANDS','PRIMARY','SECONDARY','CHEST','LEGS','FEET','WAIST','AMMO','TWOHANDER','ONEHANDER','SHIELD'];
+  slotResults.sort((a,b)=>{
+    const ai=SLOT_ORDER.indexOf(a.dbSlot),bi=SLOT_ORDER.indexOf(b.dbSlot);
+    const ao=ai<0?99:ai,bo=bi<0?99:bi;
+    if(ao!==bo)return ao-bo;
+    return slotResults.indexOf(a)-slotResults.indexOf(b);
+  });
+
+  // Deduplicate dbSlot IDs so each card gets a unique id (ear1/ear2, fingers1/fingers2)
+  const slotCount={};
+  slotResults.forEach(sr=>{slotCount[sr.dbSlot]=(slotCount[sr.dbSlot]||0)+1;});
+  const slotSeen={};
+  slotResults.forEach(sr=>{
+    slotSeen[sr.dbSlot]=(slotSeen[sr.dbSlot]||0)+1;
+    sr.cardId=slotCount[sr.dbSlot]>1?sr.dbSlot+slotSeen[sr.dbSlot]:sr.dbSlot;
+  });
+
+  let cardsHtml='';
+  for(const sr of slotResults){
+    const {item,dbSlot,currentData,candidates,cardId}=sr;
     const best=candidates[0];
     const hasBest=best&&best._effGain>0;
     const sc=hasBest?scoreClass(best._effGain):'upg-score-lo';
     const scoreStr=hasBest?(best._effGain>=0?'+':'')+best._effGain+' pts':'—';
     const opts=candidates.length?`<option value="">— Select —</option>`+candidates.map((c,i)=>`<option value="${i}">${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join(''):'';
     const cost=hasBest?[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' · '):'';
-    return `<div class="upg-slot-card">
+    cardsHtml+=`<div class="upg-slot-card">
       <div class="upg-slot-head">
         <span class="upg-slot-label">${dbSlot}</span>
-        <span class="upg-score-pill ${sc}" id="upgscore_${dbSlot}">${scoreStr}</span>
+        <span class="upg-score-pill ${sc}" id="upgscore_${cardId}">${scoreStr}</span>
       </div>
       <div class="upg-panes">
         <div class="upg-pane">
@@ -981,31 +998,15 @@ function renderUpgradesPanel(){
           ${currentData._from?`<div class="upg-pane-from">${esc(currentData._from)}</div>`:''}
         </div>
         <div class="upg-pane-divider"></div>
-        <div class="upg-pane" id="upgpane_${dbSlot}">
+        <div class="upg-pane" id="upgpane_${cardId}">
           <div class="upg-pane-name upg-pane-bis" style="opacity:.5">— select upgrade —</div>
         </div>
       </div>
-      ${candidates.length?`<div class="upg-alt-row" id="upgalt_${dbSlot}">
+      ${candidates.length?`<div class="upg-alt-row" id="upgalt_${cardId}">
         <span class="upg-alt-label">Compare</span>
-        <select class="upg-alt-select" data-slot="${dbSlot}" onchange="upgSwapAlt('${dbSlot}',this.value)">${opts}</select>
+        <select class="upg-alt-select" data-slot="${dbSlot}" data-cardid="${cardId}" onchange="upgSwapAlt('${dbSlot}',this.value,this)">${opts}</select>
       </div>`:''}
     </div>`;
-  }
-
-  let cardsHtml='';
-  const usedIdx=new Set();
-  for(let i=0;i<slotResults.length;i++){
-    if(usedIdx.has(i))continue;
-    const sr=slotResults[i];
-    const isPairedSlot=sr.dbSlot==='EAR'||sr.dbSlot==='FINGERS';
-    // Look ahead for a second card of the same dbSlot to pair with
-    const pairIdx=isPairedSlot?slotResults.findIndex((s,j)=>j>i&&s.dbSlot===sr.dbSlot&&!usedIdx.has(j)):-1;
-    if(isPairedSlot&&pairIdx>=0){
-      usedIdx.add(pairIdx);
-      cardsHtml+=`<div class="upg-slot-pair">${buildCard(sr)}${buildCard(slotResults[pairIdx])}</div>`;
-    } else {
-      cardsHtml+=buildCard(sr);
-    }
   }
 
   // Build stat sheet (initial state = best upgrades applied)
@@ -1042,11 +1043,15 @@ function renderUpgradesPanel(){
 }
 
 // ─── Gear Planner: swap alternate candidate ───────────────────────────────────
-window.upgSwapAlt=function(dbSlot,idx){
-  const sr=window._upgSlots&&window._upgSlots.find(s=>s.dbSlot===dbSlot);
+window.upgSwapAlt=function(dbSlot,idx,selectEl){
+  // Find the specific slot record matching both dbSlot and this select's card
+  const altRowEl=selectEl?selectEl.closest('.upg-alt-row'):null;
+  const cardId=altRowEl?altRowEl.id.replace('upgalt_',''):dbSlot;
+  // For duplicate slots (EAR1/EAR2), find the sr whose cardId matches
+  const sr=window._upgSlots&&(window._upgSlots.find(s=>s.cardId===cardId)||window._upgSlots.find(s=>s.dbSlot===dbSlot));
   if(!sr)return;
-  const upgPaneEl=document.getElementById('upgpane_'+dbSlot);
-  const scoreEl=document.getElementById('upgscore_'+dbSlot);
+  const upgPaneEl=document.getElementById('upgpane_'+cardId);
+  const scoreEl=document.getElementById('upgscore_'+cardId);
 
   // Blank selection — clear pane and score
   if(idx===''||idx===undefined){
@@ -1059,7 +1064,6 @@ window.upgSwapAlt=function(dbSlot,idx){
   const selIdx=parseInt(idx);
   const cand=sr.candidates[selIdx];
   if(!cand)return;
-  const altRowEl=document.getElementById('upgalt_'+dbSlot);
   const meta=charMeta[activeTab]||{};
   const charClass=meta.class||'';
   const base=meta.baseStats||null;
@@ -1093,7 +1097,7 @@ window.upgSwapAlt=function(dbSlot,idx){
   if(altRowEl){
     const opts=`<option value="">— Select —</option>`+sr.candidates.map((c,i)=>`<option value="${i}"${i===selIdx?' selected':''}>${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join('');
     altRowEl.innerHTML=`<span class="upg-alt-label">Compare</span>
-      <select class="upg-alt-select" data-slot="${dbSlot}" onchange="upgSwapAlt('${dbSlot}',this.value)">${opts}</select>`;
+      <select class="upg-alt-select" data-slot="${dbSlot}" data-cardid="${cardId}" onchange="upgSwapAlt('${dbSlot}',this.value,this)">${opts}</select>`;
   }
   // Refresh stat sheet
   upgRefreshStatSheet();
@@ -1120,7 +1124,7 @@ window.upgRefreshStatSheet=function(){
   let totalDkp=0,totalPlat=0;
   if(window._upgSlots){
     for(const sr of window._upgSlots){
-      const selEl=document.querySelector(`.upg-alt-select[data-slot="${sr.dbSlot}"]`);
+      const selEl=document.querySelector(`.upg-alt-select[data-cardid="${sr.cardId||sr.dbSlot}"]`);
       const idx=selEl?parseInt(selEl.value):NaN;
       if(isNaN(idx))continue;
       const cand=sr.candidates[idx];
