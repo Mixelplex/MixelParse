@@ -2166,6 +2166,8 @@ window.parseInventory   = parseInventory;
 window.locationType     = locationType;
 window.extractCharName  = extractCharName;
 window.getEquippedItems = getEquippedItems;
+window.renderUpgradesPanel = renderUpgradesPanel;
+Object.defineProperty(window,'activeTab',{get:()=>activeTab,set:v=>{activeTab=v;}});
 window.parseItemDB      = parseItemDB;
 window.applyDBToChar    = applyDBToChar;
 // classFromFilename and raceFromFilename are scoped inside parseItemDB;

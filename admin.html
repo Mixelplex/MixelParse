@@ -360,12 +360,15 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
                 style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.32rem .5rem;font-family:'Crimson Pro',serif;font-size:.86rem;outline:none;width:100%">
             </label>
             <label style="display:flex;flex-direction:column;gap:.3rem;font-family:var(--cinzel);font-size:.56rem;letter-spacing:.08em;color:var(--text-m)">
-              SLOT (auto-fills Item A from char)
+              SLOT <span style="color:var(--text-dim,#5a5248);text-transform:none;font-size:.52rem">[score ▲upgrade]</span>
               <select id="gc-slot" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.32rem .5rem;font-family:'Crimson Pro',serif;font-size:.84rem;outline:none">
-                <option value="">— Any slot —</option>
+                <option value="">— Choose a slot —</option>
               </select>
             </label>
           </div>
+
+          <!-- Recommendations row -->
+          <div id="gc-recommendations"></div>
 
           <!-- Row 3: item A / item B -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:.8rem">
@@ -1472,15 +1475,89 @@ function applyBridgeAndRefresh(which) {
 
 
 
+
 // ── GEAR STAT CHECKER ────────────────────────────────────────────────────────
 
-let _gcChar  = null;  // { name, meta }
-let _gcItemA = null;  // { name, data }
-let _gcItemB = null;
-const GC_SLOTS = ['EAR','FACE','HEAD','NECK','SHOULDERS','ARMS','BACK','WRIST',
-                  'RANGE','HANDS','PRIMARY','SECONDARY','CHEST','LEGS','FEET',
-                  'WAIST','FINGERS','AMMO'];
+let _gcChar      = null;   // { name, meta }
+let _gcItemA     = null;   // { name, data }
+let _gcItemB     = null;
+let _gcSlotData  = {};     // slot -> { equippedName, equippedData, equippedScore, candidates[] }
 
+const GC_SLOT_ORDER = ['HEAD','FACE','EAR','NECK','SHOULDERS','ARMS','BACK',
+                       'WRIST','HANDS','PRIMARY','SECONDARY','RANGE',
+                       'CHEST','LEGS','FEET','WAIST','FINGERS','AMMO'];
+
+// ── helpers shared across GC ──────────────────────────────────────────────────
+function gcGetApp() { return window.opener || null; }
+
+function gcMergeItemData(name, charName) {
+  const A2 = gcGetApp(); if (!A2) return {};
+  const db = A2.itemDB || {};
+  const gs = A2.gearStats || {};
+  const cg = charName ? (gs[charName] || {}) : {};
+  const _db = db[name] || {};
+  const _cg = cg[name] || {};
+  const data = {};
+  for (const k of [...Object.keys(_db), ...Object.keys(_cg)]) {
+    if (k.startsWith('_')) continue;
+    data[k] = Number(_db[k]||0) || Number(_cg[k]||0) || _db[k] || _cg[k];
+  }
+  for (const [k,v] of Object.entries(_db)) { if (k.startsWith('_')) data[k] = v; }
+  data.ac = Number(_db.ac||0) || Number(_cg.ac||0) || undefined;
+  return data;
+}
+
+function gcBuildBaseTotals(charName) {
+  const A2 = gcGetApp(); if (!A2) return {};
+  const meta   = A2.charMeta  || {};
+  const gearSt = A2.gearStats || {};
+  const m    = meta[charName] || {};
+  const base = m.baseStats || null;
+  const cg   = gearSt[charName] || {};
+  const t    = {};
+  if (base) {
+    const SK = ['str','sta','dex','agi','wis','int','cha'];
+    const RK = ['svpoison','svmagic','svdisease','svfire','svcold'];
+    SK.forEach((k,i) => { t[k] = base.stats[i]   || 0; });
+    RK.forEach((k,i) => { t[k] = base.resists[i] || 0; });
+    for (const gs of Object.values(cg)) {
+      for (const k of SK) if (gs[k]) t[k] = (t[k]||0) + Number(gs[k]||0);
+      for (const k of RK) if (gs[k]) t[k] = (t[k]||0) + Number(gs[k]||0);
+    }
+  }
+  return t;
+}
+
+// Core item scorer — mirrors effectiveGain logic from index.html
+function gcScoreItem(itemData, weights, baseTotals, hpPerSta) {
+  const A2 = gcGetApp();
+  const STAT_KEYS_ALL = A2 ? (A2.STAT_KEYS_ALL || []) : [];
+  const NO_CAP = A2 ? (A2.NO_CAP || new Set(['hpbonus','manabonus'])) : new Set(['hpbonus','manabonus']);
+  const SOFTCAP = 200, HARDCAP = 255, SOFTCAP_MULT = 0.33;
+  let total = 0;
+  for (const k of STAT_KEYS_ALL) {
+    const v = Number(itemData[k] || 0); if (!v) continue;
+    if (k === 'sta' && hpPerSta > 0) {
+      const curSta = Math.min(255, baseTotals.sta || 0);
+      const newSta = Math.min(255, curSta + v);
+      total += (newSta - curSta) * hpPerSta * (weights.hpbonus || 1.5);
+      continue;
+    }
+    const w = weights[k] || 0; if (!w) continue;
+    if (NO_CAP.has(k)) { total += v * w; }
+    else if (v > 0) {
+      const ct = baseTotals[k] || 0;
+      const below = Math.max(0, Math.min(v, SOFTCAP - ct));
+      const soft  = Math.max(0, Math.min(v - below, HARDCAP - Math.max(ct, SOFTCAP)));
+      total += below * w + soft * w * SOFTCAP_MULT;
+    } else { total += v * w; }
+  }
+  if (weights.ac && itemData.ac) total += Number(itemData.ac) * weights.ac;
+  if (weights.haste && itemData.haste) total += Number(itemData.haste) * weights.haste;
+  return Math.round(total * 10) / 10;
+}
+
+// ── init / char selection ─────────────────────────────────────────────────────
 function gcInit() {
   const noconn = document.getElementById('gc-noconn');
   const form   = document.getElementById('gc-form');
@@ -1494,16 +1571,13 @@ function gcInit() {
 function gcBuildCharBtns() {
   const el = document.getElementById('gc-charbtns');
   if (!el) return;
-  const A2 = window.opener || null;
-  if (!A2) return;
+  const A2 = gcGetApp(); if (!A2) return;
   const meta = A2.charMeta || {};
   el.innerHTML = '';
   for (const name of Object.keys(meta)) {
-    const m = meta[name] || {};
-    if (!m.class) continue;
+    if (!(meta[name] || {}).class) continue;
     const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn';
+    btn.type = 'button'; btn.className = 'btn';
     btn.style.cssText = 'font-size:.72rem;padding:.2rem .55rem;';
     btn.textContent = name;
     btn.onclick = () => gcSelectChar(name);
@@ -1512,8 +1586,7 @@ function gcBuildCharBtns() {
 }
 
 function gcSelectChar(name) {
-  const A2 = window.opener || null;
-  if (!A2) return;
+  const A2 = gcGetApp(); if (!A2) return;
   const meta = A2.charMeta || {};
   const m = meta[name] || {};
   _gcChar = { name, meta: m };
@@ -1522,79 +1595,213 @@ function gcSelectChar(name) {
   document.getElementById('gc-race').value  = m.race  || '';
   document.getElementById('gc-level').value = m.level || 60;
 
-  // Build slot dropdown from equipped items
-  gcPopulateSlotDropdown(name);
+  gcClear(true); // clear items + results but keep char
+  gcComputeSlotScores(name);
+}
+
+// ── slot scoring ──────────────────────────────────────────────────────────────
+function gcComputeSlotScores(charName) {
+  const A2 = gcGetApp(); if (!A2) return;
+  const meta  = A2.charMeta  || {};
+  const m     = meta[charName] || {};
+  const cls   = m.class || document.getElementById('gc-class').value || '';
+  const level = parseInt(document.getElementById('gc-level').value) || 60;
+
+  const baseTotals    = gcBuildBaseTotals(charName);
+  const getStatWeights = A2.getStatWeights;
+  const staRatioFn    = A2.staRatio;
+  const HP_RATIOS     = A2.HP_RATIOS || {};
+  if (!getStatWeights) { gcPopulateSlotDropdown(charName, {}); return; }
+
+  const weights  = getStatWeights(cls, baseTotals);
+  const hpPerSta = HP_RATIOS[cls] ? staRatioFn(cls, level) : 0;
+
+  // Try to use _upgSlots from the app if it's for this character already
+  // (populated when the Upgrades tab was last open for this char)
+  const upgSlots = A2._upgSlots || [];
+  const upgForChar = upgSlots.length && upgSlots[0]
+    ? upgSlots  // may or may not be for this char — we validate by equipped items
+    : null;
+
+  const equipped = A2.getEquippedItems ? A2.getEquippedItems(charName) : [];
+  const equippedNames = new Set(equipped.map(i => i.name));
+  const upgValid = upgForChar && upgSlots.every(sr => sr.isEmpty || equippedNames.has(sr.item.name));
+
+  _gcSlotData = {};
+
+  if (upgValid) {
+    // Use pre-computed candidates directly from _upgSlots
+    for (const sr of upgSlots) {
+      const slot = sr.dbSlot;
+      if (!_gcSlotData[slot]) _gcSlotData[slot] = { equipped: [], candidates: [] };
+      const equippedScore = gcScoreItem(sr.currentData, weights, baseTotals, hpPerSta);
+      if (!sr.isEmpty) {
+        _gcSlotData[slot].equipped.push({
+          name: sr.item.name,
+          data: sr.currentData,
+          score: equippedScore
+        });
+      }
+      // Top 5 candidates
+      const topCands = (sr.candidates || []).slice(0, 5).map(c => ({
+        name: c.name,
+        data: c,
+        score: gcScoreItem(c, weights, baseTotals, hpPerSta),
+        preScore: c._effGain  // from upgrade engine
+      }));
+      _gcSlotData[slot].candidates = topCands;
+    }
+  } else {
+    // Compute ourselves from itemDB
+    const itemDB = A2.itemDB || {};
+    // Build equipped slot map
+    for (const item of equipped) {
+      const loc = item.location.toUpperCase();
+      let slot = loc;
+      if (loc.includes('EAR'))    slot = 'EAR';
+      if (loc.includes('FINGER')) slot = 'FINGERS';
+      if (loc.includes('WRIST'))  slot = 'WRIST';
+      if (!_gcSlotData[slot]) _gcSlotData[slot] = { equipped: [], candidates: [] };
+      const data = gcMergeItemData(item.name, charName);
+      _gcSlotData[slot].equipped.push({
+        name: item.name, data,
+        score: gcScoreItem(data, weights, baseTotals, hpPerSta)
+      });
+    }
+    // Score top candidates per slot from itemDB
+    const bySlot = {};
+    for (const [name, data] of Object.entries(itemDB)) {
+      if (data._legacy || data._nonp99) continue;
+      const slot = data._slot; if (!slot) continue;
+      if (!bySlot[slot]) bySlot[slot] = [];
+      bySlot[slot].push({ name, data });
+    }
+    for (const [slot, slotInfo] of Object.entries(_gcSlotData)) {
+      const equippedName = slotInfo.equipped[0]?.name;
+      const candidates = (bySlot[slot] || [])
+        .filter(c => c.name !== equippedName)
+        .map(c => ({ ...c, score: gcScoreItem(c.data, weights, baseTotals, hpPerSta) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5);
+      slotInfo.candidates = candidates;
+    }
+  }
+
+  gcPopulateSlotDropdown(charName);
 }
 
 function gcPopulateSlotDropdown(charName) {
-  const A2 = window.opener || null;
   const slotSel = document.getElementById('gc-slot');
   if (!slotSel) return;
 
-  const equipped = A2 ? (A2.getEquippedItems ? A2.getEquippedItems(charName) : []) : [];
-  const itemDB   = A2 ? (A2.itemDB || {}) : {};
-  const gearSt   = A2 ? (A2.gearStats || {}) : {};
-  const cg       = gearSt[charName] || {};
+  slotSel.innerHTML = '<option value="">— Choose a slot —</option>';
 
-  // Build slot -> item mapping
-  const slotMap = {};
-  for (const item of equipped) {
-    const loc = item.location.toUpperCase();
-    let slot = loc;
-    if (loc.includes('EAR'))    slot = 'EAR';
-    if (loc.includes('FINGER')) slot = 'FINGERS';
-    if (loc.includes('WRIST'))  slot = 'WRIST';
-    if (!slotMap[slot]) slotMap[slot] = [];
-    slotMap[slot].push(item.name);
-  }
+  // Build options sorted by slot order, showing equipped item + score
+  const usedSlots = new Set();
+  for (const slot of GC_SLOT_ORDER) {
+    const info = _gcSlotData[slot];
+    if (!info || !info.equipped.length) continue;
+    usedSlots.add(slot);
 
-  slotSel.innerHTML = '<option value="">— Any slot —</option>';
-  for (const slot of GC_SLOTS) {
-    const items = slotMap[slot] || [];
+    const eq = info.equipped[0];
+    const topCand = info.candidates[0];
+    const gain = topCand ? Math.round((topCand.score - eq.score) * 10) / 10 : null;
+    const gainStr = gain !== null
+      ? (gain > 0 ? ` ▲+${gain}` : gain < 0 ? ` ▼${gain}` : ' ●=')
+      : '';
+
     const opt = document.createElement('option');
     opt.value = slot;
-    opt.textContent = items.length ? `${slot} (${items.map(n => n.length > 22 ? n.slice(0,22)+'…' : n).join(', ')})` : slot;
+    const itemShort = eq.name.length > 28 ? eq.name.slice(0,28)+'…' : eq.name;
+    opt.textContent = `${slot} — ${itemShort} [${eq.score}pts${gainStr}]`;
+    // Visually highlight slots with good upgrades
+    if (gain !== null && gain >= 15) opt.style.color = '#4caf7d';
+    else if (gain !== null && gain >= 5) opt.style.color = '#c9a84c';
     slotSel.appendChild(opt);
   }
 
-  // Auto-populate Item A if a slot was already selected
-  const curSlot = slotSel.value;
-  if (curSlot && slotMap[curSlot] && slotMap[curSlot][0]) {
-    const itemName = slotMap[curSlot][0];
-    const data = itemDB[itemName] || cg[itemName] || {};
-    gcSetItem('a', itemName, data);
+  slotSel.onchange = () => gcOnSlotChange(charName);
+}
+
+function gcOnSlotChange(charName) {
+  const slot = document.getElementById('gc-slot').value;
+  if (!slot) return;
+
+  const info = _gcSlotData[slot];
+  if (!info) return;
+
+  // Auto-set Item A to equipped item
+  if (info.equipped[0]) {
+    _gcItemA = { name: info.equipped[0].name, data: info.equipped[0].data };
+    const inp = document.getElementById('gc-item-a-input');
+    if (inp) inp.value = info.equipped[0].name;
+    gcShowItemInfo('a', info.equipped[0].name, info.equipped[0].data);
   }
 
-  // Re-attach change handler
-  slotSel.onchange = () => gcOnSlotChange(charName, slotMap);
+  // Auto-set Item B to top candidate
+  if (info.candidates[0]) {
+    _gcItemB = { name: info.candidates[0].name, data: info.candidates[0].data };
+    const inp = document.getElementById('gc-item-b-input');
+    if (inp) inp.value = info.candidates[0].name;
+    gcShowItemInfo('b', info.candidates[0].name, info.candidates[0].data);
+  }
+
+  // Populate recommendation pills
+  gcRenderRecommendations(slot);
+
+  // Run comparison
+  if (_gcItemA && _gcItemB) gcCompare();
 }
 
-function gcOnSlotChange(charName, slotMap) {
-  const A2 = window.opener || null;
+function gcRenderRecommendations(slot) {
+  const el = document.getElementById('gc-recommendations');
+  if (!el) return;
+  const info = _gcSlotData[slot];
+  if (!info || !info.candidates.length) { el.innerHTML = ''; return; }
+
+  const green = '#4caf7d', gold = '#c9a84c', muted = 'var(--text-m)', dim = 'var(--text-dim,#5a5248)';
+  const equippedScore = info.equipped[0]?.score || 0;
+
+  const pills = info.candidates.map((c, i) => {
+    const gain  = Math.round((c.score - equippedScore) * 10) / 10;
+    const color = gain > 10 ? green : gain > 0 ? gold : gain < 0 ? 'var(--bad-red,#c0392b)' : muted;
+    const rank  = i === 0 ? ' ★' : '';
+    const nameShort = c.name.length > 26 ? c.name.slice(0,26)+'…' : c.name;
+    return `<button type="button" class="btn" onclick="gcPickCandidate('b','${c.name.replace(/'/g,"\\'")}',${i})"
+      style="font-size:.72rem;padding:.2rem .6rem;border-color:${i===0?color:'var(--border)'};color:${color}">
+      ${nameShort}${rank} <span style="color:${dim}">${c.score}pts</span>
+      <span style="color:${color}">${gain >= 0?'+':''}${gain}</span>
+    </button>`;
+  }).join('');
+
+  el.innerHTML = `<div style="margin:.6rem 0 .3rem">
+    <span style="font-family:var(--cinzel);font-size:.56rem;letter-spacing:.08em;color:${muted};margin-right:.5rem">TOP CANDIDATES FOR ${slot}:</span>
+    <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.35rem">${pills}</div>
+  </div>`;
+}
+
+function gcPickCandidate(which, name, idx) {
   const slot = document.getElementById('gc-slot').value;
-  if (!slot || !slotMap[slot]) return;
-
-  const itemDB = A2 ? (A2.itemDB || {}) : {};
-  const gearSt = A2 ? (A2.gearStats || {}) : {};
-  const cg     = gearSt[charName] || {};
-  const itemName = slotMap[slot][0];
-  const data = itemDB[itemName] || cg[itemName] || {};
-
-  gcSetItem('a', itemName, data);
-  gcClearItem('b');
-  document.getElementById('gc-results').innerHTML = '';
+  const info = slot ? _gcSlotData[slot] : null;
+  const cand = info ? info.candidates[idx] : null;
+  if (!cand) {
+    // Fall back to itemDB lookup
+    const A2 = gcGetApp();
+    const data = gcMergeItemData(name, _gcChar?.name);
+    gcSetItem(which, name, data);
+    return;
+  }
+  gcSetItem(which, name, cand.data);
 }
 
+// ── item helpers ──────────────────────────────────────────────────────────────
 function gcSetItem(which, name, data) {
   const input = document.getElementById(`gc-item-${which}-input`);
   const drop  = document.getElementById(`gc-drop-${which}`);
   if (input) input.value = name;
   if (drop) { drop.innerHTML = ''; drop.style.display = 'none'; }
-
-  const item = { name, data };
-  if (which === 'a') _gcItemA = item;
-  else               _gcItemB = item;
-
+  if (which === 'a') _gcItemA = { name, data };
+  else               _gcItemB = { name, data };
   gcShowItemInfo(which, name, data);
   if (_gcItemA && _gcItemB) gcCompare();
 }
@@ -1613,25 +1820,24 @@ function gcClearItem(which) {
 function gcShowItemInfo(which, name, data) {
   const el = document.getElementById(`gc-item-${which}-info`);
   if (!el) return;
-  const slot  = data._slot  || '—';
-  const era   = data._era   || '';
-  const lore  = data._lore   ? ' <span style="color:var(--accent-gold,#c9a84c);font-size:.72rem">LORE</span>' : '';
-  const legacy= data._legacy ? ' <span style="color:var(--bad-red,#c0392b);font-size:.72rem">LEGACY</span>' : '';
+  const slot   = data._slot  || '—';
+  const era    = data._era   || '';
+  const lore   = data._lore   ? ' <span style="color:#c9a84c;font-size:.72rem">LORE</span>' : '';
+  const legacy = data._legacy ? ' <span style="color:var(--bad-red,#c0392b);font-size:.72rem">LEGACY</span>' : '';
   el.innerHTML = `<span style="color:var(--text-m);font-size:.76rem">${slot}${era?' · '+era:''}${lore}${legacy}</span>`;
 }
 
-// ── item search typeahead ──
+// ── typeahead search ──────────────────────────────────────────────────────────
 function gcSearch(which) {
   const input = document.getElementById(`gc-item-${which}-input`);
   const drop  = document.getElementById(`gc-drop-${which}`);
   const val   = input.value.trim().toLowerCase();
   if (val.length < 2) { drop.style.display = 'none'; drop.innerHTML = ''; return; }
 
-  const A2 = window.opener || null;
-  const db = A2 ? (A2.itemDB || {}) : {};
-
-  // Filter by slot if slot is selected
+  const A2   = gcGetApp();
+  const db   = A2 ? (A2.itemDB || {}) : {};
   const slot = document.getElementById('gc-slot')?.value || '';
+
   const keys = Object.keys(db).filter(k => {
     if (!k.toLowerCase().includes(val)) return false;
     if (slot && db[k]._slot && db[k]._slot !== slot) return false;
@@ -1651,28 +1857,11 @@ function gcSearch(which) {
 }
 
 function gcSelectItem(which, name) {
-  const A2 = window.opener || null;
-  const db = A2 ? (A2.itemDB || {}) : {};
-  const gs = A2 ? (A2.gearStats || {}) : {};
-  const charName = _gcChar ? _gcChar.name : null;
-  const cg = charName ? (gs[charName] || {}) : {};
-
-  // Merge itemDB + charGear the same way the upgrade engine does
-  const _db = db[name] || {};
-  const _cg = cg[name] || {};
-  const data = {};
-  for (const k of [...Object.keys(_db), ...Object.keys(_cg)]) {
-    if (k.startsWith('_')) continue;
-    data[k] = Number(_db[k]||0) || Number(_cg[k]||0) || _db[k] || _cg[k];
-  }
-  // meta flags from itemDB
-  for (const [k,v] of Object.entries(_db)) { if (k.startsWith('_')) data[k] = v; }
-  data.ac = Number(_db.ac||0) || Number(_cg.ac||0) || undefined;
-
+  const data = gcMergeItemData(name, _gcChar?.name);
   gcSetItem(which, name, data);
 }
 
-// ── main compare ──
+// ── compare engine ────────────────────────────────────────────────────────────
 function gcCompare() {
   const resultsEl = document.getElementById('gc-results');
   if (!resultsEl) return;
@@ -1680,70 +1869,41 @@ function gcCompare() {
   const cls   = document.getElementById('gc-class').value;
   const level = parseInt(document.getElementById('gc-level').value) || 60;
 
-  if (!cls)    { resultsEl.innerHTML = '<div style="color:var(--text-m);font-style:italic;padding:.5rem 0">Select a class first.</div>'; return; }
+  if (!cls)   { resultsEl.innerHTML = '<div style="color:var(--text-m);font-style:italic;padding:.5rem 0">Select a class first.</div>'; return; }
   if (!_gcItemA || !_gcItemB) { resultsEl.innerHTML = '<div style="color:var(--text-m);font-style:italic;padding:.5rem 0">Select both items to compare.</div>'; return; }
 
-  const A2 = window.opener || null;
+  const A2 = gcGetApp();
   if (!A2) { resultsEl.innerHTML = '<div style="color:var(--text-m)">Not connected.</div>'; return; }
 
   const getStatWeights = A2.getStatWeights;
   const staRatioFn     = A2.staRatio;
-  const HP_RATIOS      = A2.HP_RATIOS      || {};
-  const STAT_KEYS_ALL  = A2.STAT_KEYS_ALL  || [];
-  const STAT_DISPLAY   = A2.STAT_DISPLAY   || {};
-  const NO_CAP         = A2.NO_CAP         || new Set(['hpbonus','manabonus']);
+  const HP_RATIOS      = A2.HP_RATIOS     || {};
+  const STAT_KEYS_ALL  = A2.STAT_KEYS_ALL || [];
+  const STAT_DISPLAY   = A2.STAT_DISPLAY  || {};
+  const NO_CAP         = A2.NO_CAP        || new Set(['hpbonus','manabonus']);
   const SOFTCAP = 200, HARDCAP = 255, SOFTCAP_MULT = 0.33;
 
-  if (!getStatWeights) {
-    resultsEl.innerHTML = '<div style="color:var(--bad-red,#c0392b)">getStatWeights not found on window — check index.html exports.</div>';
-    return;
-  }
+  if (!getStatWeights) { resultsEl.innerHTML = '<div style="color:var(--bad-red,#c0392b)">getStatWeights not found on window.</div>'; return; }
 
-  // Build baseTotals from selected character
-  let baseTotals = {};
-  const charName = _gcChar ? _gcChar.name : null;
-  if (charName) {
-    const meta   = A2.charMeta || {};
-    const m      = meta[charName] || {};
-    const base   = m.baseStats || null;
-    const gearSt = A2.gearStats || {};
-    const cg     = gearSt[charName] || {};
-    if (base) {
-      const SK = ['str','sta','dex','agi','wis','int','cha'];
-      const RK = ['svpoison','svmagic','svdisease','svfire','svcold'];
-      SK.forEach((k,i) => { baseTotals[k] = (base.stats[i]   || 0); });
-      RK.forEach((k,i) => { baseTotals[k] = (base.resists[i] || 0); });
-      for (const [,gs] of Object.entries(cg)) {
-        for (const k of SK) if (gs[k]) baseTotals[k] = (baseTotals[k]||0) + Number(gs[k]||0);
-        for (const k of RK) if (gs[k]) baseTotals[k] = (baseTotals[k]||0) + Number(gs[k]||0);
-      }
-    }
-  }
+  const baseTotals = _gcChar ? gcBuildBaseTotals(_gcChar.name) : {};
+  const weights    = getStatWeights(cls, baseTotals);
+  const hpPerSta   = HP_RATIOS[cls] ? staRatioFn(cls, level) : 0;
 
-  const weights  = getStatWeights(cls, baseTotals);
-  const hpPerSta = HP_RATIOS[cls] ? staRatioFn(cls, level) : 0;
-
-  // ── Per-stat scoring breakdown (returns array of {k, label, va, vb, weight, scoreA, scoreB, delta})
-  function buildStatBreakdown(dataA, dataB) {
+  // Per-stat breakdown with individual scores
+  function buildBreakdown(dataA, dataB) {
     const allKeys = ['ac', ...STAT_KEYS_ALL, 'haste'];
-    const rows = [];
-
-    for (const k of allKeys) {
+    return allKeys.map(k => {
       const va = Number(dataA[k] || 0);
       const vb = Number(dataB[k] || 0);
-      if (!va && !vb) continue;
+      if (!va && !vb) return null;
 
-      const w = k === 'ac'    ? (weights.ac    || 0)
-              : k === 'haste' ? (weights.haste || 0)
-              : (weights[k]  || 0);
+      const w = k === 'ac' ? (weights.ac||0) : k === 'haste' ? (weights.haste||0) : (weights[k]||0);
 
-      // Score each item from zero baseline using same logic as upgrade engine
-      function scoreVal(v, k) {
+      function scoreVal(v) {
         if (!v) return 0;
         if (k === 'sta' && hpPerSta > 0) {
-          const curSta  = Math.min(255, baseTotals.sta || 0);
-          const newSta  = Math.min(255, curSta + v);
-          return (newSta - curSta) * hpPerSta * (weights.hpbonus || 1.5);
+          const curSta = Math.min(255, baseTotals.sta || 0);
+          return (Math.min(255, curSta + v) - curSta) * hpPerSta * (weights.hpbonus || 1.5);
         }
         if (!w) return 0;
         if (NO_CAP.has(k)) return v * w;
@@ -1753,113 +1913,97 @@ function gcCompare() {
           const soft  = Math.max(0, Math.min(v - below, HARDCAP - Math.max(ct, SOFTCAP)));
           return below * w + soft * w * SOFTCAP_MULT;
         }
-        return v * w;  // penalty
+        return v * w;
       }
 
-      const scoreA = Math.round(scoreVal(va, k) * 10) / 10;
-      const scoreB = Math.round(scoreVal(vb, k) * 10) / 10;
-
-      const label = k === 'ac' ? 'AC'
-                  : k === 'haste' ? 'Haste'
-                  : (STAT_DISPLAY[k] || k.toUpperCase());
-
       const suffix = k === 'haste' ? '%' : '';
-      rows.push({ k, label, va, vb, suffix, w, scoreA, scoreB });
-    }
-    return rows;
+      const label  = k === 'ac' ? 'AC' : k === 'haste' ? 'Haste' : (STAT_DISPLAY[k] || k.toUpperCase());
+      const scoreA = Math.round(scoreVal(va) * 10) / 10;
+      const scoreB = Math.round(scoreVal(vb) * 10) / 10;
+      const capState = (!NO_CAP.has(k) && k !== 'ac' && k !== 'haste' && k !== 'sta')
+        ? ((baseTotals[k]||0) >= 255 ? 'hard' : (baseTotals[k]||0) >= 200 ? 'soft' : '')
+        : '';
+      return { k, label, suffix, va, vb, w, scoreA, scoreB, capState };
+    }).filter(Boolean);
   }
 
-  const breakdown = buildStatBreakdown(_gcItemA.data, _gcItemB.data);
-  const totalA = Math.round(breakdown.reduce((s, r) => s + r.scoreA, 0) * 10) / 10;
-  const totalB = Math.round(breakdown.reduce((s, r) => s + r.scoreB, 0) * 10) / 10;
+  const breakdown = buildBreakdown(_gcItemA.data, _gcItemB.data);
+  const totalA = Math.round(breakdown.reduce((s,r) => s + r.scoreA, 0) * 10) / 10;
+  const totalB = Math.round(breakdown.reduce((s,r) => s + r.scoreB, 0) * 10) / 10;
   const winner = totalA > totalB ? 'a' : totalB > totalA ? 'b' : 'tie';
   const delta  = Math.round((totalB - totalA) * 10) / 10;
 
-  // ── Score bar
-  const maxScore = Math.max(totalA, totalB, 1);
-  const barA = Math.round((totalA / maxScore) * 100);
-  const barB = Math.round((totalB / maxScore) * 100);
+  const barA = Math.round((totalA / Math.max(totalA, totalB, 1)) * 100);
+  const barB = Math.round((totalB / Math.max(totalA, totalB, 1)) * 100);
 
-  const gold = '#c9a84c';
+  const gold  = '#c9a84c';
   const green = 'var(--ok-green,#4caf7d)';
   const red   = 'var(--bad-red,#c0392b)';
   const muted = 'var(--text-m)';
   const dim   = 'var(--text-dim,#5a5248)';
+  const dc = (d) => d > 0 ? green : d < 0 ? red : dim;
 
-  function fmtScore(s) { return s > 0 ? `+${s}` : String(s); }
-
-  function deltaColor(d) { return d > 0 ? green : d < 0 ? red : dim; }
-
-  // ── Decision explanation
-  const topDiffs = [...breakdown]
-    .map(r => ({ ...r, diff: r.scoreB - r.scoreA }))
+  // Decision explanation
+  const diffs = breakdown.map(r => ({ ...r, diff: r.scoreB - r.scoreA }))
     .filter(r => Math.abs(r.diff) >= 0.5)
-    .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff))
-    .slice(0, 5);
+    .sort((a,b) => Math.abs(b.diff) - Math.abs(a.diff));
 
-  let decisionText = '';
-  if (winner !== 'tie' && topDiffs.length) {
-    const winName = winner === 'b' ? _gcItemB.name : _gcItemA.name;
-    const losName = winner === 'b' ? _gcItemA.name : _gcItemB.name;
-    const drivers = topDiffs.filter(r => winner === 'b' ? r.diff > 0 : r.diff < 0);
-    const drags   = topDiffs.filter(r => winner === 'b' ? r.diff < 0 : r.diff > 0);
-    const fmtReason = (r) => {
-      const pts = Math.abs(Math.round(r.diff * 10) / 10);
-      const statDiff = winner === 'b' ? r.vb - r.va : r.va - r.vb;
-      const suffix = r.suffix;
-      let reason = `<strong>${r.label}</strong> (+${statDiff > 0 ? statDiff : Math.abs(statDiff)}${suffix} → ${pts} pts)`;
-      if (r.k === 'sta' && hpPerSta > 0) reason += ` <span style="color:${dim};font-size:.76rem">via HP×${hpPerSta.toFixed(2)}</span>`;
-      if ((baseTotals[r.k] || 0) >= 200) reason += ` <span style="color:${gold};font-size:.76rem">⚠ softcap zone</span>`;
-      return reason;
-    };
-    decisionText = `<div style="margin-bottom:1rem;padding:.75rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:5px">
-      <div style="font-family:var(--cinzel);font-size:.6rem;letter-spacing:.08em;color:${muted};margin-bottom:.5rem">WHY ${winName.toUpperCase()} WINS</div>`;
-    if (drivers.length) {
-      decisionText += `<div style="margin-bottom:.4rem;font-size:.8rem;color:var(--text-d)">▲ Driven by: ${drivers.map(fmtReason).join(' · ')}</div>`;
-    }
-    if (drags.length) {
-      decisionText += `<div style="font-size:.8rem;color:${muted}">▼ Offset by: ${drags.map(fmtReason).join(' · ')}</div>`;
-    }
-    // Dead stat warnings
-    const deadStats = breakdown.filter(r => {
-      const rawDiff = winner === 'b' ? r.vb - r.va : r.va - r.vb;
-      return rawDiff > 0 && r.w < 0.01;
+  let decisionHtml = '';
+  if (winner !== 'tie' && diffs.length) {
+    const drivers = diffs.filter(r => winner === 'b' ? r.diff > 0 : r.diff < 0).slice(0,4);
+    const offsets = diffs.filter(r => winner === 'b' ? r.diff < 0 : r.diff > 0).slice(0,3);
+    const dead    = breakdown.filter(r => {
+      const winDiff = winner === 'b' ? r.vb - r.va : r.va - r.vb;
+      return winDiff > 0 && r.w < 0.01;
     });
-    if (deadStats.length) {
-      decisionText += `<div style="margin-top:.4rem;font-size:.76rem;color:${dim}">◦ Ignored (zero weight for ${cls}): ${deadStats.map(r => r.label).join(', ')}</div>`;
-    }
-    decisionText += '</div>';
+
+    const fmt = (r) => {
+      const rawDiff = winner === 'b' ? r.vb - r.va : r.va - r.vb;
+      const pts = Math.abs(Math.round(r.diff * 10) / 10);
+      let note = '';
+      if (r.k === 'sta' && hpPerSta > 0) note = ` <span style="color:${dim};font-size:.74rem">via HP×${hpPerSta.toFixed(2)}</span>`;
+      if (r.capState === 'soft') note += ` <span style="color:${gold};font-size:.74rem">⚠ softcap</span>`;
+      if (r.capState === 'hard') note += ` <span style="color:${red};font-size:.74rem">⚠ hardcap</span>`;
+      return `<strong>${r.label}</strong> (${rawDiff > 0 ? '+' : ''}${rawDiff}${r.suffix} → ${pts} pts)${note}`;
+    };
+
+    decisionHtml = `<div style="padding:.7rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:5px;margin-bottom:1rem;font-size:.8rem">
+      <div style="font-family:var(--cinzel);font-size:.58rem;letter-spacing:.08em;color:${muted};margin-bottom:.5rem">
+        WHY ${(winner==='b'?_gcItemB.name:_gcItemA.name).toUpperCase()} WINS
+      </div>
+      ${drivers.length ? `<div style="color:var(--text-d);margin-bottom:.3rem">▲ <span style="color:${green}">Driven by:</span> ${drivers.map(fmt).join(' &nbsp;·&nbsp; ')}</div>` : ''}
+      ${offsets.length ? `<div style="color:${muted};margin-bottom:.3rem">▼ <span style="color:${red}">Offset by:</span> ${offsets.map(fmt).join(' &nbsp;·&nbsp; ')}</div>` : ''}
+      ${dead.length    ? `<div style="color:${dim};font-size:.74rem">◦ Zero-weight for ${cls} (ignored): ${dead.map(r=>r.label).join(', ')}</div>` : ''}
+    </div>`;
   }
 
-  // ── Stat table rows
-  const thStyle = `font-family:var(--cinzel);font-size:.55rem;letter-spacing:.08em;color:${muted};padding:.3rem .6rem;text-align:right;border-bottom:1px solid var(--border2)`;
-  const tdS     = `padding:.28rem .6rem;border-bottom:1px solid rgba(255,255,255,.04);text-align:right;font-size:.82rem`;
-  const tdLabel = `padding:.28rem .6rem;border-bottom:1px solid rgba(255,255,255,.04);font-size:.76rem;color:${muted};font-family:var(--cinzel);letter-spacing:.06em`;
+  // Stat table
+  const thS  = `font-family:var(--cinzel);font-size:.55rem;letter-spacing:.08em;color:${muted};padding:.28rem .6rem;text-align:right;border-bottom:1px solid var(--border2)`;
+  const tdS  = `padding:.25rem .6rem;border-bottom:1px solid rgba(255,255,255,.04);text-align:right;font-size:.82rem;vertical-align:middle`;
+  const tdLb = `padding:.25rem .6rem;border-bottom:1px solid rgba(255,255,255,.04);font-size:.76rem;color:${muted};font-family:var(--cinzel);letter-spacing:.06em;vertical-align:middle`;
 
   const statRows = breakdown.map(r => {
-    const aWins = r.scoreA > r.scoreB;
-    const bWins = r.scoreB > r.scoreA;
-    const wDisp = (r.w > 0.001) ? `<span style="color:${dim}">${r.w.toFixed(2)}×</span>` : `<span style="color:${dim}">—</span>`;
-    const fmtRaw = (v) => v ? `${v}${r.suffix}` : `<span style="color:${dim}">—</span>`;
-    const fmtSc  = (s) => s ? `<span style="font-size:.72rem;color:${dim}">(${fmtScore(s)})</span>` : '';
-    const rowDiff = r.scoreB - r.scoreA;
+    const aWins = r.scoreA > r.scoreB, bWins = r.scoreB > r.scoreA;
+    const wDisp = r.w > 0.001 ? `<span style="color:${dim}">${r.w.toFixed(2)}×</span>` : `<span style="color:${dim}">—</span>`;
+    const fmtV  = (v) => v ? `${v}${r.suffix}` : `<span style="color:${dim}">—</span>`;
+    const fmtSc = (s, wins) => s
+      ? `<span style="font-size:.7rem;color:${wins?green:dim}"> (${s > 0?'+':''}${s})</span>`
+      : '';
+    const rowDiff = Math.round((r.scoreB - r.scoreA) * 10) / 10;
     const diffCell = rowDiff === 0
       ? `<span style="color:${dim}">—</span>`
-      : `<span style="color:${deltaColor(rowDiff)}">${rowDiff > 0 ? '+' : ''}${Math.round(rowDiff*10)/10}</span>`;
-
-    // Cap warning
-    let capNote = '';
-    if (r.k !== 'ac' && r.k !== 'haste' && !NO_CAP.has(r.k) && r.k !== 'sta') {
-      const ct = baseTotals[r.k] || 0;
-      if (ct >= 255) capNote = `<span style="color:${red};font-size:.68rem" title="At hard cap">⚠HC</span>`;
-      else if (ct >= 200) capNote = `<span style="color:${gold};font-size:.68rem" title="In softcap zone (33% returns)">⚠SC</span>`;
-    }
+      : `<span style="color:${dc(rowDiff)}">${rowDiff>0?'+':''}${rowDiff}</span>`;
+    const capBadge = r.capState === 'hard'
+      ? `<span style="color:${red};font-size:.66rem;margin-left:.2rem" title="At hard cap (255)">HC</span>`
+      : r.capState === 'soft'
+      ? `<span style="color:${gold};font-size:.66rem;margin-left:.2rem" title="In softcap zone (33% returns)">SC</span>`
+      : '';
 
     return `<tr>
-      <td style="${tdLabel}">${r.label} ${capNote}</td>
+      <td style="${tdLb}">${r.label}${capBadge}</td>
       <td style="${tdS}">${wDisp}</td>
-      <td style="${tdS};color:${aWins?green:''}">${fmtRaw(r.va)} ${fmtSc(r.scoreA)}</td>
-      <td style="${tdS};color:${bWins?green:''}">${fmtRaw(r.vb)} ${fmtSc(r.scoreB)}</td>
+      <td style="${tdS};color:${aWins?green:''}">${fmtV(r.va)}${fmtSc(r.scoreA, aWins)}</td>
+      <td style="${tdS};color:${bWins?green:''}">${fmtV(r.vb)}${fmtSc(r.scoreB, bWins)}</td>
       <td style="${tdS}">${diffCell}</td>
     </tr>`;
   }).join('');
@@ -1868,7 +2012,6 @@ function gcCompare() {
   const nameB = _gcItemB.name.length > 24 ? _gcItemB.name.slice(0,24)+'…' : _gcItemB.name;
 
   resultsEl.innerHTML = `
-    <!-- Score summary -->
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:.75rem;align-items:center;margin-bottom:1rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:.9rem 1.1rem">
       <div style="text-align:right">
         <div style="font-family:var(--cinzel);font-size:.65rem;letter-spacing:.06em;color:${winner==='a'?gold:muted};margin-bottom:.2rem">${_gcItemA.name}</div>
@@ -1877,11 +2020,11 @@ function gcCompare() {
           <div style="background:${winner==='a'?green:'var(--border2)'};width:${barA}%;height:100%;border-radius:3px;margin-left:auto"></div>
         </div>
       </div>
-      <div style="text-align:center;font-family:var(--cinzel);font-size:.58rem;letter-spacing:.1em;color:${muted};padding:0 .4rem;min-width:5rem">
+      <div style="text-align:center;font-family:var(--cinzel);font-size:.58rem;letter-spacing:.1em;color:${muted};min-width:5.5rem">
         ${winner==='tie'
-          ? `<span style="color:${muted}">TIE</span>`
-          : `<span style="color:${green};font-size:.7rem">&#9650;</span><br><span style="color:${green}">${winner.toUpperCase()} WINS</span><br><span style="color:${deltaColor(delta)};font-size:.72rem">+${Math.abs(delta)} pts</span>`}
-        <div style="margin-top:.5rem;color:${dim};font-size:.55rem">${cls.toUpperCase()}<br>LEVEL ${level}</div>
+          ? `<span>TIE</span>`
+          : `<span style="color:${green};font-size:.75rem">&#9650;</span><br><span style="color:${green}">${winner.toUpperCase()} WINS</span><br><span style="color:${dc(delta)};font-size:.72rem">${delta>0?'+':''}${delta} pts</span>`}
+        <div style="margin-top:.5rem;color:${dim};font-size:.54rem">${cls.toUpperCase()}<br>LVL ${level}</div>
       </div>
       <div style="text-align:left">
         <div style="font-family:var(--cinzel);font-size:.65rem;letter-spacing:.06em;color:${winner==='b'?gold:muted};margin-bottom:.2rem">${_gcItemB.name}</div>
@@ -1892,59 +2035,62 @@ function gcCompare() {
       </div>
     </div>
 
-    ${decisionText}
+    ${decisionHtml}
 
-    <!-- Stat table -->
     <div style="overflow-x:auto;margin-bottom:1rem">
       <table style="width:100%;border-collapse:collapse">
         <thead><tr>
-          <th style="${thStyle};text-align:left">STAT</th>
-          <th style="${thStyle}">WEIGHT</th>
-          <th style="${thStyle};color:${winner==='a'?gold:muted}">${nameA}</th>
-          <th style="${thStyle};color:${winner==='b'?gold:muted}">${nameB}</th>
-          <th style="${thStyle}">B−A PTS</th>
+          <th style="${thS};text-align:left">STAT</th>
+          <th style="${thS}">WEIGHT</th>
+          <th style="${thS};color:${winner==='a'?gold:muted}">${nameA}<br><span style="font-size:.5rem;letter-spacing:.04em">raw (pts)</span></th>
+          <th style="${thS};color:${winner==='b'?gold:muted}">${nameB}<br><span style="font-size:.5rem;letter-spacing:.04em">raw (pts)</span></th>
+          <th style="${thS}">B−A PTS</th>
         </tr></thead>
         <tbody>${statRows || `<tr><td colspan="5" style="padding:.6rem;color:${dim};font-style:italic;text-align:center">No stats on either item.</td></tr>`}</tbody>
         <tfoot><tr>
-          <td colspan="2" style="${tdLabel};padding-top:.5rem;border-top:1px solid var(--border2)">WEIGHTED SCORE</td>
+          <td colspan="2" style="${tdLb};padding-top:.5rem;border-top:1px solid var(--border2)">WEIGHTED SCORE</td>
           <td style="${tdS};font-weight:bold;color:${winner==='a'?green:muted};padding-top:.5rem;border-top:1px solid var(--border2)">${totalA}</td>
           <td style="${tdS};font-weight:bold;color:${winner==='b'?green:muted};padding-top:.5rem;border-top:1px solid var(--border2)">${totalB}</td>
-          <td style="${tdS};padding-top:.5rem;border-top:1px solid var(--border2);color:${deltaColor(delta)}">${delta > 0 ? '+' : ''}${delta}</td>
+          <td style="${tdS};padding-top:.5rem;border-top:1px solid var(--border2);color:${dc(delta)}">${delta>0?'+':''}${delta}</td>
         </tr></tfoot>
       </table>
     </div>
 
-    <!-- Active weights reference -->
     <details>
       <summary style="cursor:pointer;font-family:var(--cinzel);font-size:.57rem;letter-spacing:.08em;color:${muted};padding:.3rem 0;user-select:none">
-        ACTIVE STAT WEIGHTS FOR ${cls.toUpperCase()} — LEVEL ${level} (click to expand)
+        ACTIVE WEIGHTS — ${cls.toUpperCase()} LVL ${level} (expand)
       </summary>
       <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem">
         ${Object.entries(weights).filter(([,v])=>v>0.001).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.2rem .5rem;font-size:.76rem">
-            <span style="color:${muted};font-family:var(--cinzel);font-size:.56rem;letter-spacing:.06em">${k==='ac'?'AC':(STAT_DISPLAY[k]||k.toUpperCase())}</span>
-            <span style="color:var(--text-d);margin-left:.3rem">${v.toFixed(2)}×</span>
+            <span style="color:${muted};font-family:var(--cinzel);font-size:.56rem">${k==='ac'?'AC':((A2.STAT_DISPLAY||{})[k]||k.toUpperCase())}</span>
+            <span style="color:var(--text-d);margin-left:.25rem">${v.toFixed(2)}×</span>
           </div>`).join('')}
       </div>
       ${Object.keys(baseTotals).length
         ? `<div style="margin-top:.5rem;font-size:.74rem;color:${muted}">
-             <span style="font-family:var(--cinzel);font-size:.55rem;letter-spacing:.06em">BASE TOTALS:</span>
+             <span style="font-family:var(--cinzel);font-size:.55rem">BASE TOTALS:</span>
              ${Object.entries(baseTotals).filter(([,v])=>v).map(([k,v])=>`${k.toUpperCase()} ${v}`).join(' · ')}
            </div>`
-        : `<div style="margin-top:.4rem;font-size:.74rem;color:${dim}">No character selected — cap adjustments not applied.</div>`}
+        : `<div style="margin-top:.4rem;font-size:.74rem;color:${dim}">No character — cap adjustments not applied.</div>`}
     </details>
   `;
 }
 
-function gcClear() {
-  _gcChar  = null;
+function gcClear(keepChar) {
+  if (!keepChar) _gcChar = null;
   _gcItemA = null;
   _gcItemB = null;
   ['a','b'].forEach(w => gcClearItem(w));
   const res  = document.getElementById('gc-results');
-  const slot = document.getElementById('gc-slot');
-  if (res)  res.innerHTML = '';
-  if (slot) { slot.innerHTML = '<option value="">— Any slot —</option>'; slot.onchange = null; }
+  const recs = document.getElementById('gc-recommendations');
+  if (res)  res.innerHTML  = '';
+  if (recs) recs.innerHTML = '';
+  if (!keepChar) {
+    const slot = document.getElementById('gc-slot');
+    if (slot) { slot.innerHTML = '<option value="">— Choose a slot —</option>'; slot.onchange = null; }
+    _gcSlotData = {};
+  }
 }
 
 
