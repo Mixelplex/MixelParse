@@ -1490,6 +1490,29 @@ const GC_SLOT_ORDER = ['HEAD','FACE','EAR','NECK','SHOULDERS','ARMS','BACK',
 // ── helpers shared across GC ──────────────────────────────────────────────────
 function gcGetApp() { return window.opener || null; }
 
+function gcGetCharAbbrs() {
+  // Returns { classAbbr, raceAbbr } for the currently selected character/class/race
+  const A2 = gcGetApp();
+  const cls  = document.getElementById('gc-class')?.value || '';
+  const race = document.getElementById('gc-race')?.value  || '';
+  const CLASS_MAP = {BARD:'BRD',CLERIC:'CLR',DRUID:'DRU',ENCHANTER:'ENC',MAGICIAN:'MAG',
+                     MONK:'MNK',NECROMANCER:'NEC',PALADIN:'PAL',RANGER:'RNG',ROGUE:'ROG',
+                     'SHADOW KNIGHT':'SHD',SHAMAN:'SHM',WARRIOR:'WAR',WIZARD:'WIZ'};
+  const RACE_MAP = A2 ? (A2.RACE_ABBR_MAP || {}) : {};
+  return {
+    classAbbr: CLASS_MAP[cls.toUpperCase()] || '',
+    raceAbbr:  RACE_MAP[race] || ''
+  };
+}
+
+function gcItemUsable(data) {
+  const A2 = gcGetApp();
+  const fn = A2 ? A2.itemUsableByContext : null;
+  if (!fn) return true; // fallback: no restriction check available
+  const { classAbbr, raceAbbr } = gcGetCharAbbrs();
+  return fn(data, classAbbr, raceAbbr);
+}
+
 function gcMergeItemData(name, charName) {
   const A2 = gcGetApp(); if (!A2) return {};
   const db = A2.itemDB || {};
@@ -1678,8 +1701,9 @@ function gcComputeSlotScores(charName) {
     }
     for (const [slot, slotInfo] of Object.entries(_gcSlotData)) {
       const equippedName = slotInfo.equipped[0]?.name;
+      const ssCustomSelf = A2 ? (A2.SS_CUSTOM_ITEMS || new Set()) : new Set();
       const candidates = (bySlot[slot] || [])
-        .filter(c => c.name !== equippedName)
+        .filter(c => c.name !== equippedName && !ssCustomSelf.has(c.name) && !c.data._legacy && !c.data._nonp99 && gcItemUsable(c.data))
         .map(c => ({ ...c, score: gcScoreItem(c.data, weights, baseTotals, hpPerSta) }))
         .sort((a, b) => b.score - a.score)
         .slice(0, 5);
@@ -1838,9 +1862,12 @@ function gcSearch(which) {
   const db   = A2 ? (A2.itemDB || {}) : {};
   const slot = document.getElementById('gc-slot')?.value || '';
 
+  const ssCustom = A2 ? (A2.SS_CUSTOM_ITEMS || new Set()) : new Set();
   const keys = Object.keys(db).filter(k => {
     if (!k.toLowerCase().includes(val)) return false;
     if (slot && db[k]._slot && db[k]._slot !== slot) return false;
+    if (ssCustom.has(k)) return false;
+    if (!gcItemUsable(db[k])) return false;
     return true;
   }).slice(0, 30);
 
@@ -1874,6 +1901,18 @@ function gcCompare() {
 
   const A2 = gcGetApp();
   if (!A2) { resultsEl.innerHTML = '<div style="color:var(--text-m)">Not connected.</div>'; return; }
+
+  // Warn if either item is not usable by the selected class/race
+  const { classAbbr, raceAbbr } = gcGetCharAbbrs();
+  const usableA = gcItemUsable(_gcItemA.data);
+  const usableB = gcItemUsable(_gcItemB.data);
+  const unusableWarning = (!usableA || !usableB)
+    ? `<div style="padding:.5rem .8rem;background:rgba(192,57,43,.12);border:1px solid var(--bad-red,#c0392b);border-radius:4px;font-size:.78rem;color:var(--bad-red,#c0392b);margin-bottom:.75rem">
+        ⚠ ${[!usableA ? `<strong>${_gcItemA.name}</strong> cannot be used by ${cls}` : '',
+               !usableB ? `<strong>${_gcItemB.name}</strong> cannot be used by ${cls}` : '']
+             .filter(Boolean).join(' &nbsp;·&nbsp; ')} — scores shown for reference only.
+      </div>`
+    : '';
 
   const getStatWeights = A2.getStatWeights;
   const staRatioFn     = A2.staRatio;
@@ -2011,7 +2050,7 @@ function gcCompare() {
   const nameA = _gcItemA.name.length > 24 ? _gcItemA.name.slice(0,24)+'…' : _gcItemA.name;
   const nameB = _gcItemB.name.length > 24 ? _gcItemB.name.slice(0,24)+'…' : _gcItemB.name;
 
-  resultsEl.innerHTML = `
+  resultsEl.innerHTML = unusableWarning + `
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:.75rem;align-items:center;margin-bottom:1rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:.9rem 1.1rem">
       <div style="text-align:right">
         <div style="font-family:var(--cinzel);font-size:.65rem;letter-spacing:.06em;color:${winner==='a'?gold:muted};margin-bottom:.2rem">${_gcItemA.name}</div>

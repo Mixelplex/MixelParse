@@ -1054,7 +1054,7 @@ function renderUpgradesPanel(){
     Object.assign(currentData,Object.fromEntries(Object.entries(_cg).filter(([k])=>k.startsWith('_'))));
     currentData.ac=Number(_db.ac||0)||Number(_cg.ac||0)||undefined;
     const candidates=(bySlot[dbSlot]||[])
-      .filter(c=>c.name!==item.name&&itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._nonp99)
+      .filter(c=>c.name!==item.name&&itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name))
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
       .sort((a,b)=>b._effGain-a._effGain);
     slotResults.push({item,dbSlot,currentData,candidates});
@@ -1069,7 +1069,7 @@ function renderUpgradesPanel(){
     const currentCount=slotCounts[slot]||0;
     for(let si=currentCount;si<maxCount;si++){
       const candidates=(bySlot[slot]||[])
-        .filter(c=>itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._nonp99)
+        .filter(c=>itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name))
         .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)}))
         .sort((a,b)=>b._effGain-a._effGain);
       if(!candidates.length)continue;
@@ -1937,6 +1937,15 @@ const SS_DATA = {
   'Wizard':      {npc:"Elaend Fe`Dhar",     items:['Icicle Circlet','Robe of Icicles','Icicle Sleeves','Icicle Bracelet','Icicle Gloves','Icicle Pantaloons','Icicle Boots']},
 };
 
+// Skyshrine custom armor — P99-server-custom items not on live EQ.
+// Cleric set (Akkirus') is intentionally KEPT — it's standard BiS for clerics.
+// All other SS class sets are excluded from upgrade candidates and gear checker search.
+const SS_CUSTOM_ITEMS = new Set(
+  Object.entries(SS_DATA)
+    .filter(([cls]) => cls !== 'Cleric')
+    .flatMap(([, d]) => d.items)
+);
+
 // Gem group A: Priest classes (CLR, DRU, SHM) + Casters (ENC, MAG, NEC, WIZ)
 // Wait — Priest and Caster use DIFFERENT gems. Priest uses Onyx Sapphire for head, Black Marble for chest etc.
 // Casters use Crushed Flame Opal for head, Pristine Emerald for chest etc.
@@ -2207,6 +2216,27 @@ window.wikiUrl          = wikiUrl;
 window.applyDkpToItemDB = applyDkpToItemDB;
 window.applyPlatToItemDB= applyPlatToItemDB;
 window.renderBridgePanel= renderBridgePanel;
+window.SS_CUSTOM_ITEMS        = SS_CUSTOM_ITEMS;
+window.RACE_ABBR_MAP          = RACE_ABBR_MAP;
+// Standalone class/race usability check — mirrors itemUsableByChar inside renderUpgradesPanel
+// but takes explicit abbrs so it can be called from admin.html without the closure context.
+window.itemUsableByContext    = function(data, classAbbr, raceAbbr) {
+  if (classAbbr) {
+    const classes = (data._classes || 'ALL').toUpperCase();
+    let classOk;
+    if (classes === 'ALL') { classOk = true; }
+    else if (classes === 'NONE') { classOk = false; }
+    else if (classes.startsWith('ALL EXCEPT ')) { const ex = classes.slice(11).split(/\s+/); classOk = !ex.includes(classAbbr); }
+    else { classOk = classes.split(/\s+/).includes(classAbbr); }
+    if (!classOk) return false;
+  }
+  if (raceAbbr) {
+    const races = (data._races || 'ALL').toUpperCase();
+    if (races === 'NONE') return false;
+    if (races !== 'ALL' && !races.split(/\s+/).includes(raceAbbr)) return false;
+  }
+  return true;
+};
 window.CLASS_STAT_WEIGHTS     = CLASS_STAT_WEIGHTS;
 window.CLASS_STAT_THRESHOLDS  = CLASS_STAT_THRESHOLDS;
 window.getStatWeights    = getStatWeights;
