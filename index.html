@@ -1375,9 +1375,12 @@ function parseItemDB(csvText,filename){
   for(let i=headerIdx+1;i<lines.length;i++){
     const cols=lines[i].split(sep).map(c=>c.trim().replace(/"/g,''));
     const name=cols[colMap._nameCol];
-    const slot=cols[colMap._slotCol];
-    if(!name||!slot||name==='STAT WEIGHTS:'||name==='Name')continue;
-    if(!validSlots.has(slot.toUpperCase()))continue;
+    const rawSlot=(cols[colMap._slotCol]||'').trim().toUpperCase();
+    if(!name||name==='STAT WEIGHTS:'||name==='Name')continue;
+    // Normalize slot: FINGER→FINGERS, take first token of multi-slot, fall back to NONE
+    const SLOT_ALIAS={'FINGER':'FINGERS'};
+    const firstToken=rawSlot.split(/\s+/)[0]||'';
+    const normSlot=SLOT_ALIAS[firstToken]||(validSlots.has(firstToken)?firstToken:(validSlots.has(rawSlot)?rawSlot:'NONE'));
 
     const stats={};
     for(const[key,idx]of Object.entries(colMap)){
@@ -1386,7 +1389,7 @@ function parseItemDB(csvText,filename){
       const v=parseFloat(cols[idx]);
       if(!isNaN(v)&&v!==0)stats[key]=Math.round(v*100)/100;
     }
-    stats._slot=slot.toUpperCase();
+    stats._slot=normSlot;
     // Source: prefer in-CSV drops-from column, fall back to filename-derived class
     const fromVal=colMap._fromCol>=0?cols[colMap._fromCol]?.trim():'';
     stats._from=fromVal||'';
