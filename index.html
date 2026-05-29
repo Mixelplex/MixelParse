@@ -1344,12 +1344,21 @@ function parseItemDB(csvText,filename){
       _classCol:ci('classes'),
       _raceCol:ci('races'),
       _fromCol:ci('drops from'),
+      _wikiUrlCol:ci('wiki url'),
+      _eraCol:ci('era'),
+      _nodropCol:ci('no drop'),
+      _loreCol:ci('lore item'),
+      _magicCol:ci('magic item'),
+      _effectCol:ci('effect'),
+      _effectTypeCol:ci('effect type'),
+      _skillCol:ci('weapon skill'),
+      _hasteCol:ci('haste'),
       str:ci('str'),sta:ci('sta'),agi:ci('agi'),dex:ci('dex'),
       wis:ci('wis'),int:ci('int'),cha:ci('cha'),
       hpbonus:ci('hp'),manabonus:ci('mana'),ac:ci('ac'),
       svmagic:ci('sv magic'),svfire:ci('sv fire'),svcold:ci('sv cold'),
       svdisease:ci('sv disease'),svpoison:ci('sv poison'),
-      atk:ci('atk'),
+      atk:ci('atk'),dmg:ci('dmg'),delay:ci('delay'),
     };
   } else {
     const idxMap={str:7,sta:8,agi:9,dex:10,cha:11,int:12,wis:13,hpbonus:14,manabonus:15,svmagic:16,svfire:17,svcold:18,svpoison:19,svdisease:20,ac:6,stat_val:27,plat:30,dkp:31};
@@ -1366,7 +1375,7 @@ function parseItemDB(csvText,filename){
   function classFromFilename(fn){const low=fn.toLowerCase().replace(/[^a-z_]/g,'');for(const[k,v]of Object.entries(FILE_CLASS_MAP)){if(low.includes(k))return v;}return null;}
   function raceFromFilename(fn){const low=fn.toLowerCase().replace(/[^a-z_]/g,'');for(const[k,v]of Object.entries(FILE_RACE_MAP)){if(low.includes(k))return v;}return null;}
 
-  const STAT_COLS=new Set(['str','sta','agi','dex','wis','int','cha','hpbonus','manabonus','ac','svmagic','svfire','svcold','svdisease','svpoison','atk','stat_val','plat','dkp']);
+  const STAT_COLS=new Set(['str','sta','agi','dex','wis','int','cha','hpbonus','manabonus','ac','svmagic','svfire','svcold','svdisease','svpoison','atk','dmg','delay','stat_val','plat','dkp']);
 
   let count=0;
   const fileClass=classFromFilename(filename||'');
@@ -1398,6 +1407,18 @@ function parseItemDB(csvText,filename){
     const csvRace=colMap._raceCol>=0?cols[colMap._raceCol]?.trim():'';
     stats._classes=csvClass||'ALL';
     stats._races=csvRace||'ALL';
+    // New p1999 CSV fields
+    if(formatNew){
+      const col=n=>colMap[n]>=0?cols[colMap[n]]?.trim():'';
+      const wikiUrlVal=col('_wikiUrlCol');if(wikiUrlVal)stats._wikiUrl=wikiUrlVal;
+      const eraVal=col('_eraCol');if(eraVal)stats._era=eraVal;
+      if(col('_nodropCol'))stats._nodrop=true;
+      if(col('_loreCol'))stats._lore=true;
+      if(col('_magicCol'))stats._magic=true;
+      const effectVal=col('_effectCol');if(effectVal){stats._effect=effectVal;const et=col('_effectTypeCol');if(et)stats._effectType=et;}
+      const skillVal=col('_skillCol');if(skillVal)stats._skill=skillVal;
+      const hasteVal=col('_hasteCol');if(hasteVal){const hp=parseFloat(hasteVal);if(!isNaN(hp)&&hp!==0)stats.haste=hp;}
+    }
 
     if(!itemDB[name]){
       itemDB[name]=stats;
