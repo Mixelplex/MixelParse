@@ -3436,14 +3436,72 @@ function checkCell(status){
 
 function renderConsumesPanel(){
   const panel = document.getElementById('consumesPanel');
-  const names = charNames().filter(n => n !== '__all__');
-  if(!names.length){ panel.innerHTML='<div class="empty-state">No characters loaded.</div>'; return; }
+  const allNames = charNames().filter(n => n !== '__all__');
+  if(!allNames.length){ panel.innerHTML='<div class="empty-state">No characters loaded.</div>'; return; }
 
-  // Split consumes into sections
+  const isAll = activeTab === '__all__';
+  const names = isAll ? allNames : (activeTab ? [activeTab] : allNames);
+
   const required = RAID_CONSUMES.filter(c => c.required === true);
   const yellow   = RAID_CONSUMES.filter(c => c.required === 'yellow');
   const tracked  = RAID_CONSUMES.filter(c => c.required === 'tracked');
 
+  // ── Single-character view ──────────────────────────────────────────────────
+  if(!isAll && names.length === 1){
+    const charName = names[0];
+    function buildSingleRows(list){
+      return list.map(c => {
+        const label    = c.label || c.name;
+        const wikiName = c.anyOf ? null : c.name;
+        const nameHtml = wikiName
+          ? `<a href="${wikiUrl(wikiName)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold)">${esc(label)}</a>`
+          : esc(label);
+        const status = getConsumeStatus(c, charName);
+        const cell   = checkCell(status);
+        const statusLabel = status==='have'?'Have it':status==='yellow'?'Missing (soft)':status==='missing'?'Missing':status==='na'?'N/A':'—';
+        const statusColor = status==='have'?'var(--ok-green,#4caf7d)':status==='yellow'?'var(--warn-yellow,#c9a84c)':status==='missing'?'var(--bad-red,#c0392b)':'var(--text-muted)';
+        return `<tr>
+          <td style="width:3rem;text-align:center">${cell}</td>
+          <td>
+            <div class="rc-item-name">${nameHtml}</div>
+            <div class="rc-item-note">${esc(c.note||'')}</div>
+          </td>
+          <td style="text-align:right;color:${statusColor};font-size:.75rem;font-family:var(--cinzel);letter-spacing:.06em;white-space:nowrap">${statusLabel}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function singleDivider(label){
+      return `<tr class="rc-section-divider"><td colspan="3">${label}</td></tr>`;
+    }
+
+    panel.innerHTML = `
+      <div class="rc-header">
+        <div class="rc-title">⚔ Raid Consume Checklist — ${esc(charName)}</div>
+        <div class="rc-legend">
+          <span><span class="rc-check-green">✔</span> Have it</span>
+          <span><span class="rc-check-yellow">◐</span> Missing (soft)</span>
+          <span><span class="rc-check-red">✘</span> Missing (required)</span>
+          <span><span class="rc-check-na" style="font-size:.85rem">N/A</span> Not applicable</span>
+        </div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:4px;overflow:hidden">
+        <table class="rc-table" style="table-layout:auto">
+          <tbody>
+            ${singleDivider('REQUIRED — CORE CONSUMES')}
+            ${buildSingleRows(required)}
+            ${singleDivider('SOFT REQUIRED — CLASS CONDITIONAL')}
+            ${buildSingleRows(yellow)}
+            ${singleDivider('TRACKED UTILITY')}
+            ${buildSingleRows(tracked)}
+          </tbody>
+        </table>
+      </div>
+    `;
+    return;
+  }
+
+  // ── All-characters matrix view ─────────────────────────────────────────────
   function buildRows(list){
     return list.map(c => {
       const label = c.label || c.name;
@@ -3464,9 +3522,9 @@ function renderConsumesPanel(){
   }
 
   const colCount = names.length + 1;
-  const charHeaders = names.map(n => {
-    return `<th class="rc-th-center"><span class="rc-char-name">${esc(n)}</span></th>`;
-  }).join('');
+  const charHeaders = names.map(n =>
+    `<th class="rc-th-center"><span class="rc-char-name">${esc(n)}</span></th>`
+  ).join('');
 
   panel.innerHTML = `
     <div class="rc-header">
