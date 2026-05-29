@@ -1315,17 +1315,103 @@ window.upgRefreshStatSheet=function(){
 
 
 // ─── Item Database ─ CSV loading ──────────────────────────────────────────────
-function parseItemDB(csvText,filename){const lines=csvText.split('\n');let headerIdx=-1,headers=[],sep='\t';for(let i=0;i<Math.min(lines.length,5);i++){for(const s of['\t',',']){const cols=lines[i].split(s);if(cols[0].trim()==='Slot'&&cols[1].trim()==='Name'){headerIdx=i;sep=s;headers=cols.map(h=>h.trim().toLowerCase().replace(/"/g,''));break;}}if(headerIdx>=0)break;}if(headerIdx<0){return 0;}
-const idxMap={str:7,sta:8,agi:9,dex:10,cha:11,int:12,wis:13,hpbonus:14,manabonus:15,svmagic:16,svfire:17,svcold:18,svpoison:19,svdisease:20,ac:6,stat_val:27,plat:30,dkp:31};const col=n=>headers.indexOf(n);const dynMap={str:col('str'),sta:col('sta'),agi:col('agi'),dex:col('dex'),cha:col('cha'),int:col('int'),wis:col('wis'),hpbonus:col('hp'),manabonus:col('mana'),svmagic:col('mr'),svfire:col('fr'),svcold:col('cr'),svpoison:col('pr'),svdisease:col('dr'),ac:col('ac'),stat_val:col('stat_val'),plat:col('plat(k)'),dkp:col('dkp')};const allFound=Object.values(dynMap).filter(v=>v>=0).length>10;const colMap=allFound?dynMap:idxMap;
-const validSlots=new Set(['EAR','HEAD','FACE','NECK','SHOULDERS','ARMS','BACK','WRIST','RANGE','HANDS','PRIMARY','SECONDARY','FINGERS','CHEST','LEGS','FEET','WAIST','AMMO','TWOHANDER','ONEHANDER','SHIELD']);
-const FILE_CLASS_MAP={'bard':'BRD','cleric':'CLR','druid':'DRU','enchanter':'ENC','mage':'MAG','magician':'MAG','monk':'MNK','necromancer':'NEC','paladin':'PAL','ranger':'RNG','rogue':'ROG','shadowknight':'SHD','shadow_knight':'SHD','shaman':'SHM','warrior':'WAR','wizard':'WIZ'};
-const FILE_RACE_MAP={'human':'HUM','barbarian':'BAR','erudite':'ERU','woodelf':'WEF','wood_elf':'WEF','highelf':'HEF','high_elf':'HEF','darkelf':'DEF','dark_elf':'DEF','halfelf':'HEF','half_elf':'HEF','dwarf':'DWF','troll':'TRL','ogre':'OGR','halfling':'HFL','gnome':'GNM','iksar':'IKS'};
-function classFromFilename(fn){const low=fn.toLowerCase().replace(/[^a-z_]/g,'');for(const[k,v]of Object.entries(FILE_CLASS_MAP)){if(low.includes(k))return v;}return null;}
-function raceFromFilename(fn){const low=fn.toLowerCase().replace(/[^a-z_]/g,'');for(const[k,v]of Object.entries(FILE_RACE_MAP)){if(low.includes(k))return v;}return null;}
-let count=0;
-const fileClass=classFromFilename(filename||'');
-const fileRace=raceFromFilename(filename||'');
-for(let i=headerIdx+1;i<lines.length;i++){const cols=lines[i].split(sep).map(c=>c.trim().replace(/"/g,''));const slot=cols[0],name=cols[1];if(!slot||!name||name==='STAT WEIGHTS:'||name==='Name')continue;if(!validSlots.has(slot.toUpperCase()))continue;const stats={};for(const[key,idx]of Object.entries(colMap)){if(idx<0||idx>=cols.length)continue;const v=parseFloat(cols[idx]);if(!isNaN(v)&&v!==0)stats[key]=Math.round(v*100)/100;}stats._slot=slot.toUpperCase();stats._from=cols[2]?.trim()||'';stats._classes='ALL';stats._races='ALL';const sk=Object.keys(stats).filter(k=>!k.startsWith('_'));if(sk.length>0){if(!itemDB[name]){itemDB[name]=stats;if(fileClass)itemDB[name]._classes=fileClass;if(fileRace)itemDB[name]._races=fileRace;count++;}else{for(const[k,v]of Object.entries(stats)){if(!itemDB[name][k])itemDB[name][k]=v;}if(fileClass){const ex=itemDB[name]._classes||'ALL';if(ex==='ALL')itemDB[name]._classes=fileClass;else if(!ex.includes(fileClass))itemDB[name]._classes=ex+' '+fileClass;}if(fileRace){const exr=itemDB[name]._races||'ALL';if(exr==='ALL')itemDB[name]._races=fileRace;else if(!exr.includes(fileRace))itemDB[name]._races=exr+' '+fileRace;}}}}return count;}
+function parseItemDB(csvText,filename){
+  // Strip BOM if present
+  const text = csvText.replace(/^\uFEFF/,'');
+  const lines=text.split('\n');
+  let headerIdx=-1,headers=[],sep='\t',formatNew=false;
+
+  for(let i=0;i<Math.min(lines.length,5);i++){
+    for(const s of['\t',',']){
+      const cols=lines[i].split(s).map(c=>c.trim().replace(/"/g,''));
+      // Old format: Slot | Name | ...
+      if(cols[0]==='Slot'&&cols[1]==='Name'){headerIdx=i;sep=s;headers=cols.map(h=>h.trim().toLowerCase().replace(/"/g,''));formatNew=false;break;}
+      // New p1999 CSV format: Item Name | Wiki URL | Era | Slot | ...
+      if(cols[0].replace(/^\uFEFF/,'').toLowerCase()==='item name'&&cols[3]?.toLowerCase()==='slot'){headerIdx=i;sep=s;headers=cols.map(h=>h.trim().toLowerCase().replace(/"/g,''));formatNew=true;break;}
+    }
+    if(headerIdx>=0)break;
+  }
+  if(headerIdx<0){return 0;}
+
+  // Column index maps — old format uses fixed indices, new format uses header names
+  let colMap;
+  if(formatNew){
+    const h=headers;
+    const ci=n=>h.indexOf(n);
+    colMap={
+      _nameCol:ci('item name'),
+      _slotCol:ci('slot'),
+      _classCol:ci('classes'),
+      _raceCol:ci('races'),
+      _fromCol:ci('drops from'),
+      str:ci('str'),sta:ci('sta'),agi:ci('agi'),dex:ci('dex'),
+      wis:ci('wis'),int:ci('int'),cha:ci('cha'),
+      hpbonus:ci('hp'),manabonus:ci('mana'),ac:ci('ac'),
+      svmagic:ci('sv magic'),svfire:ci('sv fire'),svcold:ci('sv cold'),
+      svdisease:ci('sv disease'),svpoison:ci('sv poison'),
+      atk:ci('atk'),
+    };
+  } else {
+    const idxMap={str:7,sta:8,agi:9,dex:10,cha:11,int:12,wis:13,hpbonus:14,manabonus:15,svmagic:16,svfire:17,svcold:18,svpoison:19,svdisease:20,ac:6,stat_val:27,plat:30,dkp:31};
+    const col=n=>headers.indexOf(n);
+    const dynMap={str:col('str'),sta:col('sta'),agi:col('agi'),dex:col('dex'),cha:col('cha'),int:col('int'),wis:col('wis'),hpbonus:col('hp'),manabonus:col('mana'),svmagic:col('mr'),svfire:col('fr'),svcold:col('cr'),svpoison:col('pr'),svdisease:col('dr'),ac:col('ac'),stat_val:col('stat_val'),plat:col('plat(k)'),dkp:col('dkp')};
+    const allFound=Object.values(dynMap).filter(v=>v>=0).length>10;
+    colMap=allFound?dynMap:idxMap;
+    colMap._nameCol=1;colMap._slotCol=0;colMap._classCol=-1;colMap._raceCol=-1;colMap._fromCol=2;
+  }
+
+  const validSlots=new Set(['EAR','HEAD','FACE','NECK','SHOULDERS','ARMS','BACK','WRIST','RANGE','HANDS','PRIMARY','SECONDARY','FINGERS','CHEST','LEGS','FEET','WAIST','AMMO','TWOHANDER','ONEHANDER','SHIELD']);
+  const FILE_CLASS_MAP={'bard':'BRD','cleric':'CLR','druid':'DRU','enchanter':'ENC','mage':'MAG','magician':'MAG','monk':'MNK','necromancer':'NEC','paladin':'PAL','ranger':'RNG','rogue':'ROG','shadowknight':'SHD','shadow_knight':'SHD','shaman':'SHM','warrior':'WAR','wizard':'WIZ'};
+  const FILE_RACE_MAP={'human':'HUM','barbarian':'BAR','erudite':'ERU','woodelf':'WEF','wood_elf':'WEF','highelf':'HEF','high_elf':'HEF','darkelf':'DEF','dark_elf':'DEF','halfelf':'HEF','half_elf':'HEF','dwarf':'DWF','troll':'TRL','ogre':'OGR','halfling':'HFL','gnome':'GNM','iksar':'IKS'};
+  function classFromFilename(fn){const low=fn.toLowerCase().replace(/[^a-z_]/g,'');for(const[k,v]of Object.entries(FILE_CLASS_MAP)){if(low.includes(k))return v;}return null;}
+  function raceFromFilename(fn){const low=fn.toLowerCase().replace(/[^a-z_]/g,'');for(const[k,v]of Object.entries(FILE_RACE_MAP)){if(low.includes(k))return v;}return null;}
+
+  const STAT_COLS=new Set(['str','sta','agi','dex','wis','int','cha','hpbonus','manabonus','ac','svmagic','svfire','svcold','svdisease','svpoison','atk','stat_val','plat','dkp']);
+
+  let count=0;
+  const fileClass=classFromFilename(filename||'');
+  const fileRace=raceFromFilename(filename||'');
+
+  for(let i=headerIdx+1;i<lines.length;i++){
+    const cols=lines[i].split(sep).map(c=>c.trim().replace(/"/g,''));
+    const name=cols[colMap._nameCol];
+    const slot=cols[colMap._slotCol];
+    if(!name||!slot||name==='STAT WEIGHTS:'||name==='Name')continue;
+    if(!validSlots.has(slot.toUpperCase()))continue;
+
+    const stats={};
+    for(const[key,idx]of Object.entries(colMap)){
+      if(key.startsWith('_')||!STAT_COLS.has(key))continue;
+      if(idx<0||idx>=cols.length)continue;
+      const v=parseFloat(cols[idx]);
+      if(!isNaN(v)&&v!==0)stats[key]=Math.round(v*100)/100;
+    }
+    stats._slot=slot.toUpperCase();
+    // Source: prefer in-CSV drops-from column, fall back to filename-derived class
+    const fromVal=colMap._fromCol>=0?cols[colMap._fromCol]?.trim():'';
+    stats._from=fromVal||'';
+    // Classes/Races: from CSV columns if available
+    const csvClass=colMap._classCol>=0?cols[colMap._classCol]?.trim():'';
+    const csvRace=colMap._raceCol>=0?cols[colMap._raceCol]?.trim():'';
+    stats._classes=csvClass||'ALL';
+    stats._races=csvRace||'ALL';
+
+    const sk=Object.keys(stats).filter(k=>!k.startsWith('_'));
+    if(sk.length>0){
+      if(!itemDB[name]){
+        itemDB[name]=stats;
+        if(fileClass&&stats._classes==='ALL')itemDB[name]._classes=fileClass;
+        if(fileRace&&stats._races==='ALL')itemDB[name]._races=fileRace;
+        count++;
+      } else {
+        for(const[k,v]of Object.entries(stats)){if(!itemDB[name][k])itemDB[name][k]=v;}
+        if(fileClass){const ex=itemDB[name]._classes||'ALL';if(ex==='ALL')itemDB[name]._classes=fileClass;else if(!ex.includes(fileClass))itemDB[name]._classes=ex+' '+fileClass;}
+        if(fileRace){const exr=itemDB[name]._races||'ALL';if(exr==='ALL')itemDB[name]._races=fileRace;else if(!exr.includes(fileRace))itemDB[name]._races=exr+' '+fileRace;}
+      }
+    }
+  }
+  return count;
+}
 
 function applyDBToChar(charName){const equipped=getEquippedItems(charName);if(!equipped.length)return 0;if(!gearStats[charName])gearStats[charName]={};let matched=0;for(const item of equipped){if(itemDB[item.name]){gearStats[charName][item.name]=itemDB[item.name];matched++;}}return matched;}
 // saveItemDB and loadItemDB replaced by Supabase versions above
