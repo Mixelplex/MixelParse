@@ -628,8 +628,14 @@ const INT_CLASSES = new Set(['Enchanter','Magician','Necromancer','Wizard','Shad
 // Per-class stat thresholds — beyond these values a stat becomes worthless for that class.
 // Add entries here as new cases are discovered. { stat: maxUsefulValue }
 const CLASS_STAT_THRESHOLDS = {
-  'Enchanter': { cha: 205 },  // charm/mez cap — CHA above 205 has no effect at 56+
-  'Bard':      { cha: 205 },  // Bard songs use same CHA cap
+  'Enchanter':     { cha: 205 },           // charm/mez cap — CHA above 205 has no effect at 56+
+  'Bard':          { cha: 205, haste: 41 }, // Bard songs cover haste; gear haste dead at 41%
+  'Warrior':       { haste: 41 },
+  'Monk':          { haste: 41 },
+  'Rogue':         { haste: 41 },
+  'Ranger':        { haste: 41 },
+  'Paladin':       { haste: 41 },
+  'Shadow Knight': { haste: 41 },
 };
 
 // Returns a weight object for the given class, dynamically adjusting manabonus and hpbonus
