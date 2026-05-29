@@ -552,7 +552,7 @@ SUITES.itemdb = [
     // Data row: 32 cols (indices 0-31) matching header exactly
     // Slot(0) Name(1) Zone(2) Str(3) Sta(4) Agi(5) Dex(6) Cha(7) Int(8) Wis(9) HP(10) Mana(11) MR(12) FR(13) CR(14) PR(15) DR(16) _(17-26) stat_val(27) _(28) _(29) plat(k)(30) DKP(31)
     const csv = 'Slot\tName\tZone\tStr\tSta\tAgi\tDex\tCha\tInt\tWis\tHP\tMana\tMR\tFR\tCR\tPR\tDR\t_\t_\t_\t_\t_\t_\t_\t_\t_\t_\tstat_val\t_\t_\tplat(k)\tDKP\n'+
-                'HEAD\tCirclet of Test\tMistmoore\t0\t10\t0\t0\t0\t0\t20\t50\t0\t5\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t45\t0\t0\t15\t8';
+                'HEAD\tCirclet of Test\tMistmoore\t0\t10\t0\t0\t0\t0\t20\t50\t0\t5\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t45\t0\t0\t0\t15\t8';
     const before = Object.keys(A.itemDB).length;
     const count = f(csv, 'test.csv');
     const after = Object.keys(A.itemDB).length;
