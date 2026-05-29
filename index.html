@@ -1304,7 +1304,7 @@ window.upgRefreshStatSheet=function(){
   }
 
   const curHaste=cur.haste||0,projHaste=proj.haste||0;
-  function hasteRow(cVal,pVal){
+  function hasteStatRow(cVal,pVal){
     const diff=pVal-cVal,changed=diff!==0;
     const deltaHtml=changed?`<span class="upg-stat-delta${diff<0?' neg':''}">${diff>0?'+':''}${diff}%</span>`:'';
     return `<div class="upg-stat-row${changed?' upg-stat-changed':''}">`
@@ -1317,7 +1317,7 @@ window.upgRefreshStatSheet=function(){
   let html=`<div class="upg-stat-section">Combat pools</div>`;
   html+=row('AC',cur.ac||0,proj.ac||0);
   if(curHP!==null){html+=row('HP',curHP,projHP);html+=row('Mana',curMana,projMana);}
-  html+=hasteRow(curHaste,projHaste);
+  html+=hasteStatRow(curHaste,projHaste);
   const weights=getStatWeights(charClass,cur);
   html+=`<div class="upg-stat-section">Primary</div>`;
   STAT_KEYS.forEach(k=>html+=row(k.toUpperCase(),cur[k]||0,proj[k]||0,true));
