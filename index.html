@@ -904,7 +904,7 @@ function applyBaseStats(charName,parsed){
   saveState();renderStatsPanel();
 }
 
-function buildStatCards(base,charGear,charName,cls,level){const equipped=getEquippedItems(charName);const gearSum={stats:[0,0,0,0,0,0,0],resists:[0,0,0,0,0],bonuses:[0,0],haste:0};for(const item of equipped){const gs=charGear[item.name];if(!gs)continue;STAT_KEYS.forEach((k,i)=>{if(gs[k])gearSum.stats[i]+=Number(gs[k])||0;});RESIST_KEYS.forEach((k,i)=>{if(gs[k])gearSum.resists[i]+=Number(gs[k])||0;});BONUS_KEYS.forEach((k,i)=>{if(gs[k])gearSum.bonuses[i]+=Number(gs[k])||0;});const hasteSource=gs.haste!=null?gs:itemDB[item.name];if(hasteSource&&hasteSource.haste)gearSum.haste+=Number(hasteSource.haste)||0;}
+function buildStatCards(base,charGear,charName,cls,level){const equipped=getEquippedItems(charName);const gearSum={stats:[0,0,0,0,0,0,0],resists:[0,0,0,0,0],bonuses:[0,0],haste:0};for(const item of equipped){const gs=charGear[item.name];const db=itemDB[item.name]||{};if(gs){STAT_KEYS.forEach((k,i)=>{if(gs[k])gearSum.stats[i]+=Number(gs[k])||0;});RESIST_KEYS.forEach((k,i)=>{if(gs[k])gearSum.resists[i]+=Number(gs[k])||0;});BONUS_KEYS.forEach((k,i)=>{if(gs[k])gearSum.bonuses[i]+=Number(gs[k])||0;});}const hasteVal=Number(db.haste||gs?.haste||0);if(hasteVal)gearSum.haste+=hasteVal;}
 const totalSTA=Math.min(255,base.stats[1]+gearSum.stats[1]);const manaKey=WIS_CLASSES.has(cls)?'wis':'int';const manaIdx=STAT_KEYS.indexOf(manaKey);const totalManastat=Math.min(255,base.stats[manaIdx]+gearSum.stats[manaIdx]);
 const statRows=STAT_LABELS.map((lbl,i)=>{const g=gearSum.stats[i],raw=base.stats[i]+g,t=Math.min(255,raw),over=raw>255?raw-255:0,gc=g>0?'pos':g<0?'neg':'zero';const overcapHtml=over>0?`<span style="font-size:.68rem;color:#3a7a3a;font-weight:600;min-width:1.8rem;text-align:left;padding-left:.25rem">(${over})</span>`:'<span style="min-width:1.8rem"></span>';return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${base.stats[i]}</span><span class="val-gear ${gc}">${g>=0?'+':''}${g}</span><span class="val-total">${t}</span>${overcapHtml}</div></div>`;}).join('');
 const resistRows=RESIST_LABELS.map((lbl,i)=>{const g=gearSum.resists[i],t=base.resists[i]+g,gc=g>0?'pos':g<0?'neg':'zero';return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${base.resists[i]}</span><span class="val-gear ${gc}">${g>=0?'+':''}${g}</span><span class="val-total">${t}</span><span style="min-width:1.8rem"></span></div></div>`;}).join('');
@@ -954,6 +954,7 @@ function renderUpgradesPanel(){
       const data=(overrides&&overrides[dbSlot])||charGear[item.name]||itemDB[item.name]||{};
       for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)t[k]=(t[k]||0)+v;}
       const acv=Number(data.ac||0);if(acv)t.ac=(t.ac||0)+acv;
+      const hastev=Number((itemDB[item.name]||{}).haste||data.haste||0);if(hastev)t.haste=(t.haste||0)+hastev;
     }
     return t;
   }
@@ -1015,6 +1016,23 @@ function renderUpgradesPanel(){
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
       .sort((a,b)=>b._effGain-a._effGain);
     slotResults.push({item,dbSlot,currentData,candidates});
+  }
+  // Add empty slots — slots in SLOT_ORDER not covered by any equipped item
+  const EQUIPPABLE_SLOTS=['EAR','FINGERS','HEAD','FACE','NECK','SHOULDERS','ARMS','BACK','WRIST','RANGE','HANDS','PRIMARY','SECONDARY','CHEST','LEGS','FEET','WAIST','AMMO'];
+  const equippedSlots=new Set(slotResults.map(sr=>sr.dbSlot));
+  // EAR and FINGERS can be worn twice
+  const slotCounts={};slotResults.forEach(sr=>{slotCounts[sr.dbSlot]=(slotCounts[sr.dbSlot]||0)+1;});
+  for(const slot of EQUIPPABLE_SLOTS){
+    const maxCount=(slot==='EAR'||slot==='FINGERS')?2:1;
+    const currentCount=slotCounts[slot]||0;
+    for(let si=currentCount;si<maxCount;si++){
+      const candidates=(bySlot[slot]||[])
+        .filter(c=>itemUsableByChar(c))
+        .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)}))
+        .sort((a,b)=>b._effGain-a._effGain);
+      if(!candidates.length)continue;
+      slotResults.push({item:{name:'(empty)',location:slot},dbSlot:slot,currentData:{},candidates,isEmpty:true});
+    }
   }
   window._upgSlots=slotResults;
 
@@ -1262,7 +1280,7 @@ window.upgRefreshStatSheet=function(){
     const dbSlot=invSlotToDBSlot(item.location);
     equippedAcBySlot[item.name]={ac:acv,dbSlot};
     for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)cur[k]=(cur[k]||0)+v;}
-    const hasteData=data.haste!=null?data:(itemDB[item.name]||{});const hastev=Number(hasteData.haste||0);if(hastev)cur.haste=(cur.haste||0)+hastev;
+    const hastev=Number((itemDB[item.name]||{}).haste||data.haste||0);if(hastev)cur.haste=(cur.haste||0)+hastev;
   }
   // Projected: apply current alt-select choices; also tally costs
   const proj=Object.assign({},cur);
