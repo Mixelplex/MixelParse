@@ -958,10 +958,11 @@ function renderUpgradesPanel(){
     if(base){STAT_KEYS.forEach((k,i)=>{t[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{t[k]=base.resists[i]||0;});if(base.pools)t.ac=base.pools[3]||0;}
     for(const item of equipped){
       const dbSlot=invSlotToDBSlot(item.location);
-      const data=(overrides&&overrides[dbSlot])||charGear[item.name]||itemDB[item.name]||{};
-      for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)t[k]=(t[k]||0)+v;}
-      const acv=Number(data.ac||0);if(acv)t.ac=(t.ac||0)+acv;
-      const hastev=Number((itemDB[item.name]||{}).haste||data.haste||0);if(hastev)t.haste=(t.haste||0)+hastev;
+      const _ov=(overrides&&overrides[dbSlot]),_cg3=charGear[item.name]||{},_db3=itemDB[item.name]||{};
+      const data=_ov||{};
+      for(const k of STAT_KEYS_ALL){const v=_ov?Number(_ov[k]||0):(Number(_db3[k]||0)||Number(_cg3[k]||0));if(v)t[k]=(t[k]||0)+v;}
+      const acv=_ov?Number(_ov.ac||0):(Number(_db3.ac||0)||Number(_cg3.ac||0));if(acv)t.ac=(t.ac||0)+acv;
+      const hastev=Number(_db3.haste||_cg3.haste||0);if(hastev)t.haste=(t.haste||0)+hastev;
     }
     return t;
   }
@@ -1034,7 +1035,7 @@ function renderUpgradesPanel(){
   }
 
   // Build lore exclusion set — lore items already equipped can't be suggested again
-  const equippedLoreDBNames=new Set(equipped.filter(i=>(itemDB[i.name]||{})._lore).map(i=>i.name));
+  const equippedLoreDBNames=new Set(equipped.filter(i=>(itemDB[i.name]||charGear[i.name]||{})._lore).map(i=>i.name));
 
   const slotResults=[];
   for(const item of equipped){
@@ -1042,7 +1043,16 @@ function renderUpgradesPanel(){
     // Merge both sources: charGear has wiki-fetched stats, itemDB has CSV stats.
     // Neither is complete alone — charGear may lack ac (old fetches), itemDB may lack some items.
     const _cg=charGear[item.name]||{}, _db=itemDB[item.name]||{};
-    const currentData={..._db,..._cg, ac:Number(_cg.ac||_db.ac||0)||undefined};
+    // Merge: for each key, prefer whichever source has a non-zero value (itemDB wins on ties)
+    const currentData={};
+    for(const k of [...Object.keys(_db),...Object.keys(_cg)]){
+      if(k.startsWith('_'))continue;
+      currentData[k]=Number(_db[k]||0)||Number(_cg[k]||0)||_db[k]||_cg[k];
+    }
+    // Keep underscore meta from both
+    Object.assign(currentData,Object.fromEntries(Object.entries(_db).filter(([k])=>k.startsWith('_'))));
+    Object.assign(currentData,Object.fromEntries(Object.entries(_cg).filter(([k])=>k.startsWith('_'))));
+    currentData.ac=Number(_db.ac||0)||Number(_cg.ac||0)||undefined;
     const candidates=(bySlot[dbSlot]||[])
       .filter(c=>c.name!==item.name&&itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._nonp99)
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
@@ -1182,6 +1192,15 @@ function renderUpgradesPanel(){
     </div>
   </div>`;
   window.upgRefreshStatSheet();
+  // Auto-select best upgrade for each slot card
+  setTimeout(()=>{
+    for(const sr of window._upgSlots||[]){
+      if(sr.candidates&&sr.candidates.length&&sr.candidates[0]._effGain>0){
+        const sel=document.querySelector(`.upg-alt-select[data-cardid="${sr.cardId||sr.dbSlot}"]`);
+        if(sel&&sel.value===''){sel.value='0';window.upgSwapAlt(sr.dbSlot,'0',sel);}
+      }
+    }
+  },50);
 }
 
 // ─── Gear Planner: save / delete plan ─────────────────────────────────────────
@@ -1257,7 +1276,7 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
   const equipped=getEquippedItems(activeTab);
   const t={};
   if(base){STAT_KEYS.forEach((k,i)=>{t[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{t[k]=base.resists[i]||0;});if(base.pools)t.ac=base.pools[3]||0;}
-  for(const item of equipped){const data=charGear[item.name]||itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)t[k]=(t[k]||0)+v;}const acv=Number(data.ac||0);if(acv)t.ac=(t.ac||0)+acv;}
+  for(const item of equipped){const _cg2=charGear[item.name]||{},_db2=itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){const v=Number(_db2[k]||0)||Number(_cg2[k]||0);if(v)t[k]=(t[k]||0)+v;}const acv=Number(_db2.ac||0)||Number(_cg2.ac||0);if(acv)t.ac=(t.ac||0)+acv;}
   const {currentData}=sr;
   const allKeys=['ac',...STAT_KEYS_ALL,'haste'].filter(k=>(currentData[k]||0)!==0||(cand[k]||0)!==0);
   let statsHtml='';
@@ -1308,8 +1327,8 @@ window.upgRefreshStatSheet=function(){
   // Build a lookup of equipped item AC so proj.ac delta uses the same source as cur.ac
   const equippedAcBySlot={};
   for(const item of equipped){
-    const data=charGear[item.name]||itemDB[item.name]||{};
-    const acv=Number(data.ac||0);
+    const _cg4=charGear[item.name]||{},_db4=itemDB[item.name]||{};
+    const acv=Number(_db4.ac||0)||Number(_cg4.ac||0);
     if(acv)cur.ac=(cur.ac||0)+acv;
     const dbSlot=invSlotToDBSlot(item.location);
     equippedAcBySlot[item.name]={ac:acv,dbSlot};
