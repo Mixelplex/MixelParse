@@ -1884,14 +1884,17 @@ function setFaction(charName, factionName, level){
 function renderTovBar(){
   const container=document.getElementById('tovRows');
   if(!container)return;
-  const names=charNames().filter(n=>n!=='__all__');
-  if(!names.length){container.innerHTML='<div class="watchlist-empty">No characters loaded.</div>';return;}
+  const allNames=charNames().filter(n=>n!=='__all__');
+  if(!allNames.length){container.innerHTML='<div class="watchlist-empty">No characters loaded.</div>';return;}
+  const isAll=activeTab==='__all__';
+  const names=isAll?allNames:(activeTab?[activeTab]:allNames);
   container.innerHTML=names.map(n=>{
     const lvl=getFaction(n,'Claws of Veeshan');
     const color=factionColor(lvl);
     const cls=color==='green'?'tov-chip-ally':color==='red'?'tov-chip-warn':color==='yellow'?'tov-chip-yellow':'tov-chip-none';
     const icon=color==='green'?'✔':color==='red'?'✘':'◐';
-    return `<div class="watchlist-row"><div class="watchlist-item-name" style="min-width:120px">${esc(n)}</div><span class="tov-chip ${cls}">${icon} ${esc(lvl==='Ready to Attack'?'KOS':lvl||'Not Set')}</span></div>`;
+    const label=isAll?esc(n):'Claws of Veeshan';
+    return `<div class="watchlist-row"><div class="watchlist-item-name" style="min-width:120px">${label}</div><span class="tov-chip ${cls}">${icon} ${esc(lvl==='Ready to Attack'?'KOS':lvl||'Not Set')}</span></div>`;
   }).join('');
 }
 
