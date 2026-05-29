@@ -2311,8 +2311,13 @@ async function loadDkpFromSupabase(){
 
 async function saveDkpToSupabase(){
   try{
-    await sb.from('guild_data').upsert({pool:'SoV',dkp_lookup:dkpLookup,dkp_meta:dkpMeta,updated_at:new Date().toISOString()},{onConflict:'pool'});
-  }catch(e){console.error('DKP save error',e);}
+    // Use update to avoid clobbering raid_sessions; insert if row doesn't exist yet
+    const{error}=await sb.from('guild_data').update({dkp_lookup:dkpLookup,dkp_meta:dkpMeta,updated_at:new Date().toISOString()}).eq('pool','SoV');
+    if(error&&error.code==='PGRST116'){
+      // Row doesn't exist yet — insert it
+      await sb.from('guild_data').insert({pool:'SoV',dkp_lookup:dkpLookup,dkp_meta:dkpMeta,updated_at:new Date().toISOString()});
+    }
+  }catch(e){console.warn('[DKP] Save error',e);}
 }
 
 function getDkpRows(){
@@ -2789,7 +2794,11 @@ async function loadKillsFromSupabase(){
 
 async function saveSessionsToSupabase(){
   try{
-    await sb.from('guild_data').upsert({pool:'SoV',raid_sessions:raidSessions,updated_at:new Date().toISOString()},{onConflict:'pool'});
+    // Use update to avoid clobbering dkp_lookup; insert if row doesn't exist yet
+    const{error}=await sb.from('guild_data').update({raid_sessions:raidSessions,updated_at:new Date().toISOString()}).eq('pool','SoV');
+    if(error&&error.code==='PGRST116'){
+      await sb.from('guild_data').insert({pool:'SoV',raid_sessions:raidSessions,updated_at:new Date().toISOString()});
+    }
     renderKillsPanel();
   }catch(e){console.error('[Sessions] Save error',e);}
 }
