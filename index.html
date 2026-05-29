@@ -1399,18 +1399,15 @@ function parseItemDB(csvText,filename){
     stats._classes=csvClass||'ALL';
     stats._races=csvRace||'ALL';
 
-    const sk=Object.keys(stats).filter(k=>!k.startsWith('_'));
-    if(sk.length>0){
-      if(!itemDB[name]){
-        itemDB[name]=stats;
-        if(fileClass&&stats._classes==='ALL')itemDB[name]._classes=fileClass;
-        if(fileRace&&stats._races==='ALL')itemDB[name]._races=fileRace;
-        count++;
-      } else {
-        for(const[k,v]of Object.entries(stats)){if(!itemDB[name][k])itemDB[name][k]=v;}
-        if(fileClass){const ex=itemDB[name]._classes||'ALL';if(ex==='ALL')itemDB[name]._classes=fileClass;else if(!ex.includes(fileClass))itemDB[name]._classes=ex+' '+fileClass;}
-        if(fileRace){const exr=itemDB[name]._races||'ALL';if(exr==='ALL')itemDB[name]._races=fileRace;else if(!exr.includes(fileRace))itemDB[name]._races=exr+' '+fileRace;}
-      }
+    if(!itemDB[name]){
+      itemDB[name]=stats;
+      if(fileClass&&stats._classes==='ALL')itemDB[name]._classes=fileClass;
+      if(fileRace&&stats._races==='ALL')itemDB[name]._races=fileRace;
+      count++;
+    } else {
+      for(const[k,v]of Object.entries(stats)){if(!itemDB[name][k])itemDB[name][k]=v;}
+      if(fileClass){const ex=itemDB[name]._classes||'ALL';if(ex==='ALL')itemDB[name]._classes=fileClass;else if(!ex.includes(fileClass))itemDB[name]._classes=ex+' '+fileClass;}
+      if(fileRace){const exr=itemDB[name]._races||'ALL';if(exr==='ALL')itemDB[name]._races=fileRace;else if(!exr.includes(fileRace))itemDB[name]._races=exr+' '+fileRace;}
     }
   }
   return count;
@@ -1439,7 +1436,7 @@ document.getElementById('itemDbClose').addEventListener('click',()=>document.get
 document.getElementById('itemDbOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('itemDbOverlay'))document.getElementById('itemDbOverlay').classList.remove('open');});
 document.getElementById('dbLoadBtn').addEventListener('click',()=>document.getElementById('dbFileInput').click());
 document.getElementById('dbFileInput').addEventListener('change',e=>{const files=[...e.target.files];if(!files.length)return;const status=document.getElementById('itemDbStatus');status.textContent=`Loading ${files.length} file${files.length>1?'s':''}...`;let loaded=0;files.forEach(file=>{const reader=new FileReader();reader.onload=ev=>{const count=parseItemDB(ev.target.result,file.name);if(count>0&&!itemDBSources.includes(file.name))itemDBSources.push(file.name);if(++loaded===files.length){saveItemDB();updateItemDbModal();charNames().forEach(cn=>{applyDBToChar(cn);if(!charMeta[cn])charMeta[cn]={};charMeta[cn].gearFetched=true;});saveState();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();}};reader.readAsText(file);});e.target.value='';});
-document.getElementById('clearDBBtn').addEventListener('click',()=>{confirmAction('Clear the entire item database?',()=>{itemDB={};itemDBSources=[];saveItemDB();updateItemDbModal();if(activeSub==='stats')renderStatsPanel();});});
+document.getElementById('clearDBBtn').addEventListener('click',()=>{confirmAction('Clear the entire item database?',async()=>{itemDB={};itemDBSources=[];updateItemDbModal();if(activeSub==='stats')renderStatsPanel();if(currentUser){try{await sb.from('item_db').delete().neq('item_name','__never__');console.log('[ItemDB] Cleared from Supabase');}catch(e){console.warn('[ItemDB] Clear error',e);}}});});
 
 // ─── Fetch Gear Stats ─────────────────────────────────────────────────────────
 const CORS_PROXIES=['https://corsproxy.io/?','https://api.allorigins.win/raw?url='];
