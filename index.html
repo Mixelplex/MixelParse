@@ -1012,20 +1012,23 @@ function renderUpgradesPanel(){
   // Build candidate list per slot
   const bySlot={};
   // Build bySlot, deduplicating stat-identical items by preferring Chardok Revamp Era
+  // Use a Map keyed by slot+sig for O(1) lookup instead of O(n) findIndex
   const ERA_PREF=['Chardok Revamp Era','Velious Era','Kunark Era','Classic Era'];
+  const SIG_KEYS=['ac','hpbonus','manabonus','str','sta','agi','dex','wis','int','cha','svmagic','svfire','svcold','svdisease','svpoison','haste','dmg','delay'];
+  const sigMap={};  // slot -> Map<sig, index>
   for(const[itemName,data]of Object.entries(itemDB)){
     const slot=data._slot;if(!slot)continue;
-    if(!bySlot[slot])bySlot[slot]=[];
-    // Check if a stat-identical item already exists in this slot
-    const statSig=k=>['ac','hpbonus','manabonus','str','sta','agi','dex','wis','int','cha','svmagic','svfire','svcold','svdisease','svpoison','haste','dmg','delay'].map(s=>data[s]||0).join(',');
-    const sig=statSig(data);
-    const dupIdx=bySlot[slot].findIndex(ex=>['ac','hpbonus','manabonus','str','sta','agi','dex','wis','int','cha','svmagic','svfire','svcold','svdisease','svpoison','haste','dmg','delay'].map(s=>ex[s]||0).join(',')===sig);
-    if(dupIdx>=0){
-      const existing=bySlot[slot][dupIdx];
+    if(!bySlot[slot]){bySlot[slot]=[];sigMap[slot]=new Map();}
+    const sig=SIG_KEYS.map(s=>data[s]||0).join(',');
+    const slotMap=sigMap[slot];
+    if(slotMap.has(sig)){
+      const idx=slotMap.get(sig);
+      const existing=bySlot[slot][idx];
       const newPref=ERA_PREF.indexOf(data._era||'');
       const exPref=ERA_PREF.indexOf(existing._era||'');
-      if(newPref>=0&&(exPref<0||newPref<exPref))bySlot[slot][dupIdx]={name:itemName,...data};
+      if(newPref>=0&&(exPref<0||newPref<exPref))bySlot[slot][idx]={name:itemName,...data};
     } else {
+      slotMap.set(sig,bySlot[slot].length);
       bySlot[slot].push({name:itemName,...data});
     }
   }
