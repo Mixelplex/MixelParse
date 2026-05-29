@@ -2311,11 +2311,17 @@ async function loadDkpFromSupabase(){
 
 async function saveDkpToSupabase(){
   try{
-    // Use update to avoid clobbering raid_sessions; insert if row doesn't exist yet
-    const{error}=await sb.from('guild_data').update({dkp_lookup:dkpLookup,dkp_meta:dkpMeta,updated_at:new Date().toISOString()}).eq('pool','SoV');
-    if(error&&error.code==='PGRST116'){
-      // Row doesn't exist yet — insert it
-      await sb.from('guild_data').insert({pool:'SoV',dkp_lookup:dkpLookup,dkp_meta:dkpMeta,updated_at:new Date().toISOString()});
+    // Check if row exists first
+    const{data:existing,error:selErr}=await sb.from('guild_data').select('pool').eq('pool','SoV').maybeSingle();
+    if(selErr){console.warn('[DKP] Select error',selErr);return;}
+    if(existing){
+      const{error}=await sb.from('guild_data').update({dkp_lookup:dkpLookup,dkp_meta:dkpMeta,updated_at:new Date().toISOString()}).eq('pool','SoV');
+      if(error)console.warn('[DKP] Update error',error);
+      else console.log('[DKP] Saved via update');
+    } else {
+      const{error}=await sb.from('guild_data').insert({pool:'SoV',dkp_lookup:dkpLookup,dkp_meta:dkpMeta,updated_at:new Date().toISOString()});
+      if(error)console.warn('[DKP] Insert error',error);
+      else console.log('[DKP] Saved via insert');
     }
   }catch(e){console.warn('[DKP] Save error',e);}
 }
