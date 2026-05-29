@@ -1038,7 +1038,7 @@ function renderUpgradesPanel(){
     const _cg=charGear[item.name]||{}, _db=itemDB[item.name]||{};
     const currentData={..._db,..._cg, ac:Number(_cg.ac||_db.ac||0)||undefined};
     const candidates=(bySlot[dbSlot]||[])
-      .filter(c=>c.name!==item.name&&itemUsableByChar(c))
+      .filter(c=>c.name!==item.name&&itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._nonp99)
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
       .sort((a,b)=>b._effGain-a._effGain);
     slotResults.push({item,dbSlot,currentData,candidates});
@@ -1053,7 +1053,7 @@ function renderUpgradesPanel(){
     const currentCount=slotCounts[slot]||0;
     for(let si=currentCount;si<maxCount;si++){
       const candidates=(bySlot[slot]||[])
-        .filter(c=>itemUsableByChar(c))
+        .filter(c=>itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._nonp99)
         .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)}))
         .sort((a,b)=>b._effGain-a._effGain);
       if(!candidates.length)continue;
@@ -1415,6 +1415,7 @@ function parseItemDB(csvText,filename){
       _eraCol:ci('era'),
       _nodropCol:ci('no drop'),
       _loreCol:ci('lore item'),
+      _categoriesCol:ci('categories'),
       _magicCol:ci('magic item'),
       _effectCol:ci('effect'),
       _effectTypeCol:ci('effect type'),
@@ -1482,6 +1483,9 @@ function parseItemDB(csvText,filename){
       const eraVal=col('_eraCol');if(eraVal)stats._era=eraVal;
       if(col('_nodropCol'))stats._nodrop=true;
       if(col('_loreCol'))stats._lore=true;
+      const cats=col('_categoriesCol')||'';
+      if(cats.includes('Legacy Items'))stats._legacy=true;
+      if(cats.includes('Non-P99'))stats._nonp99=true;
       if(col('_magicCol'))stats._magic=true;
       const effectVal=col('_effectCol');if(effectVal){stats._effect=effectVal;const et=col('_effectTypeCol');if(et)stats._effectType=et;}
       const skillVal=col('_skillCol');if(skillVal)stats._skill=skillVal;
