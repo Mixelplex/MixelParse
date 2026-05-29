@@ -1353,7 +1353,7 @@ function parseItemDB(csvText,filename){
     };
   } else {
     const idxMap={str:7,sta:8,agi:9,dex:10,cha:11,int:12,wis:13,hpbonus:14,manabonus:15,svmagic:16,svfire:17,svcold:18,svpoison:19,svdisease:20,ac:6,stat_val:27,plat:30,dkp:31};
-    const col=n=>headers.indexOf(n);
+    const col=n=>headers.indexOf(n.toLowerCase());
     const dynMap={str:col('str'),sta:col('sta'),agi:col('agi'),dex:col('dex'),cha:col('cha'),int:col('int'),wis:col('wis'),hpbonus:col('hp'),manabonus:col('mana'),svmagic:col('mr'),svfire:col('fr'),svcold:col('cr'),svpoison:col('pr'),svdisease:col('dr'),ac:col('ac'),stat_val:col('stat_val'),plat:col('plat(k)'),dkp:col('dkp')};
     const allFound=Object.values(dynMap).filter(v=>v>=0).length>10;
     colMap=allFound?dynMap:idxMap;
