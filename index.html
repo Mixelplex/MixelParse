@@ -1194,6 +1194,8 @@ function renderUpgradesPanel(){
   window.upgRefreshStatSheet();
   // Auto-select best upgrade for each slot card
   setTimeout(()=>{
+    // First reset all selects so stale saved values don't point to wrong candidates after filter changes
+    document.querySelectorAll('.upg-alt-select').forEach(s=>{s.value='';});
     for(const sr of window._upgSlots||[]){
       if(sr.candidates&&sr.candidates.length&&sr.candidates[0]._effGain>0){
         const sel=document.querySelector(`.upg-alt-select[data-cardid="${sr.cardId||sr.dbSlot}"]`);
@@ -1299,6 +1301,9 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
     const sc=cand._effGain>=20?'upg-score-hi':cand._effGain>=8?'upg-score-mid':'upg-score-lo';
     scoreEl.className='upg-score-pill '+sc;
     scoreEl.textContent=(cand._effGain>=0?'+':'')+cand._effGain+' pts';
+    // Show downgrade visually as red/muted — don't hide it but make it clear
+    if(cand._effGain<0){scoreEl.style.cssText='background:rgba(120,40,40,.18);border-color:#8a4040;color:#8a4040';}
+    else{scoreEl.style.cssText='';}
   }
   if(altRowEl){
     const opts=`<option value="">— Select —</option>`+sr.candidates.map((c,i)=>`<option value="${i}"${i===selIdx?' selected':''}>${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join('');
