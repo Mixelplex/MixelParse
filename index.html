@@ -934,11 +934,15 @@ function renderUpgradesPanel(){
   function itemUsableByChar(data){
     if(!charClassAbbr)return true;
     const classes=(data._classes||'ALL').toUpperCase();
-    const classOk=classes==='ALL'||classes.split(' ').includes(charClassAbbr);
+    let classOk;
+    if(classes==='ALL'){classOk=true;}
+    else if(classes==='NONE'){classOk=false;}
+    else if(classes.startsWith('ALL EXCEPT ')){const excluded=classes.slice('ALL EXCEPT '.length).split(/\s+/);classOk=!excluded.includes(charClassAbbr);}
+    else{classOk=classes.split(/\s+/).includes(charClassAbbr);}
     if(!classOk)return false;
     if(!charRaceAbbr)return true;
     const races=(data._races||'ALL').toUpperCase();
-    return races==='ALL'||races.split(' ').includes(charRaceAbbr);
+    return races==='ALL'?true:races==='NONE'?false:races.split(/\s+/).includes(charRaceAbbr);
   }
   function invSlotToDBSlot(loc){const s=loc.toUpperCase();if(s.includes('EAR'))return'EAR';if(s.includes('FINGER'))return'FINGERS';if(s.includes('WRIST'))return'WRIST';return s;}
 
@@ -1456,7 +1460,7 @@ document.getElementById('gearReportsBtn').addEventListener('click',()=>{
 document.getElementById('itemDbClose').addEventListener('click',()=>document.getElementById('itemDbOverlay').classList.remove('open'));
 document.getElementById('itemDbOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('itemDbOverlay'))document.getElementById('itemDbOverlay').classList.remove('open');});
 document.getElementById('dbLoadBtn').addEventListener('click',()=>document.getElementById('dbFileInput').click());
-document.getElementById('dbFileInput').addEventListener('change',e=>{const files=[...e.target.files];if(!files.length)return;const status=document.getElementById('itemDbStatus');status.textContent=`Loading ${files.length} file${files.length>1?'s':''}...`;let loaded=0;files.forEach(file=>{const reader=new FileReader();reader.onload=ev=>{const count=parseItemDB(ev.target.result,file.name);if(count>0&&!itemDBSources.includes(file.name))itemDBSources.push(file.name);if(++loaded===files.length){saveItemDB();updateItemDbModal();charNames().forEach(cn=>{applyDBToChar(cn);if(!charMeta[cn])charMeta[cn]={};charMeta[cn].gearFetched=true;});saveState();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();}};reader.readAsText(file);});e.target.value='';});
+document.getElementById('dbFileInput').addEventListener('change',e=>{const files=[...e.target.files];if(!files.length)return;const status=document.getElementById('itemDbStatus');status.textContent=`Loading ${files.length} file${files.length>1?'s':''}...`;let loaded=0;files.forEach(file=>{const reader=new FileReader();reader.onload=ev=>{const count=parseItemDB(ev.target.result,file.name);if(count>0&&!itemDBSources.includes(file.name))itemDBSources.push(file.name);if(++loaded===files.length){applyDkpToItemDB();applyPlatToItemDB();saveItemDB();updateItemDbModal();charNames().forEach(cn=>{applyDBToChar(cn);if(!charMeta[cn])charMeta[cn]={};charMeta[cn].gearFetched=true;});saveState();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();}};reader.readAsText(file);});e.target.value='';});
 document.getElementById('clearDBBtn').addEventListener('click',()=>{confirmAction('Clear the entire item database?',async()=>{itemDB={};itemDBSources=[];updateItemDbModal();if(activeSub==='stats')renderStatsPanel();if(currentUser){try{await sb.from('item_db').delete().neq('item_name','__never__');console.log('[ItemDB] Cleared from Supabase');}catch(e){console.warn('[ItemDB] Clear error',e);}}});});
 
 // ─── Fetch Gear Stats ─────────────────────────────────────────────────────────
