@@ -1033,6 +1033,9 @@ function renderUpgradesPanel(){
     }
   }
 
+  // Build lore exclusion set — lore items already equipped can't be suggested again
+  const equippedLoreDBNames=new Set(equipped.filter(i=>(itemDB[i.name]||{})._lore).map(i=>i.name));
+
   const slotResults=[];
   for(const item of equipped){
     const dbSlot=invSlotToDBSlot(item.location);
