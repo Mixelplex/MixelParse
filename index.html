@@ -624,6 +624,7 @@ const CLASS_STAT_WEIGHTS = {
 
 // INT/WIS caster classes — primary stat is the mana stat
 const INT_CLASSES = new Set(['Enchanter','Magician','Necromancer','Wizard','Shadow Knight','Bard']);
+const MANA_CLASSES = new Set([...WIS_CLASSES,...INT_CLASSES]);
 
 // Per-class stat thresholds — beyond these values a stat becomes worthless for that class.
 // Add entries here as new cases are discovered. { stat: maxUsefulValue }
@@ -914,7 +915,7 @@ function buildStatCards(base,charGear,charName,cls,level){const equipped=getEqui
 const totalSTA=Math.min(255,base.stats[1]+gearSum.stats[1]);const manaKey=WIS_CLASSES.has(cls)?'wis':'int';const manaIdx=STAT_KEYS.indexOf(manaKey);const totalManastat=Math.min(255,base.stats[manaIdx]+gearSum.stats[manaIdx]);
 const statRows=STAT_LABELS.map((lbl,i)=>{const g=gearSum.stats[i],raw=base.stats[i]+g,t=Math.min(255,raw),over=raw>255?raw-255:0,gc=g>0?'pos':g<0?'neg':'zero';const overcapHtml=over>0?`<span style="font-size:.68rem;color:#3a7a3a;font-weight:600;min-width:1.8rem;text-align:left;padding-left:.25rem">(${over})</span>`:'<span style="min-width:1.8rem"></span>';return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${base.stats[i]}</span><span class="val-gear ${gc}">${g>=0?'+':''}${g}</span><span class="val-total">${t}</span>${overcapHtml}</div></div>`;}).join('');
 const resistRows=RESIST_LABELS.map((lbl,i)=>{const g=gearSum.resists[i],t=base.resists[i]+g,gc=g>0?'pos':g<0?'neg':'zero';return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${base.resists[i]}</span><span class="val-gear ${gc}">${g>=0?'+':''}${g}</span><span class="val-total">${t}</span><span style="min-width:1.8rem"></span></div></div>`;}).join('');
-const poolRows=POOL_LABELS.map((lbl,i)=>{const base_v=base.pools?.[i]||0;let gearBonus=i<2?gearSum.bonuses[i]:0;let total;if(i===0&&cls&&level&&HP_RATIOS[cls])total=calcHP(totalSTA,cls,level)+gearBonus;else if(i===1&&cls&&level)total=calcMana(totalManastat,level)+gearBonus;else total=base_v+gearBonus;const gc=gearBonus>0?'pos':gearBonus<0?'neg':'zero';return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${base_v}</span><span class="val-gear ${gc}">${gearBonus>=0?'+':''}${gearBonus}</span><span class="val-total">${total}</span><span style="min-width:1.8rem"></span></div></div>`;}).join('');
+const poolRows=POOL_LABELS.map((lbl,i)=>{const base_v=base.pools?.[i]||0;let gearBonus=i<2?gearSum.bonuses[i]:0;let total;if(i===0&&cls&&level&&HP_RATIOS[cls])total=calcHP(totalSTA,cls,level)+gearBonus;else if(i===1&&cls&&level&&MANA_CLASSES.has(cls))total=calcMana(totalManastat,level)+gearBonus;else total=base_v+gearBonus;const gc=gearBonus>0?'pos':gearBonus<0?'neg':'zero';return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${base_v}</span><span class="val-gear ${gc}">${gearBonus>=0?'+':''}${gearBonus}</span><span class="val-total">${total}</span><span style="min-width:1.8rem"></span></div></div>`;}).join('');
 const hasteRow=`<div class="stat-row"><span class="stat-row-label">Haste</span><div class="stat-row-vals"><span class="val-base">&mdash;</span><span class="val-gear ${gearSum.haste>0?'pos':'zero'}">${gearSum.haste>0?'+'+gearSum.haste+'%':'0%'}</span><span class="val-total">${gearSum.haste}%</span><span style="min-width:1.8rem"></span></div></div>`;const breakdownRows=equipped.map(item=>{const gs=charGear[item.name];if(!gs)return `<tr><td>${esc(item.name)}</td>${STAT_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}${RESIST_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}${BONUS_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}</tr>`;return `<tr><td>${esc(item.name)}</td>${STAT_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}${RESIST_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}${BONUS_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}</tr>`;}).join('');
 return `<div class="stat-grid"><div class="stat-card"><div class="stat-card-title">PRIMARY STATS</div>${statRows}</div><div class="stat-card"><div class="stat-card-title">RESISTANCES</div>${resistRows}</div><div class="stat-card"><div class="stat-card-title">POOLS &amp; COMBAT</div>${poolRows}${hasteRow}</div></div><div class="legend">Base &middot; <span style="color:#3a7a3a">+Gear</span> &middot; <span style="color:var(--gold-light)">Total</span>${cls&&level?' &middot; HP/Mana calculated from stats at level '+level:' <span style="color:#a06020">&mdash; set class &amp; level for calculated HP/Mana</span>'}</div>${equipped.length?`<div class="gear-breakdown"><div class="gear-breakdown-title">GEAR BREAKDOWN</div><div style="overflow-x:auto"><table class="gear-table"><thead><tr><th>Item</th>${STAT_LABELS.map(l=>`<th>${l.slice(0,3)}</th>`).join('')}${RESIST_LABELS.map(l=>`<th>Sv${l.slice(0,2)}</th>`).join('')}<th>+HP</th><th>+Mana</th></tr></thead><tbody>${breakdownRows}</tbody></table></div></div>`:''}`;
 }
@@ -1121,7 +1122,7 @@ function renderUpgradesPanel(){
   function buildStatSheet(){
     const manaKey=WIS_CLASSES.has(charClass)?'wis':'int';
     const curHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,baselineTotals.sta||0),charClass,charLevel)+(baselineTotals.hpbonus||0):null;
-    const curMana=charClass?calcMana(Math.min(255,baselineTotals[manaKey]||0),charLevel)+(baselineTotals.manabonus||0):null;
+    const curMana=(charClass&&MANA_CLASSES.has(charClass))?calcMana(Math.min(255,baselineTotals[manaKey]||0),charLevel)+(baselineTotals.manabonus||0):null;
     function capFmtB(v){return v>255?`255 <span style="font-size:.75em;color:#3a7a3a">(${v-255})</span>`:String(v);}
     function row(label,cv,cap=false){
       const disp=cap?capFmtB(cv):cv;
@@ -1316,8 +1317,8 @@ window.upgRefreshStatSheet=function(){
   const manaKey=WIS_CLASSES.has(charClass)?'wis':'int';
   const curHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,cur.sta||0),charClass,charLevel)+(cur.hpbonus||0):null;
   const projHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,proj.sta||0),charClass,charLevel)+(proj.hpbonus||0):null;
-  const curMana=charClass?calcMana(Math.min(255,cur[manaKey]||0),charLevel)+(cur.manabonus||0):null;
-  const projMana=charClass?calcMana(Math.min(255,proj[manaKey]||0),charLevel)+(proj.manabonus||0):null;
+  const curMana=(charClass&&MANA_CLASSES.has(charClass))?calcMana(Math.min(255,cur[manaKey]||0),charLevel)+(cur.manabonus||0):null;
+  const projMana=(charClass&&MANA_CLASSES.has(charClass))?calcMana(Math.min(255,proj[manaKey]||0),charLevel)+(proj.manabonus||0):null;
 
   function capFmt(v){return v>255?`255 <span style="font-size:.75em;color:#3a7a3a">(${v-255})</span>`:String(v);}
   function row(label,cVal,pVal,cap=false){
