@@ -1259,6 +1259,7 @@ window.upgRefreshStatSheet=function(){
     const dbSlot=invSlotToDBSlot(item.location);
     equippedAcBySlot[item.name]={ac:acv,dbSlot};
     for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)cur[k]=(cur[k]||0)+v;}
+    const hastev=Number(data.haste||0);if(hastev)cur.haste=(cur.haste||0)+hastev;
   }
   // Projected: apply current alt-select choices; also tally costs
   const proj=Object.assign({},cur);
@@ -1272,6 +1273,7 @@ window.upgRefreshStatSheet=function(){
       if(!cand)continue;
       const curData=sr.currentData;
       for(const k of STAT_KEYS_ALL){proj[k]=(proj[k]||0)-Number(curData[k]||0)+Number(cand[k]||0);}
+      proj.haste=(proj.haste||0)-Number(curData.haste||0)+Number(cand.haste||0);
       // Use the AC that was actually added into cur.ac for this slot (same source as cur build)
       const equippedItem=sr.item;
       const curItemAc=equippedAcBySlot[equippedItem.name]?.ac||0;
@@ -1301,9 +1303,21 @@ window.upgRefreshStatSheet=function(){
     </div>`;
   }
 
+  const curHaste=cur.haste||0,projHaste=proj.haste||0;
+  function hasteRow(cVal,pVal){
+    const diff=pVal-cVal,changed=diff!==0;
+    const deltaHtml=changed?`<span class="upg-stat-delta${diff<0?' neg':''}">${diff>0?'+':''}${diff}%</span>`:'';
+    return `<div class="upg-stat-row${changed?' upg-stat-changed':''}">`
+      +`<span class="upg-stat-key">Haste</span>`
+      +`<span class="upg-stat-vals">`
+      +`<span class="upg-stat-cur-val">${cVal}%</span>`
+      +`<span class="upg-stat-proj-val">${pVal}%${deltaHtml}</span>`
+      +`</span></div>`;
+  }
   let html=`<div class="upg-stat-section">Combat pools</div>`;
   html+=row('AC',cur.ac||0,proj.ac||0);
   if(curHP!==null){html+=row('HP',curHP,projHP);html+=row('Mana',curMana,projMana);}
+  html+=hasteRow(curHaste,projHaste);
   const weights=getStatWeights(charClass,cur);
   html+=`<div class="upg-stat-section">Primary</div>`;
   STAT_KEYS.forEach(k=>html+=row(k.toUpperCase(),cur[k]||0,proj[k]||0,true));
