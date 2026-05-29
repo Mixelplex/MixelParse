@@ -1396,6 +1396,7 @@ function parseItemDB(csvText,filename){
       _effectTypeCol:ci('effect type'),
       _skillCol:ci('weapon skill'),
       _hasteCol:ci('haste'),
+      haste:ci('haste'),
       str:ci('str'),sta:ci('sta'),agi:ci('agi'),dex:ci('dex'),
       wis:ci('wis'),int:ci('int'),cha:ci('cha'),
       hpbonus:ci('hp'),manabonus:ci('mana'),ac:ci('ac'),
@@ -1406,7 +1407,7 @@ function parseItemDB(csvText,filename){
   } else {
     const idxMap={str:7,sta:8,agi:9,dex:10,cha:11,int:12,wis:13,hpbonus:14,manabonus:15,svmagic:16,svfire:17,svcold:18,svpoison:19,svdisease:20,ac:6,stat_val:27,plat:30,dkp:31};
     const col=n=>headers.indexOf(n.toLowerCase());
-    const dynMap={str:col('str'),sta:col('sta'),agi:col('agi'),dex:col('dex'),cha:col('cha'),int:col('int'),wis:col('wis'),hpbonus:col('hp'),manabonus:col('mana'),svmagic:col('mr'),svfire:col('fr'),svcold:col('cr'),svpoison:col('pr'),svdisease:col('dr'),ac:col('ac'),stat_val:col('stat_val'),plat:col('plat(k)'),dkp:col('dkp')};
+    const dynMap={str:col('str'),sta:col('sta'),agi:col('agi'),dex:col('dex'),cha:col('cha'),int:col('int'),wis:col('wis'),hpbonus:col('hp'),manabonus:col('mana'),svmagic:col('mr'),svfire:col('fr'),svcold:col('cr'),svpoison:col('pr'),svdisease:col('dr'),ac:col('ac'),stat_val:col('stat_val'),plat:col('plat(k)'),dkp:col('dkp'),haste:col('haste')};
     const allFound=Object.values(dynMap).filter(v=>v>=0).length>10;
     colMap=allFound?dynMap:idxMap;
     colMap._nameCol=1;colMap._slotCol=0;colMap._classCol=-1;colMap._raceCol=-1;colMap._fromCol=2;
@@ -1418,7 +1419,7 @@ function parseItemDB(csvText,filename){
   function classFromFilename(fn){const low=fn.toLowerCase().replace(/[^a-z_]/g,'');for(const[k,v]of Object.entries(FILE_CLASS_MAP)){if(low.includes(k))return v;}return null;}
   function raceFromFilename(fn){const low=fn.toLowerCase().replace(/[^a-z_]/g,'');for(const[k,v]of Object.entries(FILE_RACE_MAP)){if(low.includes(k))return v;}return null;}
 
-  const STAT_COLS=new Set(['str','sta','agi','dex','wis','int','cha','hpbonus','manabonus','ac','svmagic','svfire','svcold','svdisease','svpoison','atk','dmg','delay','stat_val','plat','dkp']);
+  const STAT_COLS=new Set(['str','sta','agi','dex','wis','int','cha','hpbonus','manabonus','ac','svmagic','svfire','svcold','svdisease','svpoison','atk','dmg','delay','stat_val','plat','dkp','haste']);
 
   let count=0;
   const fileClass=classFromFilename(filename||'');
