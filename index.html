@@ -1043,15 +1043,16 @@ function renderUpgradesPanel(){
     let html='';
     for(const k of keys){
       const fv=Number(fromData[k]||0),tv=Number(toData[k]||0);
+      const suffix=k==='haste'?'%':'';
       if(showDelta){
         const raw=tv-fv;
         if(!raw)continue;
         const label=k==='ac'?'AC':(STAT_DISPLAY[k]||k.toUpperCase());
-        html+=raw>0?`<span class="upg-stat-pos">${label} +${raw}</span>`:`<span class="upg-stat-neg">${label} ${raw}</span>`;
+        html+=raw>0?`<span class="upg-stat-pos">${label} +${raw}${suffix}</span>`:`<span class="upg-stat-neg">${label} ${raw}${suffix}</span>`;
       } else {
         if(!fv)continue;
         const label=k==='ac'?'AC':(STAT_DISPLAY[k]||k.toUpperCase());
-        html+=`<span class="upg-stat-cur">${label} ${fv}</span>`;
+        html+=`<span class="upg-stat-cur">${label} ${fv}${suffix}</span>`;
       }
     }
     return html||`<span class="upg-stat-cur" style="font-style:italic">No stats</span>`;
@@ -1226,14 +1227,15 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
   if(base){STAT_KEYS.forEach((k,i)=>{t[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{t[k]=base.resists[i]||0;});if(base.pools)t.ac=base.pools[3]||0;}
   for(const item of equipped){const data=charGear[item.name]||itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)t[k]=(t[k]||0)+v;}const acv=Number(data.ac||0);if(acv)t.ac=(t.ac||0)+acv;}
   const {currentData}=sr;
-  const allKeys=['ac',...STAT_KEYS_ALL].filter(k=>(currentData[k]||0)!==0||(cand[k]||0)!==0);
+  const allKeys=['ac',...STAT_KEYS_ALL,'haste'].filter(k=>(currentData[k]||0)!==0||(cand[k]||0)!==0);
   let statsHtml='';
   for(const k of allKeys){
     const cur=Number(currentData[k]||0),nxt=Number(cand[k]||0),raw=nxt-cur;
     if(!raw)continue;
     const label=k==='ac'?'AC':(STAT_DISPLAY[k]||k.toUpperCase());
-    if(raw>0)statsHtml+=`<span class="upg-stat-pos">${label} +${raw}</span>`;
-    else statsHtml+=`<span class="upg-stat-neg">${label} ${raw}</span>`;
+    const suffix=k==='haste'?'%':'';
+    if(raw>0)statsHtml+=`<span class="upg-stat-pos">${label} +${raw}${suffix}</span>`;
+    else statsHtml+=`<span class="upg-stat-neg">${label} ${raw}${suffix}</span>`;
   }
   const cost=[cand.plat?`${cand.plat}k pp`:'',cand.dkp?`${cand.dkp} DKP`:''].filter(Boolean).join(' · ');
   upgPaneEl.innerHTML=`
