@@ -904,7 +904,7 @@ function applyBaseStats(charName,parsed){
   saveState();renderStatsPanel();
 }
 
-function buildStatCards(base,charGear,charName,cls,level){const equipped=getEquippedItems(charName);const gearSum={stats:[0,0,0,0,0,0,0],resists:[0,0,0,0,0],bonuses:[0,0],haste:0};for(const item of equipped){const gs=charGear[item.name];if(!gs)continue;STAT_KEYS.forEach((k,i)=>{if(gs[k])gearSum.stats[i]+=Number(gs[k])||0;});RESIST_KEYS.forEach((k,i)=>{if(gs[k])gearSum.resists[i]+=Number(gs[k])||0;});BONUS_KEYS.forEach((k,i)=>{if(gs[k])gearSum.bonuses[i]+=Number(gs[k])||0;});if(gs.haste)gearSum.haste+=Number(gs.haste)||0;}
+function buildStatCards(base,charGear,charName,cls,level){const equipped=getEquippedItems(charName);const gearSum={stats:[0,0,0,0,0,0,0],resists:[0,0,0,0,0],bonuses:[0,0],haste:0};for(const item of equipped){const gs=charGear[item.name];if(!gs)continue;STAT_KEYS.forEach((k,i)=>{if(gs[k])gearSum.stats[i]+=Number(gs[k])||0;});RESIST_KEYS.forEach((k,i)=>{if(gs[k])gearSum.resists[i]+=Number(gs[k])||0;});BONUS_KEYS.forEach((k,i)=>{if(gs[k])gearSum.bonuses[i]+=Number(gs[k])||0;});const hasteSource=gs.haste!=null?gs:itemDB[item.name];if(hasteSource&&hasteSource.haste)gearSum.haste+=Number(hasteSource.haste)||0;}
 const totalSTA=Math.min(255,base.stats[1]+gearSum.stats[1]);const manaKey=WIS_CLASSES.has(cls)?'wis':'int';const manaIdx=STAT_KEYS.indexOf(manaKey);const totalManastat=Math.min(255,base.stats[manaIdx]+gearSum.stats[manaIdx]);
 const statRows=STAT_LABELS.map((lbl,i)=>{const g=gearSum.stats[i],raw=base.stats[i]+g,t=Math.min(255,raw),over=raw>255?raw-255:0,gc=g>0?'pos':g<0?'neg':'zero';const overcapHtml=over>0?`<span style="font-size:.68rem;color:#3a7a3a;font-weight:600;min-width:1.8rem;text-align:left;padding-left:.25rem">(${over})</span>`:'<span style="min-width:1.8rem"></span>';return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${base.stats[i]}</span><span class="val-gear ${gc}">${g>=0?'+':''}${g}</span><span class="val-total">${t}</span>${overcapHtml}</div></div>`;}).join('');
 const resistRows=RESIST_LABELS.map((lbl,i)=>{const g=gearSum.resists[i],t=base.resists[i]+g,gc=g>0?'pos':g<0?'neg':'zero';return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${base.resists[i]}</span><span class="val-gear ${gc}">${g>=0?'+':''}${g}</span><span class="val-total">${t}</span><span style="min-width:1.8rem"></span></div></div>`;}).join('');
@@ -1103,6 +1103,8 @@ function renderUpgradesPanel(){
     let html=`<div class="upg-stat-section">Combat pools</div>`;
     html+=row('AC',baselineTotals.ac||0);
     if(curHP!==null){html+=row('HP',curHP);html+=row('Mana',curMana);}
+    const initHaste=baselineTotals.haste||0;
+    html+=`<div class="upg-stat-row"><span class="upg-stat-key">Haste</span><span class="upg-stat-vals"><span class="upg-stat-proj-val">${initHaste}%</span></span></div>`;
     html+=`<div class="upg-stat-section">Primary</div>`;
     STAT_KEYS.forEach(k=>html+=row(k.toUpperCase(),baselineTotals[k]||0,true));
     html+=`<div class="upg-stat-section">Resists</div>`;
@@ -1128,6 +1130,7 @@ function renderUpgradesPanel(){
       <div class="upg-stat-body" id="upgStatSheetBody">${buildStatSheet()}</div>
     </div>
   </div>`;
+  window.upgRefreshStatSheet();
 }
 
 // ─── Gear Planner: save / delete plan ─────────────────────────────────────────
@@ -1259,7 +1262,7 @@ window.upgRefreshStatSheet=function(){
     const dbSlot=invSlotToDBSlot(item.location);
     equippedAcBySlot[item.name]={ac:acv,dbSlot};
     for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)cur[k]=(cur[k]||0)+v;}
-    const hastev=Number(data.haste||0);if(hastev)cur.haste=(cur.haste||0)+hastev;
+    const hasteData=data.haste!=null?data:(itemDB[item.name]||{});const hastev=Number(hasteData.haste||0);if(hastev)cur.haste=(cur.haste||0)+hastev;
   }
   // Projected: apply current alt-select choices; also tally costs
   const proj=Object.assign({},cur);
