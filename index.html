@@ -1054,7 +1054,7 @@ function renderUpgradesPanel(){
     Object.assign(currentData,Object.fromEntries(Object.entries(_cg).filter(([k])=>k.startsWith('_'))));
     currentData.ac=Number(_db.ac||0)||Number(_cg.ac||0)||undefined;
     const candidates=(bySlot[dbSlot]||[])
-      .filter(c=>c.name!==item.name&&itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name))
+      .filter(c=>c.name!==item.name&&itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
       .sort((a,b)=>b._effGain-a._effGain);
     slotResults.push({item,dbSlot,currentData,candidates});
@@ -1069,7 +1069,7 @@ function renderUpgradesPanel(){
     const currentCount=slotCounts[slot]||0;
     for(let si=currentCount;si<maxCount;si++){
       const candidates=(bySlot[slot]||[])
-        .filter(c=>itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name))
+        .filter(c=>itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
         .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)}))
         .sort((a,b)=>b._effGain-a._effGain);
       if(!candidates.length)continue;

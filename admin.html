@@ -1703,7 +1703,7 @@ function gcComputeSlotScores(charName) {
       const equippedName = slotInfo.equipped[0]?.name;
       const ssCustomSelf = A2 ? (A2.SS_CUSTOM_ITEMS || new Set()) : new Set();
       const candidates = (bySlot[slot] || [])
-        .filter(c => c.name !== equippedName && !ssCustomSelf.has(c.name) && !c.data._legacy && !c.data._nonp99 && gcItemUsable(c.data))
+        .filter(c => c.name !== equippedName && !ssCustomSelf.has(c.name) && !c.name.startsWith('Custom ') && !c.data._legacy && !c.data._nonp99 && gcItemUsable(c.data))
         .map(c => ({ ...c, score: gcScoreItem(c.data, weights, baseTotals, hpPerSta) }))
         .sort((a, b) => b.score - a.score)
         .slice(0, 5);
@@ -1867,6 +1867,7 @@ function gcSearch(which) {
     if (!k.toLowerCase().includes(val)) return false;
     if (slot && db[k]._slot && db[k]._slot !== slot) return false;
     if (ssCustom.has(k)) return false;
+    if (k.startsWith('Custom ')) return false;
     if (!gcItemUsable(db[k])) return false;
     return true;
   }).slice(0, 30);
