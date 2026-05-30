@@ -1057,7 +1057,15 @@ function renderUpgradesPanel(){
     const acW=weights.ac||0;
     if(acW){const ca=Number(curItemData.ac||0),na=Number(candData.ac||0);if(na-ca)total+=(na-ca)*acW;}
     const hasteW=weights.haste||0;
-    if(hasteW){const ch=Number(curItemData.haste||0),nh=Number(candData.haste||0);if(nh-ch)total+=(nh-ch)*hasteW;}
+    if(hasteW){
+      const ch=Number(curItemData.haste||0),nh=Number(candData.haste||0);
+      const hasteThresh=(CLASS_STAT_THRESHOLDS[charClass]||{}).haste||Infinity;
+      const curTotal=baseTotals.haste||0;
+      // Only score haste up to the cap — points above cap are worthless
+      const cappedCh=Math.min(ch,Math.max(0,hasteThresh-(curTotal-ch)));
+      const cappedNh=Math.min(nh,Math.max(0,hasteThresh-(curTotal-ch)));
+      if(cappedNh-cappedCh)total+=(cappedNh-cappedCh)*hasteW;
+    }
     // Weapon DPS scoring — PRIMARY and SECONDARY slots for melee/hybrid classes
     // Scores ratio + proc DPS delta between candidate and current item
     if(MELEE_DPS_CLASSES.has(charClass)&&(candData._slot==='PRIMARY'||candData._slot==='SECONDARY')){
@@ -1251,17 +1259,6 @@ function renderUpgradesPanel(){
     </div>
   </div>`;
   window.upgRefreshStatSheet();
-  // Auto-select best upgrade for each slot card
-  setTimeout(()=>{
-    // First reset all selects so stale saved values don't point to wrong candidates after filter changes
-    document.querySelectorAll('.upg-alt-select').forEach(s=>{s.value='';});
-    for(const sr of window._upgSlots||[]){
-      if(sr.candidates&&sr.candidates.length&&sr.candidates[0]._effGain>0){
-        const sel=document.querySelector(`.upg-alt-select[data-cardid="${sr.cardId||sr.dbSlot}"]`);
-        if(sel&&sel.value===''){sel.value='0';window.upgSwapAlt(sr.dbSlot,'0',sel);}
-      }
-    }
-  },50);
 }
 
 // ─── Gear Planner: save / delete plan ─────────────────────────────────────────
@@ -1442,14 +1439,19 @@ window.upgRefreshStatSheet=function(){
   }
 
   const curHaste=cur.haste||0,projHaste=proj.haste||0;
+  const hasteCap=(CLASS_STAT_THRESHOLDS[charClass]||{}).haste||null;
   function hasteStatRow(cVal,pVal){
-    const diff=pVal-cVal,changed=diff!==0;
+    const cCapped=hasteCap?Math.min(hasteCap,cVal):cVal;
+    const pCapped=hasteCap?Math.min(hasteCap,pVal):pVal;
+    const diff=pCapped-cCapped,changed=diff!==0;
     const deltaHtml=changed?`<span class="upg-stat-delta${diff<0?' neg':''}">${diff>0?'+':''}${diff}%</span>`:'';
+    const cDisp=hasteCap&&cVal>hasteCap?`${hasteCap}% <span style="font-size:.75em;color:#3a7a3a">(${cVal})</span>`:`${cCapped}%`;
+    const pDisp=hasteCap&&pVal>hasteCap?`${hasteCap}% <span style="font-size:.75em;color:#3a7a3a">(${pVal})</span>`:`${pCapped}%`;
     return `<div class="upg-stat-row${changed?' upg-stat-changed':''}">`
       +`<span class="upg-stat-key">Haste</span>`
       +`<span class="upg-stat-vals">`
-      +`<span class="upg-stat-cur-val">${cVal}%</span>`
-      +`<span class="upg-stat-proj-val">${pVal}%${deltaHtml}</span>`
+      +`<span class="upg-stat-cur-val">${cDisp}</span>`
+      +`<span class="upg-stat-proj-val">${pDisp}${deltaHtml}</span>`
       +`</span></div>`;
   }
   let html=`<div class="upg-stat-section">Combat pools</div>`;
