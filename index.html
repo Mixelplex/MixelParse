@@ -602,11 +602,62 @@ const STAT_DISPLAY={str:'STR',sta:'STA',dex:'DEX',agi:'AGI',wis:'WIS',int:'INT',
 const HP_RATIOS={'Warrior':[4.5,6.0],'Shadow Knight':[3.8,5.2],'Paladin':[3.8,5.2],'Ranger':[3.3,4.2],'Bard':[3.0,4.0],'Monk':[3.0,4.0],'Rogue':[3.0,4.0],'Cleric':[2.5,3.0],'Druid':[2.5,3.0],'Shaman':[2.5,3.0],'Enchanter':[2.0,2.4],'Magician':[2.0,2.4],'Necromancer':[2.0,2.4],'Wizard':[2.0,2.4]};
 const WIS_CLASSES=new Set(['Cleric','Druid','Paladin','Ranger','Shaman']);
 
-// ─── Stat Weight System ───────────────────────────────────────────────────────
+// ─── Weapon DPS Scoring (Velious era, level 60) ──────────────────────────────
+// Proc damage values sourced from p1999 wiki — 242 entries covering all combat procs.
+// DoT procs use 3-tick expected value (conservative raid estimate).
+// Utility procs (stun/snare/haste/buff) = 0.
+const PROC_DB={"Affliction":0,"Anarchy":40,"Avatar":0,"Banish Summoned":0,"Banish Undead":0,"Berserker Madness I":0,"Berserker Madness II":0,"Berserker Madness III":0,"Berserker Madness IV":0,"Berserker Strength":0,"Blessing of Nature":0,"Blessing of the Theurgist":0,"Blaze":50,"Blinding Poison I":0,"Blinding Poison II":0,"Blinding Poison III":0,"Blood Claw":50,"Boil Blood":96,"Bone Melt":75,"Boneshear":30,"Braid of Golden Hair":0,"Breath of the Sea":60,"Brittle Haste I":0,"Brittle Haste II":0,"Brittle Haste III":0,"Brittle Haste IV":0,"Burn":40,"Burst of Flame":25,"Call of Bones":0,"Cancel Magic":0,"Cannibalize II":0,"Careless Lightning":96,"Chaos Flux":60,"Chant of Battle":0,"Chill Sight":0,"Choke":0,"Choking":0,"Clockwork Poison":0,"Color Shift":0,"Combust":176,"Conflagration":150,"Contact Poison I":0,"Contact Poison II":0,"Contact Poison III":0,"Contact Poison IV":0,"Curse of the Garou":0,"Dance of the Blade":0,"Dawncall":0,"Deadly Poison":190,"Disease":15,"Disease Cloud":0,"Dismiss Summoned":0,"Dismiss Undead":0,"Dizzy I":0,"Dizzy II":0,"Dizzy III":0,"Dizzy IV":0,"Dooming Darkness":0,"Drones of Doom":0,"Drowsy":0,"Earthcall":50,"Earthquake":80,"Energy Sap":40,"Engulfing Darkness":0,"Engulfing Roots":0,"Ensnare":0,"Ensnaring Roots":0,"Envenomed Breath":100,"Essence Tap":60,"Expel Undead":0,"Fear":0,"Feeble Mind I":0,"Feeble Mind II":0,"Feeble Mind III":0,"Feeble Mind IV":0,"Feet like Cat":0,"Fellspine":67,"Fingers of Fire":55,"Firestrike":70,"Flame Shock":60,"Flamesong":80,"Fleeting Fury":0,"Flesh Rot I":30,"Flesh Rot II":60,"Flesh Rot III":90,"Force":55,"Force Shock":88,"Froglok Poison":0,"Frost Shards":620,"Frost Shock":178,"Frost Strike":143,"Frostbite":60,"Gale of Poison":0,"Garzicor's Vengeance":120,"Glamour":0,"Greater Wolf Form":0,"Greenmist":0,"Guard":0,"Haste":0,"Holy Shock":80,"Hungry Earth":0,"Ice Rend":30,"Ignite":50,"Ikatiar's Revenge":69,"Incapacitate":0,"Infectious Cloud":0,"Inferno Shock":120,"Injected Poison I":0,"Injected Poison II":0,"Injected Poison III":0,"Injected Poison IV":0,"Injected Poison V":0,"Insidious Fever":40,"Invoke Fear":0,"Jolt":40,"Judgment of Ice":150,"Knight's Blessing":0,"Leech":20,"Lifedraw":50,"Lifespike":35,"Lifetap":4,"Lightning Strike":173,"Lightning Storm":100,"Liquid Silver I":40,"Liquid Silver II":60,"Liquid Silver III":80,"Lower Resists I":0,"Lower Resists II":0,"Lower Resists III":0,"Lower Resists IV":0,"Major Shielding":0,"Malaisement":0,"Mana Sink":0,"Melodious Befuddlement":0,"Mistwalker":0,"Muscle Lock I":0,"Muscle Lock II":0,"Muscle Lock III":0,"Muscle Lock IV":0,"Nature's Holy Wrath":150,"Nature's Wrath":100,"Neutralize Magic":0,"Obsidian Shatter":90,"One Hundred Blows":0,"Overthere":0,"Pain":60,"Paralyzing Earth":0,"Paralyzing Poison I":0,"Paralyzing Poison II":0,"Paralyzing Poison III":0,"Poison":30,"Poison Animal I":0,"Poison Animal II":0,"Poison Animal III":0,"Poison Summoned I":0,"Poison Summoned II":0,"Poison Summoned III":0,"Poisonous Chill":50,"Project Lightning":80,"Rage of Vallon":0,"Rage of Xyzith":0,"Rage of Zek":0,"Rain of Fire":100,"Rain of Swords":100,"Rampage":0,"Reckless Strength":0,"Root":0,"Rune III":0,"Scourge":0,"Screaming Mace":0,"Sebilite Pox":110,"Shadow":0,"Shadow Vortex":0,"Shards of Sorrow":80,"Shield of Brambles":50,"Shield of Thistles":0,"Shiftless Deeds":0,"Shock of Flame":88,"Shock of Frost":60,"Shock of Ice":88,"Shock of Spikes":60,"Shrieking Howl":40,"Sicken":0,"Siphon":80,"Smite":55,"Smolder":80,"Snare":0,"Soul Bond":40,"Soul Consumption":100,"Soul Leech":60,"Specter Lifetap":21,"Spirit Armor":0,"Spirit Strike":85,"Spirit Tap":141,"Static Strike":70,"Steal Strength":0,"Steelskin":0,"Storm Strike":80,"Strike of Thunder":250,"Strike of the Chosen":300,"Strong Disease":0,"Strong Poison":0,"Stun":0,"Stunning Blow":0,"Suffocate":50,"Summon Bandages":0,"Swarming Pain":150,"Symphonic Harmony":0,"System Shock I":40,"System Shock II":60,"System Shock III":80,"System Shock IV":100,"System Shock V":120,"Tagar's Insects":0,"Tashani":0,"Tashania":0,"Tepid Deeds":0,"Thunder Strike":90,"Tishan's Clash":60,"Torment":60,"Velium Shards":12,"Venom":50,"Walking Sleep":0,"Waves of the Deep Sea":65,"Weak Poison":20,"Weaken":0,"Weakening Poison I":0,"Weakening Poison II":0,"Weakening Poison III":0,"Weakening Poison IV":0,"Whirlwind":70,"Winter's Roar":80,"Word of Pain":50,"Word of Shadow":0,"Yaulp":0,"Yaulp II":0,"Yaulp III":0,"Yaulp IV":0,"Ykesha":70};
+
+// Classes that use weapon DPS scoring for PRIMARY/SECONDARY slots
+const MELEE_DPS_CLASSES=new Set(['Warrior','Monk','Rogue','Ranger','Bard','Paladin','Shadow Knight']);
+
+// WAR/PAL/SHD dmg cap 100, MNK/BRD/RNG/ROG cap 200 (they don't use the 1H bonus path same way)
+const CLASS_DMG_CAP={'Warrior':100,'Paladin':100,'Shadow Knight':100,'Monk':200,'Rogue':200,'Ranger':200,'Bard':200};
+
+// Compute weapon DPS score for a single item in a given slot context
+// Returns a numeric score suitable for adding to effectiveGain
+// slot: 'PRIMARY' or 'SECONDARY'; charClass string; charLevel number
+function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
+  const dmg=Number(itemData.dmg||0);
+  const delay=Number(itemData.delay||0);
+  if(!dmg||!delay)return 0;
+  if(!MELEE_DPS_CLASSES.has(charClass))return 0;
+  const itype=(itemData._skill||itemData._itemType||'').toLowerCase();
+  const is2h=itype.includes('2h')||itype.includes('two');
+  // Only score 2H in PRIMARY slot
+  if(is2h&&slot!=='PRIMARY')return 0;
+  const cap=CLASS_DMG_CAP[charClass]||100;
+  const d=Math.min(dmg,cap);
+  const lv=Math.min(charLevel||60,60);
+  // Damage bonus
+  let bonus=0;
+  if(lv>=28){
+    if(is2h){bonus=Math.floor(delay*37/44);}  // Velious 2H formula anchored to Flamberge (46/44->37)
+    else{bonus=Math.floor((lv-25)/3);}          // 1H: 11 at level 60
+  }
+  // Proc DPS
+  const effect=itemData._effect||'';
+  const effectType=itemData._effectType||'';
+  const hasCombatProc=effect&&effectType&&effectType.toLowerCase().includes('combat');
+  const procDmg=hasCombatProc?(PROC_DB[effect]||35):0;
+  const dex=Math.min(255,baseTotals&&baseTotals.dex?baseTotals.dex:175);
+  const ppm=(dex/170)+0.5;
+  const procDps=slot==='SECONDARY'?(ppm*0.5*procDmg/60):(ppm*procDmg/60);
+  // OH gets no damage bonus
+  const ratio=slot==='SECONDARY'?(2*d)/delay:((2*d+bonus)/delay);
+  return ratio+procDps;
+}
+
+// Scale factor: converts raw weapon DPS score to gear-planner point units
+// Calibrated so a top-tier WAR weapon upgrade (~2.0 ratio improvement) scores ~25 pts
+// matching a meaningful but not overwhelming upgrade vs a +10 STA item (~30 pts for WAR)
+const WEAPON_DPS_SCALE=10.0;
+
+
 // Base weights per class. Keys match STAT_KEYS_ALL: str/sta/dex/agi/wis/int/cha/svpoison/svmagic/svdisease/svfire/svcold/hpbonus/manabonus
 // AC handled separately (item ac field). Softcap multiplier (0.33×) applied at scoring time for 200–255.
 const CLASS_STAT_WEIGHTS = {
-  'Warrior':       {str:3.0,   sta:6.0,  dex:0.0001,agi:0.5,  wis:0.0001,int:0.0001,cha:0.0001,ac:5.0,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,  manabonus:0.0001,haste:8.0},
+  'Warrior':       {str:3.0,   sta:6.0,  dex:1.5,   agi:0.5,  wis:0.0001,int:0.0001,cha:0.0001,ac:5.0,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,  manabonus:0.0001,haste:8.0},
   'Monk':          {str:3.5,   sta:3.0,  dex:1.0,   agi:2.0,  wis:0.0001,int:0.0001,cha:0.0001,ac:2.5,svpoison:0.5,svmagic:0.5,svdisease:0.5,svfire:0.5,svcold:0.5,hpbonus:1.5,  manabonus:0.0001,haste:7.0},
   'Rogue':         {str:4.0,   sta:3.5,  dex:1.0,   agi:0.0001,wis:0.0001,int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:0.0001,haste:7.0},
   'Bard':          {str:1.5,   sta:4.0,  dex:1.5,   agi:0.0001,wis:0.0001,int:0.0001,cha:3.0,   ac:1.5,svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,  manabonus:0.0001,haste:6.0},
@@ -1007,6 +1058,14 @@ function renderUpgradesPanel(){
     if(acW){const ca=Number(curItemData.ac||0),na=Number(candData.ac||0);if(na-ca)total+=(na-ca)*acW;}
     const hasteW=weights.haste||0;
     if(hasteW){const ch=Number(curItemData.haste||0),nh=Number(candData.haste||0);if(nh-ch)total+=(nh-ch)*hasteW;}
+    // Weapon DPS scoring — PRIMARY and SECONDARY slots for melee/hybrid classes
+    // Scores ratio + proc DPS delta between candidate and current item
+    if(MELEE_DPS_CLASSES.has(charClass)&&(candData._slot==='PRIMARY'||candData._slot==='SECONDARY')){
+      const slot=candData._slot;
+      const candDps=weaponDpsScore(candData,slot,charClass,charLevel,baseTotals);
+      const curDps=weaponDpsScore(curItemData,slot,charClass,charLevel,baseTotals);
+      total+=(candDps-curDps)*WEAPON_DPS_SCALE;
+    }
     return Math.round(total*10)/10;
   }
 
@@ -1054,7 +1113,7 @@ function renderUpgradesPanel(){
     Object.assign(currentData,Object.fromEntries(Object.entries(_cg).filter(([k])=>k.startsWith('_'))));
     currentData.ac=Number(_db.ac||0)||Number(_cg.ac||0)||undefined;
     const candidates=(bySlot[dbSlot]||[])
-      .filter(c=>c.name!==item.name&&itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
+      .filter(c=>c.name!==item.name&&itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
       .sort((a,b)=>b._effGain-a._effGain);
     slotResults.push({item,dbSlot,currentData,candidates});
@@ -1069,7 +1128,7 @@ function renderUpgradesPanel(){
     const currentCount=slotCounts[slot]||0;
     for(let si=currentCount;si<maxCount;si++){
       const candidates=(bySlot[slot]||[])
-        .filter(c=>itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
+        .filter(c=>itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
         .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)}))
         .sort((a,b)=>b._effGain-a._effGain);
       if(!candidates.length)continue;
@@ -1516,6 +1575,9 @@ function parseItemDB(csvText,filename){
       const cats=col('_categoriesCol')||'';
       if(cats.includes('Legacy Items'))stats._legacy=true;
       if(cats.includes('Non-P99'))stats._nonp99=true;
+      // Sleeper's Tomb warder drops — unobtainable on Green (Sleeper awakened Apr 2022)
+      // Warders: Nanzata, Tukaarak, Ventani, Hraashna. Golem (ancient sentry) drops still live.
+      if(cats.includes("Sleeper's Tomb")){const dropsFrom=(cols[colMap._fromCol]||'').toLowerCase();if(['nanzata','tukaarak','ventani','hraashna'].some(w=>dropsFrom.includes(w)))stats._sleeperWarder=true;}
       if(col('_magicCol'))stats._magic=true;
       const effectVal=col('_effectCol');if(effectVal){stats._effect=effectVal;const et=col('_effectTypeCol');if(et)stats._effectType=et;}
       const skillVal=col('_skillCol');if(skillVal)stats._skill=skillVal;
