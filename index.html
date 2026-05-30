@@ -137,6 +137,18 @@
   .upg-stat-delta{font-size:.68rem;font-weight:700;color:#1a6a1a}
   .upg-stat-delta.neg{color:#a03030}
   .upg-none{color:var(--text-muted);font-size:.82rem;font-style:italic;padding:.4rem .75rem}
+  /* 2H toggle */
+  .upg-2h-toggle{display:flex;align-items:center;gap:.45rem;cursor:pointer;user-select:none}
+  .upg-2h-toggle input[type=checkbox]{display:none}
+  .upg-2h-track{width:30px;height:16px;border-radius:8px;background:var(--surface);border:1px solid var(--border);transition:background .2s,border-color .2s;position:relative;flex-shrink:0}
+  .upg-2h-thumb{position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;background:var(--text-muted);transition:transform .18s,background .18s}
+  .upg-2h-toggle input:checked~.upg-2h-track{background:rgba(122,80,16,.25);border-color:var(--gold-dim)}
+  .upg-2h-toggle input:checked~.upg-2h-track .upg-2h-thumb{transform:translateX(14px);background:var(--gold)}
+  .upg-2h-label{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;transition:color .2s}
+  .upg-2h-toggle input:checked~.upg-2h-label{color:var(--gold)}
+  .upg-slot-card.upg-wep-disabled{opacity:.38;pointer-events:none;filter:grayscale(.5)}
+  .upg-slot-label.upg-wep-mh::before{content:'MH · '}
+  .upg-slot-label.upg-wep-oh::before{content:'OH · '}
   .upg-save-bar{display:flex;align-items:center;gap:.75rem;margin:0 1rem .6rem;padding:.4rem .75rem;background:var(--surface2);border:1px solid var(--border);border-radius:5px}
   .upg-save-label{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;flex:1}
   .upg-save-btn{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;background:var(--surface2);border:1px solid var(--border-glow);border-radius:4px;padding:.3rem .75rem;color:var(--gold);cursor:pointer;white-space:nowrap;transition:border-color .15s}
@@ -1185,18 +1197,38 @@ function renderUpgradesPanel(){
     sr.cardId=slotCount[sr.dbSlot]>1?sr.dbSlot+slotSeen[sr.dbSlot]:sr.dbSlot;
   });
 
+  const is2hMode=!!(window._upgTwoHander);
+
+  // Build 2H candidate card (shown when 2H mode is on, replaces MH+OH in scoring)
+  if(is2hMode){
+    const all2h=(bySlot['PRIMARY']||[]).filter(c=>{
+      const itype=(c._skill||c._itemType||'').toLowerCase();
+      return (itype.includes('2h')||itype.includes('two'))&&itemUsableByChar(c)&&!c._legacy&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom ');
+    }).map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)})).sort((a,b)=>b._effGain-a._effGain);
+    if(all2h.length){
+      slotResults.push({item:{name:'(none)',location:'PRIMARY'},dbSlot:'PRIMARY',currentData:{},candidates:all2h,isEmpty:true,is2hCard:true,cardId:'2HANDER'});
+    }
+  }
+
   let cardsHtml='';
   for(const sr of slotResults){
     const {item,dbSlot,currentData,candidates,cardId}=sr;
+    // MH/OH label logic
+    const isMH=dbSlot==='PRIMARY'&&!sr.is2hCard;
+    const isOH=dbSlot==='SECONDARY';
+    const is2hCard=!!sr.is2hCard;
+    const isWepDisabled=(isMH||isOH)&&is2hMode;
+    const slotLabelExtra=isMH?' upg-wep-mh':isOH?' upg-wep-oh':'';
+    const slotLabelText=is2hCard?'2H Weapon':dbSlot;
     const best=candidates[0];
     const hasBest=best&&best._effGain>0;
     const sc=hasBest?scoreClass(best._effGain):'upg-score-lo';
     const scoreStr=hasBest?(best._effGain>=0?'+':'')+best._effGain+' pts':'—';
     const opts=candidates.length?`<option value="">— Select —</option>`+candidates.map((c,i)=>`<option value="${i}">${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join(''):'';
-    const cost=hasBest?[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' · '):'';
-    cardsHtml+=`<div class="upg-slot-card">
+    const cost=hasBest?[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' \u00b7 '):'';
+    cardsHtml+=`<div class="upg-slot-card${isWepDisabled?' upg-wep-disabled':''}">
       <div class="upg-slot-head">
-        <span class="upg-slot-label">${dbSlot}</span>
+        <span class="upg-slot-label${slotLabelExtra}">${slotLabelText}</span>
         <span class="upg-score-pill ${sc}" id="upgscore_${cardId}">${scoreStr}</span>
       </div>
       <div class="upg-panes">
@@ -1247,8 +1279,13 @@ function renderUpgradesPanel(){
   // Save bar
   const plans=(charMeta[name]&&charMeta[name].gearPlans)||[];
   const saveBar=`<div class="upg-save-bar">
-    <span class="upg-save-label">Gear planner — ${esc(name)}</span>
-    <button type="button" class="upg-save-btn" onclick="saveGearPlan()">⊕ Save plan</button>
+    <span class="upg-save-label">Gear planner \u2014 ${esc(name)}</span>
+    <label class="upg-2h-toggle" title="Score 2H weapons; disables MH and OH slots">
+      <input type="checkbox" id="upg2hCheck" ${is2hMode?'checked':''} onchange="window._upgTwoHander=this.checked;renderUpgradesPanel()">
+      <span class="upg-2h-track"><span class="upg-2h-thumb"></span></span>
+      <span class="upg-2h-label">2H Mode</span>
+    </label>
+    <button type="button" class="upg-save-btn" onclick="saveGearPlan()">&#8853; Save plan</button>
   </div>`;
 
   panel.innerHTML=saveBar+`<div class="upg-layout">
@@ -1398,9 +1435,14 @@ window.upgRefreshStatSheet=function(){
   }
   // Projected: apply current alt-select choices; also tally costs
   const proj=Object.assign({},cur);
+  const is2hModeSheet=!!(window._upgTwoHander);
   let totalDkp=0,totalPlat=0;
   if(window._upgSlots){
     for(const sr of window._upgSlots){
+      // In 2H mode: skip MH and OH slots (they're disabled); only process the 2H card
+      if(is2hModeSheet&&!sr.is2hCard&&(sr.dbSlot==='PRIMARY'||sr.dbSlot==='SECONDARY'))continue;
+      // In 1H mode: skip the 2H card if it somehow exists
+      if(!is2hModeSheet&&sr.is2hCard)continue;
       const selEl=document.querySelector(`.upg-alt-select[data-cardid="${sr.cardId||sr.dbSlot}"]`);
       const idx=selEl?parseInt(selEl.value):NaN;
       if(isNaN(idx))continue;
