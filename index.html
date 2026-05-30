@@ -1275,8 +1275,8 @@ function renderUpgradesPanel(){
     return html||`<span class="upg-stat-cur" style="font-style:italic">No stats</span>`;
   }
 
-  // Build slot cards — EAR and FINGERS sorted to top, duplicates consecutive
-  const SLOT_ORDER=['EAR','FINGERS','HEAD','FACE','NECK','SHOULDERS','ARMS','BACK','WRIST','RANGE','HANDS','PRIMARY','SECONDARY','CHEST','LEGS','FEET','WAIST','AMMO','TWOHANDER','ONEHANDER','SHIELD'];
+  // Build slot cards — weapons sorted to top, then EAR/FINGERS, then armor slots
+  const SLOT_ORDER=['PRIMARY','SECONDARY','TWOHANDER','EAR','FINGERS','HEAD','FACE','NECK','SHOULDERS','ARMS','BACK','WRIST','RANGE','HANDS','CHEST','LEGS','FEET','WAIST','AMMO','ONEHANDER','SHIELD'];
   slotResults.sort((a,b)=>{
     const ai=SLOT_ORDER.indexOf(a.dbSlot),bi=SLOT_ORDER.indexOf(b.dbSlot);
     const ao=ai<0?99:ai,bo=bi<0?99:bi;
