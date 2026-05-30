@@ -623,31 +623,80 @@ const PROC_DB={"Affliction":0,"Anarchy":40,"Avatar":0,"Banish Summoned":0,"Banis
 // Classes that use weapon DPS scoring for PRIMARY/SECONDARY slots
 const MELEE_DPS_CLASSES=new Set(['Warrior','Monk','Rogue','Ranger','Bard','Paladin','Shadow Knight']);
 
-// WAR/PAL/SHD dmg cap 100, MNK/BRD/RNG/ROG cap 200 (they don't use the 1H bonus path same way)
+// Classes that get ONE weapon (MH only) — no dual-wield, so SECONDARY is shields/offhands only.
+// weaponDpsScore returns 0 for these classes in the SECONDARY slot.
+const CLASS_NO_DW=new Set(['Paladin','Shadow Knight']);
+
+// Damage cap per class. WAR/PAL/SHD are plate tanks — cap 100. Lighter melee — cap 200.
 const CLASS_DMG_CAP={'Warrior':100,'Paladin':100,'Shadow Knight':100,'Monk':200,'Rogue':200,'Ranger':200,'Bard':200};
 
-// Compute weapon DPS score for a single item in a given slot context
-// Returns a numeric score suitable for adding to effectiveGain
+// Allowed weapon skill types per class (lowercase _skill field substrings).
+// Empty = no restriction (all weapon types allowed).
+// Used to filter candidate weapons in PRIMARY/SECONDARY slots.
+const CLASS_WEAPON_SKILLS={
+  // MNK: H2H, 1H Blunt, 2H Blunt only — no swords, axes, piercing
+  'Monk':       ['hand to hand','1h blunt','2h blunt'],
+  // ROG: 1H Slash/Blunt + Piercing — no 2H at all; OH must also be 1H only
+  'Rogue':      ['1h slashing','1h blunt','piercing'],
+};
+
+// Per-class weapon DPS scale factors.
+// WAR is the baseline (10.0). Adjustments:
+//   PAL/SHD: same damage formula as WAR but hybrid — weapon matters but slightly less than WAR
+//   MNK: weapon DPS competes with H2H innate at 60 — leave full weight, let scoring sort it
+//   ROG: weapon ratio still relevant but backstab (not modelled) dominates real DPS — reduce weight
+//        so the planner doesn't over-rank pure ratio over other stats
+//   RNG: full DW melee, weapon matters — same as WAR baseline
+//   BRD: rarely melees in raid context (song twisting); weapon DPS is real but tertiary
+const CLASS_WEAPON_DPS_SCALE={
+  'Warrior':      10.0,
+  'Paladin':       8.0, // hybrid; MH only
+  'Shadow Knight': 8.0, // hybrid; MH only
+  'Monk':         10.0, // full DPS, weapon matters (H2H innate vs weapon is per-item)
+  'Rogue':         6.0, // backstab dominates; ratio scoring is partial proxy only
+  'Ranger':       10.0, // full DW melee + hybrid; full weight
+  'Bard':          4.0, // song twisting > melee; proc > ratio for BRD
+};
+
+// Compute weapon DPS score for a single item in a given slot context.
+// Returns a numeric score suitable for adding to effectiveGain.
 // slot: 'PRIMARY' or 'SECONDARY'; charClass string; charLevel number
 function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
   const dmg=Number(itemData.dmg||0);
   const delay=Number(itemData.delay||0);
   if(!dmg||!delay)return 0;
   if(!MELEE_DPS_CLASSES.has(charClass))return 0;
+
   const itype=(itemData._skill||itemData._itemType||'').toLowerCase();
   const is2h=itype.includes('2h')||itype.includes('two');
-  // Only score 2H in PRIMARY slot
+
+  // No-DW classes: SECONDARY slot gets zero weapon score (it's a shield/stat offhand slot)
+  if(CLASS_NO_DW.has(charClass)&&slot==='SECONDARY')return 0;
+  // 2H only valid in PRIMARY
   if(is2h&&slot!=='PRIMARY')return 0;
+
+  // Skill type restriction — e.g. MNK can't use swords, ROG can't use 2H
+  const allowedSkills=CLASS_WEAPON_SKILLS[charClass];
+  if(allowedSkills){
+    if(!allowedSkills.some(s=>itype.includes(s)))return 0;
+    // ROG has no 2H at all — belt-and-suspenders check
+    if(charClass==='Rogue'&&is2h)return 0;
+  }
+
   const cap=CLASS_DMG_CAP[charClass]||100;
   const d=Math.min(dmg,cap);
   const lv=Math.min(charLevel||60,60);
-  // Damage bonus
+
+  // Damage bonus (MH only, fires every swing)
+  // 1H: floor((level-25)/3) = 11 at 60
+  // 2H: floor(delay*37/44) — Velious formula anchored to Flamberge (46/44 → bonus 37)
+  // OH: no bonus
   let bonus=0;
-  if(lv>=28){
-    if(is2h){bonus=Math.floor(delay*37/44);}  // Velious 2H formula anchored to Flamberge (46/44->37)
-    else{bonus=Math.floor((lv-25)/3);}          // 1H: 11 at level 60
+  if(lv>=28&&slot==='PRIMARY'){
+    bonus=is2h?Math.floor(delay*37/44):Math.floor((lv-25)/3);
   }
-  // Proc DPS
+
+  // Proc DPS — MH full rate, OH half rate
   const effect=itemData._effect||'';
   const effectType=itemData._effectType||'';
   const hasCombatProc=effect&&effectType&&effectType.toLowerCase().includes('combat');
@@ -655,33 +704,57 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
   const dex=Math.min(255,baseTotals&&baseTotals.dex?baseTotals.dex:175);
   const ppm=(dex/170)+0.5;
   const procDps=slot==='SECONDARY'?(ppm*0.5*procDmg/60):(ppm*procDmg/60);
-  // OH gets no damage bonus
+
+  // Ratio: OH gets no damage bonus
   const ratio=slot==='SECONDARY'?(2*d)/delay:((2*d+bonus)/delay);
   return ratio+procDps;
 }
 
-// Scale factor: converts raw weapon DPS score to gear-planner point units
-// Calibrated so a top-tier WAR weapon upgrade (~2.0 ratio improvement) scores ~25 pts
-// matching a meaningful but not overwhelming upgrade vs a +10 STA item (~30 pts for WAR)
+// Flat scale fallback (used if class not in CLASS_WEAPON_DPS_SCALE)
 const WEAPON_DPS_SCALE=10.0;
 
 
 // Base weights per class. Keys match STAT_KEYS_ALL: str/sta/dex/agi/wis/int/cha/svpoison/svmagic/svdisease/svfire/svcold/hpbonus/manabonus
 // AC handled separately (item ac field). Softcap multiplier (0.33×) applied at scoring time for 200–255.
 const CLASS_STAT_WEIGHTS = {
-  'Warrior':       {str:3.0,   sta:6.0,  dex:1.5,   agi:0.5,  wis:0.0001,int:0.0001,cha:0.0001,ac:5.0,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,  manabonus:0.0001,haste:8.0},
-  'Monk':          {str:3.5,   sta:3.0,  dex:1.0,   agi:2.0,  wis:0.0001,int:0.0001,cha:0.0001,ac:2.5,svpoison:0.5,svmagic:0.5,svdisease:0.5,svfire:0.5,svcold:0.5,hpbonus:1.5,  manabonus:0.0001,haste:7.0},
-  'Rogue':         {str:4.0,   sta:3.5,  dex:1.0,   agi:0.0001,wis:0.0001,int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:0.0001,haste:7.0},
-  'Bard':          {str:1.5,   sta:4.0,  dex:1.5,   agi:0.0001,wis:0.0001,int:0.0001,cha:3.0,   ac:1.5,svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,  manabonus:0.0001,haste:6.0},
-  'Ranger':        {str:2.0,   sta:3.5,  dex:2.0,   agi:0.0001,wis:4.0,   int:0.0001,cha:0.0001,ac:0.0001,svpoison:0.6,svmagic:0.6,svdisease:0.6,svfire:0.6,svcold:0.6,hpbonus:1.5,manabonus:0.5,  haste:6.0},
-  'Paladin':       {str:2.0,   sta:5.2,  dex:0.0001,agi:0.0001,wis:4.0,   int:0.0001,cha:1.0,   ac:1.5,svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,  manabonus:0.5,  haste:5.0},
-  'Shadow Knight': {str:2.0,   sta:5.2,  dex:0.0001,agi:0.5,  wis:0.0001,int:4.0,   cha:0.0001,ac:3.0,svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,  manabonus:0.5,  haste:5.0},
-  'Cleric':        {str:0.0001,sta:2.5,  dex:0.0001,agi:0.0001,wis:5.0,   int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0,  haste:0.0001},
-  'Druid':         {str:0.0001,sta:2.5,  dex:0.0001,agi:0.0001,wis:5.0,   int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0,  haste:0.0001},
-  'Shaman':        {str:0.0001,sta:3.0,  dex:0.0001,agi:0.0001,wis:5.0,   int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0,  haste:0.0001},
+  // ── Melee / hybrid classes ──────────────────────────────────────────────────
+  // WAR: pure tank — STA and AC dominate; DEX for proc rate; haste near-cap means slightly
+  //      less value once gear haste is close to 41% (threshold handles that dynamically)
+  'Warrior':       {str:3.0,   sta:6.0,  dex:1.5,   agi:0.5,   wis:0.0001,int:0.0001,cha:0.0001,ac:5.0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:0.0001,haste:8.0},
+  // PAL: hybrid tank/healer — STA+AC for tanking, WIS for mana/heals, DEX for proc rate;
+  //      no dual wield so OH slot is shield/stat; haste lower than WAR (hybrid spending)
+  'Paladin':       {str:2.5,   sta:5.0,  dex:1.5,   agi:0.0001,wis:3.5,   int:0.0001,cha:0.5,   ac:3.5,  svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.5,  haste:5.0},
+  // MNK: DPS with AC from AGI+gear; H2H/1HB/2HB only; DEX for proc rate; low AC weight
+  //      because MNK AC scales heavily with AGI and level (not raw AC on items)
+  'Monk':          {str:3.5,   sta:3.0,  dex:1.5,   agi:2.5,   wis:0.0001,int:0.0001,cha:0.0001,ac:1.5,  svpoison:0.5,svmagic:0.5,svdisease:0.5,svfire:0.5,svcold:0.5,hpbonus:1.5,manabonus:0.0001,haste:7.0},
+  // ROG: pure DPS — STR for damage, DEX for backstab/proc rate, AGI for avoidance; no AC
+  //      piercing MH for backstab; weapon scoring partial (no backstab formula yet)
+  'Rogue':         {str:4.0,   sta:3.5,  dex:2.5,   agi:1.5,   wis:0.0001,int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:0.0001,haste:7.0},
+  // SHD: hybrid tank — INT for lifetap/harm touch mana, AC for survivability, STR for DPS;
+  //      no dual wield; slightly less AC priority than WAR but more than PAL
+  'Shadow Knight': {str:2.5,   sta:5.0,  dex:1.5,   agi:0.5,   wis:0.0001,int:4.0,   cha:0.0001,ac:3.5,  svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.5,  haste:5.0},
+  // RNG: hybrid DPS — STR for melee, WIS for mana (buff/heal utility), DEX for proc+archery;
+  //      full DW; lower AC priority (leather/chain hybrid); archery not yet scored
+  'Ranger':        {str:2.5,   sta:3.5,  dex:2.0,   agi:0.5,   wis:3.5,   int:0.0001,cha:0.0001,ac:1.0,  svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.5,  haste:6.0},
+  // BRD: song twisting > melee; CHA for charm/mez/slow cap; DEX for melee proc rate while
+  //      twisting; instrument mods not scored (future feature); weapon DPS scale = 4.0
+  'Bard':          {str:1.5,   sta:4.0,  dex:2.0,   agi:0.5,   wis:0.0001,int:0.0001,cha:4.0,   ac:1.5,  svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.0001,haste:6.0},
+  // ── Priest / support classes ─────────────────────────────────────────────────
+  // CLR: WIS primary mana stat; plate wearer so AC has some value; no offensive spells
+  'Cleric':        {str:0.0001,sta:2.5,  dex:0.0001,agi:0.0001,wis:5.0,   int:0.0001,cha:0.0001,ac:1.5,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0,  haste:0.0001},
+  // DRU: WIS primary; leather — AC doesn't matter; resist gear useful (SoV zones)
+  'Druid':         {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:5.0,   int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0,  haste:0.0001},
+  // SHM: WIS primary; STA elevated (slows help survival, SHM solo a lot); chain — modest AC
+  'Shaman':        {str:0.5,   sta:3.5,  dex:0.0001,agi:0.5,   wis:5.0,   int:0.0001,cha:0.0001,ac:0.5,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0,  haste:0.0001},
+  // ── Int-caster classes ───────────────────────────────────────────────────────
+  // ENC: INT for mana, CHA for charm/mez (caps ~205); resists useful (pulls aggro);
+  //      CHA threshold applied dynamically via CLASS_STAT_THRESHOLDS
   'Enchanter':     {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:4.0,   cha:5.0,   ac:0.0001,svpoison:1.2,svmagic:1.2,svdisease:1.2,svfire:1.2,svcold:1.2,hpbonus:2.0,manabonus:1.0,  haste:0.0001},
+  // MAG: INT for mana; pure nuker/summoner — resists for survivability
   'Magician':      {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:5.0,   cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0,  haste:0.0001},
-  'Necromancer':   {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:5.0,   cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0,  haste:0.0001},
+  // NEC: INT for mana; CHA for undead charming (moderate value on P99 Green)
+  'Necromancer':   {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:5.0,   cha:1.5,   ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0,  haste:0.0001},
+  // WIZ: INT for mana; pure nuker — nothing else matters for gear scoring
   'Wizard':        {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:5.0,   cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0,  haste:0.0001},
 };
 
@@ -692,14 +765,17 @@ const MANA_CLASSES = new Set([...WIS_CLASSES,...INT_CLASSES]);
 // Per-class stat thresholds — beyond these values a stat becomes worthless for that class.
 // Add entries here as new cases are discovered. { stat: maxUsefulValue }
 const CLASS_STAT_THRESHOLDS = {
-  'Enchanter':     { cha: 205 },           // charm/mez cap — CHA above 205 has no effect at 56+
-  'Bard':          { cha: 205, haste: 41 }, // Bard songs cover haste; gear haste dead at 41%
+  // Stat caps: once the character's total reaches these values the stat weight drops to ~0.
+  // All melee/hybrid classes: gear haste dead at 41% (songs/spells cover the rest)
   'Warrior':       { haste: 41 },
+  'Paladin':       { haste: 41, wis: 200 }, // WIS hard-diminishes past 200 for PAL (short spells, no CH)
   'Monk':          { haste: 41 },
   'Rogue':         { haste: 41 },
-  'Ranger':        { haste: 41 },
-  'Paladin':       { haste: 41 },
-  'Shadow Knight': { haste: 41 },
+  'Shadow Knight': { haste: 41, int: 200 }, // INT hard-diminishes past 200 for SHD (HT/lifetap mana)
+  'Ranger':        { haste: 41, wis: 200 }, // RNG WIS for utility spells; hard-diminishes at 200
+  'Bard':          { haste: 41, cha: 205 }, // BRD songs cap at 205 CHA for charm/mez effectiveness
+  'Enchanter':     { cha: 205 },            // ENC charm/mez cap — CHA above 205 worthless at 56+
+  'Shaman':        { wis: 255 },            // SHM only caps WIS at hard cap; no earlier threshold
 };
 
 // Returns a weight object for the given class, dynamically adjusting manabonus and hpbonus
@@ -1079,12 +1155,14 @@ function renderUpgradesPanel(){
       if(cappedNh-cappedCh)total+=(cappedNh-cappedCh)*hasteW;
     }
     // Weapon DPS scoring — PRIMARY and SECONDARY slots for melee/hybrid classes
-    // Scores ratio + proc DPS delta between candidate and current item
+    // Scores ratio + proc DPS delta between candidate and current item.
+    // Per-class scale reflects how much weapon quality matters relative to stats.
     if(MELEE_DPS_CLASSES.has(charClass)&&(candData._slot==='PRIMARY'||candData._slot==='SECONDARY')){
       const slot=candData._slot;
       const candDps=weaponDpsScore(candData,slot,charClass,charLevel,baseTotals);
       const curDps=weaponDpsScore(curItemData,slot,charClass,charLevel,baseTotals);
-      total+=(candDps-curDps)*WEAPON_DPS_SCALE;
+      const scale=CLASS_WEAPON_DPS_SCALE[charClass]||WEAPON_DPS_SCALE;
+      total+=(candDps-curDps)*scale;
     }
     return Math.round(total*10)/10;
   }
@@ -1132,8 +1210,18 @@ function renderUpgradesPanel(){
     Object.assign(currentData,Object.fromEntries(Object.entries(_db).filter(([k])=>k.startsWith('_'))));
     Object.assign(currentData,Object.fromEntries(Object.entries(_cg).filter(([k])=>k.startsWith('_'))));
     currentData.ac=Number(_db.ac||0)||Number(_cg.ac||0)||undefined;
+    // Weapon-slot skill filter: MNK (H2H/1HB/2HB only) and ROG (1H+piercing only)
+    const wepSkillFilter=CLASS_WEAPON_SKILLS[charClass];
+    function wepSkillOk(c){
+      if(!wepSkillFilter)return true;
+      if(dbSlot!=='PRIMARY'&&dbSlot!=='SECONDARY')return true;
+      const sk=(c._skill||c._itemType||'').toLowerCase();
+      // If item has no skill field (non-weapon), always pass — it'll score 0 for DPS anyway
+      if(!sk||!c.dmg)return true;
+      return wepSkillFilter.some(s=>sk.includes(s));
+    }
     const candidates=(bySlot[dbSlot]||[])
-      .filter(c=>c.name!==item.name&&itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
+      .filter(c=>c.name!==item.name&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
       .sort((a,b)=>b._effGain-a._effGain);
     slotResults.push({item,dbSlot,currentData,candidates});
@@ -1147,8 +1235,16 @@ function renderUpgradesPanel(){
     const maxCount=(slot==='EAR'||slot==='FINGERS')?2:1;
     const currentCount=slotCounts[slot]||0;
     for(let si=currentCount;si<maxCount;si++){
+      const emptyWepSkill=CLASS_WEAPON_SKILLS[charClass];
+      function emptyWepOk(c){
+        if(!emptyWepSkill)return true;
+        if(slot!=='PRIMARY'&&slot!=='SECONDARY')return true;
+        const sk=(c._skill||c._itemType||'').toLowerCase();
+        if(!sk||!c.dmg)return true;
+        return emptyWepSkill.some(s=>sk.includes(s));
+      }
       const candidates=(bySlot[slot]||[])
-        .filter(c=>itemUsableByChar(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
+        .filter(c=>itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
         .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)}))
         .sort((a,b)=>b._effGain-a._effGain);
       if(!candidates.length)continue;
