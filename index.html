@@ -1396,8 +1396,8 @@ window.upgRefreshStatSheet=function(){
     if(acv)cur.ac=(cur.ac||0)+acv;
     const dbSlot=invSlotToDBSlot(item.location);
     equippedAcBySlot[item.name]={ac:acv,dbSlot};
-    for(const k of STAT_KEYS_ALL){const v=Number(data[k]||0);if(v)cur[k]=(cur[k]||0)+v;}
-    const hastev=Number((itemDB[item.name]||{}).haste||data.haste||0);if(hastev)cur.haste=(cur.haste||0)+hastev;
+    for(const k of STAT_KEYS_ALL){const v=Number(_db4[k]||_cg4[k]||0);if(v)cur[k]=(cur[k]||0)+v;}
+    const hastev=Number(_db4.haste||_cg4.haste||0);if(hastev)cur.haste=(cur.haste||0)+hastev;
   }
   // Projected: apply current alt-select choices; also tally costs
   const proj=Object.assign({},cur);
