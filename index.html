@@ -2096,6 +2096,9 @@ async function loadFromSupabase(){
     if(Object.keys(BAKED_ITEM_DB).length===0){
       await loadItemDBFromSupabase();
     }
+    // Re-apply item DB to all chars — gearStats from Supabase may be stale if items
+    // were added to the DB after the last save (e.g. NO TRADE items newly scraped)
+    charNames().forEach(cn=>applyDBToChar(cn));
   }catch(e){console.warn('Load error',e);}
   refresh();
   updateItemDbModal();
@@ -2155,6 +2158,7 @@ async function loadItemDBFromSupabase(){
       for(const row of allRows)itemDB[row.item_name]=row.data;
       itemDBSources=['supabase ('+allRows.length+' items)'];
       console.log(`Loaded ${allRows.length} items from Supabase`);
+      charNames().forEach(cn=>applyDBToChar(cn));
       return true;
     }
   }catch(e){console.warn('Item DB load error',e);}
