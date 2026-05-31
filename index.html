@@ -620,6 +620,15 @@ const WIS_CLASSES=new Set(['Cleric','Druid','Paladin','Ranger','Shaman']);
 // Utility procs (stun/snare/haste/buff) = 0.
 const PROC_DB={"Affliction":0,"Anarchy":40,"Avatar":0,"Banish Summoned":0,"Banish Undead":0,"Berserker Madness I":0,"Berserker Madness II":0,"Berserker Madness III":0,"Berserker Madness IV":0,"Berserker Strength":0,"Blessing of Nature":0,"Blessing of the Theurgist":0,"Blaze":50,"Blinding Poison I":0,"Blinding Poison II":0,"Blinding Poison III":0,"Blood Claw":50,"Boil Blood":96,"Bone Melt":75,"Boneshear":30,"Braid of Golden Hair":0,"Breath of the Sea":60,"Brittle Haste I":0,"Brittle Haste II":0,"Brittle Haste III":0,"Brittle Haste IV":0,"Burn":40,"Burst of Flame":25,"Call of Bones":0,"Cancel Magic":0,"Cannibalize II":0,"Careless Lightning":96,"Chaos Flux":60,"Chant of Battle":0,"Chill Sight":0,"Choke":0,"Choking":0,"Clockwork Poison":0,"Color Shift":0,"Combust":176,"Conflagration":150,"Contact Poison I":0,"Contact Poison II":0,"Contact Poison III":0,"Contact Poison IV":0,"Curse of the Garou":0,"Dance of the Blade":0,"Dawncall":0,"Deadly Poison":190,"Disease":15,"Disease Cloud":0,"Dismiss Summoned":0,"Dismiss Undead":0,"Dizzy I":0,"Dizzy II":0,"Dizzy III":0,"Dizzy IV":0,"Dooming Darkness":0,"Drones of Doom":0,"Drowsy":0,"Earthcall":50,"Earthquake":80,"Energy Sap":40,"Engulfing Darkness":0,"Engulfing Roots":0,"Ensnare":0,"Ensnaring Roots":0,"Envenomed Breath":100,"Essence Tap":60,"Expel Undead":0,"Fear":0,"Feeble Mind I":0,"Feeble Mind II":0,"Feeble Mind III":0,"Feeble Mind IV":0,"Feet like Cat":0,"Fellspine":67,"Fingers of Fire":55,"Firestrike":70,"Flame Shock":60,"Flamesong":80,"Fleeting Fury":0,"Flesh Rot I":30,"Flesh Rot II":60,"Flesh Rot III":90,"Force":55,"Force Shock":88,"Froglok Poison":0,"Frost Shards":620,"Frost Shock":178,"Frost Strike":143,"Frostbite":60,"Gale of Poison":0,"Garzicor's Vengeance":120,"Glamour":0,"Greater Wolf Form":0,"Greenmist":0,"Guard":0,"Haste":0,"Holy Shock":80,"Hungry Earth":0,"Ice Rend":30,"Ignite":50,"Ikatiar's Revenge":69,"Incapacitate":0,"Infectious Cloud":0,"Inferno Shock":120,"Injected Poison I":0,"Injected Poison II":0,"Injected Poison III":0,"Injected Poison IV":0,"Injected Poison V":0,"Insidious Fever":40,"Invoke Fear":0,"Jolt":40,"Judgment of Ice":150,"Knight's Blessing":0,"Leech":20,"Lifedraw":50,"Lifespike":35,"Lifetap":4,"Lightning Strike":173,"Lightning Storm":100,"Liquid Silver I":40,"Liquid Silver II":60,"Liquid Silver III":80,"Lower Resists I":0,"Lower Resists II":0,"Lower Resists III":0,"Lower Resists IV":0,"Major Shielding":0,"Malaisement":0,"Mana Sink":0,"Melodious Befuddlement":0,"Mistwalker":0,"Muscle Lock I":0,"Muscle Lock II":0,"Muscle Lock III":0,"Muscle Lock IV":0,"Nature's Holy Wrath":150,"Nature's Wrath":100,"Neutralize Magic":0,"Obsidian Shatter":90,"One Hundred Blows":0,"Overthere":0,"Pain":60,"Paralyzing Earth":0,"Paralyzing Poison I":0,"Paralyzing Poison II":0,"Paralyzing Poison III":0,"Poison":30,"Poison Animal I":0,"Poison Animal II":0,"Poison Animal III":0,"Poison Summoned I":0,"Poison Summoned II":0,"Poison Summoned III":0,"Poisonous Chill":50,"Project Lightning":80,"Rage of Vallon":0,"Rage of Xyzith":0,"Rage of Zek":0,"Rain of Fire":100,"Rain of Swords":100,"Rampage":0,"Reckless Strength":0,"Root":0,"Rune III":0,"Scourge":0,"Screaming Mace":0,"Sebilite Pox":110,"Shadow":0,"Shadow Vortex":0,"Shards of Sorrow":80,"Shield of Brambles":50,"Shield of Thistles":0,"Shiftless Deeds":0,"Shock of Flame":88,"Shock of Frost":60,"Shock of Ice":88,"Shock of Spikes":60,"Shrieking Howl":40,"Sicken":0,"Siphon":80,"Smite":55,"Smolder":80,"Snare":0,"Soul Bond":40,"Soul Consumption":100,"Soul Leech":60,"Specter Lifetap":21,"Spirit Armor":0,"Spirit Strike":85,"Spirit Tap":141,"Static Strike":70,"Steal Strength":0,"Steelskin":0,"Storm Strike":80,"Strike of Thunder":250,"Strike of the Chosen":300,"Strong Disease":0,"Strong Poison":0,"Stun":0,"Stunning Blow":0,"Suffocate":50,"Summon Bandages":0,"Swarming Pain":150,"Symphonic Harmony":0,"System Shock I":40,"System Shock II":60,"System Shock III":80,"System Shock IV":100,"System Shock V":120,"Tagar's Insects":0,"Tashani":0,"Tashania":0,"Tepid Deeds":0,"Thunder Strike":90,"Tishan's Clash":60,"Torment":60,"Velium Shards":12,"Venom":50,"Walking Sleep":0,"Waves of the Deep Sea":65,"Weak Poison":20,"Weaken":0,"Weakening Poison I":0,"Weakening Poison II":0,"Weakening Poison III":0,"Weakening Poison IV":0,"Whirlwind":70,"Winter's Roar":80,"Word of Pain":50,"Word of Shadow":0,"Yaulp":0,"Yaulp II":0,"Yaulp III":0,"Yaulp IV":0,"Ykesha":70};
 
+// Monk weight limits by level (Velious/post-April-2001 P1999 values)
+const MNK_WEIGHT_LIMIT={1:14.9,15:15.9,30:16.9,45:17.9,51:18.9,55:20.9,60:24.9};
+function mnkWeightLimit(level){
+  const lv=Number(level)||60;
+  let limit=14.9;
+  for(const[threshold,val]of Object.entries(MNK_WEIGHT_LIMIT)){if(lv>=Number(threshold))limit=val;}
+  return limit;
+}
+
 // Classes that use weapon DPS scoring for PRIMARY/SECONDARY slots
 const MELEE_DPS_CLASSES=new Set(['Warrior','Monk','Rogue','Ranger','Bard','Paladin','Shadow Knight']);
 
@@ -653,22 +662,53 @@ const CLASS_WEAPON_DPS_SCALE={
   'Paladin':       8.0, // hybrid; MH only
   'Shadow Knight': 8.0, // hybrid; MH only
   'Monk':         10.0, // full DPS, weapon matters (H2H innate vs weapon is per-item)
-  'Rogue':         6.0, // backstab dominates; ratio scoring is partial proxy only
+  'Rogue':         9.0, // backstab now modeled — full weight restored
   'Ranger':       10.0, // full DW melee + hybrid; full weight
   'Bard':          4.0, // song twisting > melee; proc > ratio for BRD
 };
 
 // Compute weapon DPS score for a single item in a given slot context.
 // Returns a numeric score suitable for adding to effectiveGain.
-// slot: 'PRIMARY' or 'SECONDARY'; charClass string; charLevel number
+// slot: 'PRIMARY', 'SECONDARY', or 'RANGE'; charClass string; charLevel number
 function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
   const dmg=Number(itemData.dmg||0);
   const delay=Number(itemData.delay||0);
-  if(!dmg||!delay)return 0;
+  const lv=Math.min(charLevel||60,60);
+
   if(!MELEE_DPS_CLASSES.has(charClass))return 0;
 
   const itype=(itemData._skill||itemData._itemType||'').toLowerCase();
   const is2h=itype.includes('2h')||itype.includes('two');
+
+  // ── BRD SECONDARY: instrument mod scoring ───────────────────────────────────
+  // Instruments in SECONDARY (and some PRIMARY) carry a mod value that directly
+  // scales song effectiveness. Score on the best mod present.
+  if(charClass==='Bard'&&(slot==='SECONDARY'||slot==='PRIMARY')){
+    const percmod=Number(itemData._percmod||0);
+    const stringmod=Number(itemData._stringmod||0);
+    const windmod=Number(itemData._windmod||0);
+    const brasmod=Number(itemData._brasmod||0);
+    const allmod=Number(itemData._allmod||0);
+    const bestMod=Math.max(percmod,stringmod,windmod,brasmod,allmod);
+    if(bestMod>0){
+      // Scale: mod 20 (vendor) = baseline 0, mod 26 (Drums of Beast) = top.
+      // Score relative to baseline 20 so upgrades register correctly.
+      return Math.max(0,(bestMod-18)*1.5);
+    }
+    // If it's a weapon with no instrument mod, fall through to normal scoring
+  }
+
+  // ── RNG RANGE: archery DPS scoring ──────────────────────────────────────────
+  // Lv50+ Rangers do double damage vs non-moving targets (July 2000 patch).
+  // Trueshot Discipline handled separately. Score bow dmg/delay × 2.
+  if(charClass==='Ranger'&&slot==='RANGE'){
+    if(!dmg||!delay)return 0;
+    return (2*dmg)/delay;
+  }
+
+  // Non-weapon slots beyond RANGE don't get DPS scoring
+  if(slot!=='PRIMARY'&&slot!=='SECONDARY')return 0;
+  if(!dmg||!delay)return 0;
 
   // No-DW classes: SECONDARY slot gets zero weapon score (it's a shield/stat offhand slot)
   if(CLASS_NO_DW.has(charClass)&&slot==='SECONDARY')return 0;
@@ -679,17 +719,15 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
   const allowedSkills=CLASS_WEAPON_SKILLS[charClass];
   if(allowedSkills){
     if(!allowedSkills.some(s=>itype.includes(s)))return 0;
-    // ROG has no 2H at all — belt-and-suspenders check
     if(charClass==='Rogue'&&is2h)return 0;
   }
 
   const cap=CLASS_DMG_CAP[charClass]||100;
   const d=Math.min(dmg,cap);
-  const lv=Math.min(charLevel||60,60);
 
   // Damage bonus (MH only, fires every swing)
   // 1H: floor((level-25)/3) = 11 at 60
-  // 2H: floor(delay*37/44) — Velious formula anchored to Flamberge (46/44 → bonus 37)
+  // 2H: floor(delay*37/44) — Velious formula
   // OH: no bonus
   let bonus=0;
   if(lv>=28&&slot==='PRIMARY'){
@@ -707,7 +745,22 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
 
   // Ratio: OH gets no damage bonus
   const ratio=slot==='SECONDARY'?(2*d)/delay:((2*d+bonus)/delay);
-  return ratio+procDps;
+
+  // ── ROG backstab bonus (piercing PRIMARY only) ───────────────────────────────
+  // Backstab formula: (Backstab_skill × weapon_dmg) / 50
+  // At lv60: max skill 225 → avg backstab = 225 × dmg / 50 = 4.5 × dmg
+  // Minimum backstab at lv60 = floor(1.5 × 60) = 90
+  // Backstab fires ~once every 8 seconds (one per combat round at typical delay)
+  // Express as DPS contribution relative to auto-attack ratio for scoring purposes
+  let backstabBonus=0;
+  if(charClass==='Rogue'&&slot==='PRIMARY'&&itype.includes('piercing')){
+    const bsAvg=Math.max(90,(225*d)/50);
+    // Backstab fires roughly every 8s; normalize to same scale as ratio (per-delay)
+    // Divide by delay to put on same footing as ratio score
+    backstabBonus=(bsAvg/delay)*0.6; // 0.6 weight factor vs auto-attack
+  }
+
+  return ratio+procDps+backstabBonus;
 }
 
 // Flat scale fallback (used if class not in CLASS_WEAPON_DPS_SCALE)
@@ -734,7 +787,7 @@ const CLASS_STAT_WEIGHTS = {
   //      no dual wield; slightly less AC priority than WAR but more than PAL
   'Shadow Knight': {str:2.5,   sta:5.0,  dex:1.5,   agi:0.5,   wis:0.0001,int:4.0,   cha:0.0001,ac:3.5,  svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.5,  haste:5.0},
   // RNG: hybrid DPS — STR for melee, WIS for mana (buff/heal utility), DEX for proc+archery;
-  //      full DW; lower AC priority (leather/chain hybrid); archery not yet scored
+  //      full DW; lower AC priority (leather/chain hybrid); archery scored (2× dmg/delay lv50+)
   'Ranger':        {str:2.5,   sta:3.5,  dex:2.0,   agi:0.5,   wis:3.5,   int:0.0001,cha:0.0001,ac:1.0,  svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.5,  haste:6.0},
   // BRD: song twisting > melee; CHA for charm/mez/slow cap; DEX for melee proc rate while
   //      twisting; instrument mods not scored (future feature); weapon DPS scale = 4.0
@@ -1154,10 +1207,11 @@ function renderUpgradesPanel(){
       const cappedNh=Math.min(nh,Math.max(0,hasteThresh-(curTotal-ch)));
       if(cappedNh-cappedCh)total+=(cappedNh-cappedCh)*hasteW;
     }
-    // Weapon DPS scoring — PRIMARY and SECONDARY slots for melee/hybrid classes
+    // Weapon DPS scoring — PRIMARY, SECONDARY, and RANGE slots for melee/hybrid classes
     // Scores ratio + proc DPS delta between candidate and current item.
     // Per-class scale reflects how much weapon quality matters relative to stats.
-    if(MELEE_DPS_CLASSES.has(charClass)&&(candData._slot==='PRIMARY'||candData._slot==='SECONDARY')){
+    const wepSlots=new Set(['PRIMARY','SECONDARY','RANGE']);
+    if(MELEE_DPS_CLASSES.has(charClass)&&wepSlots.has(candData._slot)){
       const slot=candData._slot;
       const candDps=weaponDpsScore(candData,slot,charClass,charLevel,baseTotals);
       const curDps=weaponDpsScore(curItemData,slot,charClass,charLevel,baseTotals);
@@ -1252,6 +1306,25 @@ function renderUpgradesPanel(){
     }
   }
   window._upgSlots=slotResults;
+
+  // ── MNK unarmed: inject virtual "Unarmed (Fists)" option into PRIMARY/SECONDARY ──
+  // At lv60: Human fists = 14 dmg / 26 delay, Iksar = 14/27. Fists are magical at lv30+.
+  // Treat as Human (14/26) — conservative; Iksar would be marginally weaker.
+  if(charClass==='Monk'){
+    const unarmedItem={name:'Unarmed (Fists)',dmg:14,delay:26,_slot:'PRIMARY',_skill:'Hand to Hand',_classes:'MNK',_races:'ALL',_magic:true};
+    for(const sr of slotResults){
+      if(sr.dbSlot!=='PRIMARY'&&sr.dbSlot!=='SECONDARY')continue;
+      if(sr.is2hCard)continue;
+      const slotForUnarmed=sr.dbSlot;
+      const unarmedForSlot={...unarmedItem,_slot:slotForUnarmed};
+      const alreadyIn=sr.candidates.some(c=>c.name==='Unarmed (Fists)');
+      if(!alreadyIn){
+        const gain=effectiveGain(sr.currentData,unarmedForSlot,baselineTotals);
+        sr.candidates.push({...unarmedForSlot,_effGain:gain});
+        sr.candidates.sort((a,b)=>b._effGain-a._effGain);
+      }
+    }
+  }
 
   function scoreClass(v){return v>=20?'upg-score-hi':v>=8?'upg-score-mid':'upg-score-lo';}
 
@@ -1384,7 +1457,23 @@ function renderUpgradesPanel(){
     <button type="button" class="upg-save-btn" onclick="saveGearPlan()">&#8853; Save plan</button>
   </div>`;
 
-  panel.innerHTML=saveBar+`<div class="upg-layout">
+  // ── MNK weight banner ──────────────────────────────────────────────────────
+  let weightBannerHtml='';
+  if(charClass==='Monk'){
+    const limit=mnkWeightLimit(charLevel);
+    const totalWt=equipped.reduce((sum,item)=>{
+      const db=itemDB[item.name]||charGear[item.name]||{};
+      return sum+Number(db._wt||db.wt||0);
+    },0);
+    const wtRounded=Math.round(totalWt*10)/10;
+    if(wtRounded>limit){
+      weightBannerHtml=`<div style="background:rgba(160,48,48,.18);border:1px solid #8a4040;border-radius:4px;padding:.5rem .75rem;margin-bottom:.5rem;font-size:.82rem;color:#c06060;">⚠ Weight penalty active: <strong>${wtRounded} / ${limit} lbs</strong> — AC penalty applies. Reduce carried weight below ${limit} lbs for lv${charLevel}.</div>`;
+    } else if(wtRounded>(limit*0.85)){
+      weightBannerHtml=`<div style="background:rgba(140,100,20,.15);border:1px solid #7a6020;border-radius:4px;padding:.5rem .75rem;margin-bottom:.5rem;font-size:.82rem;color:#b09040;">⚡ Approaching weight limit: <strong>${wtRounded} / ${limit} lbs</strong> — stay under ${limit} lbs to avoid AC penalty.</div>`;
+    }
+  }
+
+  panel.innerHTML=saveBar+weightBannerHtml+`<div class="upg-layout">
     <div class="upg-slots-panel">${cardsHtml||'<div class="upg-none">No equipped items found.</div>'}</div>
     <div class="upg-stat-panel">
       <div class="upg-stat-head">Stat sheet</div>
@@ -1650,6 +1739,11 @@ function parseItemDB(csvText,filename){
       _effectTypeCol:ci('effect type'),
       _skillCol:ci('weapon skill'),
       _hasteCol:ci('haste'),
+      _percmodCol:ci('percussion instrument'),
+      _stringmodCol:ci('stringed instrument'),
+      _windmodCol:ci('wind instrument'),
+      _brasmodCol:ci('brass instrument'),
+      _allmodCol:ci('all instrument'),
       haste:ci('haste'),
       str:ci('str'),sta:ci('sta'),agi:ci('agi'),dex:ci('dex'),
       wis:ci('wis'),int:ci('int'),cha:ci('cha'),
@@ -1722,6 +1816,14 @@ function parseItemDB(csvText,filename){
       const effectVal=col('_effectCol');if(effectVal){stats._effect=effectVal;const et=col('_effectTypeCol');if(et)stats._effectType=et;}
       const skillVal=col('_skillCol');if(skillVal)stats._skill=skillVal;
       const hasteVal=col('_hasteCol');if(hasteVal){const hp=parseFloat(hasteVal);if(!isNaN(hp)&&hp!==0)stats.haste=hp;}
+      // Instrument mods (BRD)
+      const percVal=parseFloat(col('_percmodCol'));if(!isNaN(percVal)&&percVal>0)stats._percmod=percVal;
+      const stringVal=parseFloat(col('_stringmodCol'));if(!isNaN(stringVal)&&stringVal>0)stats._stringmod=stringVal;
+      const windVal=parseFloat(col('_windmodCol'));if(!isNaN(windVal)&&windVal>0)stats._windmod=windVal;
+      const brasVal=parseFloat(col('_brasmodCol'));if(!isNaN(brasVal)&&brasVal>0)stats._brasmod=brasVal;
+      const allVal=parseFloat(col('_allmodCol'));if(!isNaN(allVal)&&allVal>0)stats._allmod=allVal;
+      // Item weight (for MNK weight penalty check)
+      const wtCol=ci('wt');if(wtCol>=0){const wv=parseFloat(cols[wtCol]);if(!isNaN(wv))stats._wt=wv;}
     }
 
     if(!itemDB[name]){
