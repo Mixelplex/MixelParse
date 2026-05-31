@@ -1743,13 +1743,27 @@ function parseItemDB(csvText,filename){
   const lines=text.split('\n');
   let headerIdx=-1,headers=[],sep='\t',formatNew=false;
 
+  // Proper CSV split — handles quoted fields containing the delimiter or commas
+  function csvSplit(line,s){
+    if(s==='\t')return line.split('\t').map(c=>c.trim().replace(/"/g,''));
+    const out=[];let cur='',inQ=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+      else if(ch===','&&!inQ){out.push(cur.trim());cur='';}
+      else cur+=ch;
+    }
+    out.push(cur.trim());
+    return out;
+  }
+
   for(let i=0;i<Math.min(lines.length,5);i++){
     for(const s of['\t',',']){
-      const cols=lines[i].split(s).map(c=>c.trim().replace(/"/g,''));
+      const cols=csvSplit(lines[i],s);
       // Old format: Slot | Name | ...
-      if(cols[0]==='Slot'&&cols[1]==='Name'){headerIdx=i;sep=s;headers=cols.map(h=>h.trim().toLowerCase().replace(/"/g,''));formatNew=false;break;}
+      if(cols[0]==='Slot'&&cols[1]==='Name'){headerIdx=i;sep=s;headers=cols.map(h=>h.trim().toLowerCase());formatNew=false;break;}
       // New p1999 CSV format: Item Name | Wiki URL | Era | Slot | ...
-      if(cols[0].replace(/^\uFEFF/,'').toLowerCase()==='item name'&&cols[3]?.toLowerCase()==='slot'){headerIdx=i;sep=s;headers=cols.map(h=>h.trim().toLowerCase().replace(/"/g,''));formatNew=true;break;}
+      if(cols[0].replace(/^\uFEFF/,'').toLowerCase()==='item name'&&cols[3]?.toLowerCase()==='slot'){headerIdx=i;sep=s;headers=cols.map(h=>h.trim().toLowerCase());formatNew=true;break;}
     }
     if(headerIdx>=0)break;
   }
@@ -1811,7 +1825,7 @@ function parseItemDB(csvText,filename){
   const fileRace=raceFromFilename(filename||'');
 
   for(let i=headerIdx+1;i<lines.length;i++){
-    const cols=lines[i].split(sep).map(c=>c.trim().replace(/"/g,''));
+    const cols=csvSplit(lines[i],sep);
     const name=cols[colMap._nameCol];
     const rawSlot=(cols[colMap._slotCol]||'').trim().toUpperCase();
     if(!name||name==='STAT WEIGHTS:'||name==='Name')continue;
