@@ -1386,7 +1386,7 @@ function renderUpgradesPanel(){
     const isMH=dbSlot==='PRIMARY'&&!sr.is2hCard;
     const isOH=dbSlot==='SECONDARY';
     const is2hCard=!!sr.is2hCard;
-    const isWepDisabled=(isMH||isOH)&&is2hMode;
+    const isWepDisabled=(isMH||isOH)&&is2hMode || is2hCard&&!is2hMode;
     const slotLabelExtra=isMH?' upg-wep-mh':isOH?' upg-wep-oh':'';
     const slotLabelText=is2hCard?'2H Weapon':dbSlot;
     const best=candidates[0];
