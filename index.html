@@ -1267,11 +1267,12 @@ function renderUpgradesPanel(){
     // Weapon-slot skill filter: MNK (H2H/1HB/2HB only) and ROG (1H+piercing only)
     const wepSkillFilter=CLASS_WEAPON_SKILLS[charClass];
     function wepSkillOk(c){
-      if(!wepSkillFilter)return true;
       if(dbSlot!=='PRIMARY'&&dbSlot!=='SECONDARY')return true;
       const sk=(c._skill||c._itemType||'').toLowerCase();
-      // If item has no skill field (non-weapon), always pass — it'll score 0 for DPS anyway
       if(!sk||!c.dmg)return true;
+      // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
+      if(!window._upgTwoHander&&(sk.includes('2h')||sk.includes('two hand')))return false;
+      if(!wepSkillFilter)return true;
       return wepSkillFilter.some(s=>sk.includes(s));
     }
     const candidates=(bySlot[dbSlot]||[])
@@ -1291,10 +1292,12 @@ function renderUpgradesPanel(){
     for(let si=currentCount;si<maxCount;si++){
       const emptyWepSkill=CLASS_WEAPON_SKILLS[charClass];
       function emptyWepOk(c){
-        if(!emptyWepSkill)return true;
         if(slot!=='PRIMARY'&&slot!=='SECONDARY')return true;
         const sk=(c._skill||c._itemType||'').toLowerCase();
         if(!sk||!c.dmg)return true;
+        // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
+        if(!window._upgTwoHander&&(sk.includes('2h')||sk.includes('two hand')))return false;
+        if(!emptyWepSkill)return true;
         return emptyWepSkill.some(s=>sk.includes(s));
       }
       const candidates=(bySlot[slot]||[])
