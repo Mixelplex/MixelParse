@@ -1829,9 +1829,13 @@ let _gcItemA     = null;   // { name, data }
 let _gcItemB     = null;
 let _gcSlotData  = {};     // slot -> { equippedName, equippedData, equippedScore, candidates[] }
 
-const GC_SLOT_ORDER = ['HEAD','FACE','EAR','NECK','SHOULDERS','ARMS','BACK',
-                       'WRIST','HANDS','PRIMARY','SECONDARY','RANGE',
-                       'CHEST','LEGS','FEET','WAIST','FINGERS','AMMO'];
+const GC_SLOT_ORDER = ['HEAD','FACE','EAR1','EAR2','NECK','SHOULDERS','ARMS','BACK',
+                       'WRIST1','WRIST2','HANDS','PRIMARY','SECONDARY','RANGE',
+                       'CHEST','LEGS','FEET','WAIST','FINGERS1','FINGERS2','AMMO'];
+// Map DB slot names to indexed slot keys for duplicate slots
+const GC_SLOT_INDEX = {'EAR':'EAR','FINGERS':'FINGERS','WRIST':'WRIST'};
+function gcIndexedSlot(slot, n) { return GC_SLOT_INDEX[slot] ? GC_SLOT_INDEX[slot]+n : slot; }
+function gcBaseSlot(slot) { return slot.replace(/[12]$/, ''); }
 
 // ── helpers shared across GC ──────────────────────────────────────────────────
 function gcGetApp() { return window.opener || null; }
@@ -2009,8 +2013,13 @@ function gcComputeSlotScores(charName) {
   if (upgValid) {
     window._gcLastPathUsed = 'upgSlots (pre-computed)';
     // Use pre-computed candidates directly from _upgSlots
+    // Track how many times each base slot appears to generate EAR1/EAR2 etc.
+    const slotSeenCount = {};
     for (const sr of upgSlots) {
-      const slot = sr.dbSlot;
+      const baseSlot = sr.dbSlot;
+      const isDupe = baseSlot === 'EAR' || baseSlot === 'FINGERS' || baseSlot === 'WRIST';
+      slotSeenCount[baseSlot] = (slotSeenCount[baseSlot] || 0) + 1;
+      const slot = isDupe ? baseSlot + slotSeenCount[baseSlot] : baseSlot;
       if (!_gcSlotData[slot]) _gcSlotData[slot] = { equipped: [], candidates: [] };
       const equippedScore = gcScoreItem(sr.currentData, weights, baseTotals, hpPerSta, slot, cls, level);
       if (!sr.isEmpty) {
@@ -2020,12 +2029,11 @@ function gcComputeSlotScores(charName) {
           score: equippedScore
         });
       }
-      // Top 5 candidates
       const topCands = (sr.candidates || []).slice(0, 5).map(c => ({
         name: c.name,
         data: c,
         score: gcScoreItem(c, weights, baseTotals, hpPerSta, slot, cls, level),
-        preScore: c._effGain  // from upgrade engine
+        preScore: c._effGain
       }));
       _gcSlotData[slot].candidates = topCands;
     }
@@ -2033,13 +2041,17 @@ function gcComputeSlotScores(charName) {
     window._gcLastPathUsed = 'manual (itemDB scan)';
     // Compute ourselves from itemDB
     const itemDB = A2.itemDB || {};
-    // Build equipped slot map
+    // Build equipped slot map — use EAR1/EAR2, WRIST1/WRIST2, FINGERS1/FINGERS2
+    const dupeSlotCount = {};
     for (const item of equipped) {
       const loc = item.location.toUpperCase();
-      let slot = loc;
-      if (loc.includes('EAR'))    slot = 'EAR';
-      if (loc.includes('FINGER')) slot = 'FINGERS';
-      if (loc.includes('WRIST'))  slot = 'WRIST';
+      let baseSlot = loc;
+      if (loc.includes('EAR'))    baseSlot = 'EAR';
+      if (loc.includes('FINGER')) baseSlot = 'FINGERS';
+      if (loc.includes('WRIST'))  baseSlot = 'WRIST';
+      const isDupe = baseSlot === 'EAR' || baseSlot === 'FINGERS' || baseSlot === 'WRIST';
+      dupeSlotCount[baseSlot] = (dupeSlotCount[baseSlot] || 0) + 1;
+      const slot = isDupe ? baseSlot + dupeSlotCount[baseSlot] : baseSlot;
       if (!_gcSlotData[slot]) _gcSlotData[slot] = { equipped: [], candidates: [] };
       const data = gcMergeItemData(item.name, charName);
       _gcSlotData[slot].equipped.push({
@@ -2058,9 +2070,10 @@ function gcComputeSlotScores(charName) {
     for (const [slot, slotInfo] of Object.entries(_gcSlotData)) {
       const equippedName = slotInfo.equipped[0]?.name;
       const ssCustomSelf = A2 ? (A2.SS_CUSTOM_ITEMS || new Set()) : new Set();
-      const candidates = (bySlot[slot] || [])
+      const dbSlot = gcBaseSlot(slot); // EAR1 → EAR etc.
+      const candidates = (bySlot[dbSlot] || [])
         .filter(c => c.name !== equippedName && !ssCustomSelf.has(c.name) && !c.name.startsWith('Custom ') && !c.data._legacy && !c.data._nonp99 && gcItemUsable(c.data))
-        .map(c => ({ ...c, score: gcScoreItem(c.data, weights, baseTotals, hpPerSta, slot, cls, level) }))
+        .map(c => ({ ...c, score: gcScoreItem(c.data, weights, baseTotals, hpPerSta, dbSlot, cls, level) }))
         .sort((a, b) => b.score - a.score)
         .slice(0, 5);
       slotInfo.candidates = candidates;
@@ -2087,10 +2100,11 @@ function gcPopulateSlotDropdown(charName) {
     if (_gcSlotData[slot]) continue;
     const itemDB = A2e?.itemDB || {};
     const ssCustom = A2e?.SS_CUSTOM_ITEMS || new Set();
+    const dbSlot = gcBaseSlot(slot); // EAR1 → EAR, FINGERS2 → FINGERS etc.
     const candidates = Object.entries(itemDB)
-      .filter(([name, data]) => data._slot === slot && !data._legacy && !data._nonp99
+      .filter(([name, data]) => data._slot === dbSlot && !data._legacy && !data._nonp99
         && !ssCustom.has(name) && !name.startsWith('Custom ') && gcItemUsable(data))
-      .map(([name, data]) => ({ name, data, score: gcScoreItem(data, weightsE, baseTotalsE, hpPerStaE, slot, clsE, levelE) }))
+      .map(([name, data]) => ({ name, data, score: gcScoreItem(data, weightsE, baseTotalsE, hpPerStaE, dbSlot, clsE, levelE) }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
     if (candidates.length) {
@@ -2281,7 +2295,7 @@ function gcSearch(which) {
   const ssCustom = A2 ? (A2.SS_CUSTOM_ITEMS || new Set()) : new Set();
   const keys = Object.keys(db).filter(k => {
     if (!k.toLowerCase().includes(val)) return false;
-    if (slot && db[k]._slot && db[k]._slot !== slot) return false;
+    if (slot && db[k]._slot && db[k]._slot !== gcBaseSlot(slot)) return false;
     if (ssCustom.has(k)) return false;
     if (k.startsWith('Custom ')) return false;
     if (!gcItemUsable(db[k])) return false;
@@ -2344,7 +2358,7 @@ function gcCompare() {
   const baseTotals = _gcChar ? gcBuildBaseTotals(_gcChar.name) : {};
   const weights    = getStatWeights(cls, baseTotals);
   const hpPerSta   = HP_RATIOS[cls] ? staRatioFn(cls, level) : 0;
-  const gcSlot     = document.getElementById('gc-slot')?.value || (_gcItemA?.data?._slot) || '';
+  const gcSlot     = gcBaseSlot(document.getElementById('gc-slot')?.value || (_gcItemA?.data?._slot) || '');
   const gcDex      = Math.min(255, baseTotals.dex || 175);
 
   // Per-stat breakdown with individual scores
