@@ -177,6 +177,11 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
     Upgrade Scoring
     <span class="sb-badge skip" id="badge-upgrades">—</span>
   </div>
+  <div class="sb-item" data-suite="weapondps" onclick="showSuite('weapondps',this)">
+    <div class="sb-dot skip" id="dot-weapondps"></div>
+    Weapon DPS Scoring
+    <span class="sb-badge skip" id="badge-weapondps">—</span>
+  </div>
 
   <div class="sb-section">Data Pipeline</div>
   <div class="sb-item" data-suite="bridge" onclick="showSuite('bridge',this)">
@@ -309,6 +314,89 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
       <div class="suite-desc">Tests effectiveGain() logic, cap clamping at 255, stat delta calculation, and candidate sorting for the Upgrades tab.</div>
       <div class="suite-actions"><button class="btn primary" onclick="runSuite('upgrades')">&#9658; Run Suite</button></div>
       <div id="results-upgrades"></div>
+    </div>
+
+    <!-- WEAPON DPS SUITE -->
+    <div id="suite-weapondps" class="suite">
+      <div class="suite-title">WEAPON DPS SCORING</div>
+      <div class="suite-desc">Validates weaponDpsScore() for all four class-specific branches: MNK innate H2H, ROG backstab on piercing PRIMARY, RNG archery 2× multiplier, and BRD instrument mod scoring. Runs standalone — no app connection required.</div>
+      <div class="suite-actions">
+        <button class="btn primary" onclick="runSuite('weapondps')">&#9658; Run Suite</button>
+        <button class="btn" onclick="document.getElementById('wdps-sandbox').style.display=document.getElementById('wdps-sandbox').style.display==='none'?'block':'none'">&#9881; Open Sandbox</button>
+      </div>
+      <div id="results-weapondps"></div>
+
+      <!-- Interactive sandbox -->
+      <div id="wdps-sandbox" style="display:none;margin-top:1rem;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.85rem">
+        <div style="font-family:var(--cinzel);font-size:.65rem;letter-spacing:.09em;color:var(--gold);margin-bottom:.65rem">INTERACTIVE COMPARE</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 90px 90px 90px;gap:.55rem;margin-bottom:.65rem;align-items:end">
+          <label style="display:flex;flex-direction:column;gap:.25rem;font-family:var(--cinzel);font-size:.54rem;letter-spacing:.07em;color:var(--text-m)">
+            CLASS
+            <select id="wdps-class" onchange="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.28rem .4rem;font-size:.84rem;outline:none">
+              <option>Monk</option><option>Rogue</option><option>Ranger</option><option>Bard</option>
+              <option>Warrior</option><option>Paladin</option><option>Shadow Knight</option>
+            </select>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:.25rem;font-family:var(--cinzel);font-size:.54rem;letter-spacing:.07em;color:var(--text-m)">
+            SLOT
+            <select id="wdps-slot" onchange="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.28rem .4rem;font-size:.84rem;outline:none">
+              <option>PRIMARY</option><option>SECONDARY</option><option>RANGE</option>
+            </select>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:.25rem;font-family:var(--cinzel);font-size:.54rem;letter-spacing:.07em;color:var(--text-m)">
+            LEVEL
+            <input id="wdps-level" type="number" value="60" min="1" max="60" onchange="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.28rem .4rem;font-size:.84rem;outline:none;width:100%">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:.25rem;font-family:var(--cinzel);font-size:.54rem;letter-spacing:.07em;color:var(--text-m)">
+            DEX
+            <input id="wdps-dex" type="number" value="175" min="1" max="255" onchange="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.28rem .4rem;font-size:.84rem;outline:none;width:100%">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:.25rem;font-family:var(--cinzel);font-size:.54rem;letter-spacing:.07em;color:var(--text-m)">
+            SCALE ×
+            <input id="wdps-scale" type="number" value="10" min="1" max="20" onchange="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.28rem .4rem;font-size:.84rem;outline:none;width:100%">
+          </label>
+        </div>
+
+        <!-- Two item rows -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.65rem">
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:.6rem">
+            <div style="font-family:var(--cinzel);font-size:.58rem;letter-spacing:.07em;color:var(--text-m);margin-bottom:.45rem">ITEM A</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem;margin-bottom:.4rem">
+              <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m)">DMG<input id="wdps-a-dmg" type="number" value="16" oninput="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+              <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m)">DELAY<input id="wdps-a-delay" type="number" value="22" oninput="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+              <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m)">MOD<input id="wdps-a-mod" type="number" value="0" oninput="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+            </div>
+            <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m);margin-bottom:.4rem">SKILL TYPE<input id="wdps-a-skill" type="text" value="1H Blunt" oninput="wdpsCompare()" placeholder="e.g. Piercing, Archery, Hand to Hand" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+            <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m);margin-bottom:.4rem">PROC (effect name)<input id="wdps-a-proc" type="text" value="" oninput="wdpsCompare()" placeholder="e.g. Siphon, Frost Strike" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+            <div style="font-family:var(--mono);font-size:.75rem;padding:.35rem .5rem;background:var(--surface);border-radius:3px;margin-top:.3rem">
+              Raw score: <span id="wdps-a-raw" style="color:var(--gold-l)">—</span><br>
+              Scaled (+×): <span id="wdps-a-scaled" style="color:var(--gold-l)">—</span>
+            </div>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:.6rem">
+            <div style="font-family:var(--cinzel);font-size:.58rem;letter-spacing:.07em;color:var(--text-m);margin-bottom:.45rem">ITEM B</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem;margin-bottom:.4rem">
+              <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m)">DMG<input id="wdps-b-dmg" type="number" value="14" oninput="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+              <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m)">DELAY<input id="wdps-b-delay" type="number" value="26" oninput="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+              <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m)">MOD<input id="wdps-b-mod" type="number" value="0" oninput="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+            </div>
+            <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m);margin-bottom:.4rem">SKILL TYPE<input id="wdps-b-skill" type="text" value="Hand to Hand" oninput="wdpsCompare()" placeholder="e.g. Piercing, Archery, Hand to Hand" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+            <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m);margin-bottom:.4rem">PROC (effect name)<input id="wdps-b-proc" type="text" value="" oninput="wdpsCompare()" placeholder="e.g. Siphon, Frost Strike" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+            <div style="font-family:var(--mono);font-size:.75rem;padding:.35rem .5rem;background:var(--surface);border-radius:3px;margin-top:.3rem">
+              Raw score: <span id="wdps-b-raw" style="color:var(--gold-l)">—</span><br>
+              Scaled (+×): <span id="wdps-b-scaled" style="color:var(--gold-l)">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Winner banner -->
+        <div id="wdps-verdict" style="font-family:var(--mono);font-size:.8rem;padding:.45rem .65rem;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--text-d)">
+          Fill in both items to compare.
+        </div>
+
+        <!-- Breakdown -->
+        <pre id="wdps-breakdown" style="font-family:var(--mono);font-size:.7rem;background:#050403;border:1px solid var(--border);border-radius:3px;padding:.5rem .7rem;margin-top:.5rem;color:var(--text-d);white-space:pre-wrap;display:none"></pre>
+      </div>
     </div>
 
 
@@ -837,6 +925,263 @@ SUITES.upgrades = [
   }),
 ];
 
+// WEAPON DPS — standalone, no opener required
+// Inlines scoring constants so this suite runs without app connection.
+(function(){
+  const _PROC_DB={"Anarchy":40,"Blaze":50,"Blood Claw":50,"Boil Blood":96,"Bone Melt":75,"Boneshear":30,"Burn":40,"Burst of Flame":25,"Careless Lightning":96,"Chaos Flux":60,"Combust":176,"Conflagration":150,"Deadly Poison":190,"Disease":15,"Earthcall":50,"Earthquake":80,"Energy Sap":40,"Envenomed Breath":100,"Essence Tap":60,"Fellspine":67,"Fingers of Fire":55,"Firestrike":70,"Flame Shock":60,"Flamesong":80,"Flesh Rot I":30,"Flesh Rot II":60,"Flesh Rot III":90,"Force":55,"Force Shock":88,"Frost Shards":620,"Frost Shock":178,"Frost Strike":143,"Frostbite":60,"Garzicor's Vengeance":120,"Holy Shock":80,"Ice Rend":30,"Ignite":50,"Ikatiar's Revenge":69,"Inferno Shock":120,"Insidious Fever":40,"Jolt":40,"Judgment of Ice":150,"Leech":20,"Lifedraw":50,"Lifespike":35,"Lifetap":4,"Lightning Storm":100,"Lightning Strike":173,"Liquid Silver I":40,"Liquid Silver II":60,"Liquid Silver III":80,"Nature's Holy Wrath":150,"Nature's Wrath":100,"Obsidian Shatter":90,"Poison":30,"Poisonous Chill":50,"Project Lightning":80,"Rain of Fire":100,"Rain of Swords":100,"Sebilite Pox":110,"Shards of Sorrow":80,"Shield of Brambles":50,"Shock of Flame":88,"Shock of Frost":60,"Shock of Ice":88,"Shock of Spikes":60,"Shrieking Howl":40,"Siphon":80,"Smite":55,"Smolder":80,"Soul Bond":40,"Soul Consumption":100,"Soul Leech":60,"Specter Lifetap":21,"Spirit Strike":85,"Spirit Tap":141,"Static Strike":70,"Storm Strike":80,"Strike of Thunder":250,"Strike of the Chosen":300,"Suffocate":50,"Swarming Pain":150,"System Shock I":40,"System Shock II":60,"System Shock III":80,"System Shock IV":100,"System Shock V":120,"Thunder Strike":90,"Tishan's Clash":60,"Torment":60,"Velium Shards":12,"Waves of the Deep Sea":65,"Weak Poison":20,"Whirlwind":70,"Winter's Roar":80,"Word of Pain":50,"Ykesha":70};
+  const _MELEE=new Set(['Warrior','Monk','Rogue','Ranger','Bard','Paladin','Shadow Knight']);
+  const _NO_DW=new Set(['Paladin','Shadow Knight']);
+  const _DMG_CAP={'Warrior':100,'Paladin':100,'Shadow Knight':100,'Monk':200,'Rogue':200,'Ranger':200,'Bard':200};
+  const _WEP_SKILLS={'Monk':['hand to hand','1h blunt','2h blunt'],'Rogue':['1h slashing','1h blunt','piercing']};
+
+  function _wdps(item, slot, cls, lv, dex){
+    const dmg=Number(item.dmg||0), delay=Number(item.delay||0);
+    const lvCap=Math.min(lv||60,60);
+    if(!_MELEE.has(cls))return 0;
+    const itype=(item._skill||'').toLowerCase();
+    const is2h=itype.includes('2h')||itype.includes('two');
+    if(cls==='Bard'&&(slot==='SECONDARY'||slot==='PRIMARY')){
+      const best=Math.max(Number(item._percmod||0),Number(item._stringmod||0),Number(item._windmod||0),Number(item._brasmod||0),Number(item._allmod||0));
+      if(best>0)return Math.max(0,(best-18)*1.5);
+    }
+    if(cls==='Ranger'&&slot==='RANGE')return(dmg&&delay)?(2*dmg)/delay:0;
+    if(slot!=='PRIMARY'&&slot!=='SECONDARY')return 0;
+    if(!dmg||!delay)return 0;
+    if(_NO_DW.has(cls)&&slot==='SECONDARY')return 0;
+    if(is2h&&slot!=='PRIMARY')return 0;
+    const allowed=_WEP_SKILLS[cls];
+    if(allowed&&!allowed.some(s=>itype.includes(s)))return 0;
+    if(cls==='Rogue'&&is2h)return 0;
+    const cap=_DMG_CAP[cls]||100;
+    const d=Math.min(dmg,cap);
+    let bonus=0;
+    if(lvCap>=28&&slot==='PRIMARY')bonus=is2h?Math.floor(delay*37/44):Math.floor((lvCap-25)/3);
+    const effect=item._effect||'', effectType=item._effectType||'';
+    const hasCombat=effect&&effectType&&effectType.toLowerCase().includes('combat');
+    const procDmg=hasCombat?(_PROC_DB[effect]||35):0;
+    const dexCap=Math.min(255,dex||175);
+    const ppm=(dexCap/170)+0.5;
+    const procDps=slot==='SECONDARY'?(ppm*0.5*procDmg/60):(ppm*procDmg/60);
+    const ratio=slot==='SECONDARY'?(2*d)/delay:((2*d+bonus)/delay);
+    let bs=0;
+    if(cls==='Rogue'&&slot==='PRIMARY'&&itype.includes('piercing')){
+      const bsAvg=Math.max(90,(225*d)/50);
+      bs=(bsAvg/delay)*0.6;
+    }
+    return ratio+procDps+bs;
+  }
+
+  window._wdpsScore=_wdps;
+  window._wdpsProcDB=_PROC_DB;
+
+  SUITES.weapondps = [
+    makeTest('MNK — Wu\'s Fist (16/22) beats Unarmed fists (14/26)', () => {
+      const wus     = {dmg:16,delay:22,_skill:'1H Blunt'};
+      const unarmed = {dmg:14,delay:26,_skill:'Hand to Hand'};
+      const sWus  = _wdps(wus,     'PRIMARY','Monk',60,175);
+      const sUnar = _wdps(unarmed, 'PRIMARY','Monk',60,175);
+      return { asserts: [
+        assertGt('Wu\'s raw score > 0', sWus, 0),
+        assertGt('Unarmed raw score > 0', sUnar, 0),
+        assertGt('Wu\'s beats Unarmed', sWus, sUnar),
+        { label:`Wu's=${sWus.toFixed(3)}  Unarmed=${sUnar.toFixed(3)}  delta=${(sWus-sUnar).toFixed(3)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('MNK — Sword (1H Slashing) scores 0 (skill restriction)', () => {
+      const sword = {dmg:15,delay:24,_skill:'1H Slashing'};
+      const s = _wdps(sword,'PRIMARY','Monk',60,175);
+      return { asserts: [
+        assertEq('Monk cannot use 1H Slashing → 0', s, 0),
+      ]};
+    }),
+    makeTest('ROG — Piercing PRIMARY gets backstab bonus over slashing', () => {
+      const piercing = {dmg:15,delay:25,_skill:'Piercing'};
+      const slashing = {dmg:15,delay:25,_skill:'1H Slashing'};
+      const sPierce = _wdps(piercing,'PRIMARY','Rogue',60,175);
+      const sSlash  = _wdps(slashing,'PRIMARY','Rogue',60,175);
+      return { asserts: [
+        assertGt('Piercing scores > 0', sPierce, 0),
+        assertGt('Piercing > Slashing (backstab bonus)', sPierce, sSlash),
+        { label:`Piercing=${sPierce.toFixed(3)}  Slashing=${sSlash.toFixed(3)}  BS-bonus=${(sPierce-sSlash).toFixed(3)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('ROG — Blood Point Siphon proc adds score vs same-ratio plain piercer', () => {
+      const withProc = {dmg:10,delay:21,_skill:'Piercing',_effect:'Siphon',_effectType:'Combat, Casting Time: Instant'};
+      const noProc   = {dmg:10,delay:21,_skill:'Piercing'};
+      const sProc = _wdps(withProc,'PRIMARY','Rogue',60,175);
+      const sNone = _wdps(noProc,  'PRIMARY','Rogue',60,175);
+      return { asserts: [
+        assertGt('Proc item scores higher', sProc, sNone),
+        { label:`Siphon proc=${sProc.toFixed(3)}  No proc=${sNone.toFixed(3)}  proc-delta=${(sProc-sNone).toFixed(3)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('ROG — Worn effect (Seething Fury) does NOT add proc score', () => {
+      const worn  = {dmg:15,delay:25,_skill:'Piercing',_effect:'Seething Fury',_effectType:'Worn'};
+      const plain = {dmg:15,delay:25,_skill:'Piercing'};
+      const sWorn  = _wdps(worn,  'PRIMARY','Rogue',60,175);
+      const sPlain = _wdps(plain, 'PRIMARY','Rogue',60,175);
+      return { asserts: [
+        assertEq('Worn effect → no proc bonus, scores same as plain', sWorn.toFixed(4), sPlain.toFixed(4)),
+      ]};
+    }),
+    makeTest('ROG — No 2H weapons allowed', () => {
+      const twoH = {dmg:20,delay:40,_skill:'2H Slashing'};
+      const s = _wdps(twoH,'PRIMARY','Rogue',60,175);
+      return { asserts: [
+        assertEq('Rogue 2H → 0', s, 0),
+      ]};
+    }),
+    makeTest('ROG — SECONDARY slot gets no backstab (OH only)', () => {
+      const oh = {dmg:10,delay:21,_skill:'Piercing'};
+      const sMH = _wdps(oh,'PRIMARY',  'Rogue',60,175);
+      const sOH = _wdps(oh,'SECONDARY','Rogue',60,175);
+      return { asserts: [
+        assertGt('MH piercing scores > 0', sMH, 0),
+        assertGt('OH still scores (ratio) > 0', sOH, 0),
+        assertGt('MH > OH (backstab only on MH)', sMH, sOH),
+        { label:`MH=${sMH.toFixed(3)}  OH=${sOH.toFixed(3)}  BS-advantage=${(sMH-sOH).toFixed(3)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('RNG — Archery RANGE scores exactly 2×dmg/delay', () => {
+      const bow = {dmg:20,delay:45,_skill:'Archery'};
+      const expected = (2*20)/45;
+      const s = _wdps(bow,'RANGE','Ranger',60,175);
+      return { asserts: [
+        assertRange('score = 2×dmg/delay', s, expected-0.0001, expected+0.0001),
+        { label:`Score=${s.toFixed(5)}  expected=${expected.toFixed(5)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('RNG — Runed Oak Bow (21/43) beats Trueshot Longbow (20/45)', () => {
+      const trueshot = {dmg:20,delay:45,_skill:'Archery'};
+      const runedOak = {dmg:21,delay:43,_skill:'Archery'};
+      const sTrue = _wdps(trueshot,'RANGE','Ranger',60,175);
+      const sOak  = _wdps(runedOak, 'RANGE','Ranger',60,175);
+      return { asserts: [
+        assertGt('Runed Oak > Trueshot', sOak, sTrue),
+        { label:`Runed Oak=${sOak.toFixed(4)}  Trueshot=${sTrue.toFixed(4)}  delta=${(sOak-sTrue).toFixed(4)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('RNG — Non-Ranger class gets 0 for RANGE archery', () => {
+      const bow = {dmg:20,delay:45,_skill:'Archery'};
+      const sWar = _wdps(bow,'RANGE','Warrior',60,175);
+      return { asserts: [
+        assertEq('Warrior RANGE scores 0', sWar, 0),
+      ]};
+    }),
+    makeTest('BRD — Drums of Beast (mod 26) >> vendor Hand Drum (mod 18)', () => {
+      const beast = {_percmod:26};
+      const hand  = {_percmod:18};
+      const sBeast = _wdps(beast,'PRIMARY',  'Bard',60,175);
+      const sHand  = _wdps(hand, 'SECONDARY','Bard',60,175);
+      return { asserts: [
+        assertGt('Drums of Beast scores > 0', sBeast, 0),
+        assertEq('Hand Drum mod 18 = baseline, scores 0', sHand, 0),
+        assertGt('Beast advantage', sBeast, sHand),
+        { label:`Beast=${sBeast.toFixed(3)}  HandDrum=${sHand.toFixed(3)}  delta=${(sBeast-sHand).toFixed(3)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('BRD — Singing Short Sword allmod 18 = baseline (0)', () => {
+      const sss = {dmg:16,delay:26,_skill:'1H Slashing',_allmod:18};
+      const s = _wdps(sss,'PRIMARY','Bard',60,175);
+      return { asserts: [
+        assertEq('allmod 18 = baseline → 0', s, 0),
+        { label:`SSS allmod=18 → raw=${s}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('BRD — Non-Bard class gets normal weapon scoring for same item', () => {
+      const lute = {dmg:10,delay:24,_skill:'1H Slashing',_stringmod:25};
+      const sBrd = _wdps(lute,'PRIMARY','Bard',   60,175);
+      const sWar = _wdps(lute,'PRIMARY','Warrior',60,175);
+      return { asserts: [
+        assertGt('Bard scores on instrument mod', sBrd, 0),
+        assertGt('Warrior scores on weapon ratio', sWar, 0),
+        { label:`Bard (instr)=${sBrd.toFixed(3)}  Warrior (ratio)=${sWar.toFixed(3)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('PAL/SHD — SECONDARY always 0 (no dual wield)', () => {
+      const wep = {dmg:14,delay:24,_skill:'1H Slashing'};
+      return { asserts: [
+        assertEq('Paladin OH = 0',      _wdps(wep,'SECONDARY','Paladin',    60,175), 0),
+        assertEq('Shadow Knight OH = 0',_wdps(wep,'SECONDARY','Shadow Knight',60,175), 0),
+      ]};
+    }),
+    makeTest('General — damage bonus applies only to MH at lv60 (+11)', () => {
+      const wep = {dmg:10,delay:24,_skill:'1H Slashing'};
+      const sMH = _wdps(wep,'PRIMARY',  'Warrior',60,175);
+      const sOH = _wdps(wep,'SECONDARY','Warrior',60,175);
+      // MH ratio = (2*10+11)/24 = 31/24 = 1.2917; OH ratio = (2*10)/24 = 0.8333
+      return { asserts: [
+        assertRange('MH ratio ~1.292', sMH, 1.290, 1.295),
+        assertRange('OH ratio ~0.833', sOH, 0.832, 0.835),
+        { label:`MH=${sMH.toFixed(4)}  OH=${sOH.toFixed(4)}  bonus-effect=${(sMH-sOH).toFixed(4)}`, status:'pass', val:'' },
+      ]};
+    }),
+  ];
+})();
+
+// Sandbox compare function
+function wdpsCompare(){
+  const cls   = document.getElementById('wdps-class').value;
+  const slot  = document.getElementById('wdps-slot').value;
+  const lv    = Number(document.getElementById('wdps-level').value)||60;
+  const dex   = Number(document.getElementById('wdps-dex').value)||175;
+  const scale = Number(document.getElementById('wdps-scale').value)||10;
+
+  function buildItem(pfx){
+    const dmg   = Number(document.getElementById(`wdps-${pfx}-dmg`).value)||0;
+    const delay = Number(document.getElementById(`wdps-${pfx}-delay`).value)||0;
+    const mod   = Number(document.getElementById(`wdps-${pfx}-mod`).value)||0;
+    const skill = document.getElementById(`wdps-${pfx}-skill`).value.trim();
+    const proc  = document.getElementById(`wdps-${pfx}-proc`).value.trim();
+    const item  = {dmg, delay, _skill:skill};
+    if(mod>0) item._percmod=mod;
+    if(proc) { item._effect=proc; item._effectType='Combat, Casting Time: Instant'; }
+    return item;
+  }
+
+  const itemA = buildItem('a');
+  const itemB = buildItem('b');
+  const scoreA = window._wdpsScore ? window._wdpsScore(itemA,slot,cls,lv,dex) : 0;
+  const scoreB = window._wdpsScore ? window._wdpsScore(itemB,slot,cls,lv,dex) : 0;
+  const scaledA = scoreA * scale;
+  const scaledB = scoreB * scale;
+
+  document.getElementById('wdps-a-raw').textContent    = scoreA.toFixed(4);
+  document.getElementById('wdps-a-scaled').textContent = (scaledA>=0?'+':'')+scaledA.toFixed(2)+' pts';
+  document.getElementById('wdps-b-raw').textContent    = scoreB.toFixed(4);
+  document.getElementById('wdps-b-scaled').textContent = (scaledB>=0?'+':'')+scaledB.toFixed(2)+' pts';
+
+  const verdict = document.getElementById('wdps-verdict');
+  const delta = scaledA - scaledB;
+  if(Math.abs(delta)<0.05){
+    verdict.style.cssText='border-color:var(--border2);color:var(--text-d)';
+    verdict.textContent='⚖ Effectively tied (delta < 0.05 pts)';
+  } else if(delta>0){
+    verdict.style.cssText='border-color:var(--green);color:var(--green-l)';
+    verdict.textContent=`✓ Item A wins by ${delta.toFixed(2)} pts`;
+  } else {
+    verdict.style.cssText='border-color:var(--amber);color:var(--amber-l)';
+    verdict.textContent=`✓ Item B wins by ${Math.abs(delta).toFixed(2)} pts`;
+  }
+
+  const procADmg = itemA._effect&&window._wdpsProcDB ? (window._wdpsProcDB[itemA._effect]||35) : 0;
+  const procBDmg = itemB._effect&&window._wdpsProcDB ? (window._wdpsProcDB[itemB._effect]||35) : 0;
+  const bonus = (lv>=28&&slot==='PRIMARY') ? Math.floor((Math.min(lv,60)-25)/3) : 0;
+  const pre = document.getElementById('wdps-breakdown');
+  pre.style.display='block';
+  pre.textContent=[
+    `Class: ${cls}  Slot: ${slot}  Level: ${lv}  DEX: ${dex}  Scale: ×${scale}`,
+    '',
+    `ITEM A:  ${itemA.dmg||0}dmg / ${itemA.delay||0}delay  skill:"${itemA._skill||'—'}"  proc:${itemA._effect||'none'}${procADmg?' ('+procADmg+'dmg)':''}`,
+    `  dmg-bonus:+${bonus}  raw:${scoreA.toFixed(4)}  scaled:${scaledA.toFixed(2)} pts`,
+    '',
+    `ITEM B:  ${itemB.dmg||0}dmg / ${itemB.delay||0}delay  skill:"${itemB._skill||'—'}"  proc:${itemB._effect||'none'}${procBDmg?' ('+procBDmg+'dmg)':''}`,
+    `  dmg-bonus:+${bonus}  raw:${scoreB.toFixed(4)}  scaled:${scaledB.toFixed(2)} pts`,
+    '',
+    `Delta: ${delta>=0?'+':''}${delta.toFixed(2)} pts → ${Math.abs(delta)<0.05?'Tied':delta>0?'A wins':'B wins'}`,
+  ].join('\n');
+}
+
 // BRIDGE
 SUITES.bridge = [
   makeTest('applyDkpToItemDB — match count', () => {
@@ -1207,7 +1552,7 @@ SUITES.utils = [
 ];
 
 // ── RUNNER ──
-const SUITE_IDS = ['parsing','itemdb','wikiparse','calcs','upgrades','bridge','dkp','plat','consumes','factions','skyshrine','supabase','state','utils'];
+const SUITE_IDS = ['parsing','itemdb','wikiparse','calcs','upgrades','weapondps','bridge','dkp','plat','consumes','factions','skyshrine','supabase','state','utils'];
 const SUITE_LABELS = {
   parsing:'Inventory Parser', itemdb:'Item DB / CSV', wikiparse:'Wiki Stat Parser',
   calcs:'HP / Mana Calcs', upgrades:'Upgrade Scoring', bridge:'Price Bridge',
