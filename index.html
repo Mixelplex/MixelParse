@@ -845,15 +845,26 @@ function getStatWeights(cls, baseTotals) {
 
   if (isMagicCaster) {
     const total = baseTotals ? (baseTotals[manaKey] || 0) : 0;
+    const charLevel = baseTotals ? (baseTotals._level || 60) : 60;
+
     if (total >= 255) {
       // Hard capped — primary stat worthless, +mana is now the only mana growth lever
       w[manaKey] = 0;
       w.manabonus = 4.0;
     } else if (total >= 200) {
-      // Softcap zone — stat returns drop to 33%, +mana items now compete
-      // Keep stat weight but reduce it; elevate manabonus
-      w[manaKey] = w[manaKey] * 0.33;
-      w.manabonus = Math.max(w.manabonus, 2.5);
+      // Softcap zone — use actual P1999 mana formula to price INT/WIS vs flat manabonus:
+      // mana per point above 200 = (40 * level) / 425
+      // manabonus weight = 1.0 (flat mana, 1:1)
+      // So INT/WIS above 200 should be weighted at manaPerPoint × manabonus_weight
+      const manaPerPoint = (40 * charLevel) / 425;
+      // Scale relative to the base weight so ratio comparisons still work:
+      // full weight = w[manaKey] (e.g. 5.0), manaPerPoint (e.g. 4.8 at lv51)
+      // softcap mult = manaPerPoint / (w[manaKey] / w.manabonus)
+      // Simplified: new weight = manaPerPoint * w.manabonus
+      const softWeight = manaPerPoint * w.manabonus;
+      w[manaKey] = Math.max(softWeight, w[manaKey] * 0.33); // never go below old 33% floor
+      // manabonus stays at base — it's already priced correctly at 1.0
+      // (no longer artificially elevated to 2.5 since INT is now properly costed)
     }
     // Below 200: base weights unchanged
   }
@@ -1147,6 +1158,7 @@ function renderUpgradesPanel(){
 
   function buildTotals(overrides){
     const t={};
+    t._level = charLevel || 60; // expose level so getStatWeights can use mana formula
     if(base){STAT_KEYS.forEach((k,i)=>{t[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{t[k]=base.resists[i]||0;});if(base.pools)t.ac=base.pools[3]||0;}
     for(const item of equipped){
       const dbSlot=invSlotToDBSlot(item.location);
@@ -3575,7 +3587,7 @@ function renderKillsPanel(){
   let histHtml=sorted.length===0?`<div class="dkp-empty">No saved sessions yet.</div>`:
     sorted.map(s=>{
       const t=sessionDkpTotal(s);
-      const d=new Date(s.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+      const d=new Date(s.date+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
       const killed=Object.entries(s.killState||{}).filter(([,v])=>v==='killed').map(([k])=>k);
       const failticks=Object.entries(s.killState||{}).filter(([,v])=>v==='failtick').length;
       return`<div class="kt-hist-row" onclick="ktLoadSession('${esc(s.id)}')">
