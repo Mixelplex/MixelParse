@@ -2498,6 +2498,100 @@ Object.defineProperty(window,'activeTab',{get:()=>activeTab,set:v=>{activeTab=v;
 window.parseItemDB      = parseItemDB;
 window.applyDBToChar    = applyDBToChar;
 // classFromFilename and raceFromFilename are scoped inside parseItemDB;
+
+// ── Inventory Watcher WebSocket listener ──────────────────────────────────────
+// Connects to the local mixelparse-watcher.exe on ws://127.0.0.1:27182
+// Receives inventory file payloads and loads them automatically.
+(function initWatcherSocket(){
+  const WS_PORT   = 27182;
+  const WS_SECRET = 'mixelparse-inv-v1';
+  const RECONNECT_MS = 5000;
+  let ws = null, retryTimer = null, watcherConnected = false;
+
+  function setWatcherStatus(connected){
+    watcherConnected = connected;
+    const el = document.getElementById('watcher-status');
+    if(!el) return;
+    el.title    = connected ? 'Inventory Watcher connected' : 'Inventory Watcher not running';
+    el.style.color      = connected ? '#4caf7d' : '#666';
+    el.textContent      = connected ? '⬤ Watcher' : '◯ Watcher';
+  }
+
+  function handleInventory(filename, content){
+    const cn = extractCharName(filename);
+    if(!cn) return;
+    chars[cn] = parseInventory(content, cn);
+    if(!charMeta[cn]) charMeta[cn] = {};
+    // Switch to this char if it's the active one or no char is loaded yet
+    if(!activeTab || activeTab === '__all__') activeTab = cn;
+    refresh();
+    // Toast
+    showWatcherToast(`📦 Loaded ${cn}`);
+  }
+
+  function showWatcherToast(msg){
+    let toast = document.getElementById('watcher-toast');
+    if(!toast){
+      toast = document.createElement('div');
+      toast.id = 'watcher-toast';
+      toast.style.cssText = 'position:fixed;bottom:1.2rem;right:1.2rem;background:#1a2a1a;border:1px solid #4caf7d;color:#4caf7d;font-size:.8rem;padding:.45rem .85rem;border-radius:4px;z-index:9999;opacity:0;transition:opacity .25s;pointer-events:none;font-family:monospace';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+  }
+
+  function connect(){
+    if(ws && ws.readyState <= 1) return;
+    try {
+      ws = new WebSocket(`ws://127.0.0.1:${WS_PORT}`);
+    } catch(e){ scheduleReconnect(); return; }
+
+    ws.onopen = () => {
+      setWatcherStatus(true);
+      clearTimeout(retryTimer);
+      // Ask for all cached files immediately
+      ws.send(JSON.stringify({ type: 'requestAll' }));
+    };
+
+    ws.onmessage = e => {
+      try {
+        const msg = JSON.parse(e.data);
+        if(msg.type === 'hello' && msg.secret !== WS_SECRET) { ws.close(); return; }
+        if(msg.type === 'inventory') handleInventory(msg.filename, msg.content);
+        if(msg.type === 'ping')      ws.send(JSON.stringify({ type: 'pong' }));
+      } catch{}
+    };
+
+    ws.onclose = () => { setWatcherStatus(false); scheduleReconnect(); };
+    ws.onerror = () => { setWatcherStatus(false); };
+  }
+
+  function scheduleReconnect(){
+    clearTimeout(retryTimer);
+    retryTimer = setTimeout(connect, RECONNECT_MS);
+  }
+
+  // Inject status indicator into the toolbar when DOM is ready
+  function injectStatusBadge(){
+    const toolbar = document.querySelector('.top-bar') || document.querySelector('header') || document.body;
+    if(document.getElementById('watcher-status')) return;
+    const badge = document.createElement('span');
+    badge.id = 'watcher-status';
+    badge.style.cssText = 'font-size:.7rem;cursor:default;margin-left:.6rem;color:#666;font-family:monospace;user-select:none';
+    badge.textContent = '◯ Watcher';
+    badge.title = 'Inventory Watcher not running — launch mixelparse-watcher.exe to auto-load inventory files';
+    toolbar.appendChild(badge);
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', () => { injectStatusBadge(); connect(); });
+  } else {
+    injectStatusBadge(); connect();
+  }
+})();
 // expose via thin wrappers so the admin panel can call them directly
 window.classFromFilename= function(fn){
   const FILE_CLASS_MAP={'bard':'BRD','cleric':'CLR','druid':'DRU','enchanter':'ENC','mage':'MAG','magician':'MAG','monk':'MNK','necromancer':'NEC','paladin':'PAL','ranger':'RNG','rogue':'ROG','shadowknight':'SHD','shadow_knight':'SHD','shaman':'SHM','warrior':'WAR','wizard':'WIZ'};
