@@ -917,6 +917,10 @@ var BAKED_ITEM_DB = {};
 // MERGER_INJECT_END
 let itemDB = Object.assign({}, BAKED_ITEM_DB);
 let itemDBSources = Object.keys(itemDB).length > 0 ? ['baked'] : [];
+let _itemDBLower = {};
+function _rebuildItemDBIndex(){ _itemDBLower={}; for(const k of Object.keys(itemDB))_itemDBLower[k.toLowerCase()]=k; }
+function itemDBGet(name){ return itemDB[name] || itemDB[_itemDBLower[name?.toLowerCase()]] || undefined; }
+_rebuildItemDBIndex();
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let chars={},charMeta={},gearStats={},factionData={},skyshrineData={};
@@ -1082,7 +1086,7 @@ document.getElementById('saveCurrentBtn').addEventListener('click',()=>{
     const gearStats_resists=RESIST_KEYS.map(()=>0);
     const gearStats_pools=POOL_KEYS.map(()=>0);
     for(const item of equipped){
-      const d=cg[item.name]||itemDB[item.name]||{};
+      const d=cg[item.name]||itemDBGet(item.name)||{};
       STAT_KEYS.forEach((k,i)=>{gearStats_stats[i]+=Number(d[k]||0);});
       RESIST_KEYS.forEach((k,i)=>{gearStats_resists[i]+=Number(d[k]||0);});
       // pools: hpbonus→hp(0), manabonus→mana(1), ac(3)
@@ -1119,7 +1123,7 @@ function applyBaseStats(charName,parsed){
   saveState();renderStatsPanel();
 }
 
-function buildStatCards(base,charGear,charName,cls,level){const equipped=getEquippedItems(charName);const gearSum={stats:[0,0,0,0,0,0,0],resists:[0,0,0,0,0],bonuses:[0,0],haste:0};for(const item of equipped){const gs=charGear[item.name];const db=itemDB[item.name]||{};if(gs){STAT_KEYS.forEach((k,i)=>{if(gs[k])gearSum.stats[i]+=Number(gs[k])||0;});RESIST_KEYS.forEach((k,i)=>{if(gs[k])gearSum.resists[i]+=Number(gs[k])||0;});BONUS_KEYS.forEach((k,i)=>{if(gs[k])gearSum.bonuses[i]+=Number(gs[k])||0;});}const hasteVal=Number(db.haste||gs?.haste||0);if(hasteVal)gearSum.haste+=hasteVal;}
+function buildStatCards(base,charGear,charName,cls,level){const equipped=getEquippedItems(charName);const gearSum={stats:[0,0,0,0,0,0,0],resists:[0,0,0,0,0],bonuses:[0,0],haste:0};for(const item of equipped){const gs=charGear[item.name];const db=itemDBGet(item.name)||{};if(gs){STAT_KEYS.forEach((k,i)=>{if(gs[k])gearSum.stats[i]+=Number(gs[k])||0;});RESIST_KEYS.forEach((k,i)=>{if(gs[k])gearSum.resists[i]+=Number(gs[k])||0;});BONUS_KEYS.forEach((k,i)=>{if(gs[k])gearSum.bonuses[i]+=Number(gs[k])||0;});}const hasteVal=Number(db.haste||gs?.haste||0);if(hasteVal)gearSum.haste+=hasteVal;}
 const totalSTA=Math.min(255,base.stats[1]+gearSum.stats[1]);const manaKey=WIS_CLASSES.has(cls)?'wis':'int';const manaIdx=STAT_KEYS.indexOf(manaKey);const totalManastat=Math.min(255,base.stats[manaIdx]+gearSum.stats[manaIdx]);
 const statRows=STAT_LABELS.map((lbl,i)=>{const g=gearSum.stats[i],raw=base.stats[i]+g,t=Math.min(255,raw),over=raw>255?raw-255:0,gc=g>0?'pos':g<0?'neg':'zero';const overcapHtml=over>0?`<span style="font-size:.68rem;color:#3a7a3a;font-weight:600;min-width:1.8rem;text-align:left;padding-left:.25rem">(${over})</span>`:'<span style="min-width:1.8rem"></span>';return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${base.stats[i]}</span><span class="val-gear ${gc}">${g>=0?'+':''}${g}</span><span class="val-total">${t}</span>${overcapHtml}</div></div>`;}).join('');
 const resistRows=RESIST_LABELS.map((lbl,i)=>{const g=gearSum.resists[i],t=base.resists[i]+g,gc=g>0?'pos':g<0?'neg':'zero';return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${base.resists[i]}</span><span class="val-gear ${gc}">${g>=0?'+':''}${g}</span><span class="val-total">${t}</span><span style="min-width:1.8rem"></span></div></div>`;}).join('');
@@ -1167,7 +1171,7 @@ function renderUpgradesPanel(){
     if(base){STAT_KEYS.forEach((k,i)=>{t[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{t[k]=base.resists[i]||0;});if(base.pools)t.ac=base.pools[3]||0;}
     for(const item of equipped){
       const dbSlot=invSlotToDBSlot(item.location);
-      const _ov=(overrides&&overrides[dbSlot]),_cg3=charGear[item.name]||{},_db3=itemDB[item.name]||{};
+      const _ov=(overrides&&overrides[dbSlot]),_cg3=charGear[item.name]||{},_db3=itemDBGet(item.name)||{};
       const data=_ov||{};
       for(const k of STAT_KEYS_ALL){const v=_ov?Number(_ov[k]||0):(Number(_db3[k]||0)||Number(_cg3[k]||0));if(v)t[k]=(t[k]||0)+v;}
       const acv=_ov?Number(_ov.ac||0):(Number(_db3.ac||0)||Number(_cg3.ac||0));if(acv)t.ac=(t.ac||0)+acv;
@@ -1263,14 +1267,14 @@ function renderUpgradesPanel(){
   }
 
   // Build lore exclusion set — lore items already equipped can't be suggested again
-  const equippedLoreDBNames=new Set(equipped.filter(i=>(itemDB[i.name]||charGear[i.name]||{})._lore).map(i=>i.name));
+  const equippedLoreDBNames=new Set(equipped.filter(i=>(itemDBGet(i.name)||charGear[i.name]||{})._lore).map(i=>i.name));
 
   const slotResults=[];
   for(const item of equipped){
     const dbSlot=invSlotToDBSlot(item.location);
     // Merge both sources: charGear has wiki-fetched stats, itemDB has CSV stats.
     // Neither is complete alone — charGear may lack ac (old fetches), itemDB may lack some items.
-    const _cg=charGear[item.name]||{}, _db=itemDB[item.name]||{};
+    const _cg=charGear[item.name]||{}, _db=itemDBGet(item.name)||{};
     // Merge: for each key, prefer whichever source has a non-zero value (itemDB wins on ties)
     const currentData={};
     for(const k of [...Object.keys(_db),...Object.keys(_cg)]){
@@ -1495,7 +1499,7 @@ function renderUpgradesPanel(){
   if(charClass==='Monk'){
     const limit=mnkWeightLimit(charLevel);
     const totalWt=equipped.reduce((sum,item)=>{
-      const db=itemDB[item.name]||charGear[item.name]||{};
+      const db=itemDBGet(item.name)||charGear[item.name]||{};
       return sum+Number(db._wt||db.wt||0);
     },0);
     const wtRounded=Math.round(totalWt*10)/10;
@@ -1589,7 +1593,7 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
   const equipped=getEquippedItems(activeTab);
   const t={};
   if(base){STAT_KEYS.forEach((k,i)=>{t[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{t[k]=base.resists[i]||0;});if(base.pools)t.ac=base.pools[3]||0;}
-  for(const item of equipped){const _cg2=charGear[item.name]||{},_db2=itemDB[item.name]||{};for(const k of STAT_KEYS_ALL){const v=Number(_db2[k]||0)||Number(_cg2[k]||0);if(v)t[k]=(t[k]||0)+v;}const acv=Number(_db2.ac||0)||Number(_cg2.ac||0);if(acv)t.ac=(t.ac||0)+acv;}
+  for(const item of equipped){const _cg2=charGear[item.name]||{},_db2=itemDBGet(item.name)||{};for(const k of STAT_KEYS_ALL){const v=Number(_db2[k]||0)||Number(_cg2[k]||0);if(v)t[k]=(t[k]||0)+v;}const acv=Number(_db2.ac||0)||Number(_cg2.ac||0);if(acv)t.ac=(t.ac||0)+acv;}
   const {currentData}=sr;
   const allKeys=['ac',...STAT_KEYS_ALL,'haste'].filter(k=>(currentData[k]||0)!==0||(cand[k]||0)!==0);
   let statsHtml='';
@@ -1643,7 +1647,7 @@ window.upgRefreshStatSheet=function(){
   // Build a lookup of equipped item AC so proj.ac delta uses the same source as cur.ac
   const equippedAcBySlot={};
   for(const item of equipped){
-    const _cg4=charGear[item.name]||{},_db4=itemDB[item.name]||{};
+    const _cg4=charGear[item.name]||{},_db4=itemDBGet(item.name)||{};
     const acv=Number(_db4.ac||0)||Number(_cg4.ac||0);
     if(acv)cur.ac=(cur.ac||0)+acv;
     const dbSlot=invSlotToDBSlot(item.location);
@@ -1870,10 +1874,11 @@ function parseItemDB(csvText,filename){
       if(fileRace){const exr=itemDB[name]._races||'ALL';if(exr==='ALL')itemDB[name]._races=fileRace;else if(!exr.includes(fileRace))itemDB[name]._races=exr+' '+fileRace;}
     }
   }
+  _rebuildItemDBIndex();
   return count;
 }
 
-function applyDBToChar(charName){const equipped=getEquippedItems(charName);if(!equipped.length)return 0;if(!gearStats[charName])gearStats[charName]={};let matched=0;for(const item of equipped){if(itemDB[item.name]){gearStats[charName][item.name]=itemDB[item.name];matched++;}}return matched;}
+function applyDBToChar(charName){const equipped=getEquippedItems(charName);if(!equipped.length)return 0;if(!gearStats[charName])gearStats[charName]={};let matched=0;for(const item of equipped){const dbEntry=itemDBGet(item.name);if(dbEntry){gearStats[charName][item.name]=dbEntry;matched++;}}return matched;}
 // saveItemDB and loadItemDB replaced by Supabase versions above
 
 function updateItemDbModal(){const count=Object.keys(itemDB).length;document.getElementById('itemDbStatus').textContent=count>0?'✓ '+count+' items loaded from '+itemDBSources.length+' source'+(itemDBSources.length!==1?'s':''):' No items loaded yet.';document.getElementById('itemDbSourceList').innerHTML=itemDBSources.length?itemDBSources.map(s=>`<div style="padding:.15rem 0;border-bottom:1px solid rgba(74,58,26,.15)">📄 ${esc(s)}</div>`).join(''):'';}
@@ -2158,6 +2163,7 @@ async function loadItemDBFromSupabase(){
       for(const row of allRows)itemDB[row.item_name]=row.data;
       itemDBSources=['supabase ('+allRows.length+' items)'];
       console.log(`Loaded ${allRows.length} items from Supabase`);
+      _rebuildItemDBIndex();
       charNames().forEach(cn=>applyDBToChar(cn));
       return true;
     }
