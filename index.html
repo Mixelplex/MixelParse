@@ -1348,6 +1348,18 @@ function renderUpgradesPanel(){
     return html||`<span class="upg-stat-cur" style="font-style:italic">No stats</span>`;
   }
 
+  // Build 2H candidate card — always added so SLOT_ORDER sorts it to position 3 (after MH/OH).
+  // Greyed out when 2H mode is off (same logic as MH/OH greyed when 2H mode is on).
+  {
+    const all2h=(bySlot['PRIMARY']||[]).filter(c=>{
+      const itype=(c._skill||c._itemType||'').toLowerCase();
+      return (itype.includes('2h')||itype.includes('two'))&&itemUsableByChar(c)&&!c._legacy&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom ');
+    }).map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)})).sort((a,b)=>b._effGain-a._effGain);
+    if(all2h.length){
+      slotResults.push({item:{name:'(none)',location:'PRIMARY'},dbSlot:'TWOHANDER',currentData:{},candidates:all2h,isEmpty:true,is2hCard:true,cardId:'2HANDER'});
+    }
+  }
+
   // Build slot cards — weapons sorted to top, then EAR/FINGERS, then armor slots
   const SLOT_ORDER=['PRIMARY','SECONDARY','TWOHANDER','EAR','FINGERS','HEAD','FACE','NECK','SHOULDERS','ARMS','BACK','WRIST','RANGE','HANDS','CHEST','LEGS','FEET','WAIST','AMMO','ONEHANDER','SHIELD'];
   slotResults.sort((a,b)=>{
@@ -1368,16 +1380,7 @@ function renderUpgradesPanel(){
 
   const is2hMode=!!(window._upgTwoHander);
 
-  // Build 2H candidate card (shown when 2H mode is on, replaces MH+OH in scoring)
-  if(is2hMode){
-    const all2h=(bySlot['PRIMARY']||[]).filter(c=>{
-      const itype=(c._skill||c._itemType||'').toLowerCase();
-      return (itype.includes('2h')||itype.includes('two'))&&itemUsableByChar(c)&&!c._legacy&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom ');
-    }).map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)})).sort((a,b)=>b._effGain-a._effGain);
-    if(all2h.length){
-      slotResults.push({item:{name:'(none)',location:'PRIMARY'},dbSlot:'TWOHANDER',currentData:{},candidates:all2h,isEmpty:true,is2hCard:true,cardId:'2HANDER'});
-    }
-  }
+  // (2H card already built above — removed from here)
 
   let cardsHtml='';
   for(const sr of slotResults){
