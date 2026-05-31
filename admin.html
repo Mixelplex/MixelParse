@@ -457,6 +457,7 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
 
           <!-- Recommendations row -->
           <div id="gc-recommendations"></div>
+          <div id="gc-slot-debug"></div>
 
           <!-- Row 3: item A / item B -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:.8rem">
@@ -1897,7 +1898,7 @@ function gcBuildBaseTotals(charName) {
 }
 
 // Core item scorer — mirrors effectiveGain logic from index.html
-function gcScoreItem(itemData, weights, baseTotals, hpPerSta) {
+function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, dex) {
   const A2 = gcGetApp();
   const STAT_KEYS_ALL = A2 ? (A2.STAT_KEYS_ALL || []) : [];
   const NO_CAP = A2 ? (A2.NO_CAP || new Set(['hpbonus','manabonus'])) : new Set(['hpbonus','manabonus']);
@@ -1922,6 +1923,14 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta) {
   }
   if (weights.ac && itemData.ac) total += Number(itemData.ac) * weights.ac;
   if (weights.haste && itemData.haste) total += Number(itemData.haste) * weights.haste;
+  // ── Weapon DPS scoring (mirrors index.html weaponDpsScore + CLASS_WEAPON_DPS_SCALE) ──
+  if (slot && cls && window._wdpsScore) {
+    const effSlot = slot === 'TWOHANDER' ? 'PRIMARY' : slot;
+    const rawDps = window._wdpsScore(itemData, effSlot, cls, level || 60, dex || (baseTotals.dex || 175));
+    const CLASS_WEAPON_DPS_SCALE = {Warrior:10,Paladin:8,'Shadow Knight':8,Monk:10,Rogue:9,Ranger:10,Bard:4};
+    const scale = CLASS_WEAPON_DPS_SCALE[cls] || 0;
+    total += rawDps * scale;
+  }
   return Math.round(total * 10) / 10;
 }
 
@@ -1998,11 +2007,12 @@ function gcComputeSlotScores(charName) {
   _gcSlotData = {};
 
   if (upgValid) {
+    window._gcLastPathUsed = 'upgSlots (pre-computed)';
     // Use pre-computed candidates directly from _upgSlots
     for (const sr of upgSlots) {
       const slot = sr.dbSlot;
       if (!_gcSlotData[slot]) _gcSlotData[slot] = { equipped: [], candidates: [] };
-      const equippedScore = gcScoreItem(sr.currentData, weights, baseTotals, hpPerSta);
+      const equippedScore = gcScoreItem(sr.currentData, weights, baseTotals, hpPerSta, slot, cls, level);
       if (!sr.isEmpty) {
         _gcSlotData[slot].equipped.push({
           name: sr.item.name,
@@ -2014,12 +2024,13 @@ function gcComputeSlotScores(charName) {
       const topCands = (sr.candidates || []).slice(0, 5).map(c => ({
         name: c.name,
         data: c,
-        score: gcScoreItem(c, weights, baseTotals, hpPerSta),
+        score: gcScoreItem(c, weights, baseTotals, hpPerSta, slot, cls, level),
         preScore: c._effGain  // from upgrade engine
       }));
       _gcSlotData[slot].candidates = topCands;
     }
   } else {
+    window._gcLastPathUsed = 'manual (itemDB scan)';
     // Compute ourselves from itemDB
     const itemDB = A2.itemDB || {};
     // Build equipped slot map
@@ -2033,7 +2044,7 @@ function gcComputeSlotScores(charName) {
       const data = gcMergeItemData(item.name, charName);
       _gcSlotData[slot].equipped.push({
         name: item.name, data,
-        score: gcScoreItem(data, weights, baseTotals, hpPerSta)
+        score: gcScoreItem(data, weights, baseTotals, hpPerSta, slot, cls, level)
       });
     }
     // Score top candidates per slot from itemDB
@@ -2049,7 +2060,7 @@ function gcComputeSlotScores(charName) {
       const ssCustomSelf = A2 ? (A2.SS_CUSTOM_ITEMS || new Set()) : new Set();
       const candidates = (bySlot[slot] || [])
         .filter(c => c.name !== equippedName && !ssCustomSelf.has(c.name) && !c.name.startsWith('Custom ') && !c.data._legacy && !c.data._nonp99 && gcItemUsable(c.data))
-        .map(c => ({ ...c, score: gcScoreItem(c.data, weights, baseTotals, hpPerSta) }))
+        .map(c => ({ ...c, score: gcScoreItem(c.data, weights, baseTotals, hpPerSta, slot, cls, level) }))
         .sort((a, b) => b.score - a.score)
         .slice(0, 5);
       slotInfo.candidates = candidates;
@@ -2063,30 +2074,83 @@ function gcPopulateSlotDropdown(charName) {
   const slotSel = document.getElementById('gc-slot');
   if (!slotSel) return;
 
+  // Ensure empty slots have candidate data built
+  const A2e = gcGetApp();
+  const clsE   = A2e ? (A2e.charMeta?.[charName]?.class || document.getElementById('gc-class')?.value || '') : '';
+  const levelE = parseInt(document.getElementById('gc-level')?.value) || 60;
+  const baseTotalsE = _gcChar ? gcBuildBaseTotals(_gcChar.name) : {};
+  const weightsE    = A2e?.getStatWeights ? A2e.getStatWeights(clsE, baseTotalsE) : {};
+  const HP_RATIOS_E = A2e?.HP_RATIOS || {};
+  const hpPerStaE   = HP_RATIOS_E[clsE] ? A2e.staRatio(clsE, levelE) : 0;
+
+  for (const slot of GC_SLOT_ORDER) {
+    if (_gcSlotData[slot]) continue;
+    const itemDB = A2e?.itemDB || {};
+    const ssCustom = A2e?.SS_CUSTOM_ITEMS || new Set();
+    const candidates = Object.entries(itemDB)
+      .filter(([name, data]) => data._slot === slot && !data._legacy && !data._nonp99
+        && !ssCustom.has(name) && !name.startsWith('Custom ') && gcItemUsable(data))
+      .map(([name, data]) => ({ name, data, score: gcScoreItem(data, weightsE, baseTotalsE, hpPerStaE, slot, clsE, levelE) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+    if (candidates.length) {
+      _gcSlotData[slot] = { equipped: [], candidates };
+    }
+  }
+
   slotSel.innerHTML = '<option value="">— Choose a slot —</option>';
 
-  // Build options sorted by slot order, showing equipped item + score
   const usedSlots = new Set();
+  const missingSlots = [];
   for (const slot of GC_SLOT_ORDER) {
     const info = _gcSlotData[slot];
-    if (!info || !info.equipped.length) continue;
-    usedSlots.add(slot);
+    if (!info) { missingSlots.push(slot + '(no data)'); continue; }
 
+    const isEmpty = !info.equipped.length;
     const eq = info.equipped[0];
     const topCand = info.candidates[0];
-    const gain = topCand ? Math.round((topCand.score - eq.score) * 10) / 10 : null;
-    const gainStr = gain !== null
-      ? (gain > 0 ? ` ▲+${gain}` : gain < 0 ? ` ▼${gain}` : ' ●=')
-      : '';
+    usedSlots.add(slot);
 
     const opt = document.createElement('option');
     opt.value = slot;
-    const itemShort = eq.name.length > 28 ? eq.name.slice(0,28)+'…' : eq.name;
-    opt.textContent = `${slot} — ${itemShort} [${eq.score}pts${gainStr}]`;
-    // Visually highlight slots with good upgrades
-    if (gain !== null && gain >= 15) opt.style.color = '#4caf7d';
-    else if (gain !== null && gain >= 5) opt.style.color = '#c9a84c';
+
+    if (isEmpty) {
+      const gainStr = topCand ? ` ▲+${topCand.score}` : '';
+      const candShort = topCand ? (topCand.name.length > 22 ? topCand.name.slice(0,22)+'…' : topCand.name) : '—';
+      opt.textContent = `${slot} — (empty) → ${candShort}${gainStr}`;
+      opt.style.color = topCand && topCand.score >= 15 ? '#4caf7d' : '#c9a84c';
+      opt.style.fontStyle = 'italic';
+    } else {
+      const gain = topCand ? Math.round((topCand.score - eq.score) * 10) / 10 : null;
+      const gainStr = gain !== null
+        ? (gain > 0 ? ` ▲+${gain}` : gain < 0 ? ` ▼${gain}` : ' ●=')
+        : '';
+      const itemShort = eq.name.length > 28 ? eq.name.slice(0,28)+'…' : eq.name;
+      opt.textContent = `${slot} — ${itemShort} [${eq.score}pts${gainStr}]`;
+      if (gain !== null && gain >= 15) opt.style.color = '#4caf7d';
+      else if (gain !== null && gain >= 5) opt.style.color = '#c9a84c';
+    }
+
     slotSel.appendChild(opt);
+  }
+
+  // Debug: show all slots found in _gcSlotData vs what was expected
+  const gcDebugEl = document.getElementById('gc-slot-debug');
+  if (gcDebugEl) {
+    const allDataSlots = Object.keys(_gcSlotData);
+    const inOrder = GC_SLOT_ORDER.filter(s => _gcSlotData[s]?.equipped?.length);
+    const inDataNotOrder = allDataSlots.filter(s => !GC_SLOT_ORDER.includes(s) && _gcSlotData[s]?.equipped?.length);
+    const A2 = gcGetApp();
+    const equipped = A2?.getEquippedItems ? A2.getEquippedItems(charName) : [];
+    const rawLocs = equipped.map(i => i.location).join(', ');
+    gcDebugEl.innerHTML = `
+      <div style="font-family:var(--mono);font-size:.68rem;color:var(--text-m);background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:.4rem .6rem;margin-top:.4rem">
+        <span style="color:var(--gold)">Slots shown (${inOrder.length}):</span> ${inOrder.join(', ') || '—'}<br>
+        <span style="color:var(--amber-l)">Missing from order (${missingSlots.length}):</span> ${missingSlots.join(', ') || 'none'}<br>
+        <span style="color:var(--blue-l)">In data not in order:</span> ${inDataNotOrder.join(', ') || 'none'}<br>
+        <span style="color:var(--text-m)">Raw equipped locations:</span> ${rawLocs || '—'}<br>
+        <span style="color:var(--text-m)">upgValid path:</span> ${window._gcLastPathUsed || '?'}
+      </div>`;
   }
 
   slotSel.onchange = () => gcOnSlotChange(charName);
@@ -2099,12 +2163,19 @@ function gcOnSlotChange(charName) {
   const info = _gcSlotData[slot];
   if (!info) return;
 
-  // Auto-set Item A to equipped item
+  // Auto-set Item A to equipped item (or clear if empty slot)
   if (info.equipped[0]) {
     _gcItemA = { name: info.equipped[0].name, data: info.equipped[0].data };
     const inp = document.getElementById('gc-item-a-input');
     if (inp) inp.value = info.equipped[0].name;
     gcShowItemInfo('a', info.equipped[0].name, info.equipped[0].data);
+  } else {
+    // Empty slot — clear item A so compare treats current as nothing
+    _gcItemA = { name: '(empty)', data: { _slot: slot } };
+    const inp = document.getElementById('gc-item-a-input');
+    if (inp) inp.value = '';
+    const infoEl = document.getElementById('gc-item-a-info');
+    if (infoEl) infoEl.innerHTML = `<span style="color:var(--text-m);font-size:.76rem;font-style:italic">${slot} — nothing equipped</span>`;
   }
 
   // Auto-set Item B to top candidate
@@ -2273,11 +2344,13 @@ function gcCompare() {
   const baseTotals = _gcChar ? gcBuildBaseTotals(_gcChar.name) : {};
   const weights    = getStatWeights(cls, baseTotals);
   const hpPerSta   = HP_RATIOS[cls] ? staRatioFn(cls, level) : 0;
+  const gcSlot     = document.getElementById('gc-slot')?.value || (_gcItemA?.data?._slot) || '';
+  const gcDex      = Math.min(255, baseTotals.dex || 175);
 
   // Per-stat breakdown with individual scores
   function buildBreakdown(dataA, dataB) {
     const allKeys = ['ac', ...STAT_KEYS_ALL, 'haste'];
-    return allKeys.map(k => {
+    const rows = allKeys.map(k => {
       const va = Number(dataA[k] || 0);
       const vb = Number(dataB[k] || 0);
       if (!va && !vb) return null;
@@ -2310,11 +2383,61 @@ function gcCompare() {
         : '';
       return { k, label, suffix, va, vb, w, scoreA, scoreB, capState };
     }).filter(Boolean);
+
+    // ── Weapon DPS row ─────────────────────────────────────────────────────────
+    const WEP_SLOTS = new Set(['PRIMARY','SECONDARY','RANGE','TWOHANDER']);
+    const effSlot = gcSlot === 'TWOHANDER' ? 'PRIMARY' : gcSlot;
+    if (WEP_SLOTS.has(gcSlot) && window._wdpsScore) {
+      const CLASS_WEAPON_DPS_SCALE = {Warrior:10,Paladin:8,'Shadow Knight':8,Monk:10,Rogue:9,Ranger:10,Bard:4};
+      const scale = CLASS_WEAPON_DPS_SCALE[cls] || 0;
+      if (scale > 0) {
+        const rawA = window._wdpsScore(dataA, effSlot, cls, level, gcDex);
+        const rawB = window._wdpsScore(dataB, effSlot, cls, level, gcDex);
+        const scoreA = Math.round(rawA * scale * 10) / 10;
+        const scoreB = Math.round(rawB * scale * 10) / 10;
+        if (rawA > 0 || rawB > 0) {
+          // Sub-rows: ratio, proc, backstab
+          const dmgA = Number(dataA.dmg||0), delA = Number(dataA.delay||0);
+          const dmgB = Number(dataB.dmg||0), delB = Number(dataB.delay||0);
+          const bonus = (level>=28&&effSlot==='PRIMARY') ? Math.floor((Math.min(level,60)-25)/3) : 0;
+          const ratioA = delA ? ((2*dmgA+(effSlot==='PRIMARY'?bonus:0))/delA).toFixed(3) : '—';
+          const ratioB = delB ? ((2*dmgB+(effSlot==='PRIMARY'?bonus:0))/delB).toFixed(3) : '—';
+          const procA = dataA._effect && (dataA._effectType||'').toLowerCase().includes('combat') ? dataA._effect : '';
+          const procB = dataB._effect && (dataB._effectType||'').toLowerCase().includes('combat') ? dataB._effect : '';
+          rows.push({
+            k:'_weapondps', label:`Weapon DPS ×${scale}`,
+            suffix:'', va:ratioA, vb:ratioB, w:scale,
+            scoreA, scoreB, capState:'',
+            isWeapon:true,
+            extra: `dmg/delay: A=${dmgA}/${delA} B=${dmgB}/${delB}  +bonus:${bonus}  proc: A=${procA||'—'} B=${procB||'—'}`
+          });
+        }
+      }
+    }
+
+    // ── Instrument mod row (BRD) ────────────────────────────────────────────────
+    if (cls === 'Bard' && (gcSlot === 'PRIMARY' || gcSlot === 'SECONDARY')) {
+      const bestMod = d => Math.max(Number(d._percmod||0),Number(d._stringmod||0),Number(d._windmod||0),Number(d._brasmod||0),Number(d._allmod||0));
+      const modA = bestMod(dataA), modB = bestMod(dataB);
+      if (modA > 0 || modB > 0) {
+        const BRD_SCALE = 4;
+        const scoreA = Math.round(Math.max(0,(modA-18)*1.5)*BRD_SCALE*10)/10;
+        const scoreB = Math.round(Math.max(0,(modB-18)*1.5)*BRD_SCALE*10)/10;
+        rows.push({ k:'_instrmod', label:'Instrument Mod ×4', suffix:'', va:modA||'—', vb:modB||'—', w:4, scoreA, scoreB, capState:'', isWeapon:true, extra:'' });
+      }
+    }
+
+    // ── Weight row (MNK) ────────────────────────────────────────────────────────
+    const wtA = Number(dataA._wt||0), wtB = Number(dataB._wt||0);
+    if ((wtA > 0 || wtB > 0) && cls === 'Monk') {
+      rows.push({ k:'_weight', label:'Weight (lbs)', suffix:'', va:wtA||'—', vb:wtB||'—', w:0, scoreA:0, scoreB:0, capState:'', isWeapon:true, extra:'Lower is better for MNK' });
+    }
+
+    return rows;
   }
 
-  const breakdown = buildBreakdown(_gcItemA.data, _gcItemB.data);
-  const totalA = Math.round(breakdown.reduce((s,r) => s + r.scoreA, 0) * 10) / 10;
-  const totalB = Math.round(breakdown.reduce((s,r) => s + r.scoreB, 0) * 10) / 10;
+  const totalA = Math.round(gcScoreItem(_gcItemA.data, weights, baseTotals, hpPerSta, gcSlot, cls, level, gcDex) * 10) / 10;
+  const totalB = Math.round(gcScoreItem(_gcItemB.data, weights, baseTotals, hpPerSta, gcSlot, cls, level, gcDex) * 10) / 10;
   const winner = totalA > totalB ? 'a' : totalB > totalA ? 'b' : 'tie';
   const delta  = Math.round((totalB - totalA) * 10) / 10;
 
@@ -2327,6 +2450,8 @@ function gcCompare() {
   const muted = 'var(--text-m)';
   const dim   = 'var(--text-dim,#5a5248)';
   const dc = (d) => d > 0 ? green : d < 0 ? red : dim;
+
+  const breakdown = buildBreakdown(_gcItemA.data, _gcItemB.data);
 
   // Decision explanation
   const diffs = breakdown.map(r => ({ ...r, diff: r.scoreB - r.scoreA }))
@@ -2369,28 +2494,32 @@ function gcCompare() {
 
   const statRows = breakdown.map(r => {
     const aWins = r.scoreA > r.scoreB, bWins = r.scoreB > r.scoreA;
-    const wDisp = r.w > 0.001 ? `<span style="color:${dim}">${r.w.toFixed(2)}×</span>` : `<span style="color:${dim}">—</span>`;
-    const fmtV  = (v) => v ? `${v}${r.suffix}` : `<span style="color:${dim}">—</span>`;
+    const weightRow = r.k === '_weight';
+    const wDisp = r.w > 0.001 ? `<span style="color:${dim}">${typeof r.w==='number'?r.w.toFixed(2)+'\u00d7':r.w}</span>` : `<span style="color:${dim}">\u2014</span>`;
+    const fmtV  = (v) => (v!==undefined&&v!==0&&v!=='\u2014') ? `${v}${r.suffix}` : `<span style="color:${dim}">\u2014</span>`;
     const fmtSc = (s, wins) => s
       ? `<span style="font-size:.7rem;color:${wins?green:dim}"> (${s > 0?'+':''}${s})</span>`
       : '';
     const rowDiff = Math.round((r.scoreB - r.scoreA) * 10) / 10;
+    const diffColor = weightRow ? (rowDiff<0?green:rowDiff>0?red:dim) : dc(rowDiff);
     const diffCell = rowDiff === 0
-      ? `<span style="color:${dim}">—</span>`
-      : `<span style="color:${dc(rowDiff)}">${rowDiff>0?'+':''}${rowDiff}</span>`;
+      ? `<span style="color:${dim}">\u2014</span>`
+      : `<span style="color:${diffColor}">${rowDiff>0?'+':''}${rowDiff}</span>`;
     const capBadge = r.capState === 'hard'
       ? `<span style="color:${red};font-size:.66rem;margin-left:.2rem" title="At hard cap (255)">HC</span>`
       : r.capState === 'soft'
       ? `<span style="color:${gold};font-size:.66rem;margin-left:.2rem" title="In softcap zone (33% returns)">SC</span>`
       : '';
+    const extraRow = r.extra ? `<tr><td colspan="5" style="padding:.1rem .6rem .35rem;font-size:.68rem;color:${dim};font-family:var(--mono)">${r.extra}</td></tr>` : '';
+    const sepBefore = (r.isWeapon && r.k === '_weapondps') ? `<tr><td colspan="5" style="padding:0;border-top:1px solid var(--border2)"></td></tr>` : '';
 
-    return `<tr>
+    return sepBefore + `<tr>
       <td style="${tdLb}">${r.label}${capBadge}</td>
       <td style="${tdS}">${wDisp}</td>
-      <td style="${tdS};color:${aWins?green:''}">${fmtV(r.va)}${fmtSc(r.scoreA, aWins)}</td>
-      <td style="${tdS};color:${bWins?green:''}">${fmtV(r.vb)}${fmtSc(r.scoreB, bWins)}</td>
+      <td style="${tdS};color:${aWins&&!weightRow?green:''}">${fmtV(r.va)}${fmtSc(r.scoreA, aWins)}</td>
+      <td style="${tdS};color:${bWins&&!weightRow?green:''}">${fmtV(r.vb)}${fmtSc(r.scoreB, bWins)}</td>
       <td style="${tdS}">${diffCell}</td>
-    </tr>`;
+    </tr>` + extraRow;
   }).join('');
 
   const nameA = _gcItemA.name.length > 24 ? _gcItemA.name.slice(0,24)+'…' : _gcItemA.name;
