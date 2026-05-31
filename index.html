@@ -725,6 +725,11 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
   const cap=CLASS_DMG_CAP[charClass]||100;
   const d=Math.min(dmg,cap);
 
+  // H2H skill cap is slightly lower than 1HB, producing ~97.22% effective hit rate
+  // relative to a 1HB weapon of equal ratio. Factor sourced from P1999 damage calculator.
+  const isH2H=itype.includes('hand to hand');
+  const h2hFactor=isH2H?0.9722:1.0;
+
   // Damage bonus (MH only, fires every swing)
   // 1H: floor((level-25)/3) = 11 at 60
   // 2H: floor(delay*37/44) — Velious formula
@@ -743,8 +748,8 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
   const ppm=(dex/170)+0.5;
   const procDps=slot==='SECONDARY'?(ppm*0.5*procDmg/60):(ppm*procDmg/60);
 
-  // Ratio: OH gets no damage bonus
-  const ratio=slot==='SECONDARY'?(2*d)/delay:((2*d+bonus)/delay);
+  // Ratio: OH gets no damage bonus; H2H weapons scaled by h2hFactor (~0.9722)
+  const ratio=slot==='SECONDARY'?((2*d)/delay)*h2hFactor:(((2*d+bonus)/delay)*h2hFactor);
 
   // ── ROG backstab bonus (piercing PRIMARY only) ───────────────────────────────
   // Backstab formula: (Backstab_skill × weapon_dmg) / 50
@@ -1280,6 +1285,8 @@ function renderUpgradesPanel(){
     const wepSkillFilter=CLASS_WEAPON_SKILLS[charClass];
     function wepSkillOk(c){
       if(dbSlot!=='PRIMARY'&&dbSlot!=='SECONDARY')return true;
+      // Monks cannot equip shields in the SECONDARY slot
+      if(charClass==='Monk'&&dbSlot==='SECONDARY'&&(c._slot||'').toUpperCase()==='SHIELD')return false;
       const sk=(c._skill||c._itemType||'').toLowerCase();
       if(!sk||!c.dmg)return true;
       // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
@@ -1305,6 +1312,8 @@ function renderUpgradesPanel(){
       const emptyWepSkill=CLASS_WEAPON_SKILLS[charClass];
       function emptyWepOk(c){
         if(slot!=='PRIMARY'&&slot!=='SECONDARY')return true;
+        // Monks cannot equip shields in the SECONDARY slot
+        if(charClass==='Monk'&&slot==='SECONDARY'&&(c._slot||'').toUpperCase()==='SHIELD')return false;
         const sk=(c._skill||c._itemType||'').toLowerCase();
         if(!sk||!c.dmg)return true;
         // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
@@ -1323,10 +1332,16 @@ function renderUpgradesPanel(){
   window._upgSlots=slotResults;
 
   // ── MNK unarmed: inject virtual "Unarmed (Fists)" option into PRIMARY/SECONDARY ──
-  // At lv60: Human fists = 14 dmg / 26 delay, Iksar = 14/27. Fists are magical at lv30+.
-  // Treat as Human (14/26) — conservative; Iksar would be marginally weaker.
+  // Fist dmg/delay scales with level (wiki H2H table). Iksar delay is 1 higher than Human.
+  // Fists become magical at level 30+.
   if(charClass==='Monk'){
-    const unarmedItem={name:'Unarmed (Fists)',dmg:14,delay:26,_slot:'PRIMARY',_skill:'Hand to Hand',_classes:'MNK',_races:'ALL',_magic:true};
+    const isIksar=(charRaceAbbr==='IKS');
+    // H2H table: [minLevel, dmg, humanDelay] — wiki values
+    const H2H_TABLE=[[1,4,36],[5,5,36],[10,6,36],[15,7,36],[20,8,36],[25,9,35],[30,10,34],[35,11,33],[40,12,32],[45,13,31],[50,14,30],[53,14,29],[56,14,28],[59,14,27],[60,14,26]];
+    let fistDmg=4,fistDelay=36;
+    for(const[minLv,fd,fdel]of H2H_TABLE){if(charLevel>=minLv){fistDmg=fd;fistDelay=fdel;}}
+    if(isIksar)fistDelay+=1;
+    const unarmedItem={name:'Unarmed (Fists)',dmg:fistDmg,delay:fistDelay,_slot:'PRIMARY',_skill:'Hand to Hand',_classes:'MNK',_races:'ALL',_magic:charLevel>=30};
     for(const sr of slotResults){
       if(sr.dbSlot!=='PRIMARY'&&sr.dbSlot!=='SECONDARY')continue;
       if(sr.is2hCard)continue;
