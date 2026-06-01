@@ -1465,6 +1465,59 @@ function renderUpgradesPanel(){
     } else {
       if(fft>0)html+=`<span class="upg-stat-cur">FT${fft} (+${fft} mana/tick)</span>`;
     }
+    // ── Proc info (weapon slots only) ─────────────────────────────────────────
+    function _getProcInfo(data, slotHint){
+      const eff=data._effect||'';
+      const et=(data._effectType||'').toLowerCase();
+      if(!eff||!et.includes('combat'))return null;
+      const dmg=PROC_DB[eff]!=null?PROC_DB[eff]:35;
+      const dex=Math.min(255,baselineTotals&&baselineTotals.dex?baselineTotals.dex:175);
+      const ppm=(dex/170)+0.5;
+      const isOH=slotHint==='SECONDARY';
+      const dps=isOH?(ppm*0.5*dmg/60):(ppm*dmg/60);
+      return {name:eff,dmg,dps:Math.round(dps*10)/10,isUtility:dmg===0};
+    }
+    // Determine slot hint from item data
+    function _slotHint(data){
+      const s=(data._slot||'').toUpperCase();
+      if(s==='SECONDARY')return 'SECONDARY';
+      return 'PRIMARY';
+    }
+    const isFromWeapon=!!(fromData.dmg||fromData.delay||fromData._skill);
+    const isToWeapon=!!(toData.dmg||toData.delay||toData._skill);
+    if(showDelta==='combined'&&(isFromWeapon||isToWeapon)){
+      const fp=_getProcInfo(fromData,_slotHint(fromData));
+      const tp=_getProcInfo(toData,_slotHint(toData));
+      if(tp&&!fp){
+        // Gained a proc
+        if(tp.isUtility) html+=`<span class="upg-stat-pos">Proc: ${tp.name}</span>`;
+        else html+=`<span class="upg-stat-pos">Proc: ${tp.name} (~${tp.dps} dps)</span>`;
+      } else if(fp&&!tp){
+        // Lost a proc
+        if(fp.isUtility) html+=`<span class="upg-stat-neg">Proc lost: ${fp.name}</span>`;
+        else html+=`<span class="upg-stat-neg">Proc lost: ${fp.name} (~${fp.dps} dps)</span>`;
+      } else if(tp&&fp){
+        if(tp.name===fp.name){
+          // Same proc on both
+          if(tp.isUtility) html+=`<span class="upg-stat-cur">Proc: ${tp.name}</span>`;
+          else html+=`<span class="upg-stat-cur">Proc: ${tp.name} (~${tp.dps} dps)</span>`;
+        } else {
+          // Different proc — show swap
+          if(tp.isUtility) html+=`<span class="upg-stat-pos">Proc: ${tp.name} (replaces ${fp.name})</span>`;
+          else html+=`<span class="upg-stat-pos">Proc: ${tp.name} (~${tp.dps} dps, replaces ${fp.name})</span>`;
+        }
+      } else if(isToWeapon&&!tp&&isFromWeapon&&fp){
+        if(fp.isUtility) html+=`<span class="upg-stat-neg">Proc lost: ${fp.name}</span>`;
+        else html+=`<span class="upg-stat-neg">Proc lost: ${fp.name} (~${fp.dps} dps)</span>`;
+      }
+    } else if(!showDelta&&isFromWeapon){
+      // Equipped pane — just show proc if present
+      const fp=_getProcInfo(fromData,_slotHint(fromData));
+      if(fp){
+        if(fp.isUtility) html+=`<span class="upg-stat-cur">Proc: ${fp.name}</span>`;
+        else html+=`<span class="upg-stat-cur">Proc: ${fp.name} (~${fp.dps} dps)</span>`;
+      }
+    }
     return html||`<span class="upg-stat-cur" style="font-style:italic">No stats</span>`;
   }
 
