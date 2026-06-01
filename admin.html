@@ -1934,6 +1934,12 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
   }
   if (weights.ac && itemData.ac) total += Number(itemData.ac) * weights.ac;
   if (weights.haste && itemData.haste) total += Number(itemData.haste) * weights.haste;
+  // ── Flowing Thought mana regen scoring (mirrors index.html effectiveGain) ──
+  const MANA_CLASSES_gc = A2 ? (A2.MANA_CLASSES || new Set()) : new Set();
+  if (MANA_CLASSES_gc.has(cls) && itemData._ft) {
+    const FT_MANA_PER_TIER = A2?.FT_MANA_PER_TIER || 75;
+    total += Number(itemData._ft) * FT_MANA_PER_TIER * (weights.manabonus || 1.0);
+  }
   // ── Weapon DPS scoring (mirrors index.html weaponDpsScore + CLASS_WEAPON_DPS_SCALE) ──
   if (slot && cls && window._wdpsScore) {
     const effSlot = slot === 'TWOHANDER' ? 'PRIMARY' : slot;
@@ -2357,7 +2363,7 @@ function gcCompare() {
   const HP_RATIOS      = A2.HP_RATIOS     || {};
   const STAT_KEYS_ALL  = A2.STAT_KEYS_ALL || [];
   const STAT_DISPLAY   = A2.STAT_DISPLAY  || {};
-  const NO_CAP         = A2.NO_CAP        || new Set(['hpbonus','manabonus']);
+  const NO_CAP         = new Set([...(A2.NO_CAP || ['hpbonus','manabonus'])]);
   const SOFTCAP = 200, HARDCAP = 255, SOFTCAP_MULT = 0.33;
 
   if (!getStatWeights) { resultsEl.innerHTML = '<div style="color:var(--bad-red,#c0392b)">getStatWeights not found on window.</div>'; return; }
@@ -2365,6 +2371,11 @@ function gcCompare() {
   const baseTotals = _gcChar ? gcBuildBaseTotals(_gcChar.name) : {};
   const weights    = getStatWeights(cls, baseTotals);
   const hpPerSta   = HP_RATIOS[cls] ? staRatioFn(cls, level) : 0;
+  // Mirror index.html: mana casters above 200 primary stat skip SOFTCAP_MULT
+  const WIS_CLASSES_gc = A2.WIS_CLASSES || new Set(['Cleric','Druid','Paladin','Ranger','Shaman']);
+  const INT_CLASSES_gc = A2.INT_CLASSES || new Set(['Enchanter','Magician','Necromancer','Wizard','Shadow Knight','Bard']);
+  const _gcManaKey = WIS_CLASSES_gc.has(cls) ? 'wis' : INT_CLASSES_gc.has(cls) ? 'int' : null;
+  if (_gcManaKey && weights[_gcManaKey] >= 2.0 && (baseTotals[_gcManaKey] || 0) >= 200) NO_CAP.add(_gcManaKey);
   const gcSlot     = gcBaseSlot(document.getElementById('gc-slot')?.value || (_gcItemA?.data?._slot) || '');
   const gcDex      = Math.min(255, baseTotals.dex || 175);
 
