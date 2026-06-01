@@ -1274,6 +1274,9 @@ function renderUpgradesPanel(){
   const equippedLoreDBNames=new Set(equipped.filter(i=>(itemDBGet(i.name)||charGear[i.name]||{})._lore).map(i=>i.name));
 
   const slotResults=[];
+  // Pre-build per-slot equipped name sets — needed inside the loop to exclude same-slot items from candidates
+  const equippedBySlot={};
+  for(const item of equipped){const s=invSlotToDBSlot(item.location);(equippedBySlot[s]=equippedBySlot[s]||new Set()).add(item.name);}
   for(const item of equipped){
     const dbSlot=invSlotToDBSlot(item.location);
     // Merge both sources: charGear has wiki-fetched stats, itemDB has CSV stats.
@@ -1315,7 +1318,6 @@ function renderUpgradesPanel(){
   // EAR, FINGERS, and WRIST can be worn twice
   const slotCounts={};slotResults.forEach(sr=>{slotCounts[sr.dbSlot]=(slotCounts[sr.dbSlot]||0)+1;});
   // Build per-slot equipped name sets so each card excludes ALL items worn in that slot type
-  const equippedBySlot={};slotResults.forEach(sr=>{(equippedBySlot[sr.dbSlot]=equippedBySlot[sr.dbSlot]||new Set()).add(sr.item.name);});
   for(const slot of EQUIPPABLE_SLOTS){
     const maxCount=(slot==='EAR'||slot==='FINGERS'||slot==='WRIST')?2:1;
     const currentCount=slotCounts[slot]||0;
