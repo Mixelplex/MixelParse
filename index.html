@@ -3402,7 +3402,7 @@ function rolesForBoss(target){
 
 function newSession(){
   // killState: {target: 'killed'|'failtick'|null}
-  return{id:Date.now().toString(),date:new Date().toISOString().slice(0,10),killState:{},hourly:[],bossRoles:{},note:''};
+  return{id:Date.now().toString(),date:new Date().toISOString().slice(0,10),killState:{},hourly:[],bossRoles:{},buffParksQty:0,buffParksNinja:false,note:''};
 }
 
 function sessionDkpTotal(session){
@@ -3417,7 +3417,8 @@ function sessionDkpTotal(session){
   },0);
   const hourlyDkp=(session.hourly||[]).reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
   const bossRoleDkp=Object.values(session.bossRoles||{}).flat().reduce((s,r)=>s+(r.value||0),0);
-  return Math.round((killDkp+hourlyDkp+bossRoleDkp)*10)/10;
+  const bpVal=(session.buffParksNinja?0.5:0.3)*(session.buffParksQty||0);
+  return Math.round((killDkp+hourlyDkp+bossRoleDkp+bpVal)*10)/10;
 }
 
 async function loadKillsFromSupabase(){
@@ -3455,6 +3456,29 @@ function buildHourlyHtml(){
     </div>`;
   }
   html+='</div>';
+
+  // ── Buff and Parks section ──
+  const bpNinja=activeSession.buffParksNinja||false;
+  const bpVal=bpNinja?0.5:0.3;
+  const bpQty=activeSession.buffParksQty||0;
+  html+='<div style="border-bottom:1px solid var(--border)">';
+  html+=`<div style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">BUFF AND PARKS — SESSION</div>`;
+  html+=`<div class="kt-role-row${bpQty>0?' kt-role-active':''}">
+    <span class="kt-role-desc">Buff and Parks</span>
+    <span class="kt-role-val">${bpVal} DKP</span>
+    <div class="kt-role-qty">
+      <button class="kt-qty-btn" onclick="ktBuffParksAdj(-1)">−</button>
+      <span class="kt-qty-num" style="color:${bpQty>0?'var(--gold-light)':'var(--text-muted)'}">${bpQty}</span>
+      <button class="kt-qty-btn" onclick="ktBuffParksAdj(1)">+</button>
+    </div>
+  </div>`;
+  html+=`<label class="kt-role-row" style="cursor:pointer;gap:.5rem;">
+    <input type="checkbox" ${bpNinja?'checked':''} onchange="ktBuffParksNinja(this.checked)" style="accent-color:var(--gold-light);width:14px;height:14px;">
+    <span class="kt-role-desc">Ninjalooter</span>
+    <span class="kt-role-val" style="color:${bpNinja?'var(--gold-light)':'var(--text-muted)'}">+0.2 DKP/click</span>
+  </label>`;
+  html+='</div>';
+
   return html;
 }
 
@@ -3771,6 +3795,16 @@ window.ktHourlyAdj=function(desc,value,delta){
     }
   }
   ktUpdateBadge();
+};
+
+window.ktBuffParksAdj=function(delta){
+  activeSession.buffParksQty=Math.max(0,(activeSession.buffParksQty||0)+delta);
+  renderKillsPanel();
+};
+
+window.ktBuffParksNinja=function(checked){
+  activeSession.buffParksNinja=!!checked;
+  renderKillsPanel();
 };
 
 window.ktSaveSession=function(){
