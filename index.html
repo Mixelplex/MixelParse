@@ -997,9 +997,11 @@ function renderTable(){const query=document.getElementById('searchBox').value.to
 
 // ─── Stats Panel ──────────────────────────────────────────────────────────────
 function renderStatsPanel(){const panel=document.getElementById('statsPanel');const name=activeTab;if(!name||name==='__all__'){panel.innerHTML='';return;}
-  // Preserve any in-progress form values before wiping the DOM
-  const _nakedFormOpen=document.getElementById('nakedForm')&&document.getElementById('nakedForm').style.display!=='none';
-  const _currentFormOpen=document.getElementById('currentForm')&&document.getElementById('currentForm').style.display!=='none';
+  // Preserve any in-progress form values before wiping the DOM — only for same character
+  const _prevName=panel.dataset.charName||null;
+  const _sameChar=_prevName===name;
+  const _nakedFormOpen=_sameChar&&document.getElementById('nakedForm')&&document.getElementById('nakedForm').style.display!=='none';
+  const _currentFormOpen=_sameChar&&document.getElementById('currentForm')&&document.getElementById('currentForm').style.display!=='none';
   const _savedNs={},_savedMs={};
   if(_nakedFormOpen){[...STAT_KEYS,...RESIST_KEYS,...POOL_KEYS].forEach(k=>{const el=document.getElementById('ns_'+k);if(el&&el.value!=='')_savedNs[k]=el.value;});}
   if(_currentFormOpen){[...STAT_KEYS,...RESIST_KEYS,...POOL_KEYS].forEach(k=>{const el=document.getElementById('ms_'+k);if(el&&el.value!=='')_savedMs[k]=el.value;});}
@@ -1070,6 +1072,8 @@ ${(meta.nakedStats||meta.currentStats)?`<div style="font-size:.75rem;color:var(-
 document.getElementById('classSelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};charMeta[name].class=e.target.value;saveState();renderStatsPanel();});
 document.getElementById('raceSelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};charMeta[name].race=e.target.value;saveState();renderStatsPanel();buildTabs();});
 document.getElementById('levelInput').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};const v=Math.min(60,Math.max(1,parseInt(e.target.value)||1));charMeta[name].level=v;e.target.value=v;saveState();renderStatsPanel();});
+// Stamp current char on panel for same-char detection on next render
+panel.dataset.charName=name;
 // Restore in-progress form state after re-render
 if(_nakedFormOpen){const f=document.getElementById('nakedForm');if(f)f.style.display='block';[...STAT_KEYS,...RESIST_KEYS,...POOL_KEYS].forEach(k=>{const el=document.getElementById('ns_'+k);if(el&&_savedNs[k]!=null)el.value=_savedNs[k];});}
 if(_currentFormOpen){const f=document.getElementById('currentForm');if(f)f.style.display='block';[...STAT_KEYS,...RESIST_KEYS,...POOL_KEYS].forEach(k=>{const el=document.getElementById('ms_'+k);if(el&&_savedMs[k]!=null)el.value=_savedMs[k];});}
@@ -1112,6 +1116,7 @@ document.getElementById('saveCurrentBtn').addEventListener('click',()=>{
   if(!charMeta[name])charMeta[name]={};
   charMeta[name].currentStats={stats,resists,pools};
   // Derive naked stats by subtracting gear contributions from itemDB/charGear
+  // Always re-derive baseStats from current stats (nakedStats manual entry takes display priority but baseStats drives the cards)
   if(!charMeta[name].nakedStats){
     const equipped=getEquippedItems(name);
     const cg=gearStats[name]||{};
