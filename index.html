@@ -870,8 +870,11 @@ function getStatWeights(cls, baseTotals) {
       // Softcap zone: above-200 formula, anchored to manabonus=1.0
       w[manaKey] = Math.max(manaPerPointAbove, w[manaKey] * 0.33);
     } else {
-      // Below 200: below-200 formula — worth 2× as much per point
-      w[manaKey] = Math.max(manaPerPointBelow, w[manaKey]);
+      // Below 200: scale formula by class base weight relative to pure caster base (5.0)
+      // so hybrids (SHD/RNG/PAL base 3.5-4.0) get proportionally less than pure casters
+      const pureBase = 5.0;
+      const scaledBelow = manaPerPointBelow * (w[manaKey] / pureBase);
+      w[manaKey] = Math.max(scaledBelow, w[manaKey]);
     }
     // Below 200: base weights unchanged
   }
