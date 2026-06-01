@@ -3422,7 +3422,7 @@ const RW_CHECKPOINTS=[
 ];
 
 // Per-boss roles — filtered by boss target
-// bosses:[] = all bosses. bosses:['X'] = only those bosses.
+// bosses:[] = all bosses EXCEPT Ring War. bosses:['X'] = only those bosses.
 const BOSS_ROLES=[
   {desc:'Playmaker Bonus',              value:5,   bosses:[]},
   {desc:'Quad',                         value:2,   bosses:[]},
@@ -3443,11 +3443,17 @@ const BOSS_ROLES=[
     bosses:['Aaryonar','Dagarn','Dracoliche','Druushk','Feshlak','Hoshkar','Jorlleag',
              'Klandicar','Koi','Kreizenn','LTK','Magi P\'Tasa','Mirenilla','Nevederia',
              'Sontalak','Vulak','Zlandicar']},
+  // Ring War exclusive roles
+  {desc:'Ninja Looter (NL)',            value:0.2, bosses:['Ring War']},
+  {desc:'Turn in Reward',               value:10,  bosses:['Ring War']},
 ];
 
 function rolesForBoss(target){
   const b=BOSS_ROSTER.find(x=>x.target===target);
-  const roles=BOSS_ROLES.filter(r=>r.bosses.length===0||r.bosses.includes(target));
+  // Ring War only gets roles explicitly tagged for it; global (bosses:[]) roles are for kill events
+  const roles=BOSS_ROLES.filter(r=>target==='Ring War'
+    ? r.bosses.includes('Ring War')
+    : (r.bosses.length===0||r.bosses.includes(target)));
   const fte=[];
   if(b?.raceFTE)fte.push({desc:'Race FTE Bonus', value:b.raceFTE, bosses:[target]});
   if(b?.campFTE)fte.push({desc:'Camp FTE Pickup', value:b.campFTE, bosses:[target]});
