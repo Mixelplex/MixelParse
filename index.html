@@ -996,16 +996,7 @@ function renderView(){const names=charNames();document.getElementById('dropzone'
 function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.values(chars).flat():(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;return ms&&ml;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=source.reduce((s,i)=>s+i.count,0);const unique=new Set(source.map(i=>i.id)).size;const stacks=source.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span>':'');}
 
 // ─── Stats Panel ──────────────────────────────────────────────────────────────
-function renderStatsPanel(){const panel=document.getElementById('statsPanel');const name=activeTab;if(!name||name==='__all__'){panel.innerHTML='';return;}
-  // Preserve any in-progress form values before wiping the DOM — only for same character
-  const _prevName=panel.dataset.charName||null;
-  const _sameChar=_prevName===name;
-  const _nakedFormOpen=_sameChar&&document.getElementById('nakedForm')&&document.getElementById('nakedForm').style.display!=='none';
-  const _currentFormOpen=_sameChar&&document.getElementById('currentForm')&&document.getElementById('currentForm').style.display!=='none';
-  const _savedNs={},_savedMs={};
-  if(_nakedFormOpen){[...STAT_KEYS,...RESIST_KEYS,...POOL_KEYS].forEach(k=>{const el=document.getElementById('ns_'+k);if(el&&el.value!=='')_savedNs[k]=el.value;});}
-  if(_currentFormOpen){[...STAT_KEYS,...RESIST_KEYS,...POOL_KEYS].forEach(k=>{const el=document.getElementById('ms_'+k);if(el&&el.value!=='')_savedMs[k]=el.value;});}
-  const meta=charMeta[name]||{};const base=meta.baseStats||null;const selClass=meta.class||'';const selLevel=meta.level||1;const selRace=meta.race||'';const charGear=gearStats[name]||{};const dbCount=Object.keys(itemDB).length;const getBaseVal=(k)=>{if(!base)return'';const si=STAT_KEYS.indexOf(k);if(si>=0)return base.stats[si]||'';const ri=RESIST_KEYS.indexOf(k);if(ri>=0)return base.resists[ri]||'';const pi=POOL_KEYS.indexOf(k);if(pi>=0)return base.pools?.[pi]||'';return'';};
+function renderStatsPanel(){const panel=document.getElementById('statsPanel');const name=activeTab;if(!name||name==='__all__'){panel.innerHTML='';return;}const meta=charMeta[name]||{};const base=meta.baseStats||null;const selClass=meta.class||'';const selLevel=meta.level||1;const selRace=meta.race||'';const charGear=gearStats[name]||{};const dbCount=Object.keys(itemDB).length;const getBaseVal=(k)=>{if(!base)return'';const si=STAT_KEYS.indexOf(k);if(si>=0)return base.stats[si]||'';const ri=RESIST_KEYS.indexOf(k);if(ri>=0)return base.resists[ri]||'';const pi=POOL_KEYS.indexOf(k);if(pi>=0)return base.pools?.[pi]||'';return'';};
 const raceSelect=`<label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Race<select id="raceSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:'Crimson Pro',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">— Select Race —</option>${EQ_RACES.map(r=>`<option value="${r}"${r===selRace?' selected':''}>${r}</option>`).join('')}</select></label>`;
 panel.innerHTML=`<div class="char-setup" style="flex-direction:column;align-items:flex-start;gap:.75rem;display:flex">
 <div style="font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em">CHARACTER</div>
@@ -1072,11 +1063,6 @@ ${(meta.nakedStats||meta.currentStats)?`<div style="font-size:.75rem;color:var(-
 document.getElementById('classSelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};charMeta[name].class=e.target.value;saveState();renderStatsPanel();});
 document.getElementById('raceSelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};charMeta[name].race=e.target.value;saveState();renderStatsPanel();buildTabs();});
 document.getElementById('levelInput').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};const v=Math.min(60,Math.max(1,parseInt(e.target.value)||1));charMeta[name].level=v;e.target.value=v;saveState();renderStatsPanel();});
-// Stamp current char on panel for same-char detection on next render
-panel.dataset.charName=name;
-// Restore in-progress form state after re-render
-if(_nakedFormOpen){const f=document.getElementById('nakedForm');if(f)f.style.display='block';[...STAT_KEYS,...RESIST_KEYS,...POOL_KEYS].forEach(k=>{const el=document.getElementById('ns_'+k);if(el&&_savedNs[k]!=null)el.value=_savedNs[k];});}
-if(_currentFormOpen){const f=document.getElementById('currentForm');if(f)f.style.display='block';[...STAT_KEYS,...RESIST_KEYS,...POOL_KEYS].forEach(k=>{const el=document.getElementById('ms_'+k);if(el&&_savedMs[k]!=null)el.value=_savedMs[k];});}
 
 // Naked stats
 document.getElementById('nakedBtn').addEventListener('click',()=>{const f=document.getElementById('nakedForm');f.style.display=f.style.display==='none'?'block':'none';});
@@ -1116,7 +1102,6 @@ document.getElementById('saveCurrentBtn').addEventListener('click',()=>{
   if(!charMeta[name])charMeta[name]={};
   charMeta[name].currentStats={stats,resists,pools};
   // Derive naked stats by subtracting gear contributions from itemDB/charGear
-  // Always re-derive baseStats from current stats (nakedStats manual entry takes display priority but baseStats drives the cards)
   if(!charMeta[name].nakedStats){
     const equipped=getEquippedItems(name);
     const cg=gearStats[name]||{};
@@ -1362,9 +1347,16 @@ function renderUpgradesPanel(){
     const wepSkillFilter=CLASS_WEAPON_SKILLS[charClass];
     function wepSkillOk(c){
       if(dbSlot!=='PRIMARY'&&dbSlot!=='SECONDARY')return true;
-      // Monks cannot equip shields in the SECONDARY slot
-      if(charClass==='Monk'&&dbSlot==='SECONDARY'&&(c._slot||'').toUpperCase()==='SHIELD')return false;
+      const cSlot=(c._slot||'').toUpperCase();
       const sk=(c._skill||c._itemType||'').toLowerCase();
+      // Monks can only DW weapons — exclude any non-weapon (no dmg) from SECONDARY
+      // This catches shields/stat-offhands tagged as SECONDARY in the CSV
+      if(charClass==='Monk'&&dbSlot==='SECONDARY'){
+        if(cSlot==='SHIELD')return false;
+        if(!c.dmg)return false; // no dmg = not a weapon = Monks can't use it OH
+      }
+      // Rogues also DW only weapons in OH
+      if(charClass==='Rogue'&&dbSlot==='SECONDARY'&&!c.dmg)return false;
       if(!sk||!c.dmg)return true;
       // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
       if(!window._upgTwoHander&&(sk.includes('2h')||sk.includes('two hand')))return false;
@@ -1391,11 +1383,14 @@ function renderUpgradesPanel(){
       const emptyWepSkill=CLASS_WEAPON_SKILLS[charClass];
       function emptyWepOk(c){
         if(slot!=='PRIMARY'&&slot!=='SECONDARY')return true;
-        // Monks cannot equip shields in the SECONDARY slot
-        if(charClass==='Monk'&&slot==='SECONDARY'&&(c._slot||'').toUpperCase()==='SHIELD')return false;
+        const cSlot=(c._slot||'').toUpperCase();
         const sk=(c._skill||c._itemType||'').toLowerCase();
+        if(charClass==='Monk'&&slot==='SECONDARY'){
+          if(cSlot==='SHIELD')return false;
+          if(!c.dmg)return false;
+        }
+        if(charClass==='Rogue'&&slot==='SECONDARY'&&!c.dmg)return false;
         if(!sk||!c.dmg)return true;
-        // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
         if(!window._upgTwoHander&&(sk.includes('2h')||sk.includes('two hand')))return false;
         if(!emptyWepSkill)return true;
         return emptyWepSkill.some(s=>sk.includes(s));
