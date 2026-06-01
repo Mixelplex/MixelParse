@@ -609,6 +609,10 @@ const STAT_KEYS=["str","sta","dex","agi","wis","int","cha"];
 const RESIST_KEYS=["svpoison","svmagic","svdisease","svfire","svcold"];
 const POOL_KEYS=["hp","mana","end","ac","atk"];
 const BONUS_KEYS=["hpbonus","manabonus"];
+// Flowing Thought mana regen — value per tier in mana-equivalent units.
+// FT I = +1 mana/tick, each tier adds 1. We value 1 mana/tick at ~75 flat mana
+// (rough 7.5-minute raid encounter equivalent). Affects scoring for MANA_CLASSES only.
+const FT_MANA_PER_TIER=75;
 const STAT_KEYS_ALL=[...STAT_KEYS,...RESIST_KEYS,...BONUS_KEYS];
 const STAT_DISPLAY={str:'STR',sta:'STA',dex:'DEX',agi:'AGI',wis:'WIS',int:'INT',cha:'CHA',hpbonus:'+HP',manabonus:'+Mana',svpoison:'SvPo',svmagic:'SvMa',svdisease:'SvDi',svfire:'SvFi',svcold:'SvCo',haste:'Haste'};
 const HP_RATIOS={'Warrior':[4.5,6.0],'Shadow Knight':[3.8,5.2],'Paladin':[3.8,5.2],'Ranger':[3.3,4.2],'Bard':[3.0,4.0],'Monk':[3.0,4.0],'Rogue':[3.0,4.0],'Cleric':[2.5,3.0],'Druid':[2.5,3.0],'Shaman':[2.5,3.0],'Enchanter':[2.0,2.4],'Magician':[2.0,2.4],'Necromancer':[2.0,2.4],'Wizard':[2.0,2.4]};
@@ -1233,6 +1237,14 @@ function renderUpgradesPanel(){
       const scale=CLASS_WEAPON_DPS_SCALE[charClass]||WEAPON_DPS_SCALE;
       total+=(candDps-curDps)*scale;
     }
+    // Flowing Thought mana regen — only scores for mana classes
+    if(MANA_CLASSES.has(charClass)){
+      const ftDelta=(Number(candData._ft||0))-(Number(curItemData._ft||0));
+      if(ftDelta){
+        const ftW=(weights.manabonus||1.0)*FT_MANA_PER_TIER;
+        total+=ftDelta*ftW;
+      }
+    }
     return Math.round(total*10)/10;
   }
 
@@ -1334,6 +1346,7 @@ function renderUpgradesPanel(){
     }
   }
   window._upgSlots=slotResults;
+  window._upgPaneStats=paneStats;
 
   // ── MNK unarmed: inject virtual "Unarmed (Fists)" option into PRIMARY/SECONDARY ──
   // Fist dmg/delay scales with level (wiki H2H table). Iksar delay is 1 higher than Human.
@@ -1368,16 +1381,40 @@ function renderUpgradesPanel(){
     for(const k of keys){
       const fv=Number(fromData[k]||0),tv=Number(toData[k]||0);
       const suffix=k==='haste'?'%':'';
-      if(showDelta){
+      const label=k==='ac'?'AC':(STAT_DISPLAY[k]||k.toUpperCase());
+      if(showDelta==='combined'){
+        if(!tv&&!fv)continue;
+        const raw=tv-fv;
+        const valStr=tv>0?`+${tv}`:tv<0?`${tv}`:'0';
+        if(raw===0)html+=`<span class="upg-stat-cur">${label} ${valStr}${suffix}</span>`;
+        else if(raw>0)html+=`<span class="upg-stat-pos">${label} ${valStr}${suffix}</span>`;
+        else if(tv!==0)html+=`<span class="upg-stat-neg">${label} ${valStr}${suffix}</span>`;
+        else html+=`<span class="upg-stat-neg">${label} ${raw}${suffix}</span>`;
+      } else if(showDelta){
         const raw=tv-fv;
         if(!raw)continue;
-        const label=k==='ac'?'AC':(STAT_DISPLAY[k]||k.toUpperCase());
         html+=raw>0?`<span class="upg-stat-pos">${label} +${raw}${suffix}</span>`:`<span class="upg-stat-neg">${label} ${raw}${suffix}</span>`;
       } else {
         if(!fv)continue;
-        const label=k==='ac'?'AC':(STAT_DISPLAY[k]||k.toUpperCase());
         html+=`<span class="upg-stat-cur">${label} ${fv}${suffix}</span>`;
       }
+    }
+    // Flowing Thought regen
+    const fft=Number(fromData._ft||0),tft=Number(toData._ft||0);
+    if(showDelta==='combined'){
+      if(tft>0){
+        const raw=tft-fft;
+        if(raw>0)html+=`<span class="upg-stat-pos">FT${tft} (+${tft} mana/tick)</span>`;
+        else if(raw<0)html+=`<span class="upg-stat-neg">FT${tft} (+${tft} mana/tick)</span>`;
+        else html+=`<span class="upg-stat-cur">FT${tft} (+${tft} mana/tick)</span>`;
+      } else if(fft>0){
+        html+=`<span class="upg-stat-neg">FT${fft} lost</span>`;
+      }
+    } else if(showDelta){
+      if(tft-fft>0)html+=`<span class="upg-stat-pos">+FT${tft-fft} (+${tft-fft} mana/tick)</span>`;
+      else if(tft-fft<0)html+=`<span class="upg-stat-neg">−FT${fft-tft} (−${fft-tft} mana/tick)</span>`;
+    } else {
+      if(fft>0)html+=`<span class="upg-stat-cur">FT${fft} (+${fft} mana/tick)</span>`;
     }
     return html||`<span class="upg-stat-cur" style="font-style:italic">No stats</span>`;
   }
@@ -1595,16 +1632,8 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
   if(base){STAT_KEYS.forEach((k,i)=>{t[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{t[k]=base.resists[i]||0;});if(base.pools)t.ac=base.pools[3]||0;}
   for(const item of equipped){const _cg2=charGear[item.name]||{},_db2=itemDBGet(item.name)||{};for(const k of STAT_KEYS_ALL){const v=Number(_db2[k]||0)||Number(_cg2[k]||0);if(v)t[k]=(t[k]||0)+v;}const acv=Number(_db2.ac||0)||Number(_cg2.ac||0);if(acv)t.ac=(t.ac||0)+acv;}
   const {currentData}=sr;
-  const allKeys=['ac',...STAT_KEYS_ALL,'haste'].filter(k=>(currentData[k]||0)!==0||(cand[k]||0)!==0);
-  let statsHtml='';
-  for(const k of allKeys){
-    const cur=Number(currentData[k]||0),nxt=Number(cand[k]||0),raw=nxt-cur;
-    if(!raw)continue;
-    const label=k==='ac'?'AC':(STAT_DISPLAY[k]||k.toUpperCase());
-    const suffix=k==='haste'?'%':'';
-    if(raw>0)statsHtml+=`<span class="upg-stat-pos">${label} +${raw}${suffix}</span>`;
-    else statsHtml+=`<span class="upg-stat-neg">${label} ${raw}${suffix}</span>`;
-  }
+  const paneStats=window._upgPaneStats||(()=>'');
+  const statsHtml=paneStats(currentData,cand,'combined');
   const cost=[cand.plat?`${cand.plat}k pp`:'',cand.dkp?`${cand.dkp} DKP`:''].filter(Boolean).join(' · ');
   upgPaneEl.innerHTML=`
     <div class="upg-pane-label">Best upgrade</div>
@@ -1865,7 +1894,11 @@ function parseItemDB(csvText,filename){
       // Warders: Nanzata, Tukaarak, Ventani, Hraashna. Golem (ancient sentry) drops still live.
       if(cats.includes("Sleeper's Tomb")){const dropsFrom=(cols[colMap._fromCol]||'').toLowerCase();if(['nanzata','tukaarak','ventani','hraashna'].some(w=>dropsFrom.includes(w)))stats._sleeperWarder=true;}
       if(col('_magicCol'))stats._magic=true;
-      const effectVal=col('_effectCol');if(effectVal){stats._effect=effectVal;const et=col('_effectTypeCol');if(et)stats._effectType=et;}
+      const effectVal=col('_effectCol');if(effectVal){stats._effect=effectVal;const et=col('_effectTypeCol');if(et)stats._effectType=et;
+        // Parse Flowing Thought tier: FT I=1, II=2, III=3, IV=4, V=5
+        const ftM=effectVal.match(/Flowing\s+Thought\s+(I{1,3}|IV|V|VI)/i);
+        if(ftM){const r={'I':1,'II':2,'III':3,'IV':4,'V':5,'VI':6};stats._ft=r[ftM[1].toUpperCase()]||0;}
+      }
       const skillVal=col('_skillCol');if(skillVal)stats._skill=skillVal;
       const hasteVal=col('_hasteCol');if(hasteVal){const hp=parseFloat(hasteVal);if(!isNaN(hp)&&hp!==0)stats.haste=hp;}
       // Instrument mods (BRD)
@@ -3654,10 +3687,20 @@ function renderKillsPanel(){
       const d=new Date(s.date+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
       const killed=Object.entries(s.killState||{}).filter(([,v])=>v==='killed').map(([k])=>k);
       const failticks=Object.entries(s.killState||{}).filter(([,v])=>v==='failtick').length;
+      const hourlyTotal=(s.hourly||[]).reduce((sum,r)=>sum+(r.qty||1),0);
+      const bnpQty=s.buffParksQty||0;
+      // Build summary parts
+      const parts=[];
+      if(killed.length)parts.push(`${killed.length} kill${killed.length!==1?'s':''}`);
+      if(failticks)parts.push(`${failticks} failtick${failticks!==1?'s':''}`);
+      if(hourlyTotal)parts.push(`${hourlyTotal} hourly tick${hourlyTotal!==1?'s':''}`);
+      if(bnpQty)parts.push(`${bnpQty} B&P${s.buffParksNinja?' (NL)':''}`);
+      const summaryLine=parts.join(' · ');
+      const killNames=killed.slice(0,6).map(esc).join(', ')+(killed.length>6?' …':'');
       return`<div class="kt-hist-row" onclick="ktLoadSession('${esc(s.id)}')">
         <div style="flex:1;min-width:0">
           <div class="kt-hist-date">${d}${s.note?` — <em>${esc(s.note)}</em>`:''}</div>
-          <div class="kt-hist-kills">${killed.length} kill${killed.length!==1?'s':''}${failticks>0?' · '+failticks+' failtick'+(failticks!==1?'s':''):''}: ${killed.slice(0,6).map(esc).join(', ')}${killed.length>6?' …':''}</div>
+          <div class="kt-hist-kills">${summaryLine}${killNames?': '+killNames:''}</div>
         </div>
         <div class="kt-hist-dkp">${t} DKP</div>
         <button class="kt-undo-btn" onclick="event.stopPropagation();ktDeleteSession('${esc(s.id)}')">✕</button>
