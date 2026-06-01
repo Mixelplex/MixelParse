@@ -1845,6 +1845,7 @@ function parseItemDB(csvText,filename){
     // Source: prefer in-CSV drops-from column, fall back to filename-derived class
     const fromVal=colMap._fromCol>=0?cols[colMap._fromCol]?.trim():'';
     stats._from=fromVal||'';
+    if(fromVal&&/no longer drops/i.test(fromVal))stats._legacy=true;
     // Classes/Races: from CSV columns if available
     const csvClass=colMap._classCol>=0?cols[colMap._classCol]?.trim():'';
     const csvRace=colMap._raceCol>=0?cols[colMap._raceCol]?.trim():'';
