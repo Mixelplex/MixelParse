@@ -2180,18 +2180,23 @@ async function loadFromSupabase(){
     // Load watch list
     const{data:wlRow}=await sb.from('watch_list').select('items').eq('user_id',currentUser.id).single();
     if(wlRow)watchList=wlRow.items||[];
-    // Load item DB from Supabase if not baked
+  }catch(e){console.warn('Load error',e);}
+
+  // Render immediately so UI isn't blank while item DB loads in background
+  refresh();
+  updateItemDbModal();
+
+  // Load item DB in background — re-render when done
+  try{
     if(Object.keys(BAKED_ITEM_DB).length===0){
       await loadItemDBFromSupabase();
     }
-    // Re-apply item DB to all chars — gearStats from Supabase may be stale if items
-    // were added to the DB after the last save (e.g. NO TRADE items newly scraped)
-    // Backfill _ft from _effect for items loaded from Supabase before FT parsing was added
+    // Backfill _ft for items loaded from Supabase before FT parsing was added
     {const _ftr={'I':1,'II':2,'III':3,'IV':4,'V':5,'VI':6};for(const item of Object.values(itemDB)){if(!item._ft&&item._effect){const m=(item._effect||'').match(/Flowing\s+Thought\s+(I{1,3}|IV|V|VI)/i);if(m)item._ft=_ftr[m[1].toUpperCase()]||0;}}}
     charNames().forEach(cn=>applyDBToChar(cn));
-  }catch(e){console.warn('Load error',e);}
-  refresh();
-  updateItemDbModal();
+    refresh();
+    updateItemDbModal();
+  }catch(e){console.warn('Item DB background load error',e);}
 }
 
 function scheduleSave(){
