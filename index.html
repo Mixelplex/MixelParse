@@ -391,6 +391,19 @@
   .kt-hist-date{font-family:'Cinzel',serif;font-size:.78rem;color:var(--text);font-weight:600}
   .kt-hist-kills{font-size:.73rem;color:var(--text-muted);margin-top:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .kt-hist-dkp{font-family:'Cinzel',serif;font-size:.85rem;font-weight:700;color:var(--gold-light);white-space:nowrap;margin-left:auto}
+  .kt-seg-card{border:1px solid var(--border);border-radius:4px;margin:.75rem 1rem;overflow:hidden}
+  .kt-seg-header{display:flex;align-items:center;gap:.6rem;padding:.55rem .85rem;background:var(--surface2);border-bottom:1px solid var(--border)}
+  .kt-seg-date{font-family:'Cinzel',serif;font-size:.78rem;font-weight:600;color:var(--text);flex:1}
+  .kt-seg-note{font-family:var(--font-sans);font-weight:400;font-size:.75rem;color:var(--text-muted)}
+  .kt-seg-total{font-family:'Cinzel',serif;font-size:.85rem;font-weight:700;color:var(--gold-light);white-space:nowrap}
+  .kt-seg-load{font-size:.7rem;padding:.2rem .55rem;border:1px solid var(--border);border-radius:3px;background:var(--surface);color:var(--text-muted);cursor:pointer;font-family:'Cinzel',serif;letter-spacing:.04em}
+  .kt-seg-load:hover{background:var(--gold-light);color:var(--bg);border-color:var(--gold-light)}
+  .kt-seg-body{padding:.35rem 0}
+  .kt-seg-row{display:grid;grid-template-columns:80px 1fr auto;gap:.4rem .75rem;padding:.25rem .85rem;font-size:.78rem;align-items:baseline}
+  .kt-seg-row:not(:last-child){border-bottom:1px solid rgba(200,184,144,.12)}
+  .kt-seg-label{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted);text-transform:uppercase}
+  .kt-seg-val{color:var(--text);line-height:1.4}
+  .kt-seg-dkp{font-weight:600;color:var(--gold-light);white-space:nowrap;text-align:right;font-size:.75rem}
 </style>
 </head>
 <body>
@@ -3830,26 +3843,34 @@ function renderKillsPanel(){
       const timeStr=s.startedAt?new Date(s.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):null;
       const dateLabel=timeStr?`${d} · ${timeStr}`:d;
       const killed=Object.entries(s.killState||{}).filter(([,v])=>v==='killed').map(([k])=>k);
-      const failticks=Object.entries(s.killState||{}).filter(([,v])=>v==='failtick').length;
+      const failtickTargets=Object.entries(s.killState||{}).filter(([,v])=>v==='failtick').map(([k])=>k);
       const hourlyTotal=(s.hourly||[]).reduce((sum,r)=>sum+(r.qty||1),0);
+      const hourlyDkp=(s.hourly||[]).reduce((sum,r)=>sum+(r.value||0)*(r.qty||1),0);
       const bnpQty=s.buffParksQty||0;
-      const rwQty=Object.keys(s.rwChecks||{}).length;
-      // Build summary parts
-      const parts=[];
-      if(killed.length)parts.push(`${killed.length} kill${killed.length!==1?'s':''}`);
-      if(failticks)parts.push(`${failticks} failtick${failticks!==1?'s':''}`);
-      if(hourlyTotal)parts.push(`${hourlyTotal} hourly tick${hourlyTotal!==1?'s':''}`);
-      if(bnpQty)parts.push(`${bnpQty} B&P${s.buffParksNinja?' (NL)':''}`);
-      if(rwQty)parts.push(`Ring War (${rwQty}/4)`);
-      const summaryLine=parts.join(' · ');
-      const killNames=killed.slice(0,6).map(esc).join(', ')+(killed.length>6?' …':'');
-      return`<div class="kt-hist-row" onclick="ktLoadSession('${esc(s.id)}')">
-        <div style="flex:1;min-width:0">
-          <div class="kt-hist-date">${dateLabel}${s.note?` — <em>${esc(s.note)}</em>`:''}</div>
-          <div class="kt-hist-kills">${summaryLine}${killNames?': '+killNames:''}</div>
+      const bnpDkp=Math.round((s.buffParksNinja?0.5:0.3)*bnpQty*10)/10;
+      const rwChecked=Object.keys(s.rwChecks||{});
+      const rwDkp=Math.round(RW_CHECKPOINTS.reduce((sum,cp)=>(s.rwChecks||{})[cp.key]?sum+cp.value:sum,0)*10)/10;
+      const bossRoleDkp=Math.round(Object.values(s.bossRoles||{}).flat().reduce((sum,r)=>sum+(r.value||0),0)*10)/10;
+      const killDkp=Math.round(killed.reduce((sum,k)=>{const b=BOSS_ROSTER.find(x=>x.target===k);return sum+(b?b.dkp+b.baseDkp:0);},0)*10)/10;
+      const failtickDkp=Math.round(failtickTargets.reduce((sum,k)=>{const b=BOSS_ROSTER.find(x=>x.target===k);return sum+(b?b.baseDkp:0);},0)*10)/10;
+
+      // Build breakdown lines
+      const lines=[];
+      if(killed.length)lines.push(`<span class="kt-seg-label">Kills</span><span class="kt-seg-val">${killed.map(esc).join(', ')}</span><span class="kt-seg-dkp">${killDkp} DKP</span>`);
+      if(failtickTargets.length)lines.push(`<span class="kt-seg-label">Failticks</span><span class="kt-seg-val">${failtickTargets.map(esc).join(', ')}</span><span class="kt-seg-dkp">${failtickDkp} DKP</span>`);
+      if(bossRoleDkp)lines.push(`<span class="kt-seg-label">Roles</span><span class="kt-seg-val">${Object.entries(s.bossRoles||{}).flatMap(([,rs])=>rs.map(r=>r.desc)).join(', ')}</span><span class="kt-seg-dkp">${bossRoleDkp} DKP</span>`);
+      if(hourlyTotal)lines.push(`<span class="kt-seg-label">Hourly</span><span class="kt-seg-val">${(s.hourly||[]).map(r=>`${r.qty||1}× ${r.desc.replace(' (hourly)','')}`).join(', ')}</span><span class="kt-seg-dkp">${hourlyDkp} DKP</span>`);
+      if(bnpQty)lines.push(`<span class="kt-seg-label">B&P</span><span class="kt-seg-val">${bnpQty} click${bnpQty!==1?'s':''}${s.buffParksNinja?' (NL)':''}</span><span class="kt-seg-dkp">${bnpDkp} DKP</span>`);
+      if(rwChecked.length)lines.push(`<span class="kt-seg-label">Ring War</span><span class="kt-seg-val">${rwChecked.length}/4 checkpoints</span><span class="kt-seg-dkp">${rwDkp} DKP</span>`);
+
+      return`<div class="kt-seg-card">
+        <div class="kt-seg-header">
+          <div class="kt-seg-date">${dateLabel}${s.note?` <em class="kt-seg-note">— ${esc(s.note)}</em>`:''}</div>
+          <div class="kt-seg-total">${t} DKP</div>
+          <button class="kt-seg-load" onclick="ktLoadSession('${esc(s.id)}')">Load</button>
+          <button class="kt-undo-btn" onclick="ktDeleteSession('${esc(s.id)}')">✕</button>
         </div>
-        <div class="kt-hist-dkp">${t} DKP</div>
-        <button class="kt-undo-btn" onclick="event.stopPropagation();ktDeleteSession('${esc(s.id)}')">✕</button>
+        ${lines.length?`<div class="kt-seg-body">${lines.map(l=>`<div class="kt-seg-row">${l}</div>`).join('')}</div>`:''}
       </div>`;
     }).join('');
 
