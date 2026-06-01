@@ -996,7 +996,14 @@ function renderView(){const names=charNames();document.getElementById('dropzone'
 function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.values(chars).flat():(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;return ms&&ml;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=source.reduce((s,i)=>s+i.count,0);const unique=new Set(source.map(i=>i.id)).size;const stacks=source.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span>':'');}
 
 // ─── Stats Panel ──────────────────────────────────────────────────────────────
-function renderStatsPanel(){const panel=document.getElementById('statsPanel');const name=activeTab;if(!name||name==='__all__'){panel.innerHTML='';return;}const meta=charMeta[name]||{};const base=meta.baseStats||null;const selClass=meta.class||'';const selLevel=meta.level||1;const selRace=meta.race||'';const charGear=gearStats[name]||{};const dbCount=Object.keys(itemDB).length;const getBaseVal=(k)=>{if(!base)return'';const si=STAT_KEYS.indexOf(k);if(si>=0)return base.stats[si]||'';const ri=RESIST_KEYS.indexOf(k);if(ri>=0)return base.resists[ri]||'';const pi=POOL_KEYS.indexOf(k);if(pi>=0)return base.pools?.[pi]||'';return'';};
+function renderStatsPanel(){const panel=document.getElementById('statsPanel');const name=activeTab;if(!name||name==='__all__'){panel.innerHTML='';return;}
+  // Preserve any in-progress form values before wiping the DOM
+  const _nakedFormOpen=document.getElementById('nakedForm')&&document.getElementById('nakedForm').style.display!=='none';
+  const _currentFormOpen=document.getElementById('currentForm')&&document.getElementById('currentForm').style.display!=='none';
+  const _savedNs={},_savedMs={};
+  if(_nakedFormOpen){[...STAT_KEYS,...RESIST_KEYS,...POOL_KEYS].forEach(k=>{const el=document.getElementById('ns_'+k);if(el&&el.value!=='')_savedNs[k]=el.value;});}
+  if(_currentFormOpen){[...STAT_KEYS,...RESIST_KEYS,...POOL_KEYS].forEach(k=>{const el=document.getElementById('ms_'+k);if(el&&el.value!=='')_savedMs[k]=el.value;});}
+  const meta=charMeta[name]||{};const base=meta.baseStats||null;const selClass=meta.class||'';const selLevel=meta.level||1;const selRace=meta.race||'';const charGear=gearStats[name]||{};const dbCount=Object.keys(itemDB).length;const getBaseVal=(k)=>{if(!base)return'';const si=STAT_KEYS.indexOf(k);if(si>=0)return base.stats[si]||'';const ri=RESIST_KEYS.indexOf(k);if(ri>=0)return base.resists[ri]||'';const pi=POOL_KEYS.indexOf(k);if(pi>=0)return base.pools?.[pi]||'';return'';};
 const raceSelect=`<label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Race<select id="raceSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:'Crimson Pro',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">— Select Race —</option>${EQ_RACES.map(r=>`<option value="${r}"${r===selRace?' selected':''}>${r}</option>`).join('')}</select></label>`;
 panel.innerHTML=`<div class="char-setup" style="flex-direction:column;align-items:flex-start;gap:.75rem;display:flex">
 <div style="font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em">CHARACTER</div>
@@ -1063,6 +1070,9 @@ ${(meta.nakedStats||meta.currentStats)?`<div style="font-size:.75rem;color:var(-
 document.getElementById('classSelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};charMeta[name].class=e.target.value;saveState();renderStatsPanel();});
 document.getElementById('raceSelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};charMeta[name].race=e.target.value;saveState();renderStatsPanel();buildTabs();});
 document.getElementById('levelInput').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};const v=Math.min(60,Math.max(1,parseInt(e.target.value)||1));charMeta[name].level=v;e.target.value=v;saveState();renderStatsPanel();});
+// Restore in-progress form state after re-render
+if(_nakedFormOpen){const f=document.getElementById('nakedForm');if(f)f.style.display='block';[...STAT_KEYS,...RESIST_KEYS,...POOL_KEYS].forEach(k=>{const el=document.getElementById('ns_'+k);if(el&&_savedNs[k]!=null)el.value=_savedNs[k];});}
+if(_currentFormOpen){const f=document.getElementById('currentForm');if(f)f.style.display='block';[...STAT_KEYS,...RESIST_KEYS,...POOL_KEYS].forEach(k=>{const el=document.getElementById('ms_'+k);if(el&&_savedMs[k]!=null)el.value=_savedMs[k];});}
 
 // Naked stats
 document.getElementById('nakedBtn').addEventListener('click',()=>{const f=document.getElementById('nakedForm');f.style.display=f.style.display==='none'?'block':'none';});
@@ -1464,59 +1474,6 @@ function renderUpgradesPanel(){
       else if(tft-fft<0)html+=`<span class="upg-stat-neg">−FT${fft-tft} (−${fft-tft} mana/tick)</span>`;
     } else {
       if(fft>0)html+=`<span class="upg-stat-cur">FT${fft} (+${fft} mana/tick)</span>`;
-    }
-    // ── Proc info (weapon slots only) ─────────────────────────────────────────
-    function _getProcInfo(data, slotHint){
-      const eff=data._effect||'';
-      const et=(data._effectType||'').toLowerCase();
-      if(!eff||!et.includes('combat'))return null;
-      const dmg=PROC_DB[eff]!=null?PROC_DB[eff]:35;
-      const dex=Math.min(255,baselineTotals&&baselineTotals.dex?baselineTotals.dex:175);
-      const ppm=(dex/170)+0.5;
-      const isOH=slotHint==='SECONDARY';
-      const dps=isOH?(ppm*0.5*dmg/60):(ppm*dmg/60);
-      return {name:eff,dmg,dps:Math.round(dps*10)/10,isUtility:dmg===0};
-    }
-    // Determine slot hint from item data
-    function _slotHint(data){
-      const s=(data._slot||'').toUpperCase();
-      if(s==='SECONDARY')return 'SECONDARY';
-      return 'PRIMARY';
-    }
-    const isFromWeapon=!!(fromData.dmg||fromData.delay||fromData._skill);
-    const isToWeapon=!!(toData.dmg||toData.delay||toData._skill);
-    if(showDelta==='combined'&&(isFromWeapon||isToWeapon)){
-      const fp=_getProcInfo(fromData,_slotHint(fromData));
-      const tp=_getProcInfo(toData,_slotHint(toData));
-      if(tp&&!fp){
-        // Gained a proc
-        if(tp.isUtility) html+=`<span class="upg-stat-pos">Proc: ${tp.name}</span>`;
-        else html+=`<span class="upg-stat-pos">Proc: ${tp.name} (~${tp.dps} dps)</span>`;
-      } else if(fp&&!tp){
-        // Lost a proc
-        if(fp.isUtility) html+=`<span class="upg-stat-neg">Proc lost: ${fp.name}</span>`;
-        else html+=`<span class="upg-stat-neg">Proc lost: ${fp.name} (~${fp.dps} dps)</span>`;
-      } else if(tp&&fp){
-        if(tp.name===fp.name){
-          // Same proc on both
-          if(tp.isUtility) html+=`<span class="upg-stat-cur">Proc: ${tp.name}</span>`;
-          else html+=`<span class="upg-stat-cur">Proc: ${tp.name} (~${tp.dps} dps)</span>`;
-        } else {
-          // Different proc — show swap
-          if(tp.isUtility) html+=`<span class="upg-stat-pos">Proc: ${tp.name} (replaces ${fp.name})</span>`;
-          else html+=`<span class="upg-stat-pos">Proc: ${tp.name} (~${tp.dps} dps, replaces ${fp.name})</span>`;
-        }
-      } else if(isToWeapon&&!tp&&isFromWeapon&&fp){
-        if(fp.isUtility) html+=`<span class="upg-stat-neg">Proc lost: ${fp.name}</span>`;
-        else html+=`<span class="upg-stat-neg">Proc lost: ${fp.name} (~${fp.dps} dps)</span>`;
-      }
-    } else if(!showDelta&&isFromWeapon){
-      // Equipped pane — just show proc if present
-      const fp=_getProcInfo(fromData,_slotHint(fromData));
-      if(fp){
-        if(fp.isUtility) html+=`<span class="upg-stat-cur">Proc: ${fp.name}</span>`;
-        else html+=`<span class="upg-stat-cur">Proc: ${fp.name} (~${fp.dps} dps)</span>`;
-      }
     }
     return html||`<span class="upg-stat-cur" style="font-style:italic">No stats</span>`;
   }
