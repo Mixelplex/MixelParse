@@ -162,6 +162,11 @@
   .gpr-chip-del{opacity:.5;font-size:.65rem;cursor:pointer;margin-left:.15rem;line-height:1}
   .gpr-chip-del:hover{opacity:1;color:#a03030}
   .gpr-section-head{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;padding:.3rem 0 .5rem;border-bottom:1px solid var(--border);margin-bottom:.7rem}
+  .gpr-dkp-day-row{border-bottom:1px solid var(--border-light,var(--border))}
+  .gpr-dkp-date{font-family:'Cinzel',serif;font-size:.78rem;font-weight:600;color:var(--text);padding:.5rem 1rem;white-space:nowrap;vertical-align:top}
+  .gpr-dkp-sessions{padding:.5rem .5rem;font-size:.8rem;color:var(--text-secondary,var(--text-muted))}
+  .gpr-dkp-sess{margin-bottom:.15rem}
+  .gpr-dkp-total{text-align:right;padding:.5rem 1rem;font-weight:600;color:var(--gold-light);white-space:nowrap;vertical-align:top}
   .gpr-table{width:100%;border-collapse:collapse;font-size:.88rem}
   .gpr-table th{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;padding:.35rem .65rem;text-align:left;border-bottom:1px solid var(--border-glow);background:var(--surface2);white-space:nowrap}
   .gpr-table td{padding:.42rem .65rem;border-bottom:1px solid rgba(74,58,26,.12);vertical-align:middle}
@@ -3660,8 +3665,54 @@ function renderGearReportsPanel(){
 
   const avgScore=selectedCount>0?(totalScore/selectedCount).toFixed(1):'—';
 
+  // ── DKP Earned Summary — grouped by date ──
+  const dkpByDate={};
+  for(const s of raidSessions){
+    const d=s.date+'T00:00:00';
+    const label=new Date(d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+    if(!dkpByDate[s.date])dkpByDate[s.date]={label,sessions:[],total:0};
+    const t=sessionDkpTotal(s);
+    dkpByDate[s.date].sessions.push({note:s.note,total:t,kills:Object.entries(s.killState||{}).filter(([,v])=>v==='killed').map(([k])=>k)});
+    dkpByDate[s.date].total+=t;
+  }
+  const sortedDates=Object.keys(dkpByDate).sort((a,b)=>b.localeCompare(a));
+  const grandTotal=sortedDates.reduce((s,d)=>s+dkpByDate[d].total,0);
+
+  let dkpRows='';
+  for(const date of sortedDates){
+    const day=dkpByDate[date];
+    const dayTotal=Math.round(day.total*10)/10;
+    dkpRows+=`<tr class="gpr-dkp-day-row">
+      <td class="gpr-dkp-date">${esc(day.label)}</td>
+      <td class="gpr-dkp-sessions">`;
+    for(const s of day.sessions){
+      const kills=s.kills.length?s.kills.slice(0,4).join(', ')+(s.kills.length>4?' …':''):'No kills';
+      const note=s.note?` — <em>${esc(s.note)}</em>`:'';
+      dkpRows+=`<div class="gpr-dkp-sess">${esc(kills)}${note}</div>`;
+    }
+    dkpRows+=`</td>
+      <td class="gpr-dkp-total">${dayTotal} DKP</td>
+    </tr>`;
+  }
+
+  const dkpSection=sortedDates.length?`
+    <div class="gpr-section-head" style="margin-top:1.5rem">DKP Earned — All Sessions</div>
+    <table class="gpr-table">
+      <thead><tr>
+        <th style="width:180px">Date</th>
+        <th>Sessions</th>
+        <th style="text-align:right;width:100px">DKP</th>
+      </tr></thead>
+      <tbody>${dkpRows}</tbody>
+      <tfoot><tr>
+        <td colspan="2" style="text-align:right;font-family:'Cinzel',serif;font-size:.78rem;letter-spacing:.05em;padding:.6rem 1rem">TOTAL EARNED</td>
+        <td style="text-align:right;font-weight:600;padding:.6rem 1rem;color:var(--gold-light)">${Math.round(grandTotal*10)/10} DKP</td>
+      </tr></tfoot>
+    </table>`:'';
+
   panel.innerHTML=`
-    <div class="gpr-plan-chips">${chips}</div>
+    ${dkpSection}
+    <div class="gpr-plan-chips" style="margin-top:${sortedDates.length?'2rem':'0'}">${chips}</div>
     <div class="gpr-section-head">${esc(active.plan.label)} — ${selectedCount} upgrade${selectedCount!==1?'s':''} selected</div>
     <table class="gpr-table">
       <thead><tr>
