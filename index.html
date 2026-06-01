@@ -761,6 +761,12 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
     bonus=is2h?Math.floor(delay*37/44):Math.floor((lv-25)/3);
   }
 
+  // Dual-wield chance (OH only): (DW_skill + level) / 400
+  // DW skill at 60 = min((level+1)*7, 252) = 252 for Monks
+  // Result: (252 + 60) / 400 = 0.78
+  const dwSkill=Math.min((lv+1)*7,252);
+  const dwChance=(dwSkill+lv)/400;
+
   // Proc DPS — MH full rate, OH half rate
   const effect=itemData._effect||'';
   const effectType=itemData._effectType||'';
@@ -768,10 +774,10 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
   const procDmg=hasCombatProc?(PROC_DB[effect]||35):0;
   const dex=Math.min(255,baseTotals&&baseTotals.dex?baseTotals.dex:175);
   const ppm=(dex/170)+0.5;
-  const procDps=slot==='SECONDARY'?(ppm*0.5*procDmg/60):(ppm*procDmg/60);
+  const procDps=slot==='SECONDARY'?(ppm*0.5*dwChance*procDmg/60):(ppm*procDmg/60);
 
-  // Ratio: OH gets no damage bonus; H2H weapons scaled by h2hFactor (~0.9722)
-  const ratio=slot==='SECONDARY'?((2*d)/delay)*h2hFactor:(((2*d+bonus)/delay)*h2hFactor);
+  // Ratio: OH gets no damage bonus, scaled by DW chance; H2H weapons scaled by h2hFactor (~0.9722)
+  const ratio=slot==='SECONDARY'?((2*d)/delay)*h2hFactor*dwChance:(((2*d+bonus)/delay)*h2hFactor);
 
   // ── ROG backstab bonus (piercing PRIMARY only) ───────────────────────────────
   // Backstab formula: (Backstab_skill × weapon_dmg) / 50
@@ -1349,14 +1355,10 @@ function renderUpgradesPanel(){
       if(dbSlot!=='PRIMARY'&&dbSlot!=='SECONDARY')return true;
       const cSlot=(c._slot||'').toUpperCase();
       const sk=(c._skill||c._itemType||'').toLowerCase();
-      // Monks can only DW weapons — exclude any non-weapon (no dmg) from SECONDARY
-      // This catches shields/stat-offhands tagged as SECONDARY in the CSV
-      if(charClass==='Monk'&&dbSlot==='SECONDARY'){
-        if(cSlot==='SHIELD')return false;
-        if(!c.dmg)return false; // no dmg = not a weapon = Monks can't use it OH
-      }
-      // Rogues also DW only weapons in OH
-      if(charClass==='Rogue'&&dbSlot==='SECONDARY'&&!c.dmg)return false;
+      // Identify shields: explicit _slot SHIELD, or skill=shield, or has AC but no dmg/delay
+      const isShield=cSlot==='SHIELD'||sk==='shield'||(c.ac>0&&!c.dmg&&!c.delay);
+      // Monks cannot use shields in SECONDARY — they DW weapons only
+      if(charClass==='Monk'&&dbSlot==='SECONDARY'&&isShield)return false;
       if(!sk||!c.dmg)return true;
       // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
       if(!window._upgTwoHander&&(sk.includes('2h')||sk.includes('two hand')))return false;
@@ -1385,11 +1387,8 @@ function renderUpgradesPanel(){
         if(slot!=='PRIMARY'&&slot!=='SECONDARY')return true;
         const cSlot=(c._slot||'').toUpperCase();
         const sk=(c._skill||c._itemType||'').toLowerCase();
-        if(charClass==='Monk'&&slot==='SECONDARY'){
-          if(cSlot==='SHIELD')return false;
-          if(!c.dmg)return false;
-        }
-        if(charClass==='Rogue'&&slot==='SECONDARY'&&!c.dmg)return false;
+        const isShield=cSlot==='SHIELD'||sk==='shield'||(c.ac>0&&!c.dmg&&!c.delay);
+        if(charClass==='Monk'&&slot==='SECONDARY'&&isShield)return false;
         if(!sk||!c.dmg)return true;
         if(!window._upgTwoHander&&(sk.includes('2h')||sk.includes('two hand')))return false;
         if(!emptyWepSkill)return true;
