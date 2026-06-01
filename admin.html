@@ -1898,6 +1898,7 @@ function gcBuildBaseTotals(charName) {
       for (const k of RK) if (gs[k]) t[k] = (t[k]||0) + Number(gs[k]||0);
     }
   }
+  t._level = parseInt(document.getElementById('gc-level')?.value) || 60;
   return t;
 }
 
@@ -1905,8 +1906,14 @@ function gcBuildBaseTotals(charName) {
 function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, dex) {
   const A2 = gcGetApp();
   const STAT_KEYS_ALL = A2 ? (A2.STAT_KEYS_ALL || []) : [];
-  const NO_CAP = A2 ? (A2.NO_CAP || new Set(['hpbonus','manabonus'])) : new Set(['hpbonus','manabonus']);
+  const NO_CAP = A2 ? new Set([...(A2.NO_CAP || ['hpbonus','manabonus'])]) : new Set(['hpbonus','manabonus']);
   const SOFTCAP = 200, HARDCAP = 255, SOFTCAP_MULT = 0.33;
+  // Mirror index.html: for magic casters above 200 primary stat, getStatWeights already
+  // baked in the mana formula weight — don't apply SOFTCAP_MULT on top of it.
+  const WIS_CLASSES = A2?.WIS_CLASSES || new Set(['Cleric','Druid','Paladin','Ranger','Shaman']);
+  const INT_CLASSES = A2?.INT_CLASSES || new Set(['Enchanter','Magician','Necromancer','Wizard','Shadow Knight','Bard']);
+  const _manaKey = WIS_CLASSES.has(cls) ? 'wis' : INT_CLASSES.has(cls) ? 'int' : null;
+  if (_manaKey && weights[_manaKey] >= 2.0 && (baseTotals[_manaKey] || 0) >= 200) NO_CAP.add(_manaKey);
   let total = 0;
   for (const k of STAT_KEYS_ALL) {
     const v = Number(itemData[k] || 0); if (!v) continue;
