@@ -802,8 +802,9 @@ const CLASS_STAT_WEIGHTS = {
   //      twisting; instrument mods not scored (future feature); weapon DPS scale = 4.0
   'Bard':          {str:1.5,   sta:4.0,  dex:2.0,   agi:0.5,   wis:0.0001,int:0.0001,cha:4.0,   ac:1.5,  svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.0001,haste:6.0},
   // ── Priest / support classes ─────────────────────────────────────────────────
-  // CLR: WIS primary mana stat; plate wearer so AC has some value; no offensive spells
-  'Cleric':        {str:0.0001,sta:2.5,  dex:0.0001,agi:0.0001,wis:5.0,   int:0.0001,cha:0.0001,ac:1.5,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0,  haste:0.0001},
+  // CLR: WIS primary mana stat; plate wearer but rarely hit in raids so AC near-zero;
+  //      mana > HP for raid Cleric (CH output > survivability); MR elevated (magic spells dominate)
+  'Cleric':        {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:5.0,   int:0.0001,cha:0.0001,ac:0.25, svpoison:1.0,svmagic:1.5,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.0,manabonus:1.5,  haste:0.0001},
   // DRU: WIS primary; leather — AC doesn't matter; resist gear useful (SoV zones)
   'Druid':         {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:5.0,   int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0,  haste:0.0001},
   // SHM: WIS primary; STA elevated (slows help survival, SHM solo a lot); chain — modest AC
