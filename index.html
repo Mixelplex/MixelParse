@@ -3839,7 +3839,11 @@ function renderKillsPanel(){
   const killCount=Object.values(activeSession.killState).filter(s=>s==='killed').length;
   const failtickCount=Object.values(activeSession.killState).filter(s=>s==='failtick').length;
 
-  const sorted=[...raidSessions].sort((a,b)=>b.date.localeCompare(a.date));
+  const sorted=[...raidSessions].sort((a,b)=>{
+    const aKey=a.startedAt||a.date;
+    const bKey=b.startedAt||b.date;
+    return bKey.localeCompare(aKey);
+  });
   let histHtml=sorted.length===0?`<div class="dkp-empty">No saved sessions yet.</div>`:
     sorted.map(s=>{
       const t=sessionDkpTotal(s);
