@@ -2090,11 +2090,7 @@ async function onSignedIn(user){
   document.getElementById('userEmail').textContent=user.email;
   document.getElementById('topNav').style.display='flex';
   await loadFromSupabase();
-  await loadDkpFromSupabase();
-  await loadKillsFromSupabase();
-  // Sync any already-loaded price data into itemDB
-  applyDkpToItemDB();
-  applyPlatToItemDB();
+  // DKP and kills now loaded inside loadFromSupabase before first render
 }
 
 function onSignedOut(){
@@ -2194,6 +2190,12 @@ async function loadFromSupabase(){
     const{data:wlRow}=await sb.from('watch_list').select('items').eq('user_id',currentUser.id).single();
     if(wlRow)watchList=wlRow.items||[];
   }catch(e){console.warn('Load error',e);}
+
+  // Load kills and DKP before first render so history/DKP tabs aren't blank
+  await loadKillsFromSupabase();
+  await loadDkpFromSupabase();
+  applyDkpToItemDB();
+  applyPlatToItemDB();
 
   // Render immediately so UI isn't blank while item DB loads in background
   refresh();
