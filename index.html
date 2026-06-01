@@ -3497,7 +3497,8 @@ function rolesForBoss(target){
 
 function newSession(){
   // killState: {target: 'killed'|'failtick'|null}
-  return{id:Date.now().toString(),date:new Date().toISOString().slice(0,10),killState:{},hourly:[],bossRoles:{},buffParksQty:0,buffParksNinja:false,rwChecks:{},note:''};
+  const now=new Date();
+  return{id:Date.now().toString(),date:now.toISOString().slice(0,10),startedAt:now.toISOString(),killState:{},hourly:[],bossRoles:{},buffParksQty:0,buffParksNinja:false,rwChecks:{},note:''};
 }
 
 function sessionDkpTotal(session){
@@ -3816,6 +3817,8 @@ function renderKillsPanel(){
     sorted.map(s=>{
       const t=sessionDkpTotal(s);
       const d=new Date(s.date+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+      const timeStr=s.startedAt?new Date(s.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):null;
+      const dateLabel=timeStr?`${d} · ${timeStr}`:d;
       const killed=Object.entries(s.killState||{}).filter(([,v])=>v==='killed').map(([k])=>k);
       const failticks=Object.entries(s.killState||{}).filter(([,v])=>v==='failtick').length;
       const hourlyTotal=(s.hourly||[]).reduce((sum,r)=>sum+(r.qty||1),0);
@@ -3832,7 +3835,7 @@ function renderKillsPanel(){
       const killNames=killed.slice(0,6).map(esc).join(', ')+(killed.length>6?' …':'');
       return`<div class="kt-hist-row" onclick="ktLoadSession('${esc(s.id)}')">
         <div style="flex:1;min-width:0">
-          <div class="kt-hist-date">${d}${s.note?` — <em>${esc(s.note)}</em>`:''}</div>
+          <div class="kt-hist-date">${dateLabel}${s.note?` — <em>${esc(s.note)}</em>`:''}</div>
           <div class="kt-hist-kills">${summaryLine}${killNames?': '+killNames:''}</div>
         </div>
         <div class="kt-hist-dkp">${t} DKP</div>
