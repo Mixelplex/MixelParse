@@ -1184,6 +1184,10 @@ function renderUpgradesPanel(){
   const weights=getStatWeights(charClass,baselineTotals);
   const NO_CAP=new Set(['hpbonus','manabonus']);
   const SOFTCAP=200,HARDCAP=255,SOFTCAP_MULT=0.33;
+  // For magic casters, getStatWeights already bakes the correct mana-formula weight into
+  // INT/WIS above 200, so effectiveGain must NOT apply SOFTCAP_MULT on top of it.
+  const _manaKey=WIS_CLASSES.has(charClass)?'wis':INT_CLASSES.has(charClass)?'int':null;
+  if(_manaKey&&weights[_manaKey]>=2.0&&(baselineTotals[_manaKey]||0)>=200)NO_CAP.add(_manaKey);
 
   // HP-per-STA at this character's level — used to convert raw STA delta into real HP delta
   // so effectiveGain doesn't double-count STA (once via sta weight, once via hpbonus weight).
@@ -1298,8 +1302,9 @@ function renderUpgradesPanel(){
       if(!wepSkillFilter)return true;
       return wepSkillFilter.some(s=>sk.includes(s));
     }
+    const slotEquippedNames=equippedBySlot[dbSlot]||new Set();
     const candidates=(bySlot[dbSlot]||[])
-      .filter(c=>c.name!==item.name&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
+      .filter(c=>!slotEquippedNames.has(c.name)&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
       .sort((a,b)=>b._effGain-a._effGain);
     slotResults.push({item,dbSlot,currentData,candidates});
@@ -1307,10 +1312,12 @@ function renderUpgradesPanel(){
   // Add empty slots — slots in SLOT_ORDER not covered by any equipped item
   const EQUIPPABLE_SLOTS=['EAR','FINGERS','HEAD','FACE','NECK','SHOULDERS','ARMS','BACK','WRIST','RANGE','HANDS','PRIMARY','SECONDARY','CHEST','LEGS','FEET','WAIST','AMMO'];
   const equippedSlots=new Set(slotResults.map(sr=>sr.dbSlot));
-  // EAR and FINGERS can be worn twice
+  // EAR, FINGERS, and WRIST can be worn twice
   const slotCounts={};slotResults.forEach(sr=>{slotCounts[sr.dbSlot]=(slotCounts[sr.dbSlot]||0)+1;});
+  // Build per-slot equipped name sets so each card excludes ALL items worn in that slot type
+  const equippedBySlot={};slotResults.forEach(sr=>{(equippedBySlot[sr.dbSlot]=equippedBySlot[sr.dbSlot]||new Set()).add(sr.item.name);});
   for(const slot of EQUIPPABLE_SLOTS){
-    const maxCount=(slot==='EAR'||slot==='FINGERS')?2:1;
+    const maxCount=(slot==='EAR'||slot==='FINGERS'||slot==='WRIST')?2:1;
     const currentCount=slotCounts[slot]||0;
     for(let si=currentCount;si<maxCount;si++){
       const emptyWepSkill=CLASS_WEAPON_SKILLS[charClass];
@@ -1325,8 +1332,9 @@ function renderUpgradesPanel(){
         if(!emptyWepSkill)return true;
         return emptyWepSkill.some(s=>sk.includes(s));
       }
+      const slotAlreadyEquipped=equippedBySlot[slot]||new Set();
       const candidates=(bySlot[slot]||[])
-        .filter(c=>itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
+        .filter(c=>!slotAlreadyEquipped.has(c.name)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
         .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)}))
         .sort((a,b)=>b._effGain-a._effGain);
       if(!candidates.length)continue;
