@@ -3759,6 +3759,7 @@ function renderKillsPanel(){
       </div>`;
     }).join('');
 
+  const _bossColScroll=document.getElementById('ktBossCol')?.scrollTop||0;
   const _scrollTop=window.scrollY;
   panel.innerHTML=`
     <div style="display:flex;border-bottom:1px solid var(--border)">
@@ -3788,7 +3789,13 @@ function renderKillsPanel(){
       </div>
     `}`;
   panel.scrollTop=_scrollTop;
-  requestAnimationFrame(()=>window.scrollTo(0,_scrollTop));
+  const _bossCol=document.getElementById('ktBossCol');
+  if(_bossCol)_bossCol.scrollTop=_bossColScroll;
+  requestAnimationFrame(()=>{
+    window.scrollTo(0,_scrollTop);
+    const bc=document.getElementById('ktBossCol');
+    if(bc)bc.scrollTop=_bossColScroll;
+  });
 }
 
 window.ktFilterBosses=function(q){
