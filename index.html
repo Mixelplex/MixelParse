@@ -1875,7 +1875,7 @@ function parseItemDB(csvText,filename){
       const brasVal=parseFloat(col('_brasmodCol'));if(!isNaN(brasVal)&&brasVal>0)stats._brasmod=brasVal;
       const allVal=parseFloat(col('_allmodCol'));if(!isNaN(allVal)&&allVal>0)stats._allmod=allVal;
       // Item weight (for MNK weight penalty check)
-      const wtCol=ci('wt');if(wtCol>=0){const wv=parseFloat(cols[wtCol]);if(!isNaN(wv))stats._wt=wv;}
+      const wtCol=headers.indexOf('wt');if(wtCol>=0){const wv=parseFloat(cols[wtCol]);if(!isNaN(wv))stats._wt=wv;}
     }
 
     if(!itemDB[name]){
