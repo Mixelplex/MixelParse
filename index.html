@@ -3322,6 +3322,7 @@ const TIER_COLORS={
   'Tier Six':  {bg:'rgba(20,60,120,.10)',border:'#2a4a8a',text:'#1a3060'},
   'Tier Seven':{bg:'rgba(80,20,120,.10)',border:'#5a2a8a',text:'#3a1060'},
   'Tier Eight':{bg:'rgba(60,60,60,.10)', border:'#505050',text:'#303030'},
+  'Tier Nine': {bg:'rgba(120,80,20,.15)',border:'#8a6010',text:'#5a3a00'},
   'Misc':      {bg:'rgba(100,80,40,.10)',border:'#706040',text:'#504030'},
   'Farm':      {bg:'rgba(60,80,60,.10)', border:'#405040',text:'#304030'},
 };
@@ -3411,6 +3412,15 @@ const HOURLY_ROLES=[
   {desc:'Ticks - NToV/Sky/VP (hourly)',value:2},
 ];
 
+// Ring War — special event, not a kill/failtick boss.
+// DKP awarded per checkpoint attended.
+const RW_CHECKPOINTS=[
+  {key:'readiness', desc:'Readiness (before RW starts)',  value:1.0, optional:true},
+  {key:'wave1',     desc:'Beginning of RW / Wave 1',      value:0.8},
+  {key:'wave2',     desc:'End of Wave 2',                 value:1.2},
+  {key:'wave3',     desc:'End of Wave 3',                 value:2.0},
+];
+
 // Per-boss roles — filtered by boss target
 // bosses:[] = all bosses. bosses:['X'] = only those bosses.
 const BOSS_ROLES=[
@@ -3446,12 +3456,11 @@ function rolesForBoss(target){
 
 function newSession(){
   // killState: {target: 'killed'|'failtick'|null}
-  return{id:Date.now().toString(),date:new Date().toISOString().slice(0,10),killState:{},hourly:[],bossRoles:{},buffParksQty:0,buffParksNinja:false,note:''};
+  return{id:Date.now().toString(),date:new Date().toISOString().slice(0,10),killState:{},hourly:[],bossRoles:{},buffParksQty:0,buffParksNinja:false,rwChecks:{},note:''};
 }
 
 function sessionDkpTotal(session){
   const ks=session.killState||{};
-  // support legacy sessions that used kills array
   const legacyKills=session.kills||[];
   const killDkp=BOSS_ROSTER.reduce((sum,b)=>{
     const state=ks[b.target]||(legacyKills.includes(b.target)?'killed':null);
@@ -3462,7 +3471,8 @@ function sessionDkpTotal(session){
   const hourlyDkp=(session.hourly||[]).reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
   const bossRoleDkp=Object.values(session.bossRoles||{}).flat().reduce((s,r)=>s+(r.value||0),0);
   const bpVal=(session.buffParksNinja?0.5:0.3)*(session.buffParksQty||0);
-  return Math.round((killDkp+hourlyDkp+bossRoleDkp+bpVal)*10)/10;
+  const rwDkp=RW_CHECKPOINTS.reduce((s,cp)=>(session.rwChecks||{})[cp.key]?s+cp.value:s,0);
+  return Math.round((killDkp+hourlyDkp+bossRoleDkp+bpVal+rwDkp)*10)/10;
 }
 
 async function loadKillsFromSupabase(){
@@ -3687,6 +3697,29 @@ function renderKillsPanel(){
     }
   }
 
+  // ── Tier Nine: Ring War — checkpoint-based attendance, not kill/failtick ──
+  {
+    const c=TIER_COLORS['Tier Nine'];
+    const rwTotalDkp=RW_CHECKPOINTS.reduce((s,cp)=>(activeSession.rwChecks||{})[cp.key]?s+cp.value:s,0);
+    bossHtml+=`<div class="kt-tier-header" style="color:${c.text};border-color:${c.border};background:${c.bg}">Tier Nine — Ring War${rwTotalDkp>0?' · '+Math.round(rwTotalDkp*10)/10+' DKP':''}</div>`;
+    bossHtml+=`<div style="display:flex;border-bottom:1px solid var(--border)">`;
+    // Left: per-event roles (reuses buildBossRoleHtml with 'Ring War' as target)
+    bossHtml+=`<div style="flex:1;border-right:1px solid var(--border)">`;
+    bossHtml+=buildBossRoleHtml('Ring War');
+    bossHtml+=`</div>`;
+    // Right: 4 attendance checkpoints
+    bossHtml+=`<div style="flex:1;padding:.4rem 0">`;
+    for(const cp of RW_CHECKPOINTS){
+      const checked=!!(activeSession.rwChecks||{})[cp.key];
+      bossHtml+=`<label class="kt-role-row${checked?' kt-role-active':''}" style="cursor:pointer;gap:.6rem;user-select:none;">
+        <input type="checkbox" ${checked?'checked':''} onchange="ktRWCheck('${cp.key}',this.checked)" style="accent-color:var(--gold-light);width:14px;height:14px;flex-shrink:0;">
+        <span class="kt-role-desc">${esc(cp.desc)}${cp.optional?' <em style="font-size:.8em;opacity:.6">(optional)</em>':''}</span>
+        <span class="kt-role-val">${cp.value} DKP</span>
+      </label>`;
+    }
+    bossHtml+=`</div></div>`;
+  }
+
   const total=sessionDkpTotal(activeSession);
   const killCount=Object.values(activeSession.killState).filter(s=>s==='killed').length;
   const failtickCount=Object.values(activeSession.killState).filter(s=>s==='failtick').length;
@@ -3700,12 +3733,14 @@ function renderKillsPanel(){
       const failticks=Object.entries(s.killState||{}).filter(([,v])=>v==='failtick').length;
       const hourlyTotal=(s.hourly||[]).reduce((sum,r)=>sum+(r.qty||1),0);
       const bnpQty=s.buffParksQty||0;
+      const rwQty=Object.keys(s.rwChecks||{}).length;
       // Build summary parts
       const parts=[];
       if(killed.length)parts.push(`${killed.length} kill${killed.length!==1?'s':''}`);
       if(failticks)parts.push(`${failticks} failtick${failticks!==1?'s':''}`);
       if(hourlyTotal)parts.push(`${hourlyTotal} hourly tick${hourlyTotal!==1?'s':''}`);
       if(bnpQty)parts.push(`${bnpQty} B&P${s.buffParksNinja?' (NL)':''}`);
+      if(rwQty)parts.push(`Ring War (${rwQty}/4)`);
       const summaryLine=parts.join(' · ');
       const killNames=killed.slice(0,6).map(esc).join(', ')+(killed.length>6?' …':'');
       return`<div class="kt-hist-row" onclick="ktLoadSession('${esc(s.id)}')">
@@ -3861,8 +3896,15 @@ window.ktBuffParksNinja=function(checked){
   renderKillsPanel();
 };
 
+window.ktRWCheck=function(key,checked){
+  if(!activeSession.rwChecks)activeSession.rwChecks={};
+  if(checked)activeSession.rwChecks[key]=true;
+  else delete activeSession.rwChecks[key];
+  renderKillsPanel();
+};
+
 window.ktSaveSession=function(){
-  const s={...activeSession,killState:{...activeSession.killState},hourly:(activeSession.hourly||[]).map(r=>({...r})),bossRoles:Object.fromEntries(Object.entries(activeSession.bossRoles||{}).map(([k,v])=>[k,v.map(r=>({...r}))]))};
+  const s={...activeSession,killState:{...activeSession.killState},hourly:(activeSession.hourly||[]).map(r=>({...r})),bossRoles:Object.fromEntries(Object.entries(activeSession.bossRoles||{}).map(([k,v])=>[k,v.map(r=>({...r}))])),rwChecks:{...(activeSession.rwChecks||{})}};
   const idx=raidSessions.findIndex(x=>x.id===s.id);
   if(idx>=0)raidSessions[idx]=s;else raidSessions.push(s);
   saveSessionsToSupabase();
