@@ -2186,7 +2186,7 @@ async function loadFromSupabase(){
   refresh();
   updateItemDbModal();
 
-  // Load item DB in background — re-render when done
+  // Load item DB in background — re-render when done (no saveState — avoid race with fresh data)
   try{
     if(Object.keys(BAKED_ITEM_DB).length===0){
       await loadItemDBFromSupabase();
@@ -2194,7 +2194,7 @@ async function loadFromSupabase(){
     // Backfill _ft for items loaded from Supabase before FT parsing was added
     {const _ftr={'I':1,'II':2,'III':3,'IV':4,'V':5,'VI':6};for(const item of Object.values(itemDB)){if(!item._ft&&item._effect){const m=(item._effect||'').match(/Flowing\s+Thought\s+(I{1,3}|IV|V|VI)/i);if(m)item._ft=_ftr[m[1].toUpperCase()]||0;}}}
     charNames().forEach(cn=>applyDBToChar(cn));
-    refresh();
+    renderView(); // re-render only, no saveState
     updateItemDbModal();
   }catch(e){console.warn('Item DB background load error',e);}
 }
