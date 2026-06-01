@@ -3710,7 +3710,7 @@ function renderKillsPanel(){
     bossHtml+=`<div class="kt-tier-header" style="color:${c.text};border-color:${c.border};background:${c.bg}">Tier Nine — Ring War${rwTotalDkp>0?' · '+Math.round(rwTotalDkp*10)/10+' DKP':''}</div>`;
     bossHtml+=`<div style="display:flex;border-bottom:1px solid var(--border)">`;
     // Left: per-event roles (reuses buildBossRoleHtml with 'Ring War' as target)
-    bossHtml+=`<div style="flex:1;border-right:1px solid var(--border)">`;
+    bossHtml+=`<div style="flex:1;border-right:1px solid var(--border)" id="ktbr_Ring War">`;
     bossHtml+=buildBossRoleHtml('Ring War');
     bossHtml+=`</div>`;
     // Right: 4 attendance checkpoints
@@ -3869,6 +3869,13 @@ window.ktBossRoleToggle=function(target,desc,value,checked){
   if(checked)activeSession.bossRoles[target].push({desc,value,qty:1});
   const el=document.getElementById('ktbr_'+target);
   if(el)el.innerHTML=buildBossRoleHtml(target);
+  // Ring War has no BOSS_ROSTER entry — skip kill DKP display, just update badge and re-render RW panel
+  if(target==='Ring War'){
+    const rwRolesEl=document.getElementById('ktbr_Ring War');
+    if(rwRolesEl)rwRolesEl.innerHTML=buildBossRoleHtml('Ring War');
+    ktUpdateBadge();
+    return;
+  }
   const extra=activeSession.bossRoles[target].reduce((s,r)=>s+(r.value||0),0);
   const b=BOSS_ROSTER.find(x=>x.target===target);
   const state=activeSession.killState[target]||null;
