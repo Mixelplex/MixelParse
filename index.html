@@ -856,15 +856,22 @@ function getStatWeights(cls, baseTotals) {
   if (isMagicCaster) {
     const total = baseTotals ? (baseTotals[manaKey] || 0) : 0;
     const charLevel = baseTotals ? (baseTotals._level || 60) : 60;
-    const manaPerPoint = (40 * charLevel) / 425;
+    // P1999 mana formula (from forums thread):
+    // Below 200: mana/point = (80 * level) / 425
+    // Above 200: mana/point = (40 * level) / 425
+    const manaPerPointBelow = (80 * charLevel) / 425;
+    const manaPerPointAbove = (40 * charLevel) / 425;
 
-    if (total >= 200) {
-      // Softcap and hardcap zone: use actual P1999 mana formula to price INT/WIS vs manabonus.
-      // Each point of INT/WIS above 200 = manaPerPoint mana, whether at 220 or 255.
-      // Do NOT zero INT at hardcap: losing INT from 255->251 costs 4*manaPerPoint real mana.
-      // Points that would push ABOVE 255 are handled by effectiveGain's HARDCAP ceiling.
-      const softWeight = manaPerPoint * w.manabonus;
-      w[manaKey] = Math.max(softWeight, w[manaKey] * 0.33);
+    if (total > 255) {
+      // Above hardcap: gaining more is worthless.
+      // Losses from above 255 handled in effectiveGain using formula weight.
+      w[manaKey] = 0.0001;
+    } else if (total >= 200) {
+      // Softcap zone: above-200 formula, anchored to manabonus=1.0
+      w[manaKey] = Math.max(manaPerPointAbove, w[manaKey] * 0.33);
+    } else {
+      // Below 200: below-200 formula — worth 2× as much per point
+      w[manaKey] = Math.max(manaPerPointBelow, w[manaKey]);
     }
     // Below 200: base weights unchanged
   }
@@ -1182,7 +1189,10 @@ function renderUpgradesPanel(){
   // For magic casters, getStatWeights already bakes the correct mana-formula weight into
   // INT/WIS above 200, so effectiveGain must NOT apply SOFTCAP_MULT on top of it.
   const _manaKey=WIS_CLASSES.has(charClass)?'wis':INT_CLASSES.has(charClass)?'int':null;
-  if(_manaKey&&weights[_manaKey]>=2.0&&(baselineTotals[_manaKey]||0)>=200)NO_CAP.add(_manaKey);
+  const _manaTotal=baselineTotals[_manaKey]||0;
+  // Add to NO_CAP when formula weight applies (below 200 and softcap zone 200-255).
+  // Above 255: w=0.0001 for gains, losses handled separately in effectiveGain.
+  if(_manaKey&&weights[_manaKey]>=2.0&&_manaTotal<=255)NO_CAP.add(_manaKey);
 
   // HP-per-STA at this character's level — used to convert raw STA delta into real HP delta
   // so effectiveGain doesn't double-count STA (once via sta weight, once via hpbonus weight).
@@ -1204,7 +1214,7 @@ function renderUpgradesPanel(){
         continue;
       }
 
-      const w=weights[k]||0;if(!w)continue;
+      const w=weights[k]||0;if(!w&&!NO_CAP.has(k))continue;
       if(raw>0){
         if(NO_CAP.has(k)){total+=raw*w;}
         else{
@@ -1213,7 +1223,18 @@ function renderUpgradesPanel(){
           const inSoftZone=Math.max(0,Math.min(raw-belowSoft,HARDCAP-Math.max(ct+cur,SOFTCAP)));
           total+=belowSoft*w+inSoftZone*w*SOFTCAP_MULT;
         }
-      } else {total+=raw*w;}
+      } else {
+        // Negative delta: if this is a hardcapped mana stat (w≈0), score the portion
+        // that drops back into softcap zone at the formula weight
+        if(w<=0.001&&_manaKey===k&&(baseTotals[k]||0)>SOFTCAP){
+          const ct=baseTotals[k]||0;
+          const charLevel=baseTotals._level||60;
+          const formulaW=(40*charLevel)/425;
+          total+=raw*formulaW;
+        } else {
+          total+=raw*w;
+        }
+      }
     }
     const acW=weights.ac||0;
     if(acW){const ca=Number(curItemData.ac||0),na=Number(candData.ac||0);if(na-ca)total+=(na-ca)*acW;}
