@@ -1293,6 +1293,11 @@ function renderUpgradesPanel(){
     // Keep underscore meta from both
     Object.assign(currentData,Object.fromEntries(Object.entries(_db).filter(([k])=>k.startsWith('_'))));
     Object.assign(currentData,Object.fromEntries(Object.entries(_cg).filter(([k])=>k.startsWith('_'))));
+    // Runtime _ft fallback: parse from _effect if not already set by CSV parse
+    if(!currentData._ft&&currentData._effect){
+      const ftM=(currentData._effect||'').match(/Flowing\s+Thought\s+(I{1,3}|IV|V|VI)/i);
+      if(ftM){const r={'I':1,'II':2,'III':3,'IV':4,'V':5,'VI':6};currentData._ft=r[ftM[1].toUpperCase()]||0;}
+    }
     currentData.ac=Number(_db.ac||0)||Number(_cg.ac||0)||undefined;
     // Weapon-slot skill filter: MNK (H2H/1HB/2HB only) and ROG (1H+piercing only)
     const wepSkillFilter=CLASS_WEAPON_SKILLS[charClass];
@@ -2151,6 +2156,8 @@ async function loadFromSupabase(){
     }
     // Re-apply item DB to all chars — gearStats from Supabase may be stale if items
     // were added to the DB after the last save (e.g. NO TRADE items newly scraped)
+    // Backfill _ft from _effect for items loaded from Supabase before FT parsing was added
+    {const _ftr={'I':1,'II':2,'III':3,'IV':4,'V':5,'VI':6};for(const item of Object.values(itemDB)){if(!item._ft&&item._effect){const m=(item._effect||'').match(/Flowing\s+Thought\s+(I{1,3}|IV|V|VI)/i);if(m)item._ft=_ftr[m[1].toUpperCase()]||0;}}}
     charNames().forEach(cn=>applyDBToChar(cn));
   }catch(e){console.warn('Load error',e);}
   refresh();
