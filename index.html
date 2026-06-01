@@ -3753,6 +3753,7 @@ function renderKillsPanel(){
       </div>`;
     }).join('');
 
+  const _scrollTop=panel.scrollTop;
   panel.innerHTML=`
     <div style="display:flex;border-bottom:1px solid var(--border)">
       <div class="kt-view-tab${sessionsView==='new'?' active':''}" onclick="ktSetView('new')">⚔ New Session</div>
@@ -3780,6 +3781,7 @@ function renderKillsPanel(){
         </div>
       </div>
     `}`;
+  panel.scrollTop=_scrollTop;
 }
 
 window.ktFilterBosses=function(q){
