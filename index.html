@@ -1744,6 +1744,7 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
   const meta=charMeta[activeTab]||{};
   const charClass=meta.class||'';
   const charLevel=meta.level||60;
+  const base=meta.baseStats||null;
   const charGear=gearStats[activeTab]||{};
   const equipped=getEquippedItems(activeTab);
   const t={};
