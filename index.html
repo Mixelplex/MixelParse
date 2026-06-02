@@ -3984,6 +3984,7 @@ function renderKillsPanel(){
         <input type="text" id="ktSearch" class="kt-date-input" placeholder="Search bosses…" style="flex:1;min-width:180px" oninput="ktFilterBosses(this.value)">
         <div class="kt-dkp-badge" id="ktBadge">${total} DKP &nbsp;·&nbsp; ${killCount} kill${killCount!==1?'s':''}${failtickCount>0?` · ${failtickCount} failtick${failtickCount!==1?'s':''}`:''}</div>
         <button class="kt-save-btn" onclick="ktSaveSession()">💾 Save Session</button>
+        <button class="kt-save-btn" onclick="ktExportPDF()" style="background:rgba(80,50,10,.1);border-color:#8a6020;color:#6a4010">📄 Export PDF</button>
         <button class="kt-undo-btn" onclick="ktClearSession()">Clear</button>
       </div>
       <div style="display:flex;overflow:hidden">
@@ -4146,6 +4147,87 @@ window.ktSaveSession=function(){
 };
 
 window.ktClearSession=function(){activeSession=newSession();ktExpanded={};renderKillsPanel();};
+
+window.ktExportPDF=function(){
+  const s=activeSession;
+  if(!s)return;
+  const total=sessionDkpTotal(s);
+  const d=new Date(s.date+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const killed=Object.entries(s.killState||{}).filter(([,v])=>v==='killed').map(([k])=>k);
+  const failticks=Object.entries(s.killState||{}).filter(([,v])=>v==='failtick').map(([k])=>k);
+  const bossRoles=s.bossRoles||{};
+  const hourly=s.hourly||[];
+  const rwChecks=s.rwChecks||{};
+  const bnpQty=s.buffParksQty||0;
+
+  // Build tier sections
+  const tiers=[...new Set(BOSS_ROSTER.map(b=>b.tier))];
+  let tiersHtml='';
+  for(const tier of tiers){
+    const bosses=BOSS_ROSTER.filter(b=>b.tier===tier);
+    const tierKills=bosses.filter(b=>killed.includes(b.target));
+    const tierFt=bosses.filter(b=>failticks.includes(b.target));
+    if(!tierKills.length&&!tierFt.length)continue;
+    tiersHtml+=`<div class="pdf-tier"><strong>${tier}</strong></div>`;
+    tierKills.forEach(b=>{
+      const roles=(bossRoles[b.target]||[]);
+      const roleDkp=roles.reduce((s,r)=>s+(r.value||0),0);
+      const total=Math.round((b.dkp+b.baseDkp+roleDkp)*10)/10;
+      tiersHtml+=`<div class="pdf-row"><span class="pdf-name">✓ ${b.target}</span><span class="pdf-dkp">${total} DKP</span></div>`;
+      roles.forEach(r=>tiersHtml+=`<div class="pdf-row pdf-sub"><span class="pdf-name">↳ ${r.desc}</span><span class="pdf-dkp">+${r.value} DKP</span></div>`);
+    });
+    tierFt.forEach(b=>{
+      tiersHtml+=`<div class="pdf-row pdf-ft"><span class="pdf-name">✗ ${b.target} (failtick)</span><span class="pdf-dkp">${b.baseDkp} DKP</span></div>`;
+    });
+  }
+  // Ring War
+  const rwDkp=Math.round(RW_CHECKPOINTS.reduce((sum,cp)=>rwChecks[cp.key]?sum+cp.value:sum,0)*10)/10;
+  if(rwDkp>0){
+    tiersHtml+=`<div class="pdf-tier"><strong>Ring War</strong></div>`;
+    RW_CHECKPOINTS.filter(cp=>rwChecks[cp.key]).forEach(cp=>{
+      tiersHtml+=`<div class="pdf-row"><span class="pdf-name">✓ ${cp.desc}</span><span class="pdf-dkp">${cp.value} DKP</span></div>`;
+    });
+  }
+  // Hourly
+  if(hourly.length){
+    tiersHtml+=`<div class="pdf-tier"><strong>Hourly</strong></div>`;
+    hourly.forEach(r=>tiersHtml+=`<div class="pdf-row"><span class="pdf-name">${r.qty||1}× ${r.desc}</span><span class="pdf-dkp">${Math.round((r.value||0)*(r.qty||1)*10)/10} DKP</span></div>`);
+  }
+  // B&P
+  if(bnpQty>0){
+    const bnpDkp=Math.round((s.buffParksNinja?0.5:0.3)*bnpQty*10)/10;
+    tiersHtml+=`<div class="pdf-tier"><strong>Buffs &amp; Parks</strong></div>`;
+    tiersHtml+=`<div class="pdf-row"><span class="pdf-name">${bnpQty} click${bnpQty!==1?'s':''}${s.buffParksNinja?' (Ninja Loot)':''}</span><span class="pdf-dkp">${bnpDkp} DKP</span></div>`;
+  }
+
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>Raid Report — ${d}</title>
+  <style>
+    body{font-family:Georgia,serif;color:#2a1f0e;margin:0;padding:2rem;max-width:700px}
+    h1{font-size:1.4rem;margin:0 0 .25rem}
+    .pdf-subtitle{font-size:.85rem;color:#666;margin-bottom:1.5rem}
+    .pdf-note{font-style:italic;color:#555;font-size:.85rem;margin-bottom:1rem}
+    .pdf-tier{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:#888;border-bottom:1px solid #ccc;padding:.5rem 0 .2rem;margin-top:1rem}
+    .pdf-row{display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #f0ebe0;font-size:.9rem}
+    .pdf-sub{padding-left:1.5rem;font-size:.82rem;color:#555}
+    .pdf-ft{color:#8a4040}
+    .pdf-name{flex:1}
+    .pdf-dkp{font-weight:bold;min-width:80px;text-align:right}
+    .pdf-total{display:flex;justify-content:space-between;padding:.75rem 0;font-size:1.1rem;font-weight:bold;border-top:2px solid #ccc;margin-top:1rem}
+    @media print{body{padding:.5rem}}
+  </style></head><body>
+  <h1>Mixelflop Raid — DKP Report</h1>
+  <div class="pdf-subtitle">${d}${s.note?` &nbsp;·&nbsp; ${s.note}`:''}</div>
+  ${tiersHtml}
+  <div class="pdf-total"><span>Total DKP</span><span>${total} DKP</span></div>
+  </body></html>`;
+
+  const win=window.open('','_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(()=>win.print(),400);
+};
 
 window.ktLoadSession=function(id){
   const s=raidSessions.find(x=>x.id===id);
