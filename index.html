@@ -1576,7 +1576,15 @@ function renderUpgradesPanel(){
     const hasBest=best&&best._effGain>0;
     const sc=hasBest?scoreClass(best._effGain):'upg-score-lo';
     const scoreStr=hasBest?(best._effGain>=0?'+':'')+best._effGain+' pts':'—';
-    const opts=candidates.length?`<option value="">— Select —</option>`+candidates.map((c,i)=>`<option value="${i}">${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join(''):'';
+    const isWepSlot=dbSlot==='PRIMARY'||dbSlot==='SECONDARY'||dbSlot==='TWOHANDER';
+    const opts=candidates.length?`<option value="">— Select —</option>`+candidates.map((c,i)=>{
+      let label=esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
+      if(isWepSlot&&(c.dmg||c.delay)){
+        const dps=weaponDpsScore(c,dbSlot,charClass,charLevel,baselineTotals);
+        if(dps>0)label+=` [${Math.round(dps*10)/10} dps]`;
+      }
+      return `<option value="${i}">${label}</option>`;
+    }).join(''):'';
     const cost=hasBest?[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' \u00b7 '):'';
     cardsHtml+=`<div class="upg-slot-card${isWepDisabled?' upg-wep-disabled':''}">
       <div class="upg-slot-head">
@@ -1759,7 +1767,15 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
     else{scoreEl.style.cssText='';}
   }
   if(altRowEl){
-    const opts=`<option value="">— Select —</option>`+sr.candidates.map((c,i)=>`<option value="${i}"${i===selIdx?' selected':''}>${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join('');
+    const isWepSlotU=sr.dbSlot==='PRIMARY'||sr.dbSlot==='SECONDARY'||sr.dbSlot==='TWOHANDER';
+    const opts=`<option value="">— Select —</option>`+sr.candidates.map((c,i)=>{
+      let label=esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
+      if(isWepSlotU&&(c.dmg||c.delay)){
+        const dps=weaponDpsScore(c,sr.dbSlot,charClass,charLevel,baselineTotals);
+        if(dps>0)label+=` [${Math.round(dps*10)/10} dps]`;
+      }
+      return `<option value="${i}"${i===selIdx?' selected':''}>${label}</option>`;
+    }).join('');
     altRowEl.innerHTML=`<span class="upg-alt-label">Compare</span>
       <select class="upg-alt-select" data-slot="${dbSlot}" data-cardid="${cardId}" onchange="upgSwapAlt('${dbSlot}',this.value,this)">${opts}</select>`;
   }
