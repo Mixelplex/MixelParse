@@ -1422,6 +1422,22 @@ function renderUpgradesPanel(){
       slotResults.push({item:{name:'(empty)',location:slot},dbSlot:slot,currentData:{},candidates,isEmpty:true});
     }
   }
+  // Lore deduplication across slots — a lore item can only be suggested once total.
+  // Find the best slot for each lore item, then remove it from all other slots' candidate lists.
+  const loreSlotScores={};  // loreName -> {slotIdx, score}
+  slotResults.forEach((sr,si)=>{
+    sr.candidates.forEach(c=>{
+      if(!c._lore)return;
+      const prev=loreSlotScores[c.name];
+      if(!prev||c._effGain>prev.score)loreSlotScores[c.name]={slotIdx:si,score:c._effGain};
+    });
+  });
+  slotResults.forEach((sr,si)=>{
+    sr.candidates=sr.candidates.filter(c=>{
+      if(!c._lore)return true;
+      return loreSlotScores[c.name]&&loreSlotScores[c.name].slotIdx===si;
+    });
+  });
   window._upgSlots=slotResults;
   window._upgPaneStats=paneStats;
 
