@@ -1827,8 +1827,10 @@ window.upgRefreshStatSheet=function(){
       if(!is2hModeSheet&&sr.is2hCard)continue;
       const selEl=document.querySelector(`.upg-alt-select[data-cardid="${sr.cardId||sr.dbSlot}"]`);
       const selVal=selEl?selEl.value:'';
-      // If user has made a selection use it; otherwise use best upgrade (index 0) for projection
-      const idx=selVal!==''?parseInt(selVal):0;
+      // If user explicitly selected something use it; otherwise only project if it's a genuine upgrade
+      const userPicked=selVal!=='';
+      const bestCand=sr.candidates[0];
+      const idx=userPicked?parseInt(selVal):(bestCand&&bestCand._effGain>0?0:NaN);
       if(isNaN(idx))continue;
       const cand=sr.candidates[idx];
       if(!cand)continue;
