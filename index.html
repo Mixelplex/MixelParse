@@ -1753,9 +1753,13 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
   const paneStats=window._upgPaneStats||(()=>'');
   const statsHtml=paneStats(currentData,cand,'combined');
   const cost=[cand.plat?`${cand.plat}k pp`:'',cand.dkp?`${cand.dkp} DKP`:''].filter(Boolean).join(' · ');
+  const isWepSlotU2=sr.dbSlot==='PRIMARY'||sr.dbSlot==='SECONDARY'||sr.dbSlot==='TWOHANDER';
+  const candDpsVal=(isWepSlotU2&&(cand.dmg||cand.delay))?weaponDpsScore(cand,sr.dbSlot,charClass,charLevel,t):0;
+  const candDpsHtml=candDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0">${Math.round(candDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)">dps</span></div>`:'';
   upgPaneEl.innerHTML=`
     <div class="upg-pane-label">Best upgrade</div>
     <div class="upg-pane-name upg-pane-upgrade">${itemLink(cand.name)}</div>
+    ${candDpsHtml}
     <div class="upg-pane-stats">${statsHtml||'<span class="upg-stat-cur">No stat changes</span>'}</div>
     ${(cand._mob||cand._from)?`<div class="upg-pane-from">${cand._mob?esc(cand._mob)+' · ':''} ${esc(cand._zone||cand._from||'')}</div>`:''}
     ${cost?`<div class="upg-pane-cost">${esc(cost)}</div>`:''}`;
