@@ -1355,10 +1355,12 @@ function renderUpgradesPanel(){
       if(dbSlot!=='PRIMARY'&&dbSlot!=='SECONDARY')return true;
       const cSlot=(c._slot||'').toUpperCase();
       const sk=(c._skill||c._itemType||'').toLowerCase();
-      // Identify shields: explicit _slot SHIELD, or skill=shield, or has AC but no dmg/delay
       const isShield=cSlot==='SHIELD'||sk==='shield'||(c.ac>0&&!c.dmg&&!c.delay);
-      // Monks cannot use shields in SECONDARY — they DW weapons only
-      if(charClass==='Monk'&&dbSlot==='SECONDARY'&&isShield)return false;
+      // Monks and Rogues DW weapons only — OH must have dmg+delay (no stat sticks, no shields)
+      if((charClass==='Monk'||charClass==='Rogue')&&dbSlot==='SECONDARY'){
+        if(isShield)return false;
+        if(!c.dmg||!c.delay)return false;
+      }
       if(!sk||!c.dmg)return true;
       // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
       if(!window._upgTwoHander&&(sk.includes('2h')||sk.includes('two hand')))return false;
@@ -1388,7 +1390,10 @@ function renderUpgradesPanel(){
         const cSlot=(c._slot||'').toUpperCase();
         const sk=(c._skill||c._itemType||'').toLowerCase();
         const isShield=cSlot==='SHIELD'||sk==='shield'||(c.ac>0&&!c.dmg&&!c.delay);
-        if(charClass==='Monk'&&slot==='SECONDARY'&&isShield)return false;
+        if((charClass==='Monk'||charClass==='Rogue')&&slot==='SECONDARY'){
+          if(isShield)return false;
+          if(!c.dmg||!c.delay)return false;
+        }
         if(!sk||!c.dmg)return true;
         if(!window._upgTwoHander&&(sk.includes('2h')||sk.includes('two hand')))return false;
         if(!emptyWepSkill)return true;
