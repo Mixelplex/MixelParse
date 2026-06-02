@@ -666,9 +666,11 @@ const CLASS_DMG_CAP={'Warrior':100,'Paladin':100,'Shadow Knight':100,'Monk':200,
 // Used to filter candidate weapons in PRIMARY/SECONDARY slots.
 const CLASS_WEAPON_SKILLS={
   // MNK: H2H, 1H Blunt, 2H Blunt only — no swords, axes, piercing
-  'Monk':       ['hand to hand','1h blunt','2h blunt'],
+  // CSV values: '1HB', 'H2H', '2HB'
+  'Monk':       ['hand to hand','1h blunt','2h blunt','h2h','1hb','2hb'],
   // ROG: 1H Slash/Blunt + Piercing — no 2H at all; OH must also be 1H only
-  'Rogue':      ['1h slashing','1h blunt','piercing'],
+  // CSV values: '1HS', '1HB', 'PIE' or 'Piercing'
+  'Rogue':      ['1h slashing','1h blunt','piercing','1hs','1hb','pie'],
 };
 
 // Per-class weapon DPS scale factors.
@@ -749,7 +751,7 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
 
   // H2H skill cap is slightly lower than 1HB, producing ~97.22% effective hit rate
   // relative to a 1HB weapon of equal ratio. Factor sourced from P1999 damage calculator.
-  const isH2H=itype.includes('hand to hand');
+  const isH2H=itype.includes('hand to hand')||itype==='h2h';
   const h2hFactor=isH2H?0.9722:1.0;
 
   // Damage bonus (MH only, fires every swing)
@@ -1306,19 +1308,22 @@ function renderUpgradesPanel(){
   const SIG_KEYS=['ac','hpbonus','manabonus','str','sta','agi','dex','wis','int','cha','svmagic','svfire','svcold','svdisease','svpoison','haste','dmg','delay'];
   const sigMap={};  // slot -> Map<sig, index>
   for(const[itemName,data]of Object.entries(itemDB)){
-    const slot=data._slot;if(!slot)continue;
-    if(!bySlot[slot]){bySlot[slot]=[];sigMap[slot]=new Map();}
-    const sig=SIG_KEYS.map(s=>data[s]||0).join(',');
-    const slotMap=sigMap[slot];
-    if(slotMap.has(sig)){
-      const idx=slotMap.get(sig);
-      const existing=bySlot[slot][idx];
-      const newPref=ERA_PREF.indexOf(data._era||'');
-      const exPref=ERA_PREF.indexOf(existing._era||'');
-      if(newPref>=0&&(exPref<0||newPref<exPref))bySlot[slot][idx]={name:itemName,...data};
-    } else {
-      slotMap.set(sig,bySlot[slot].length);
-      bySlot[slot].push({name:itemName,...data});
+    const slotList=data._slots||[data._slot];
+    for(const slot of slotList){
+      if(!slot)continue;
+      if(!bySlot[slot]){bySlot[slot]=[];sigMap[slot]=new Map();}
+      const sig=SIG_KEYS.map(s=>data[s]||0).join(',');
+      const slotMap=sigMap[slot];
+      if(slotMap.has(sig)){
+        const idx=slotMap.get(sig);
+        const existing=bySlot[slot][idx];
+        const newPref=ERA_PREF.indexOf(data._era||'');
+        const exPref=ERA_PREF.indexOf(existing._era||'');
+        if(newPref>=0&&(exPref<0||newPref<exPref))bySlot[slot][idx]={name:itemName,...data};
+      } else {
+        slotMap.set(sig,bySlot[slot].length);
+        bySlot[slot].push({name:itemName,...data});
+      }
     }
   }
 
@@ -1326,6 +1331,7 @@ function renderUpgradesPanel(){
   const equippedLoreDBNames=new Set(equipped.filter(i=>(itemDBGet(i.name)||charGear[i.name]||{})._lore).map(i=>i.name));
 
   const slotResults=[];
+  const DW_CLASSES_OH=new Set(['Monk','Rogue','Warrior','Ranger','Bard']);
   // Pre-build per-slot equipped name sets — needed inside the loop to exclude same-slot items from candidates
   const equippedBySlot={};
   for(const item of equipped){const s=invSlotToDBSlot(item.location);(equippedBySlot[s]=equippedBySlot[s]||new Set()).add(item.name);}
@@ -1368,8 +1374,12 @@ function renderUpgradesPanel(){
       return wepSkillFilter.some(s=>sk.includes(s));
     }
     const slotEquippedNames=equippedBySlot[dbSlot]||new Set();
-    const candidates=(bySlot[dbSlot]||[])
-      .filter(c=>!slotEquippedNames.has(c.name)&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
+    const ohExtra=(dbSlot==="SECONDARY"&&DW_CLASSES_OH.has(charClass)&&!CLASS_NO_DW.has(charClass))
+      ?(bySlot["PRIMARY"]||[]).filter(c=>{const sk2=(c._skill||c._itemType||"").toLowerCase();return !sk2.includes("2h")&&!sk2.includes("two")&&c.dmg&&c.delay;})
+      :[];
+    const candidatePool=[...(bySlot[dbSlot]||[]),...ohExtra.filter(c=>!(bySlot[dbSlot]||[]).some(x=>x.name===c.name))];
+    const candidates=candidatePool
+      .filter(c=>!slotEquippedNames.has(c.name)&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||"")&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith("Custom "))
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
       .sort((a,b)=>b._effGain-a._effGain);
     slotResults.push({item,dbSlot,currentData,candidates});
@@ -1400,8 +1410,12 @@ function renderUpgradesPanel(){
         return emptyWepSkill.some(s=>sk.includes(s));
       }
       const slotAlreadyEquipped=equippedBySlot[slot]||new Set();
-      const candidates=(bySlot[slot]||[])
-        .filter(c=>!slotAlreadyEquipped.has(c.name)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
+      const ohExtraEmpty=(slot==="SECONDARY"&&DW_CLASSES_OH.has(charClass)&&!CLASS_NO_DW.has(charClass))
+        ?(bySlot["PRIMARY"]||[]).filter(c=>{const sk2=(c._skill||c._itemType||"").toLowerCase();return !sk2.includes("2h")&&!sk2.includes("two")&&c.dmg&&c.delay;})
+        :[];
+      const emptyPool=[...(bySlot[slot]||[]),...ohExtraEmpty.filter(c=>!(bySlot[slot]||[]).some(x=>x.name===c.name))];
+      const candidates=emptyPool
+        .filter(c=>!slotAlreadyEquipped.has(c.name)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||"")&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith("Custom "))
         .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)}))
         .sort((a,b)=>b._effGain-a._effGain);
       if(!candidates.length)continue;
@@ -1921,10 +1935,11 @@ function parseItemDB(csvText,filename){
     const name=cols[colMap._nameCol];
     const rawSlot=(cols[colMap._slotCol]||'').trim().toUpperCase();
     if(!name||name==='STAT WEIGHTS:'||name==='Name')continue;
-    // Normalize slot: FINGER→FINGERS, take first token of multi-slot, fall back to NONE
+    // Normalize slot: FINGER→FINGERS, handle space-separated multi-slot values
     const SLOT_ALIAS={'FINGER':'FINGERS'};
-    const firstToken=rawSlot.split(/\s+/)[0]||'';
-    const normSlot=SLOT_ALIAS[firstToken]||(validSlots.has(firstToken)?firstToken:(validSlots.has(rawSlot)?rawSlot:'NONE'));
+    const allSlotTokens=rawSlot.split(/\s+/).map(t=>SLOT_ALIAS[t]||(validSlots.has(t)?t:null)).filter(Boolean);
+    const normSlot=allSlotTokens[0]||'NONE';
+    stats._slots=allSlotTokens.length>1?allSlotTokens:null; // store multi-slot for bySlot bucketing
 
     const stats={};
     for(const[key,idx]of Object.entries(colMap)){
