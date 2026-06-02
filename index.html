@@ -1672,10 +1672,6 @@ function renderUpgradesPanel(){
       <div class="upg-stat-body" id="upgStatSheetBody">${buildStatSheet()}</div>
     </div>
   </div>`;
-  // Auto-select best upgrade (index 0) on each slot so stat sheet reflects projected totals
-  document.querySelectorAll('.upg-alt-select').forEach(sel=>{
-    if(sel.options.length>1){sel.value='0';} // index 0 = best candidate
-  });
   window.upgRefreshStatSheet();
 }
 
@@ -1830,7 +1826,9 @@ window.upgRefreshStatSheet=function(){
       // In 1H mode: skip the 2H card if it somehow exists
       if(!is2hModeSheet&&sr.is2hCard)continue;
       const selEl=document.querySelector(`.upg-alt-select[data-cardid="${sr.cardId||sr.dbSlot}"]`);
-      const idx=selEl?parseInt(selEl.value):NaN;
+      const selVal=selEl?selEl.value:'';
+      // If user has made a selection use it; otherwise use best upgrade (index 0) for projection
+      const idx=selVal!==''?parseInt(selVal):0;
       if(isNaN(idx))continue;
       const cand=sr.candidates[idx];
       if(!cand)continue;
