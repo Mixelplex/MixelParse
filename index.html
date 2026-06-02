@@ -1672,6 +1672,10 @@ function renderUpgradesPanel(){
       <div class="upg-stat-body" id="upgStatSheetBody">${buildStatSheet()}</div>
     </div>
   </div>`;
+  // Auto-select best upgrade (index 0) on each slot so stat sheet reflects projected totals
+  document.querySelectorAll('.upg-alt-select').forEach(sel=>{
+    if(sel.options.length>1){sel.value='0';} // index 0 = best candidate
+  });
   window.upgRefreshStatSheet();
 }
 
