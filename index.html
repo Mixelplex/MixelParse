@@ -1581,7 +1581,7 @@ function renderUpgradesPanel(){
       let label=esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
       if(isWepSlot&&(c.dmg||c.delay)){
         const dps=weaponDpsScore(c,dbSlot,charClass,charLevel,baselineTotals);
-        if(dps>0)label+=` [${Math.round(dps*10)/10} dps]`;
+        if(dps>0)label+=` [${Math.round(dps*100)/10} dps]`;
       }
       return `<option value="${i}">${label}</option>`;
     }).join(''):'';
@@ -1772,7 +1772,7 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
       let label=esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
       if(isWepSlotU&&(c.dmg||c.delay)){
         const dps=weaponDpsScore(c,sr.dbSlot,charClass,charLevel,baselineTotals);
-        if(dps>0)label+=` [${Math.round(dps*10)/10} dps]`;
+        if(dps>0)label+=` [${Math.round(dps*100)/10} dps]`;
       }
       return `<option value="${i}"${i===selIdx?' selected':''}>${label}</option>`;
     }).join('');
