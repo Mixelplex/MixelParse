@@ -1594,7 +1594,8 @@ function renderUpgradesPanel(){
       <div class="upg-panes">
         <div class="upg-pane">
           <div class="upg-pane-label">Equipped</div>
-          <div class="upg-pane-name">${itemLink(item.name)}${(isWepSlot&&(currentData.dmg||currentData.delay))?(()=>{const d=weaponDpsScore(currentData,dbSlot,charClass,charLevel,baselineTotals);return d>0?` <span style="font-size:.78rem;color:var(--text-dim);font-style:normal">[${Math.round(d*100)/10} dps]</span>`:'';})():''}</div>
+          <div class="upg-pane-name">${itemLink(item.name)}</div>
+          ${(isWepSlot&&(currentData.dmg||currentData.delay))?(()=>{const d=weaponDpsScore(currentData,dbSlot,charClass,charLevel,baselineTotals);return d>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0">${Math.round(d*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)">dps</span></div>`:'';})():''}
           <div class="upg-pane-stats">${paneStats(currentData,currentData,false)}</div>
           ${currentData._from?`<div class="upg-pane-from">${esc(currentData._from)}</div>`:''}
         </div>
