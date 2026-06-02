@@ -1493,6 +1493,38 @@ function renderUpgradesPanel(){
     } else {
       if(fft>0)html+=`<span class="upg-stat-cur">FT${fft} (+${fft} mana/tick)</span>`;
     }
+    // ── Proc info (weapon slots) ──────────────────────────────────────────────
+    function _procInfo(data){
+      const eff=data._effect||'';
+      const et=(data._effectType||'').toLowerCase();
+      if(!eff||!et.includes('combat'))return null;
+      const dmg=PROC_DB[eff]!=null?PROC_DB[eff]:35;
+      const dex=Math.min(255,baselineTotals&&baselineTotals.dex?baselineTotals.dex:175);
+      const ppm=(dex/170)+0.5;
+      const dps=Math.round(ppm*dmg/60*10)/10;
+      return {name:eff,dmg,dps,isUtility:dmg===0};
+    }
+    const isFromWeapon=!!(fromData.dmg||fromData.delay||fromData._skill);
+    const isToWeapon=!!(toData.dmg||toData.delay||toData._skill);
+    if((isFromWeapon||isToWeapon)){
+      const fp=_procInfo(fromData);
+      const tp=_procInfo(toData);
+      if(showDelta==='combined'){
+        if(tp&&!fp){
+          html+=tp.isUtility?`<span class="upg-stat-pos">Proc: ${tp.name}</span>`:`<span class="upg-stat-pos">Proc: ${tp.name} (~${tp.dps} dps)</span>`;
+        } else if(fp&&!tp){
+          html+=fp.isUtility?`<span class="upg-stat-neg">Proc lost: ${fp.name}</span>`:`<span class="upg-stat-neg">Proc lost: ${fp.name} (~${fp.dps} dps)</span>`;
+        } else if(tp&&fp){
+          if(tp.name===fp.name){
+            html+=tp.isUtility?`<span class="upg-stat-cur">Proc: ${tp.name}</span>`:`<span class="upg-stat-cur">Proc: ${tp.name} (~${tp.dps} dps)</span>`;
+          } else {
+            html+=tp.isUtility?`<span class="upg-stat-pos">Proc: ${tp.name} (replaces ${fp.name})</span>`:`<span class="upg-stat-pos">Proc: ${tp.name} (~${tp.dps} dps, replaces ${fp.name})</span>`;
+          }
+        }
+      } else if(!showDelta&&fp){
+        html+=fp.isUtility?`<span class="upg-stat-cur">Proc: ${fp.name}</span>`:`<span class="upg-stat-cur">Proc: ${fp.name} (~${fp.dps} dps)</span>`;
+      }
+    }
     return html||`<span class="upg-stat-cur" style="font-style:italic">No stats</span>`;
   }
 
@@ -1554,7 +1586,7 @@ function renderUpgradesPanel(){
       <div class="upg-panes">
         <div class="upg-pane">
           <div class="upg-pane-label">Equipped</div>
-          <div class="upg-pane-name">${esc(item.name)}</div>
+          <div class="upg-pane-name">${itemLink(item.name)}</div>
           <div class="upg-pane-stats">${paneStats(currentData,currentData,false)}</div>
           ${currentData._from?`<div class="upg-pane-from">${esc(currentData._from)}</div>`:''}
         </div>
