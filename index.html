@@ -1827,7 +1827,7 @@ window.upgRefreshStatSheet=function(){
       if(!is2hModeSheet&&sr.is2hCard)continue;
       const selEl=document.querySelector(`.upg-alt-select[data-cardid="${sr.cardId||sr.dbSlot}"]`);
       const selVal=selEl?selEl.value:'';
-      if(!selVal)continue;
+      if(selVal==='')continue;
       const idx=parseInt(selVal);
       if(isNaN(idx))continue;
       const cand=sr.candidates[idx];
