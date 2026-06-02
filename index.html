@@ -1743,7 +1743,7 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
   if(!cand)return;
   const meta=charMeta[activeTab]||{};
   const charClass=meta.class||'';
-  const base=meta.baseStats||null;
+  const charLevel=meta.level||60;
   const charGear=gearStats[activeTab]||{};
   const equipped=getEquippedItems(activeTab);
   const t={};
