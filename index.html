@@ -541,6 +541,7 @@
     <div class="subtab" data-sub="consumes">Raid Consumes</div>
     <div class="subtab" data-sub="factions">Factions</div>
     <div class="subtab" data-sub="skyshrine">Skyshrine</div>
+    <div class="subtab" data-sub="quests">Quests</div>
   </div>
 
   <div id="subInventory">
@@ -601,6 +602,9 @@
 
   <div id="subSkyshrine" style="display:none">
     <div class="rc-panel" id="skyshrinePanel"></div>
+  </div>
+  <div id="subQuests" style="display:none">
+    <div id="questsPanel"></div>
   </div>
 </div>
 
@@ -987,10 +991,10 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     else{renderView();}
   });
 });
-document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();});});
+document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();});});
 function refresh(){buildTabs();renderView();saveState();}
 function renderOnly(){buildTabs();renderView();}
-function renderView(){const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderTovBar();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();}
+function renderView(){const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderTovBar();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();}
 
 // ─── Inventory Table ──────────────────────────────────────────────────────────
 function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.values(chars).flat():(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;return ms&&ml;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=source.reduce((s,i)=>s+i.count,0);const unique=new Set(source.map(i=>i.id)).size;const stacks=source.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span>':'');}
@@ -4288,6 +4292,115 @@ function renderConsumesPanel(){
       </table>
     </div>
   `;
+}
+
+// ─── Quests ───────────────────────────────────────────────────────────────────
+const QUEST_DB=[
+  // Velious
+  {name:'Coldain Prayer Shawl',quest:'Coldain Shawl Quest (8-step)',zone:'Eastern Wastes / Thurgadin',wiki:'https://wiki.project1999.com/Coldain_Prayer_Shawl_Quest',ingredients:['Coldain Skin','Bear Skin','Tanned Bear Skin','Velium Thread','Owlbear Feathers','Coldain Snowshoe','High Quality Bear Skin'],note:'Best pre-PoP back slot for casters/priests. 8 steps, each stage requires the previous shawl.'},
+  {name:'Scepter of Mastery',quest:'Hand of Maestro Quest',zone:'Eastern Wastes',wiki:'https://wiki.project1999.com/Scepter_of_Mastery',ingredients:['Fractured Hilt','Chipped Gem','Ancient Blade Fragment'],note:'Monk 2HB — best non-epic option. Components from Eastern Wastes giants.'},
+  {name:"Wu's Fighting Shin Boots",quest:"Wu's Armor Quest",zone:'Thurgadin',wiki:'https://wiki.project1999.com/Wu%27s_Fighting_Shin_Boots',ingredients:["Wu's Ornate Robe","Wu's Gi","Mithril Vambraces"],note:'Monk quest boots from Thurgadin turn-in. Best feet slot for Monks pre-epic.'},
+  {name:'Icicle Circlet',quest:'Thurgadin Icicle Armor Quest',zone:'Thurgadin',wiki:'https://wiki.project1999.com/Thurgadin_Armor_Quest',ingredients:['Coldain Velium Temper','Velium Coldain War Helm Mold','Words of the Sentient'],note:'Caster/priest Velious head piece.'},
+  {name:'Icicle Pantaloons',quest:'Thurgadin Icicle Armor Quest',zone:'Thurgadin',wiki:'https://wiki.project1999.com/Thurgadin_Armor_Quest',ingredients:['Coldain Velium Temper','Velium Coldain Leg Armor Mold','Words of the Sentient'],note:'Caster/priest Velious legs piece.'},
+  {name:'Icicle Gloves',quest:'Thurgadin Icicle Armor Quest',zone:'Thurgadin',wiki:'https://wiki.project1999.com/Thurgadin_Armor_Quest',ingredients:['Coldain Velium Temper','Velium Coldain Gauntlet Mold','Words of the Sentient'],note:'Caster/priest Velious gloves piece.'},
+  {name:'Icicle Sleeves',quest:'Thurgadin Icicle Armor Quest',zone:'Thurgadin',wiki:'https://wiki.project1999.com/Thurgadin_Armor_Quest',ingredients:['Coldain Velium Temper','Velium Coldain Arm Armor Mold','Words of the Sentient'],note:'Caster/priest Velious arms piece.'},
+  {name:'Kael Armor (Warrior)',quest:'Kael Drakkel Armor Quest',zone:'Kael Drakkel',wiki:'https://wiki.project1999.com/Kael_Drakkel_Armor_Quest',ingredients:['Kromrif Head','Giant Warrior Helm of Rallos Zek','Marbled Velium'],note:'ToV-tier warrior armor via Kael turn-ins. Full set available per class.'},
+  {name:'Kael Armor (Cleric)',quest:'Kael Drakkel Armor Quest',zone:'Kael Drakkel',wiki:'https://wiki.project1999.com/Kael_Drakkel_Armor_Quest',ingredients:['Kromrif Head','Giant Cleric Helm of Brell','Marbled Velium'],note:'ToV-tier cleric armor via Kael turn-ins.'},
+  // Kunark
+  {name:"Hierophant's Cloak",quest:"Hierophant's Cloak Quest",zone:"Trakanon's Teeth",wiki:'https://wiki.project1999.com/Hierophant%27s_Cloak',ingredients:["Scaled Hierophant's Cloak",'Rune of Visions'],note:'Best non-epic back slot for casters/priests. Turn-in to Hierophant in Trakanon\'s Teeth.'},
+  {name:'Runed Bolster Belt',quest:'Belt of the Great Turtle Quest',zone:'Warsliks Woods',wiki:'https://wiki.project1999.com/Runed_Bolster_Belt',ingredients:['Giant Turtle Shell','Pottery Sketch'],note:'Best warrior/SK/paladin belt pre-Velious. Common early-Kunark goal.'},
+  {name:"Mrylokar's Demi Lich Skullcap",quest:"Mrylokar's Demi Lich Quest",zone:"Karnor's Castle",wiki:'https://wiki.project1999.com/Mrylokar%27s_Demi_Lich_Skullcap',ingredients:['Demi Lich Skullcap','Spectral Parchment'],note:'Necromancer quest head. Requires Demi Lich Skullcap off rare KC spawn.'},
+  {name:'Shissar Nullifier Staff',quest:'Shissar Nullifier Quest',zone:'Chardok',wiki:'https://wiki.project1999.com/Shissar_Nullifier_Staff',ingredients:['Shissar Nullifier Shaft','Shissar Nullifier Head'],note:'Best pre-epic caster staff. Both pieces rare drops from Chardok.'},
+  {name:'Iksar Scaled Gloves',quest:'Legion of Cabilis Armor',zone:'Field of Bone',wiki:'https://wiki.project1999.com/Legion_of_Cabilis',ingredients:['Scaled Iksar Hide','Chitin Shell Fragment'],note:'Monk/Beastlord Kunark quest armor. Solid mid-tier hand piece for Iksar.'},
+  // Classic / General
+  {name:"Journeyman's Boots",quest:"Journeyman's Boots Quest",zone:'Rathe Mountains',wiki:'https://wiki.project1999.com/Journeyman%27s_Boots',ingredients:['Hill Giant Toes x4','Cyclops Toes x4','Giant Warrior Helm','Griffon Feathers x4'],note:'SoW-speed boots. Required for most raiding toons. Highly contested — coordinate turn-ins.'},
+  {name:'Golden Efreeti Boots',quest:'Golden Efreeti Boots Drop',zone:'Plane of Fire',wiki:'https://wiki.project1999.com/Golden_Efreeti_Boots',ingredients:['Golden Efreeti Boots'],note:'Required component for Ranger epic (Swiftwind/Earthcaller). Save any that drop.'},
+  {name:"Flowing Black Silk Sash",quest:"Flowing Black Silk Sash Quest",zone:'Castle Mistmoore',wiki:'https://wiki.project1999.com/Flowing_Black_Silk_Sash',ingredients:['Black Silk Sash','Swatch of Black Silk','Vial of Swirling Smoke'],note:'Necromancer/SK waist BIS in Classic. Requires Mistmoore drop + combine.'},
+  {name:'Pearlescent Fragment',quest:'Cleric Epic — Water Sprinkler of Nem Ankh',zone:'Multiple',wiki:'https://wiki.project1999.com/Water_Sprinkler_of_Nem_Ankh',ingredients:['Pearlescent Fragment'],note:'Cleric epic key component. Rare spawn in multiple zones — flag anyone who sees one.'},
+  {name:'Robe of the Kedge',quest:'Kedge Robe Quest',zone:'Kedge Keep',wiki:'https://wiki.project1999.com/Robe_of_the_Kedge',ingredients:['Cauldronized Robe of the Kedge','Kedge Spine'],note:'Pre-Kunark caster robe. Best in slot for many casters before Kunark.'},
+  {name:"Manastone",quest:'Manastone (Legacy Drop)',zone:'Classic Zones',wiki:'https://wiki.project1999.com/Manastone',ingredients:['Manastone'],note:'Pre-nerf mana item — no longer drops. If any guild member has one, keep it forever.'},
+];
+
+function renderQuestsPanel(){
+  const panel=document.getElementById('questsPanel');
+  if(!panel)return;
+  const name=activeTab;
+  const allChars=name&&name!=='__all__'?[name]:charNames();
+
+  // Build inventory map: item name (lowercase) -> [charNames]
+  const haveMap={};
+  for(const cn of allChars){
+    for(const item of(chars[cn]||[])){
+      const n=(item.name||'').toLowerCase();
+      if(!haveMap[n])haveMap[n]=[];
+      if(!haveMap[n].includes(cn))haveMap[n].push(cn);
+    }
+  }
+
+  const searchQ=(document.getElementById('questSearch')?.value||'').toLowerCase();
+  const filterMissing=document.getElementById('questFilterMissing')?.checked||false;
+
+  // Group by era
+  const sections=[
+    {label:'Velious Quests',quests:QUEST_DB.filter(q=>['Eastern Wastes / Thurgadin','Eastern Wastes','Thurgadin','Kael Drakkel'].includes(q.zone))},
+    {label:'Kunark Quests',quests:QUEST_DB.filter(q=>["Trakanon's Teeth","Warsliks Woods","Karnor's Castle","Chardok","Field of Bone"].includes(q.zone))},
+    {label:'Classic Quests',quests:QUEST_DB.filter(q=>['Rathe Mountains','Plane of Fire','Castle Mistmoore','Multiple','Classic Zones','Kedge Keep'].includes(q.zone))},
+  ];
+
+  let html=`<div style="padding:.65rem 1rem;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+    <input id="questSearch" type="text" placeholder="Search quests, items, ingredients…" oninput="renderQuestsPanel()" style="flex:1;min-width:180px;padding:.3rem .6rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-size:.83rem">
+    <label style="font-size:.8rem;color:var(--text-dim);display:flex;align-items:center;gap:.35rem;cursor:pointer;white-space:nowrap">
+      <input type="checkbox" id="questFilterMissing" onchange="renderQuestsPanel()"> Hide completed
+    </label>
+  </div>`;
+
+  for(const sec of sections){
+    const filtered=sec.quests.filter(q=>{
+      if(searchQ&&![q.name,q.quest,q.note,...q.ingredients].some(s=>s.toLowerCase().includes(searchQ)))return false;
+      if(filterMissing&&(haveMap[q.name.toLowerCase()]||[]).length>0)return false;
+      return true;
+    });
+    if(!filtered.length)continue;
+
+    html+=`<div style="padding:.4rem 1rem;font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.1em;color:var(--text-muted);background:var(--surface2);border-bottom:1px solid var(--border)">${sec.label.toUpperCase()}</div>`;
+
+    for(const q of filtered){
+      const holders=(haveMap[q.name.toLowerCase()]||[]);
+      const ingHolders={};
+      for(const ing of q.ingredients){const h=haveMap[ing.toLowerCase()]||[];if(h.length)ingHolders[ing]=h;}
+      const ingCount=Object.keys(ingHolders).length;
+      const done=holders.length>0;
+
+      html+=`<div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);display:flex;gap:1rem;align-items:flex-start${done?';opacity:.7':''}">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap;margin-bottom:.2rem">
+            <a href="${q.wiki}" target="_blank" style="font-size:.95rem;font-weight:600;color:var(--gold-light);text-decoration:none;font-family:'Crimson Pro',serif">${q.name} ↗</a>
+            <span style="font-size:.73rem;color:var(--text-muted)">${q.quest}</span>
+            <span style="font-size:.7rem;color:var(--text-dim);font-style:italic">${q.zone}</span>
+          </div>
+          <div style="font-size:.78rem;color:var(--text-dim);margin-bottom:.35rem">${q.note}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:.25rem">
+            ${q.ingredients.map(ing=>{
+              const h=ingHolders[ing]||[];
+              return `<span style="font-size:.72rem;padding:.12rem .4rem;border-radius:3px;border:1px solid ${h.length?'#3a7a3a':'var(--border)'};background:${h.length?'rgba(26,90,26,.08)':'transparent'};color:${h.length?'#2a6a2a':'var(--text-dim)'}">${ing}${h.length?` ✓ <em style="font-size:.68em">${h.join(', ')}</em>':''}</span>`;
+            }).join('')}
+          </div>
+        </div>
+        <div style="text-align:right;white-space:nowrap;min-width:90px;flex-shrink:0">
+          ${done
+            ?`<div style="color:#2a6a2a;font-weight:600;font-size:.78rem">✓ ${holders.join(', ')}</div><div style="font-size:.68rem;color:var(--text-muted)">completed</div>`
+            :`<div style="font-size:.75rem;color:var(--text-dim)">Nobody has</div>`}
+          ${!done&&ingCount>0?`<div style="font-size:.68rem;color:#8a6020;margin-top:.2rem">${ingCount}/${q.ingredients.length} ingredients</div>`:''}
+        </div>
+      </div>`;
+    }
+  }
+
+  if(!html.includes('upg-pane-name')&&!html.includes('padding:.7rem')){
+    html+='<div style="padding:2rem;text-align:center;color:var(--text-dim);font-size:.85rem">No quests match your search.</div>';
+  }
+
+  panel.innerHTML=html;
 }
 
 // ─── Watch List ───────────────────────────────────────────────────────────────
