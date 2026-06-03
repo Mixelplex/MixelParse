@@ -2122,9 +2122,9 @@ document.getElementById('loginBtn').addEventListener('click',async()=>{
   const btn=document.getElementById('loginBtn');
   if(!email||!password){msg.className='auth-msg err';msg.textContent='Please enter email and password.';return;}
   btn.disabled=true;msg.className='auth-msg';msg.textContent='Signing in…';
-  const{error}=await sb.auth.signInWithPassword({email,password});
+  const{error,data}=await sb.auth.signInWithPassword({email,password});
   if(error){msg.className='auth-msg err';msg.textContent='Invalid email or password.';}
-  else{localStorage.setItem('mp_ce',email);localStorage.setItem('mp_cp',password);}
+  else{localStorage.setItem('mp_ce',email);localStorage.setItem('mp_cp',password);await onSignedIn(data.user);}
   btn.disabled=false;
 });
 
