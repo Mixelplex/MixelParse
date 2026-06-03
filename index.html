@@ -2240,10 +2240,41 @@ async function saveToSupabase(){
       inventory:chars[cn]||[],
       updated_at:new Date().toISOString()
     }));
-    if(rows.length)await sb.from('characters').upsert(rows,{onConflict:'user_id,char_name'});
+    if(rows.length){
+      const{error}=await sb.from('characters').upsert(rows,{onConflict:'user_id,char_name'});
+      if(error){
+        console.error('[Save] Supabase upsert error:',error);
+        // Show visible warning in the UI
+        const existing=document.getElementById('_saveErrBanner');
+        if(!existing){
+          const banner=document.createElement('div');
+          banner.id='_saveErrBanner';
+          banner.style.cssText='position:fixed;bottom:1rem;right:1rem;background:#7a1a1a;color:#fff;padding:.5rem 1rem;border-radius:6px;font-size:.8rem;z-index:9999;max-width:320px';
+          banner.textContent='\u26a0 Save failed: '+((error.message||error.code)||'unknown error')+'. Your changes may not persist.';
+          banner.onclick=()=>banner.remove();
+          document.body.appendChild(banner);
+          setTimeout(()=>banner?.remove(),8000);
+        }
+        return;
+      }
+    }
     // Upsert watch list
     await sb.from('watch_list').upsert({user_id:currentUser.id,items:watchList,updated_at:new Date().toISOString()},{onConflict:'user_id'});
-  }catch(e){console.warn('Save error',e);}
+    // Clear any error banner on successful save
+    document.getElementById('_saveErrBanner')?.remove();
+  }catch(e){
+    console.warn('Save error',e);
+    const existing=document.getElementById('_saveErrBanner');
+    if(!existing){
+      const banner=document.createElement('div');
+      banner.id='_saveErrBanner';
+      banner.style.cssText='position:fixed;bottom:1rem;right:1rem;background:#7a1a1a;color:#fff;padding:.5rem 1rem;border-radius:6px;font-size:.8rem;z-index:9999;max-width:320px';
+      banner.textContent='\u26a0 Save failed: '+(e.message||'network error')+'. Your changes may not persist.';
+      banner.onclick=()=>banner.remove();
+      document.body.appendChild(banner);
+      setTimeout(()=>banner?.remove(),8000);
+    }
+  }
 }
 
 async function saveItemDBToSupabase(){
