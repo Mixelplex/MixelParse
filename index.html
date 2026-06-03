@@ -469,7 +469,11 @@
   <div class="top-nav-item" data-view="dkp">DKP History</div>
   <div class="top-nav-item" data-view="plat">Plat Prices</div>
   <div class="top-nav-item" data-view="kills">Raid Kill Tracker</div>
-  <div class="top-nav-item" style="margin-left:auto;color:var(--text-muted);font-size:.65rem" onclick="openAdminPanel()">&#9881; Admin</div>
+  <div id="syncIndicator" title="Click to save now" onclick="forceSaveNow()" style="margin-left:auto;cursor:pointer;font-size:.65rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:4px;transition:background .15s">
+    <span id="syncDot" style="width:7px;height:7px;border-radius:50%;background:#888;display:inline-block;transition:background .3s"></span>
+    <span id="syncLabel">saved</span>
+  </div>
+  <div class="top-nav-item" style="color:var(--text-muted);font-size:.65rem" onclick="openAdminPanel()">&#9881; Admin</div>
 </div>
 
 <div id="dkpView" style="display:none">
@@ -2221,12 +2225,29 @@ async function loadFromSupabase(){
 }
 
 function scheduleSave(){
+  setSyncStatus('saving');
   clearTimeout(syncTimeout);
   syncTimeout=setTimeout(saveToSupabase,1200);
 }
 
+function setSyncStatus(state, msg){
+  const dot=document.getElementById('syncDot');
+  const label=document.getElementById('syncLabel');
+  if(!dot||!label)return;
+  const states={saving:['#f0c040','saving…'],saved:['#4caf7d','saved'],error:['#c0392b','save failed!']};
+  const[color,text]=states[state]||['#888',msg||state];
+  dot.style.background=color;
+  label.textContent=msg||text;
+}
+
+window.forceSaveNow=async function(){
+  setSyncStatus('saving');
+  await saveToSupabase();
+};
+
 async function saveToSupabase(){
   if(!currentUser)return;
+  setSyncStatus('saving');
   try{
     // Upsert all characters
     const rows=charNames().map(cn=>({
@@ -2244,7 +2265,7 @@ async function saveToSupabase(){
       const{error}=await sb.from('characters').upsert(rows,{onConflict:'user_id,char_name'});
       if(error){
         console.error('[Save] Supabase upsert error:',error);
-        // Show visible warning in the UI
+        setSyncStatus('error',(error.message||error.code||'unknown error').slice(0,40));
         const existing=document.getElementById('_saveErrBanner');
         if(!existing){
           const banner=document.createElement('div');
@@ -2253,17 +2274,18 @@ async function saveToSupabase(){
           banner.textContent='\u26a0 Save failed: '+((error.message||error.code)||'unknown error')+'. Your changes may not persist.';
           banner.onclick=()=>banner.remove();
           document.body.appendChild(banner);
-          setTimeout(()=>banner?.remove(),8000);
+          setTimeout(()=>banner?.remove(),12000);
         }
         return;
       }
     }
     // Upsert watch list
     await sb.from('watch_list').upsert({user_id:currentUser.id,items:watchList,updated_at:new Date().toISOString()},{onConflict:'user_id'});
-    // Clear any error banner on successful save
+    setSyncStatus('saved');
     document.getElementById('_saveErrBanner')?.remove();
   }catch(e){
     console.warn('Save error',e);
+    setSyncStatus('error',(e.message||'network error').slice(0,40));
     const existing=document.getElementById('_saveErrBanner');
     if(!existing){
       const banner=document.createElement('div');
@@ -2272,7 +2294,7 @@ async function saveToSupabase(){
       banner.textContent='\u26a0 Save failed: '+(e.message||'network error')+'. Your changes may not persist.';
       banner.onclick=()=>banner.remove();
       document.body.appendChild(banner);
-      setTimeout(()=>banner?.remove(),8000);
+      setTimeout(()=>banner?.remove(),12000);
     }
   }
 }
