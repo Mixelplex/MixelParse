@@ -541,6 +541,7 @@
     <div class="subtab" data-sub="consumes">Raid Consumes</div>
     <div class="subtab" data-sub="factions">Factions</div>
     <div class="subtab" data-sub="skyshrine">Skyshrine</div>
+    <div class="subtab" data-sub="quests">Quests</div>
   </div>
 
   <div id="subInventory">
@@ -601,6 +602,9 @@
 
   <div id="subSkyshrine" style="display:none">
     <div class="rc-panel" id="skyshrinePanel"></div>
+  </div>
+  <div id="subQuests" style="display:none">
+    <div id="questsPanel"></div>
   </div>
 </div>
 
@@ -995,10 +999,10 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     else{renderView();}
   });
 });
-document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();});});
+document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();});});
 function refresh(){buildTabs();renderView();saveState();}
 function renderOnly(){buildTabs();renderView();}
-function renderView(){const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderTovBar();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();}
+function renderView(){const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderTovBar();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();}
 
 // ─── Inventory Table ──────────────────────────────────────────────────────────
 function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.values(chars).flat():(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;return ms&&ml;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=source.reduce((s,i)=>s+i.count,0);const unique=new Set(source.map(i=>i.id)).size;const stacks=source.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span>':'');}
@@ -1141,7 +1145,6 @@ if(document.getElementById('clearCurrentBtn')){
     saveState();renderStatsPanel();
   });
 }
-// RETIRED: document.getElementById('fetchGearBtn').addEventListener('click',()=>fetchGearStats(name));
 document.getElementById('applyDBBtn').addEventListener('click',()=>{const matched=applyDBToChar(name);if(!charMeta[name])charMeta[name]={};charMeta[name].gearFetched=true;saveState();const status=document.getElementById('fetchStatus');status.textContent='✓ '+matched+' item'+(matched!==1?'s':'')+' matched from database';renderStatsPanel();});
 if(base){document.getElementById('statCardsContainer').innerHTML=buildStatCards(base,charGear,name,selClass,selLevel);}else{document.getElementById('statCardsContainer').innerHTML='<div class="empty-state">Enter your current in-game stats to get started.</div>';}
 }
@@ -1494,21 +1497,27 @@ function renderUpgradesPanel(){
       if(fft>0)html+=`<span class="upg-stat-cur">FT${fft} (+${fft} mana/tick)</span>`;
     }
     // ── Proc info (weapon slots) ──────────────────────────────────────────────
-    function _procInfo(data){
+    function _procInfo(data, slotHint){
       const eff=data._effect||'';
       const et=(data._effectType||'').toLowerCase();
       if(!eff||!et.includes('combat'))return null;
       const dmg=PROC_DB[eff]!=null?PROC_DB[eff]:35;
       const dex=Math.min(255,baselineTotals&&baselineTotals.dex?baselineTotals.dex:175);
       const ppm=(dex/170)+0.5;
-      const dps=Math.round(ppm*dmg/60*10)/10;
+      const lv=charLevel||60;
+      const dwSkill=Math.min((lv+1)*7,252);
+      const dwChance=(dwSkill+lv)/400;
+      const isOH=(slotHint||'').toUpperCase()==='SECONDARY';
+      const dps=isOH?Math.round(ppm*0.5*dwChance*dmg/60*100)/10:Math.round(ppm*dmg/60*100)/10;
       return {name:eff,dmg,dps,isUtility:dmg===0};
     }
     const isFromWeapon=!!(fromData.dmg||fromData.delay||fromData._skill);
     const isToWeapon=!!(toData.dmg||toData.delay||toData._skill);
+    const fromSlot=(fromData._slot||'').toUpperCase();
+    const toSlot=(toData._slot||'').toUpperCase();
     if((isFromWeapon||isToWeapon)){
-      const fp=_procInfo(fromData);
-      const tp=_procInfo(toData);
+      const fp=_procInfo(fromData,fromSlot);
+      const tp=_procInfo(toData,toSlot);
       if(showDelta==='combined'){
         if(tp&&!fp){
           html+=tp.isUtility?`<span class="upg-stat-pos">Proc: ${tp.name}</span>`:`<span class="upg-stat-pos">Proc: ${tp.name} (~${tp.dps} dps)</span>`;
@@ -1827,7 +1836,6 @@ window.upgRefreshStatSheet=function(){
       if(!is2hModeSheet&&sr.is2hCard)continue;
       const selEl=document.querySelector(`.upg-alt-select[data-cardid="${sr.cardId||sr.dbSlot}"]`);
       const selVal=selEl?selEl.value:'';
-      console.log('StatSheet slot',sr.cardId||sr.dbSlot,'selVal=',selVal,'selEl=',selEl);
       if(selVal==='')continue;
       const idx=parseInt(selVal);
       if(isNaN(idx))continue;
@@ -2089,753 +2097,6 @@ document.getElementById('clearDBBtn').addEventListener('click',()=>{confirmActio
 // ─── Fetch Gear Stats ─────────────────────────────────────────────────────────
 
 /* ============================================================
-   RETIRED — Wiki Fallback System
-   Replaced by full CSV item database (11k+ items).
-   Kept for potential future use — do not delete.
-   To restore: uncomment this block and re-enable the
-   Wiki Fallback button click handler in renderStatsPanel.
-   ============================================================
-
-const RETIRED_CORS_PROXIES=['https://corsproxy.io/?','https://api.allorigins.win/raw?url='];
-async function RETIRED_fetchWithProxy(url){for(const proxy of CORS_PROXIES){try{const res=await fetch(proxy+encodeURIComponent(url),{signal:AbortSignal.timeout(8000)});if(res.ok)return await res.text();}catch(e){}}throw new Error('All proxies failed');}
-async function RETIRED_fetchGearStats(charName){const equipped=getEquippedItems(charName);if(!equipped.length)return;const btn=document.getElementById('fetchGearBtn');const status=document.getElementById('fetchStatus');const progressWrap=document.getElementById('fetchProgress');const progressBar=document.getElementById('fetchProgressBar');btn.disabled=true;progressWrap.style.display='block';if(!gearStats[charName])gearStats[charName]={};let fromDB=0,fromWiki=0,failed=0;for(let i=0;i<equipped.length;i++){const item=equipped[i];progressBar.style.width=Math.round((i/equipped.length)*100)+'%';if(itemDB[item.name]){gearStats[charName][item.name]=itemDB[item.name];fromDB++;status.textContent=`${i+1}/${equipped.length}: ${item.name} &#10003; (DB)`;continue;}status.textContent=`${i+1}/${equipped.length}: ${item.name} &mdash; wiki...`;try{const html=await RETIRED_fetchWithProxy(wikiUrl(item.name));gearStats[charName][item.name]=parseWikiStats(html);fromWiki++;}catch(e){gearStats[charName][item.name]={};failed++;}}progressBar.style.width='100%';status.textContent=`Done! ${fromDB} from DB, ${fromWiki} from wiki${failed?`, ${failed} not found`:''}`;if(!charMeta[charName])charMeta[charName]={};charMeta[charName].gearFetched=true;saveState();setTimeout(()=>{progressWrap.style.display='none';renderStatsPanel();},800);}
-function RETIRED_parseWikiStats(html){const stats={};const plain=html.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/\s+/g,' ');const patterns=[[/\bAC[:\s]+(\d+)/i,'ac'],[/\bHP[:\s]+\+?(\d+)/i,'hpbonus'],[/\bMana[:\s]+\+?(\d+)/i,'manabonus'],[/\bSTR[:\s]+\+?(\d+)/i,'str'],[/\bSTA[:\s]+\+?(\d+)/i,'sta'],[/\bDEX[:\s]+\+?(\d+)/i,'dex'],[/\bAGI[:\s]+\+?(\d+)/i,'agi'],[/\bWIS[:\s]+\+?(\d+)/i,'wis'],[/\bINT[:\s]+\+?(\d+)/i,'int'],[/\bCHA[:\s]+\+?(\d+)/i,'cha'],[/SV\s*POISON[:\s]+\+?(\d+)/i,'svpoison'],[/SV\s*MAGIC[:\s]+\+?(\d+)/i,'svmagic'],[/SV\s*DISEASE[:\s]+\+?(\d+)/i,'svdisease'],[/SV\s*FIRE[:\s]+\+?(\d+)/i,'svfire'],[/SV\s*COLD[:\s]+\+?(\d+)/i,'svcold']];for(const[re,key]of patterns){const m=plain.match(re);if(m)stats[key]=parseInt(m[1]);}return stats;}
-*/
-
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function wikiUrl(n){return 'https://wiki.project1999.com/'+encodeURIComponent(n.trim().replace(/ /g,'_'));}
-function itemLink(n){return `<a href="${wikiUrl(n)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold-dim)">${esc(n)}</a>`;}
-
-// ─── Sort ─────────────────────────────────────────────────────────────────────
-document.querySelectorAll('th[data-col]').forEach(th=>{th.addEventListener('click',()=>{const col=th.dataset.col;if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=1;}document.querySelectorAll('th').forEach(t=>t.classList.remove('sorted'));th.classList.add('sorted');th.querySelector('.sort-arrow').textContent=sortDir===1?' &#8593;':' &#8595;';renderTable();});});
-document.getElementById('searchBox').addEventListener('input',renderTable);
-document.getElementById('locationFilter').addEventListener('change',renderTable);
-
-// ─── File Loading ─────────────────────────────────────────────────────────────
-function loadFiles(files){const arr=[...files];if(!arr.length)return;let loaded=0,lastName=null;arr.forEach(file=>{const reader=new FileReader();reader.onload=e=>{const cn=extractCharName(file.name);chars[cn]=parseInventory(e.target.result,cn);if(!charMeta[cn])charMeta[cn]={};lastName=cn;if(++loaded===arr.length){activeTab=arr.length>1&&Object.keys(chars).length>1?'__all__':lastName;refresh();}};reader.readAsText(file);});}
-
-document.getElementById('fileInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
-document.getElementById('charRefreshInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const cn=extractCharName(file.name);chars[cn]=parseInventory(ev.target.result,cn);if(!charMeta[cn])charMeta[cn]={};if(activeTab!==cn)activeTab=cn;refresh();};reader.readAsText(file);e.target.value='';});
-document.getElementById('dkpCsvInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const {lookup,txCount}=parseDkpCsv(ev.target.result);dkpLookup=lookup;dkpMeta={updatedAt:new Date().toISOString(),txCount};dkpCacheKey='';saveDkpToSupabase();renderDkpPanel();applyDkpToItemDB();};reader.readAsText(file);e.target.value='';});
-document.getElementById('dzInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
-document.getElementById('tabAdd').addEventListener('click',()=>document.getElementById('fileInput').click());
-const dz=document.getElementById('dropzone');
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
-dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
-dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');loadFiles(e.dataTransfer.files);});
-
-// ─── Clear All ────────────────────────────────────────────────────────────────
-document.getElementById('clearAllBtn').addEventListener('click',()=>{document.getElementById('searchBox').value='';document.getElementById('locationFilter').value='';refresh();});
-
-// ─── Modal ────────────────────────────────────────────────────────────────────
-let _confirmCb=null;
-function confirmAction(msg,cb){document.getElementById('modalMsg').textContent=msg;_confirmCb=cb;document.getElementById('modalOverlay').classList.add('open');}
-document.getElementById('modalCancel').addEventListener('click',()=>{document.getElementById('modalOverlay').classList.remove('open');_confirmCb=null;});
-document.getElementById('modalConfirm').addEventListener('click',()=>{document.getElementById('modalOverlay').classList.remove('open');if(_confirmCb){_confirmCb();_confirmCb=null;}});
-document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('modalOverlay')){document.getElementById('modalOverlay').classList.remove('open');_confirmCb=null;}});
-
-// ─── Persist ──────────────────────────────────────────────────────────────────
-// ─── Supabase ─────────────────────────────────────────────────────────────────
-const SUPABASE_URL='https://sonenrhxvmheslwufhqf.supabase.co';
-const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvbmVucmh4dm1oZXNsd3VmaHFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.UEHihq6mga4hqtQ9bd2Ao9AIsR1CghqKO6WjO9ZoonU';
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-let currentUser=null;
-let syncTimeout=null;
-
-// ─── Auth ──────────────────────────────────────────────────────────────────────
-async function initAuth(){
-  const ce=localStorage.getItem('mp_ce'),cp=localStorage.getItem('mp_cp');
-  if(ce&&cp){
-    const{data,error}=await sb.auth.signInWithPassword({email:ce,password:cp});
-    if(!error&&data.session){await onSignedIn(data.session.user);return;}
-    else{localStorage.removeItem('mp_ce');localStorage.removeItem('mp_cp');}
-  }
-  const{data:{session}}=await sb.auth.getSession();
-  if(session)await onSignedIn(session.user);
-  else showAuthScreen();
-  sb.auth.onAuthStateChange(async(event,session)=>{
-    if(event==='SIGNED_IN'&&session)await onSignedIn(session.user);
-    if(event==='SIGNED_OUT')onSignedOut();
-  });
-}
-
-function showAuthScreen(){
-  document.getElementById('authScreen').style.display='flex';
-  document.getElementById('loginBox').style.display='block';
-  document.getElementById('registerBox').style.display='none';
-  document.getElementById('loginMsg').textContent='';
-  const ce=localStorage.getItem('mp_ce');
-  if(ce)document.getElementById('loginEmail').value=ce;
-}
-
-async function onSignedIn(user){
-  currentUser=user;
-  document.getElementById('authScreen').style.display='none';
-  document.getElementById('userBar').style.display='flex';
-  document.getElementById('userEmail').textContent=user.email;
-  document.getElementById('topNav').style.display='flex';
-  await loadFromSupabase();
-  // DKP and kills now loaded inside loadFromSupabase before first render
-}
-
-function onSignedOut(){
-  currentUser=null;
-  chars={};charMeta={};gearStats={};watchList=[];factionData={};skyshrineData={};dkpLookup={};dkpMeta={};platData=[];platMeta={};platCachedRows=[];platCacheKey='';platTypeFilter='all';raidSessions=[];activeSession=null;sessionsView='new';activeTab=null;
-  document.getElementById('userBar').style.display='none';
-  document.getElementById('topNav').style.display='none';
-  document.getElementById('dkpView').style.display='none';
-  document.getElementById('platView').style.display='none';
-  document.getElementById('killsView').style.display='none';
-  showAuthScreen();
-  refresh();
-}
-
-// Sign in
-document.getElementById('loginBtn').addEventListener('click',async()=>{
-  const email=document.getElementById('loginEmail').value.trim();
-  const password=document.getElementById('loginPassword').value;
-  const msg=document.getElementById('loginMsg');
-  const btn=document.getElementById('loginBtn');
-  if(!email||!password){msg.className='auth-msg err';msg.textContent='Please enter email and password.';return;}
-  btn.disabled=true;msg.className='auth-msg';msg.textContent='Signing in…';
-  const{error}=await sb.auth.signInWithPassword({email,password});
-  if(error){msg.className='auth-msg err';msg.textContent='Invalid email or password.';}
-  else{localStorage.setItem('mp_ce',email);localStorage.setItem('mp_cp',password);}
-  btn.disabled=false;
-});
-
-// Register
-document.getElementById('registerBtn').addEventListener('click',async()=>{
-  const email=document.getElementById('regEmail').value.trim();
-  const password=document.getElementById('regPassword').value;
-  const msg=document.getElementById('registerMsg');
-  const btn=document.getElementById('registerBtn');
-  if(!email||!password){msg.className='auth-msg err';msg.textContent='Email and password required.';return;}
-  if(password.length<6){msg.className='auth-msg err';msg.textContent='Password must be at least 6 characters.';return;}
-  btn.disabled=true;msg.className='auth-msg';msg.textContent='Creating account…';
-  const{data,error}=await sb.auth.signUp({email,password});
-  if(error){msg.className='auth-msg err';msg.textContent=error.message;btn.disabled=false;return;}
-  localStorage.setItem('mp_ce',email);localStorage.setItem('mp_cp',password);
-  msg.className='auth-msg ok';msg.textContent='Account created! Signing in…';
-  await sb.auth.signInWithPassword({email,password});
-  btn.disabled=false;
-});
-
-// Navigation
-document.getElementById('showRegister').addEventListener('click',()=>{
-  document.getElementById('loginBox').style.display='none';
-  document.getElementById('registerBox').style.display='block';
-  document.getElementById('registerMsg').textContent='';
-});
-document.getElementById('showLogin').addEventListener('click',()=>{
-  document.getElementById('loginBox').style.display='block';
-  document.getElementById('registerBox').style.display='none';
-  document.getElementById('loginMsg').textContent='';
-});
-
-document.getElementById('loginEmail').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPassword').focus();});
-document.getElementById('loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginBtn').click();});
-document.getElementById('regEmail').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('regPassword').focus();});
-document.getElementById('regPassword').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('registerBtn').click();});
-
-document.getElementById('signOutBtn').addEventListener('click',async()=>{
-  await sb.auth.signOut();
-  localStorage.removeItem('mp_ce');
-  localStorage.removeItem('mp_cp');
-  onSignedOut();
-});
-
-// ─── Supabase Data Sync ────────────────────────────────────────────────────────
-async function loadFromSupabase(){
-  if(!currentUser)return;
-  try{
-    // Load characters
-    const{data:charRows}=await sb.from('characters').select('*').eq('user_id',currentUser.id);
-    if(charRows&&charRows.length){
-      chars={};charMeta={};gearStats={};factionData={};skyshrineData={};
-      for(const row of charRows){
-        chars[row.char_name]=row.inventory||[];
-        if(row.base_stats?.factions)factionData[row.char_name]=row.base_stats.factions;
-        if(row.base_stats?.skyshrine)skyshrineData[row.char_name]=row.base_stats.skyshrine;
-        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,...bs}=row.base_stats||{};
-        const hasRealStats=bs.stats||bs.resists;
-        charMeta[row.char_name]={
-          class:row.class||'',race:row.race||'',level:row.level||1,
-          baseStats:hasRealStats?bs:null,
-          nakedStats:row.base_stats?.nakedStats||null,
-          currentStats:row.base_stats?.currentStats||null,
-          gearFetched:!!row.gear_stats,
-          gearPlans:row.base_stats?.gearPlans||[]
-        };
-        if(row.gear_stats)gearStats[row.char_name]=row.gear_stats;
-      }
-      activeTab=Object.keys(chars).length>1?'__all__':Object.keys(chars)[0]||null;
-    }
-    // Load watch list
-    const{data:wlRow}=await sb.from('watch_list').select('items').eq('user_id',currentUser.id).single();
-    if(wlRow)watchList=wlRow.items||[];
-  }catch(e){console.warn('Load error',e);}
-
-  // Load kills and DKP before first render so history/DKP tabs aren't blank
-  await loadKillsFromSupabase();
-  await loadDkpFromSupabase();
-  applyDkpToItemDB();
-  applyPlatToItemDB();
-
-  // Render immediately — use renderOnly() not refresh() to avoid triggering saveState
-  // which would overwrite Supabase with partial in-memory state
-  renderOnly();
-  updateItemDbModal();
-
-  // Load item DB in background — re-render when done (no saveState — avoid race with fresh data)
-  try{
-    if(Object.keys(BAKED_ITEM_DB).length===0){
-      await loadItemDBFromSupabase();
-    }
-    // Backfill _ft for items loaded from Supabase before FT parsing was added
-    {const _ftr={'I':1,'II':2,'III':3,'IV':4,'V':5,'VI':6};for(const item of Object.values(itemDB)){if(!item._ft&&item._effect){const m=(item._effect||'').match(/Flowing\s+Thought\s+(I{1,3}|IV|V|VI)/i);if(m)item._ft=_ftr[m[1].toUpperCase()]||0;}}}
-    charNames().forEach(cn=>applyDBToChar(cn));
-    renderView(); // re-render only, no saveState
-    updateItemDbModal();
-  }catch(e){console.warn('Item DB background load error',e);}
-}
-
-function scheduleSave(){
-  clearTimeout(syncTimeout);
-  syncTimeout=setTimeout(saveToSupabase,1200);
-}
-
-async function saveToSupabase(){
-  if(!currentUser)return;
-  try{
-    // Upsert all characters
-    const rows=charNames().map(cn=>({
-      user_id:currentUser.id,
-      char_name:cn,
-      class:charMeta[cn]?.class||null,
-      race:charMeta[cn]?.race||null,
-      level:charMeta[cn]?.level||1,
-      base_stats:charMeta[cn]?.baseStats?{...charMeta[cn].baseStats,factions:factionData[cn]||{},nakedStats:charMeta[cn].nakedStats||null,currentStats:charMeta[cn].currentStats||null,skyshrine:skyshrineData[cn]||{},gearPlans:charMeta[cn].gearPlans||[]}:{factions:factionData[cn]||{},nakedStats:charMeta[cn]?.nakedStats||null,currentStats:charMeta[cn]?.currentStats||null,skyshrine:skyshrineData[cn]||{},gearPlans:charMeta[cn]?.gearPlans||[]},
-      gear_stats:gearStats[cn]||null,
-      inventory:chars[cn]||[],
-      updated_at:new Date().toISOString()
-    }));
-    if(rows.length)await sb.from('characters').upsert(rows,{onConflict:'user_id,char_name'});
-    // Upsert watch list
-    await sb.from('watch_list').upsert({user_id:currentUser.id,items:watchList,updated_at:new Date().toISOString()},{onConflict:'user_id'});
-  }catch(e){console.warn('Save error',e);}
-}
-
-async function saveItemDBToSupabase(){
-  if(!currentUser)return;
-  const entries=Object.entries(itemDB);
-  if(!entries.length)return;
-  try{
-    const rows=entries.map(([item_name,data])=>({item_name,data,updated_at:new Date().toISOString()}));
-    for(let i=0;i<rows.length;i+=500){
-      await sb.from('item_db').upsert(rows.slice(i,i+500),{onConflict:'item_name'});
-    }
-    console.log(`Saved ${rows.length} items to Supabase`);
-  }catch(e){console.warn('Item DB save error',e);}
-}
-
-async function loadItemDBFromSupabase(){
-  if(!currentUser)return false;
-  try{
-    let allRows=[], from=0, pageSize=1000;
-    while(true){
-      const{data,error}=await sb.from('item_db').select('item_name,data').range(from,from+pageSize-1);
-      if(error||!data||!data.length)break;
-      allRows=allRows.concat(data);
-      if(data.length<pageSize)break;
-      from+=pageSize;
-    }
-    if(allRows.length){
-      for(const row of allRows)itemDB[row.item_name]=row.data;
-      itemDBSources=['supabase ('+allRows.length+' items)'];
-      console.log(`Loaded ${allRows.length} items from Supabase`);
-      _rebuildItemDBIndex();
-      charNames().forEach(cn=>applyDBToChar(cn));
-      return true;
-    }
-  }catch(e){console.warn('Item DB load error',e);}
-  return false;
-}
-
-// ─── Replace localStorage state functions ─────────────────────────────────────
-function saveState(){scheduleSave();}
-function loadState(){return false;} // handled by loadFromSupabase
-function saveWatchList(){scheduleSave();}
-function loadWatchList(){} // handled by loadFromSupabase
-function saveItemDB(){saveItemDBToSupabase();}
-function loadItemDB(){
-  if(Object.keys(BAKED_ITEM_DB).length>0){
-    itemDB=Object.assign({},BAKED_ITEM_DB);
-    itemDBSources=['baked'];
-  }
-}
-
-
-// ─── Factions ─────────────────────────────────────────────────────────────────
-
-const FACTION_LEVELS = ['Ally','Warmly','Kindly','Amiably','Indifferently','Apprehensively','Dubiously','Threateningly','Ready to Attack'];
-
-const FACTION_LIST = [
-  // ── Major Raid Factions ──
-  {name:'Claws of Veeshan',        section:'Raid'},
-  {name:'Ring of Scale',           section:'Raid'},
-  {name:'Yelinak',                 section:'Raid'},
-  {name:'Kromzek',                 section:'Raid'},
-  {name:'Kromrif',                 section:'Raid'},
-  {name:'Coldain',                 section:'Raid'},
-  // ── City / Neutral Factions ──
-  {name:'Kael Drakkel',            section:'City'},
-  {name:'Thurgadin',               section:'City'},
-  {name:'Skyshrine',               section:'City'},
-  {name:'Cabilis Residents',       section:'City'},
-  {name:'Emerald Warriors',        section:'City'},
-  {name:'Storm Guards',            section:'City'},
-];
-
-const FACTION_RED = new Set(['Threateningly','Ready to Attack']);
-function factionColor(lvl){
-  if(!lvl)return 'none';
-  if(lvl==='Ally')return 'green';
-  if(FACTION_RED.has(lvl))return 'red';
-  return 'yellow';
-}
-
-// factionData[charName][factionName] = level string
-
-function getFaction(charName, factionName){
-  return (factionData[charName]||{})[factionName]||'';
-}
-
-function setFaction(charName, factionName, level){
-  if(!factionData[charName])factionData[charName]={};
-  if(level)factionData[charName][factionName]=level;
-  else delete factionData[charName][factionName];
-  saveState();
-  renderTovBar();
-}
-
-function renderTovBar(){
-  const container=document.getElementById('tovRows');
-  if(!container)return;
-  const allNames=charNames().filter(n=>n!=='__all__');
-  if(!allNames.length){container.innerHTML='<div class="watchlist-empty">No characters loaded.</div>';return;}
-  const isAll=activeTab==='__all__';
-  const names=isAll?allNames:(activeTab?[activeTab]:allNames);
-  container.innerHTML=names.map(n=>{
-    const lvl=getFaction(n,'Claws of Veeshan');
-    const color=factionColor(lvl);
-    const cls=color==='green'?'tov-chip-ally':color==='red'?'tov-chip-warn':color==='yellow'?'tov-chip-yellow':'tov-chip-none';
-    const icon=color==='green'?'✔':color==='red'?'✘':'◐';
-    const label=isAll?esc(n):'Claws of Veeshan';
-    return `<div class="watchlist-row"><div class="watchlist-item-name" style="min-width:120px">${label}</div><span class="tov-chip ${cls}">${icon} ${esc(lvl==='Ready to Attack'?'KOS':lvl||'Not Set')}</span></div>`;
-  }).join('');
-}
-
-function renderFactionsPanel(){
-  const panel=document.getElementById('factionsPanel');
-  if(!panel)return;
-  const name=activeTab;
-  if(!name||name==='__all__'){panel.innerHTML='<div class="empty-state">Select a character to manage factions.</div>';return;}
-
-  let html=`<div class="faction-panel"><table class="faction-table"><thead><tr><th>Faction</th><th>Standing</th></tr></thead><tbody>`;
-
-  let lastSection='';
-  for(const f of FACTION_LIST){
-    if(f.section!==lastSection){
-      const label=f.section==='ToV'?'TEMPLE OF VEESHAN':f.section==='Raid'?'RAID FACTIONS':'CITY / NEUTRAL';
-      html+=`<tr class="faction-section-divider"><td colspan="2">${label}</td></tr>`;
-      lastSection=f.section;
-    }
-    const cur=getFaction(name,f.name);
-    const color=factionColor(cur);
-    const badgeCls=color==='green'?'faction-badge-ally':color==='red'?'faction-badge-warn':color==='yellow'?'faction-badge-yellow':'faction-badge-none';
-    const opts=`<option value="">— Not Set —</option>`+FACTION_LEVELS.map(l=>`<option value="${l}"${l===cur?' selected':''}>${l}</option>`).join('');
-    html+=`<tr>
-      <td class="faction-name">${esc(f.name)}</td>
-      <td><select class="faction-select ${badgeCls}" data-faction="${esc(f.name)}" onchange="setFaction('${esc(name)}',this.dataset.faction,this.value);const c=factionColor(this.value);this.className='faction-select '+(c==='green'?'faction-badge-ally':c==='red'?'faction-badge-warn':c==='yellow'?'faction-badge-yellow':'faction-badge-none')">${opts}</select></td>
-    </tr>`;
-  }
-  html+=`</tbody></table></div>`;
-  panel.innerHTML=html;
-}
-
-// ─── Skyshrine Armor ──────────────────────────────────────────────────────────
-
-const SS_DATA = {
-  'Bard':        {npc:"Umykith Fe`Dhar",    items:['Helm of Twilight','Breastplate of Twilight','Vambraces of Twilight','Bracer of Twilight','Gauntlets of Twilight','Greaves of Twilight','Boots of Twilight']},
-  'Cleric':      {npc:"Fardonad Fe`Dhar",   items:["Akkirus' Crown of the Risen","Akkirus' Chestplate of the Risen","Akkirus' Vambraces of the Risen","Akkirus' Bracelet of the Risen","Akkirus' Gauntlets of the Risen","Akkirus' Greaves of the Risen","Akkirus' Boots of the Risen"]},
-  'Druid':       {npc:"Qynydd Fe`Dhar",     items:['Woven Grass Headband','Woven Grass Chestguard','Woven Grass Vambraces','Woven Grass Bracelet','Woven Grass Gauntlets','Woven Grass Greaves','Woven Grass Boots']},
-  'Enchanter':   {npc:"Lothieder Fe`Dhar",  items:["Illusionist's Headband","Illusionist's Robe","Illusionist's Sleeves","Illusionist's Wristguard","Illusionist's Gloves","Illusionist's Pantaloons","Illusionist's Slippers"]},
-  'Magician':    {npc:"Ocoenydd Fe`Dhar",   items:["Prestidigitator's Headband","Prestidigitator's Robe","Prestidigitator's Sleeves","Prestidigitator's Wristband","Prestidigitator's Gloves","Prestidigitator's Trousers","Prestidigitator's Boots"]},
-  'Monk':        {npc:"Komawin Fe`Dhar",    items:['White Lotus Headband','White Lotus Chest Wraps','White Lotus Arm Wraps','White Lotus Wrist Wraps','Fist of the White Lotus','White Lotus Pants','White Lotus Slippers']},
-  'Necromancer': {npc:"Abudan Fe`Dhar",     items:['Rotting Crown','Rotting Robe','Rotting Sleeves','Rotting Wristguard','Rotting Gloves','Rotting Trousers','Rotting Boots']},
-  'Paladin':     {npc:"Adwetram Fe`Dhar",   items:["Scaled Knight's Helm","Scaled Knight's Breastplate","Scaled Knight's Vambraces","Scaled Knight's Bracer","Scaled Knight's Gauntlets","Scaled Knight's Greaves","Scaled Knight's Boots"]},
-  'Ranger':      {npc:"Nalelin Fe`Dhar",    items:['Golden Leaf Helm','Golden Leaf Breastplate','Golden Leaf Vambraces','Golden Leaf Bracer','Golden Leaf Gauntlets','Golden Leaf Greaves','Golden Leaf Boots']},
-  'Rogue':       {npc:"Crendatha Fe`Dhar",  items:['Shadow Crown','Shadow Chestguard','Shadow Vambraces','Shadow Bracer','Shadow Gauntlets','Shadow Greaves','Shadow Boots']},
-  'Shadow Knight':{npc:"Onerind Fe`Dhar",   items:["Blood Lord's Crown","Blood Lord's Breastplate","Blood Lord's Vambraces","Blood Lord's Bracer","Blood Lord's Gauntlets","Blood Lord's Greaves","Blood Lord's Boots"]},
-  'Shaman':      {npc:"Asteinnon Fe`Dhar",  items:["Wolf Caller's Helm","Wolf Caller's Breastplate","Wolf Caller's Vambraces","Wolf Caller's Bracer","Wolf Caller's Gauntlets","Wolf Caller's Greaves","Wolf Caller's Boots"]},
-  'Warrior':     {npc:"Jendavudd Fe`Dhar",  items:['Crown of the Myrmidon','Breastplate of the Myrmidon','Vambraces of the Myrmidon','Bracer of the Myrmidon','Gauntlets of the Myrmidon','Greaves of the Myrmidon','Boots of the Myrmidon']},
-  'Wizard':      {npc:"Elaend Fe`Dhar",     items:['Icicle Circlet','Robe of Icicles','Icicle Sleeves','Icicle Bracelet','Icicle Gloves','Icicle Pantaloons','Icicle Boots']},
-};
-
-// Skyshrine custom armor — P99-server-custom items not on live EQ.
-// Cleric set (Akkirus') is intentionally KEPT — it's standard BiS for clerics.
-// All other SS class sets are excluded from upgrade candidates and gear checker search.
-const SS_CUSTOM_ITEMS = new Set(
-  Object.entries(SS_DATA)
-    .filter(([cls]) => cls !== 'Cleric')
-    .flatMap(([, d]) => d.items)
-);
-
-// Gem group A: Priest classes (CLR, DRU, SHM) + Casters (ENC, MAG, NEC, WIZ)
-// Wait — Priest and Caster use DIFFERENT gems. Priest uses Onyx Sapphire for head, Black Marble for chest etc.
-// Casters use Crushed Flame Opal for head, Pristine Emerald for chest etc.
-// Melee group: WAR, PAL, SHD, BRD, RNG, ROG, MNK use Crushed Coral/Flawless Diamond etc.
-
-const SS_GEMS = {
-  'priest': [
-    {gem:'Crushed Onyx Sapphire',  tattered:'head'},
-    {gem:'Black Marble',           tattered:'chest'},
-    {gem:'Jaundice Gem',           tattered:'arms'},
-    {gem:'Crushed Opal',           tattered:'wrist'},
-    {gem:'Crushed Lava Ruby',      tattered:'hands'},
-    {gem:'Chipped Onyx Sapphire',  tattered:'legs'},
-    {gem:'Crushed Flame Emerald',  tattered:'feet'},
-  ],
-  'caster': [
-    {gem:'Crushed Flame Opal',     tattered:'head'},
-    {gem:'Pristine Emerald',       tattered:'chest'},
-    {gem:'Flawed Topaz',           tattered:'arms'},
-    {gem:'Crushed Onyx Sapphire',  tattered:'wrist'},
-    {gem:'Crushed Topaz',          tattered:'hands'},
-    {gem:'Nephrite',               tattered:'legs'},
-    {gem:'Crushed Jaundice Gem',   tattered:'feet'},
-  ],
-  'melee': [
-    {gem:'Crushed Coral',          tattered:'head'},
-    {gem:'Flawless Diamond',       tattered:'chest'},
-    {gem:'Flawed Emerald',         tattered:'arms'},
-    {gem:'Crushed Flame Emerald',  tattered:'wrist'},
-    {gem:'Crushed Topaz',          tattered:'hands'},
-    {gem:'Flawed Sea Sapphire',    tattered:'legs'},
-    {gem:'Crushed Black Marble',   tattered:'feet'},
-  ],
-};
-
-const SS_GEM_GROUP = {
-  'Cleric':'priest','Druid':'priest','Shaman':'priest',
-  'Enchanter':'caster','Magician':'caster','Necromancer':'caster','Wizard':'caster',
-  'Warrior':'melee','Paladin':'melee','Shadow Knight':'melee','Bard':'melee',
-  'Ranger':'melee','Rogue':'melee','Monk':'melee',
-};
-
-// Armor type per class (determines tattered piece name prefix)
-const SS_ARMOR_TYPE = {
-  'Warrior':'Unadorned Plate','Paladin':'Unadorned Plate','Shadow Knight':'Unadorned Plate',
-  'Cleric':'Unadorned Plate','Bard':'Unadorned Plate',
-  'Ranger':'Unadorned Chain','Rogue':'Unadorned Chain','Shaman':'Unadorned Chain',
-  'Druid':'Unadorned Leather','Monk':'Unadorned Leather',
-  'Enchanter':'Tattered Silk','Magician':'Tattered Silk','Necromancer':'Tattered Silk','Wizard':'Tattered Silk',
-};
-
-// Slot suffix for tattered piece names
-const SS_TATTERED_SUFFIX = {
-  'head':  {'Unadorned Plate':'Helmet',     'Unadorned Chain':'Coif',     'Unadorned Leather':'Cap',      'Tattered Silk':'Turban'},
-  'chest': {'Unadorned Plate':'Breastplate','Unadorned Chain':'Tunic',    'Unadorned Leather':'Tunic',    'Tattered Silk':'Robe'},
-  'arms':  {'Unadorned Plate':'Vambraces',  'Unadorned Chain':'Sleeves',  'Unadorned Leather':'Sleeves',  'Tattered Silk':'Sleeves'},
-  'wrist': {'Unadorned Plate':'Bracer',     'Unadorned Chain':'Bracer',   'Unadorned Leather':'Bracelet', 'Tattered Silk':'Wristband'},
-  'hands': {'Unadorned Plate':'Gauntlets',  'Unadorned Chain':'Gauntlets','Unadorned Leather':'Gloves',   'Tattered Silk':'Gloves'},
-  'legs':  {'Unadorned Plate':'Greaves',    'Unadorned Chain':'Leggings', 'Unadorned Leather':'Leggings', 'Tattered Silk':'Pantaloons'},
-  'feet':  {'Unadorned Plate':'Boots',      'Unadorned Chain':'Boots',    'Unadorned Leather':'Boots',    'Tattered Silk':'Boots'},
-};
-
-const SS_SLOTS = ['head','chest','arms','wrist','hands','legs','feet'];
-const SS_SLOT_LABELS = ['Head','Chest','Arms','Wrist','Hands','Legs','Feet'];
-
-// skyshrineData[charName][slotIndex or 'wrist2'] = true (done)
-
-function getSSDone(charName, key){return !!(skyshrineData[charName]||{})[key];}
-window.setSSDone=function(charName, key, val){
-  if(!skyshrineData[charName])skyshrineData[charName]={};
-  if(val)skyshrineData[charName][key]=true;
-  else delete skyshrineData[charName][key];
-  saveState();
-  renderSkyshrinePanel();
-}
-
-function tatteredName(armorType, slotKey){
-  return armorType + ' ' + SS_TATTERED_SUFFIX[slotKey][armorType];
-}
-
-function renderSkyshrinePanel(){
-  const panel=document.getElementById('skyshrinePanel');
-  if(!panel)return;
-  const name=activeTab;
-  if(!name||name==='__all__'){panel.innerHTML='<div class="empty-state">Select a character to view Skyshrine armor progress.</div>';return;}
-  const meta=charMeta[name]||{};
-  const cls=meta.class||'';
-  if(!SS_DATA[cls]){panel.innerHTML=`<div class="empty-state">No Skyshrine armor data for class: ${esc(cls||'(not set)')}. Set your class in Character Stats.</div>`;return;}
-
-  const classData=SS_DATA[cls];
-  const gemGroup=SS_GEM_GROUP[cls]||'melee';
-  const gems=SS_GEMS[gemGroup];
-  const armorType=SS_ARMOR_TYPE[cls]||'Unadorned Plate';
-  const wikiBase='https://wiki.project1999.com/';
-
-  // Count completion: 8 pieces (7 slots + wrist2)
-  let done=0,total=8;
-  for(let i=0;i<7;i++){if(getSSDone(name,i))done++;}
-  if(getSSDone(name,'wrist2'))done++;
-
-  let rows='';
-  for(let i=0;i<7;i++){
-    const rewardName=classData.items[i];
-    const gem=gems[i];
-    const slotKey=SS_SLOTS[i];
-    const tattered=tatteredName(armorType,slotKey);
-    const isDone=getSSDone(name,i);
-    const rewardAlias=rewardName.replace(/^(\S+)\s/,'$1 Custom ');
-    const hasReward=charHasItem(name,rewardName)||charHasItem(name,rewardAlias);
-    const hasTattered=charHasItem(name,tattered);
-    const hasGem=charHasItem(name,gem.gem);
-    const rewardLink=`<a href="${wikiBase}${encodeURIComponent(rewardName.replace(/ /g,'_'))}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold)">${esc(rewardName)}</a>`;
-    const tattLink=`<a href="${wikiBase}${encodeURIComponent(tattered.replace(/ /g,'_'))}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--border)">${esc(tattered)}</a>`;
-    const gemLink=`<a href="${wikiBase}${encodeURIComponent(gem.gem.replace(/ /g,'_'))}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--border)">${esc(gem.gem)}</a>`;
-    const wristNote=slotKey==='wrist'?'<div class="ss-wrist-note">Not LORE — can have ×2</div>':'';
-    rows+=`<tr class="${isDone?'ss-done':''}">
-      <td><div class="ss-item-name">${rewardLink}</div><div class="ss-sub">${esc(SS_SLOT_LABELS[i])}</div>${wristNote}</td>
-      <td><div class="ss-sub">${tattLink}</div></td>
-      <td><div class="ss-sub">${gemLink} ×3</div></td>
-      <td class="ss-check">${hasReward?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-      <td class="ss-check">${hasTattered?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-      <td class="ss-check">${hasGem?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-      <td class="ss-th-center"><button type="button" class="ss-done-btn ${isDone?'done':''}" onclick="setSSDone('${esc(name)}',${i},${!isDone})">${isDone?'✔ Done':'Mark Done'}</button></td>
-    </tr>`;
-
-    // Second wrist row
-    if(slotKey==='wrist'){
-      const isDone2=getSSDone(name,'wrist2');
-      const hasReward2=charHasItem(name,rewardName)||charHasItem(name,rewardAlias);
-      const hasTattered2=charHasItem(name,tattered);
-      const hasGem2=charHasItem(name,gem.gem);
-      rows+=`<tr class="${isDone2?'ss-done':''}">
-        <td><div class="ss-item-name">${rewardLink}</div><div class="ss-sub">Wrist 2</div></td>
-        <td><div class="ss-sub">${tattLink}</div></td>
-        <td><div class="ss-sub">${gemLink} ×3</div></td>
-        <td class="ss-check">${hasReward2?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-        <td class="ss-check">${hasTattered2?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-        <td class="ss-check">${hasGem2?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-        <td class="ss-th-center"><button type="button" class="ss-done-btn ${isDone2?'done':''}" onclick="setSSDone('${esc(name)}','wrist2',${!isDone2})">${isDone2?'✔ Done':'Mark Done'}</button></td>
-      </tr>`;
-    }
-  }
-
-  panel.innerHTML=`
-    <div class="ss-header">
-      <div class="ss-title">🐉 Skyshrine Armor — ${esc(cls)}</div>
-      <div class="ss-progress">${done}/${total} pieces complete · Turn-in: ${esc(classData.npc)}</div>
-    </div>
-    <div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;overflow-x:auto">
-      <table class="ss-table">
-        <thead><tr>
-          <th>Reward</th>
-          <th>Tattered Piece</th>
-          <th>Gem ×3</th>
-          <th class="ss-th-center">Have It</th>
-          <th class="ss-th-center">Have Tattered</th>
-          <th class="ss-th-center">Have Gem</th>
-          <th class="ss-th-center">Status</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-}
-
-// ─── Price → ItemDB Bridge ────────────────────────────────────────────────────
-
-function applyDkpToItemDB(){
-  const names=Object.keys(dkpLookup);
-  if(!names.length)return 0;
-  // Build a lowercase map of itemDB keys for case-insensitive matching
-  const lcMap={};
-  for(const k of Object.keys(itemDB))lcMap[k.toLowerCase()]=k;
-  let updated=0;
-  for(const rawName of names){
-    const entry=dkpLookup[rawName];
-    const r60=entry[5]; // index 5 = 60-day avg
-    if(r60==null||r60<=0)continue;
-    const canonical=lcMap[rawName.toLowerCase()];
-    if(!canonical)continue;
-    itemDB[canonical].dkp=Math.round(r60);
-    itemDB[canonical]._dkpUpdatedAt=new Date().toISOString();
-    updated++;
-  }
-  if(updated){
-    saveItemDB();
-    console.log(`[Bridge] DKP: updated ${updated} items from 60d avg`);
-    if(activeSub==='upgrades')renderUpgradesPanel();
-  }
-  return updated;
-}
-
-function applyPlatToItemDB(){
-  if(!platData.length)return 0;
-  // Build a lowercase map of itemDB keys for case-insensitive matching
-  const lcMap={};
-  for(const k of Object.keys(itemDB))lcMap[k.toLowerCase()]=k;
-  let updated=0;
-  for(const r of platData){
-    if(r.t!==0)continue; // WTS only
-    const a60=r.a60;
-    if(a60==null||a60<=0)continue;
-    const rawName=r.n||'';
-    const canonical=lcMap[rawName.toLowerCase()];
-    if(!canonical)continue;
-    // Store in k-plat (same unit the upgrade tab displays as "Xk pp")
-    itemDB[canonical].plat=Math.round(a60/1000*10)/10;
-    itemDB[canonical]._platUpdatedAt=new Date().toISOString();
-    updated++;
-  }
-  if(updated){
-    saveItemDB();
-    console.log(`[Bridge] Plat: updated ${updated} items from 60d WTS avg`);
-    if(activeSub==='upgrades')renderUpgradesPanel();
-  }
-  return updated;
-}
-
-// ─── Admin Panel ──────────────────────────────────────────────────────────────
-
-function openAdminPanel(){
-  const w = window.open('admin.html','mixelparse_admin','width=1200,height=800,menubar=no,toolbar=no');
-  if(!w) alert('Pop-up blocked — please allow pop-ups for this page.');
-}
-
-// Expose globals the admin panel reads via window.opener
-window.parseInventory   = parseInventory;
-window.locationType     = locationType;
-window.extractCharName  = extractCharName;
-window.getEquippedItems = getEquippedItems;
-window.renderUpgradesPanel = renderUpgradesPanel;
-Object.defineProperty(window,'activeTab',{get:()=>activeTab,set:v=>{activeTab=v;}});
-window.parseItemDB      = parseItemDB;
-window.applyDBToChar    = applyDBToChar;
-// classFromFilename and raceFromFilename are scoped inside parseItemDB;
-
-// ── Inventory Watcher WebSocket listener ──────────────────────────────────────
-// Connects to the local mixelparse-watcher.exe on ws://127.0.0.1:27182
-// Receives inventory file payloads and loads them automatically.
-(function initWatcherSocket(){
-  const WS_PORT   = 27182;
-  const WS_SECRET = 'mixelparse-inv-v1';
-  const RECONNECT_MS = 5000;
-  let ws = null, retryTimer = null, watcherConnected = false;
-
-  function setWatcherStatus(connected){
-    watcherConnected = connected;
-    const el = document.getElementById('watcher-status');
-    if(!el) return;
-    el.title    = connected ? 'Inventory Watcher connected' : 'Inventory Watcher not running';
-    el.style.color      = connected ? '#4caf7d' : '#666';
-    el.textContent      = connected ? '⬤ Watcher' : '◯ Watcher';
-  }
-
-  function handleInventory(filename, content){
-    const cn = extractCharName(filename);
-    if(!cn) return;
-    chars[cn] = parseInventory(content, cn);
-    if(!charMeta[cn]) charMeta[cn] = {};
-    // Switch to this char if it's the active one or no char is loaded yet
-    if(!activeTab || activeTab === '__all__') activeTab = cn;
-    refresh();
-    // Toast
-    showWatcherToast(`📦 Loaded ${cn}`);
-  }
-
-  function showWatcherToast(msg){
-    let toast = document.getElementById('watcher-toast');
-    if(!toast){
-      toast = document.createElement('div');
-      toast.id = 'watcher-toast';
-      toast.style.cssText = 'position:fixed;bottom:1.2rem;right:1.2rem;background:#1a2a1a;border:1px solid #4caf7d;color:#4caf7d;font-size:.8rem;padding:.45rem .85rem;border-radius:4px;z-index:9999;opacity:0;transition:opacity .25s;pointer-events:none;font-family:monospace';
-      document.body.appendChild(toast);
-    }
-    toast.textContent = msg;
-    toast.style.opacity = '1';
-    clearTimeout(toast._hideTimer);
-    toast._hideTimer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
-  }
-
-  function connect(){
-    if(ws && ws.readyState <= 1) return;
-    try {
-      ws = new WebSocket(`ws://127.0.0.1:${WS_PORT}`);
-    } catch(e){ scheduleReconnect(); return; }
-
-    ws.onopen = () => {
-      setWatcherStatus(true);
-      clearTimeout(retryTimer);
-      // Ask for all cached files immediately
-      ws.send(JSON.stringify({ type: 'requestAll' }));
-    };
-
-    ws.onmessage = e => {
-      try {
-        const msg = JSON.parse(e.data);
-        if(msg.type === 'hello' && msg.secret !== WS_SECRET) { ws.close(); return; }
-        if(msg.type === 'inventory') handleInventory(msg.filename, msg.content);
-        if(msg.type === 'ping')      ws.send(JSON.stringify({ type: 'pong' }));
-      } catch{}
-    };
-
-    ws.onclose = () => { setWatcherStatus(false); scheduleReconnect(); };
-    ws.onerror = () => { setWatcherStatus(false); };
-  }
-
-  function scheduleReconnect(){
-    clearTimeout(retryTimer);
-    retryTimer = setTimeout(connect, RECONNECT_MS);
-  }
-
-  // Inject status indicator into the toolbar when DOM is ready
-  function injectStatusBadge(){
-    const toolbar = document.querySelector('.top-bar') || document.querySelector('header') || document.body;
-    if(document.getElementById('watcher-status')) return;
-    const badge = document.createElement('span');
-    badge.id = 'watcher-status';
-    badge.style.cssText = 'font-size:.7rem;cursor:default;margin-left:.6rem;color:#666;font-family:monospace;user-select:none';
-    badge.textContent = '◯ Watcher';
-    badge.title = 'Inventory Watcher not running — launch mixelparse-watcher.exe to auto-load inventory files';
-    toolbar.appendChild(badge);
-  }
-
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', () => { injectStatusBadge(); connect(); });
-  } else {
-    injectStatusBadge(); connect();
-  }
-})();
-// expose via thin wrappers so the admin panel can call them directly
-window.classFromFilename= function(fn){
-  const FILE_CLASS_MAP={'bard':'BRD','cleric':'CLR','druid':'DRU','enchanter':'ENC','mage':'MAG','magician':'MAG','monk':'MNK','necromancer':'NEC','paladin':'PAL','ranger':'RNG','rogue':'ROG','shadowknight':'SHD','shadow_knight':'SHD','shaman':'SHM','warrior':'WAR','wizard':'WIZ'};
-  const low=fn.toLowerCase().replace(/[^a-z_]/g,'');
-  for(const[k,v]of Object.entries(FILE_CLASS_MAP)){if(low.includes(k))return v;}
-  return null;
-};
-window.raceFromFilename = function(fn){
-  const FILE_RACE_MAP={'human':'HUM','barbarian':'BAR','erudite':'ERU','woodelf':'WEF','wood_elf':'WEF','highelf':'HEF','high_elf':'HEF','darkelf':'DEF','dark_elf':'DEF','halfelf':'HEF','half_elf':'HEF','dwarf':'DWF','troll':'TRL','ogre':'OGR','halfling':'HFL','gnome':'GNM','iksar':'IKS'};
-  const low=fn.toLowerCase().replace(/[^a-z_]/g,'');
-  for(const[k,v]of Object.entries(FILE_RACE_MAP)){if(low.includes(k))return v;}
-  return null;
-};
-// RETIRED: // RETIRED: window.parseWikiStats = RETIRED_parseWikiStats;
 window.calcHP           = calcHP;
 window.calcMana         = calcMana;
 window.staRatio         = staRatio;
@@ -2893,7 +2154,6 @@ window.NO_CAP            = new Set(['hpbonus','manabonus']);
 window.saveState        = saveState;
 window.saveItemDB       = saveItemDB;
 window.loadItemDB       = loadItemDB;
-// RETIRED: // RETIRED: window.fetchWithProxy = RETIRED_fetchWithProxy;
 window.saveItemDBToSupabase = saveItemDBToSupabase;
 // Core data — exposed so admin.html can read via window.opener
 Object.defineProperty(window,'itemDB',{get:()=>itemDB,set:v=>{itemDB=v;}});
@@ -2903,7 +2163,6 @@ Object.defineProperty(window,'charMeta',{get:()=>charMeta});
 Object.defineProperty(window,'gearStats',{get:()=>gearStats});
 window.saveDkpToSupabase= saveDkpToSupabase;
 window.loadDkpFromSupabase = loadDkpFromSupabase;
-
 
 
 function renderBridgePanel(){
@@ -3050,7 +2309,6 @@ function renderBridgePanel(){
       </div>
     </div>`;
 }
-
 
 
 // dkpLookup[itemName] = [high, low, avg, count, [[char,dkp,date],...]]
@@ -4456,6 +3714,118 @@ function renderConsumesPanel(){
       </table>
     </div>
   `;
+}
+
+// ─── Quests ───────────────────────────────────────────────────────────────────
+const QUEST_DB=[
+  // Velious quests
+  {name:'Coldain Prayer Shawl',quest:'Coldain Shawl Quest',zone:'Eastern Wastes / Thurgadin',wiki:'https://wiki.project1999.com/Coldain_Prayer_Shawl_Quest',ingredients:['Coldain Skin','Bear Skin','Tanned Bear Skin','Velium Thread','Owlbear Feathers','Coldain Snowshoe','High Quality Bear Skin'],note:'8-step shawl quest, best cloak pre-PoP for casters/priests'},
+  {name:"Wu's Fighting Shin Boots",quest:"Wu's Tranquil Staff Quest",zone:'Western Wastes / NPC',wiki:'https://wiki.project1999.com/Wu%27s_Fighting_Shin_Boots',ingredients:["Wu's Ornate Robe","Wu's Gi","Mithril Vambraces"],note:'Monk epic-tier quest boots'},
+  {name:"Scepter of Mastery",quest:"Hand of Maestro Quest",zone:'Eastern Wastes',wiki:'https://wiki.project1999.com/Scepter_of_Mastery',ingredients:['Fractured Hilt','Chipped Gem','Ancient Blade Fragment'],note:'Monk 2HB, best non-epic option'},
+  {name:'Icicle Circlet',quest:'Thurgadin Icicle Armor Quest',zone:'Thurgadin',wiki:'https://wiki.project1999.com/Thurgadin_Armor_Quest',ingredients:['Coldain Velium Temper','Velium Coldain War Helm Mold','Words of the Sentient'],note:'Wizard/Enchanter/Necro/Mage Velious head quest piece'},
+  {name:'Icicle Pantaloons',quest:'Thurgadin Icicle Armor Quest',zone:'Thurgadin',wiki:'https://wiki.project1999.com/Thurgadin_Armor_Quest',ingredients:['Coldain Velium Temper','Velium Coldain Leg Armor Mold','Words of the Sentient'],note:'Caster Velious legs quest piece'},
+  {name:'Icicle Gloves',quest:'Thurgadin Icicle Armor Quest',zone:'Thurgadin',wiki:'https://wiki.project1999.com/Thurgadin_Armor_Quest',ingredients:['Coldain Velium Temper','Velium Coldain Gauntlet Mold','Words of the Sentient'],note:'Caster Velious gloves quest piece'},
+  {name:'Icicle Sleeves',quest:'Thurgadin Icicle Armor Quest',zone:'Thurgadin',wiki:'https://wiki.project1999.com/Thurgadin_Armor_Quest',ingredients:['Coldain Velium Temper','Velium Coldain Arm Armor Mold','Words of the Sentient'],note:'Caster Velious arms quest piece'},
+  // Kunark quests
+  {name:'Hierophant\'s Cloak',quest:'Hierophant\'s Cloak Quest',zone:'Trakanon\'s Teeth',wiki:'https://wiki.project1999.com/Hierophant%27s_Cloak',ingredients:['Scaled Hierophant\'s Cloak','Rune of Visions'],note:'Best non-epic cloak, all caster/priest classes'},
+  {name:'Runed Bolster Belt',quest:'Belt of the Great Turtle',zone:'Warsliks Woods',wiki:'https://wiki.project1999.com/Runed_Bolster_Belt',ingredients:['Giant Turtle Shell','Runed Bolster Belt Mold','Pottery Sketch'],note:'Best warrior/paladin/SK belt pre-Velious'},
+  {name:'Swiftwind',quest:'Swiftwind/Earthcaller Quest',zone:'Multiple',wiki:'https://wiki.project1999.com/Swiftwind',ingredients:['Vah Shir Bone Chips','Golden Efreeti Boots','Thick Kylong Hide'],note:'Ranger epic-related sword'},
+  {name:'Earthcaller',quest:'Swiftwind/Earthcaller Quest',zone:'Multiple',wiki:'https://wiki.project1999.com/Earthcaller',ingredients:['Vah Shir Bone Chips','Golden Efreeti Boots','Thick Kylong Hide'],note:'Ranger epic-related dagger'},
+  {name:'Mrylokar\'s Demi Lich Skullcap',quest:'Mrylokar\'s Demi Lich Quest',zone:'Karnor\'s Castle',wiki:'https://wiki.project1999.com/Mrylokar%27s_Demi_Lich_Skullcap',ingredients:['Demi Lich Skullcap','Spectral Parchment'],note:'Necromancer quest head'},
+  {name:'Shissar Nullifier Staff',quest:'Shissar Nullifier Quest',zone:'Chardok / Sebilis',wiki:'https://wiki.project1999.com/Shissar_Nullifier_Staff',ingredients:['Shissar Nullifier Shaft','Shissar Nullifier Head'],note:'Best pre-epic caster staff'},
+  // Classic quests
+  {name:'Journeyman\'s Boots',quest:'Journeyman\'s Boots Quest',zone:'Rathe Mountains',wiki:'https://wiki.project1999.com/Journeyman%27s_Boots',ingredients:['Hill Giant Toes','Cyclops Toes','Giant Warrior Helm','Griffon Feathers'],note:'Run speed boots — highly contested, essential for all classes'},
+  {name:'Selo\'s Accelerando',quest:'Bard Epic',zone:'Multiple',wiki:'https://wiki.project1999.com/Bard_Epic',ingredients:['Selo\'s Drum of the March','Lyran\'s Mystical Lute','Horn of Hsagra'],note:'Bard epic instrument'},
+  {name:'Manastone',quest:'Manastone Quest',zone:'Various',wiki:'https://wiki.project1999.com/Manastone',ingredients:['Blue Crystal Staff','Gnomish Mana Battery','Words of Cloudburst'],note:'Pre-Kunark mana item — if anyone has one keep it'},
+  {name:'Flowing Black Silk Sash',quest:'Flowing Black Silk Sash Quest',zone:'Mistmoore / Qeynos',wiki:'https://wiki.project1999.com/Flowing_Black_Silk_Sash',ingredients:['Silk Swatch','Bone Chips','Black Silk Thread'],note:'Necromancer/Shadow Knight waist BIS classic'},
+  {name:'Golden Efreeti Boots',quest:'Golden Efreeti Boots Drop',zone:'Plane of Fire',wiki:'https://wiki.project1999.com/Golden_Efreeti_Boots',ingredients:['Golden Efreeti Boots'],note:'Required for Ranger epic — save if you see it'},
+  {name:'Pearlescent Fragment',quest:'Cleric Epic',zone:'Multiple',wiki:'https://wiki.project1999.com/Cleric_Epic',ingredients:['Pearlescent Fragment'],note:'Cleric epic component — rare spawn'},
+];
+window.QUEST_DB = QUEST_DB;
+
+function renderQuestsPanel(){
+  const panel=document.getElementById('questsPanel');
+  if(!panel)return;
+  const name=activeTab;
+
+  // Build a map of item name -> list of chars who have it (any inventory location)
+  const allChars=name&&name!=='__all__'?[name]:charNames();
+  const haveMap={};
+  for(const cn of allChars){
+    for(const item of (chars[cn]||[])){
+      const n=(item.name||'').toLowerCase();
+      if(!haveMap[n])haveMap[n]=[];
+      if(!haveMap[n].includes(cn))haveMap[n].push(cn);
+    }
+  }
+
+  // Group quests by zone/expansion
+  const sections=[
+    {label:'Velious Quests',quests:QUEST_DB.filter(q=>['Eastern Wastes / Thurgadin','Eastern Wastes','Thurgadin','Western Wastes / NPC'].includes(q.zone))},
+    {label:'Kunark Quests',quests:QUEST_DB.filter(q=>['Trakanon\'s Teeth','Warsliks Woods','Multiple','Karnor\'s Castle','Chardok / Sebilis'].includes(q.zone))},
+    {label:'Classic Quests',quests:QUEST_DB.filter(q=>['Rathe Mountains','Various','Mistmoore / Qeynos','Plane of Fire'].includes(q.zone))},
+  ];
+
+  let html=`<div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+    <span style="font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.08em;color:var(--text-muted)">QUEST ITEMS</span>
+    <input id="questSearch" type="text" placeholder="Search quests, items, or ingredients…" oninput="renderQuestsPanel()" style="flex:1;min-width:200px;padding:.35rem .6rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-size:.85rem">
+    <label style="font-size:.8rem;color:var(--text-dim);display:flex;align-items:center;gap:.4rem;cursor:pointer">
+      <input type="checkbox" id="questFilterHave" onchange="renderQuestsPanel()" style="accent-color:var(--gold-light)"> Only show items I'm missing
+    </label>
+  </div>`;
+
+  const searchQ=(document.getElementById('questSearch')?.value||'').toLowerCase();
+  const filterHave=document.getElementById('questFilterHave')?.checked||false;
+
+  for(const sec of sections){
+    const filtered=sec.quests.filter(q=>{
+      if(searchQ&&!q.name.toLowerCase().includes(searchQ)&&!q.quest.toLowerCase().includes(searchQ)&&!q.ingredients.some(i=>i.toLowerCase().includes(searchQ))&&!q.note.toLowerCase().includes(searchQ))return false;
+      if(filterHave){
+        const holders=haveMap[q.name.toLowerCase()]||[];
+        if(holders.length>0)return false;
+      }
+      return true;
+    });
+    if(!filtered.length)continue;
+
+    html+=`<div style="padding:.5rem 1rem .2rem;font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.1em;color:var(--text-muted);border-bottom:1px solid var(--border);background:var(--surface2)">${sec.label}</div>`;
+
+    for(const q of filtered){
+      const holders=haveMap[q.name.toLowerCase()]||[];
+      const hasItem=holders.length>0;
+      const ingredientHolders={};
+      for(const ing of q.ingredients){
+        const h=haveMap[ing.toLowerCase()]||[];
+        if(h.length)ingredientHolders[ing]=h;
+      }
+      const ingCount=Object.keys(ingredientHolders).length;
+
+      html+=`<div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;gap:1rem;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap">
+            <a href="${q.wiki}" target="_blank" style="font-size:.95rem;font-weight:600;color:var(--gold-light);text-decoration:none;font-family:'Crimson Pro',serif">${q.name} ↗</a>
+            <span style="font-size:.75rem;color:var(--text-muted)">${q.quest}</span>
+            <span style="font-size:.72rem;color:var(--text-dim);font-style:italic">${q.zone}</span>
+          </div>
+          ${q.note?`<div style="font-size:.8rem;color:var(--text-dim);margin:.2rem 0">${q.note}</div>`:''}
+          <div style="margin-top:.4rem;display:flex;flex-wrap:wrap;gap:.3rem">
+            ${q.ingredients.map(ing=>{
+              const h=ingredientHolders[ing]||[];
+              return`<span style="font-size:.75rem;padding:.15rem .45rem;border-radius:3px;border:1px solid ${h.length?'#3a7a3a':'var(--border)'};background:${h.length?'rgba(26,90,26,.08)':'var(--surface)'};color:${h.length?'#1a5a1a':'var(--text-dim)'}" title="${h.length?'Has: '+h.join(', '):'Nobody has this yet'}">${ing}${h.length?` ✓ <em style="font-size:.7em">${h.join(', ')}</em>`:''}</span>`;
+            }).join('')}
+          </div>
+        </div>
+        <div style="text-align:right;white-space:nowrap;min-width:100px">
+          ${hasItem
+            ?`<div style="font-size:.78rem;color:#1a5a1a;font-weight:600">✓ ${holders.join(', ')}</div><div style="font-size:.7rem;color:var(--text-muted)">has item</div>`
+            :`<div style="font-size:.78rem;color:var(--text-dim)">Nobody has</div>`}
+          ${ingCount>0&&!hasItem?`<div style="font-size:.72rem;color:#8a6020;margin-top:.2rem">${ingCount}/${q.ingredients.length} ingr. in guild</div>`:''}
+        </div>
+      </div>`;
+    }
+  }
+
+  panel.innerHTML=html;
 }
 
 // ─── Watch List ───────────────────────────────────────────────────────────────

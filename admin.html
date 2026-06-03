@@ -220,6 +220,11 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
     Skyshrine Tracker
     <span class="sb-badge skip" id="badge-skyshrine">—</span>
   </div>
+  <div class="sb-item" data-suite="quests" onclick="showSuite('quests',this)">
+    <div class="sb-dot skip" id="dot-quests"></div>
+    Quest Items
+    <span class="sb-badge skip" id="badge-quests">—</span>
+  </div>
 
   <div class="sb-section">Persistence</div>
   <div class="sb-item" data-suite="supabase" onclick="showSuite('supabase',this)">
@@ -548,7 +553,17 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
       <div id="results-skyshrine"></div>
     </div>
 
-    <!-- SUPABASE SUITE -->
+    <!-- QUEST ITEMS SUITE -->
+    <div id="suite-quests" class="suite">
+      <div class="suite-title">QUEST ITEMS</div>
+      <div class="suite-desc">Validates QUEST_DB integrity, cross-references all guild inventories for completed items and ingredients, and flags quests with no guild coverage.</div>
+      <div class="suite-actions">
+        <button class="btn primary" onclick="runSuite('quests')">&#9658; Run Suite</button>
+        <button class="btn" onclick="renderQuestMatrix()" style="margin-left:.5rem">&#9633; Guild Matrix</button>
+      </div>
+      <div id="quest-matrix" style="display:none;margin-bottom:1rem"></div>
+      <div id="results-quests"></div>
+    </div>
     <div id="suite-supabase" class="suite">
       <div class="suite-title">SUPABASE / AUTH</div>
       <div class="suite-desc">Tests Supabase client connectivity, auth state, and confirms save/load functions exist and are wired correctly.</div>
@@ -1552,20 +1567,180 @@ SUITES.utils = [
   }),
 ];
 
+// ── QUESTS SUITE ──
+SUITES['quests'] = [
+  makeTest('QUEST_DB accessible from index.html', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener — open via MixelParse', asserts:[] };
+    const qdb = A2.QUEST_DB;
+    const asserts = [
+      assert('QUEST_DB exists on window', !!qdb),
+      assert('QUEST_DB has entries', qdb && qdb.length > 0),
+    ];
+    return { status: asserts.every(a=>a.ok) ? 'pass':'fail', asserts, output: qdb ? `${qdb.length} quests loaded` : 'undefined' };
+  }),
+  makeTest('All quest entries have required fields', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const qdb = A2.QUEST_DB || [];
+    const bad = qdb.filter(q => !q.name || !q.quest || !q.wiki || !q.ingredients || !q.ingredients.length);
+    const asserts = [
+      assert('All entries have name/quest/wiki/ingredients', bad.length === 0),
+    ];
+    return { status: asserts.every(a=>a.ok)?'pass':'fail', asserts,
+      output: bad.length ? 'Missing fields: ' + bad.map(q=>q.name||'(unnamed)').join(', ') : `All ${qdb.length} entries valid` };
+  }),
+  makeTest('All wiki URLs are well-formed', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const qdb = A2.QUEST_DB || [];
+    const bad = qdb.filter(q => !q.wiki || !q.wiki.startsWith('https://wiki.project1999.com/'));
+    const asserts = [
+      assert('All wiki URLs point to project1999.com', bad.length === 0),
+    ];
+    return { status: asserts.every(a=>a.ok)?'pass':'warn', asserts,
+      output: bad.length ? 'Bad URLs: ' + bad.map(q=>q.name).join(', ') : 'All URLs valid' };
+  }),
+  makeTest('Guild inventory cross-reference', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const qdb = A2.QUEST_DB || [];
+    const chars = A2.chars || {};
+    const charNames = Object.keys(chars);
+    if (!charNames.length) return { status:'warn', msg:'No characters loaded', asserts:[] };
+
+    // Build have map
+    const haveMap = {};
+    for (const cn of charNames) {
+      for (const item of (chars[cn] || [])) {
+        const n = (item.name||'').toLowerCase();
+        if (!haveMap[n]) haveMap[n] = [];
+        if (!haveMap[n].includes(cn)) haveMap[n].push(cn);
+      }
+    }
+
+    const completed = [], inProgress = [], notStarted = [];
+    for (const q of qdb) {
+      const holders = haveMap[q.name.toLowerCase()] || [];
+      const ingFound = q.ingredients.filter(i => (haveMap[i.toLowerCase()]||[]).length > 0);
+      if (holders.length) completed.push({ q, holders });
+      else if (ingFound.length) inProgress.push({ q, ingFound, ingTotal: q.ingredients.length });
+      else notStarted.push(q);
+    }
+
+    const asserts = [
+      assert('QUEST_DB has entries', qdb.length > 0),
+      assert('Characters loaded', charNames.length > 0),
+    ];
+    const lines = [
+      `Characters scanned: ${charNames.join(', ')}`,
+      `✓ Completed (${completed.length}): ${completed.map(x=>x.q.name+' → '+x.holders.join(', ')).join(' | ') || 'none'}`,
+      `⟳ In Progress (${inProgress.length}): ${inProgress.map(x=>`${x.q.name} (${x.ingFound.length}/${x.ingTotal} ingr.)`).join(' | ') || 'none'}`,
+      `✗ Not Started (${notStarted.length}): ${notStarted.map(q=>q.name).join(', ') || 'none'}`,
+    ];
+    return { status:'pass', asserts, output: lines.join('\n') };
+  }),
+  makeTest('No duplicate quest names in QUEST_DB', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const qdb = A2.QUEST_DB || [];
+    const seen = {}, dupes = [];
+    for (const q of qdb) {
+      if (seen[q.name]) dupes.push(q.name);
+      seen[q.name] = true;
+    }
+    const asserts = [ assert('No duplicate quest names', dupes.length === 0) ];
+    return { status: dupes.length?'fail':'pass', asserts, output: dupes.length ? 'Dupes: '+dupes.join(', ') : 'No duplicates' };
+  }),
+  makeTest('Ingredient names match inventory item names (spot check)', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const qdb = A2.QUEST_DB || [];
+    const itemDB = A2.itemDB || {};
+    if (!Object.keys(itemDB).length) return { status:'warn', msg:'Item DB not loaded', asserts:[] };
+    const missing = [];
+    for (const q of qdb) {
+      for (const ing of q.ingredients) {
+        if (!itemDB[ing]) missing.push(`${q.name} → "${ing}"`);
+      }
+    }
+    const asserts = [ assert('All ingredients found in itemDB', missing.length === 0) ];
+    return {
+      status: missing.length > 5 ? 'fail' : missing.length > 0 ? 'warn' : 'pass',
+      asserts,
+      output: missing.length ? `${missing.length} ingredients not in itemDB:\n${missing.slice(0,20).join('\n')}${missing.length>20?`\n…+${missing.length-20} more`:''}` : 'All ingredients matched'
+    };
+  }),
+];
+
+window.renderQuestMatrix = function() {
+  const el = document.getElementById('quest-matrix');
+  if (!el) return;
+  const A2 = gcGetApp();
+  if (!A2) { el.style.display='block'; el.innerHTML='<div style="color:var(--amber-l);font-family:var(--mono);font-size:.78rem;padding:.5rem">No opener — open via MixelParse</div>'; return; }
+  const qdb = A2.QUEST_DB || [];
+  const chars = A2.chars || {};
+  const charNames = Object.keys(chars);
+  if (!charNames.length || !qdb.length) { el.style.display='block'; el.innerHTML='<div style="color:var(--amber-l);padding:.5rem;font-size:.8rem">No characters or quests loaded.</div>'; return; }
+
+  const haveMap = {};
+  for (const cn of charNames) {
+    for (const item of (chars[cn]||[])) {
+      const n=(item.name||'').toLowerCase();
+      if(!haveMap[n])haveMap[n]=[];
+      if(!haveMap[n].includes(cn))haveMap[n].push(cn);
+    }
+  }
+
+  let html = `<div style="overflow-x:auto;border:1px solid var(--border);border-radius:4px;margin-top:.5rem">
+  <table style="width:100%;border-collapse:collapse;font-size:.75rem;font-family:var(--mono)">
+  <thead><tr style="background:var(--surface2);position:sticky;top:0">
+    <th style="text-align:left;padding:.4rem .6rem;border-bottom:1px solid var(--border);min-width:180px">Quest Item</th>
+    <th style="text-align:left;padding:.4rem .6rem;border-bottom:1px solid var(--border)">Quest</th>
+    ${charNames.map(cn=>`<th style="padding:.4rem .4rem;border-bottom:1px solid var(--border);white-space:nowrap">${cn}</th>`).join('')}
+    <th style="padding:.4rem .6rem;border-bottom:1px solid var(--border)">Ingredients</th>
+  </tr></thead><tbody>`;
+
+  for (const q of qdb) {
+    const holders = haveMap[q.name.toLowerCase()]||[];
+    const ingCoverage = q.ingredients.filter(i=>(haveMap[i.toLowerCase()]||[]).length>0).length;
+    const rowBg = holders.length ? 'rgba(26,90,26,.06)' : ingCoverage ? 'rgba(138,96,32,.06)' : '';
+    html += `<tr style="border-bottom:1px solid var(--border);background:${rowBg}">
+      <td style="padding:.35rem .6rem;font-weight:600">
+        <a href="${q.wiki}" target="_blank" style="color:var(--gold-l,#c8a84b);text-decoration:none">${q.name} ↗</a>
+      </td>
+      <td style="padding:.35rem .6rem;color:var(--text-dim,#888);white-space:nowrap">${q.quest}</td>
+      ${charNames.map(cn => {
+        const hasItem = (haveMap[q.name.toLowerCase()]||[]).includes(cn);
+        const hasIng = q.ingredients.some(i=>(haveMap[i.toLowerCase()]||[]).includes(cn));
+        const cell = hasItem ? '✓' : hasIng ? '⟳' : '—';
+        const col = hasItem ? 'var(--pass,#4caf7d)' : hasIng ? 'var(--amber-l,#f0c040)' : 'var(--text-dim,#555)';
+        const title = hasItem ? 'Has item' : hasIng ? 'Has ingredient(s)' : 'Nothing';
+        return `<td style="text-align:center;padding:.35rem .4rem;color:${col};font-weight:${hasItem||hasIng?'700':'400'}" title="${title}">${cell}</td>`;
+      }).join('')}
+      <td style="padding:.35rem .6rem;color:${ingCoverage===q.ingredients.length?'var(--pass,#4caf7d)':ingCoverage?'var(--amber-l,#f0c040)':'var(--text-dim,#555)'}">${ingCoverage}/${q.ingredients.length}</td>
+    </tr>`;
+  }
+  html += `</tbody></table></div>
+  <div style="font-size:.72rem;color:var(--text-dim);padding:.35rem .1rem">✓ = has item &nbsp;·&nbsp; ⟳ = has ingredient(s) &nbsp;·&nbsp; — = nothing</div>`;
+  el.style.display = 'block';
+  el.innerHTML = html;
+};
+
 // ── RUNNER ──
-const SUITE_IDS = ['parsing','itemdb','wikiparse','calcs','upgrades','weapondps','bridge','dkp','plat','consumes','factions','skyshrine','supabase','state','utils'];
+const SUITE_IDS = ['parsing','itemdb','wikiparse','calcs','upgrades','weapondps','bridge','dkp','plat','consumes','factions','skyshrine','quests','supabase','state','utils'];
 const SUITE_LABELS = {
   parsing:'Inventory Parser', itemdb:'Item DB / CSV', wikiparse:'Wiki Stat Parser',
   calcs:'HP / Mana Calcs', upgrades:'Upgrade Scoring', bridge:'Price Bridge',
   dkp:'DKP Pipeline', plat:'Plat / Pigparse', consumes:'Raid Consumes',
-  factions:'Factions', skyshrine:'Skyshrine Tracker', supabase:'Supabase / Auth',
-  state:'State Snapshot', utils:'Utilities'
+  factions:'Factions', skyshrine:'Skyshrine Tracker', quests:'Quest Items',
+  supabase:'Supabase / Auth', state:'State Snapshot', utils:'Utilities'
 };
 
 let allResults = {};
 
 // Suites that require window.opener (i.e. the live app)
-const REQUIRES_OPENER = new Set(['itemdb','calcs','upgrades','bridge','dkp','plat','consumes','factions','skyshrine','supabase','state','parsing']);
+const REQUIRES_OPENER = new Set(['itemdb','calcs','upgrades','bridge','dkp','plat','consumes','factions','skyshrine','quests','supabase','state','parsing']);
 
 async function runSuite(id) {
   const tests = SUITES[id];
