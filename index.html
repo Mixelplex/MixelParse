@@ -5084,7 +5084,7 @@ function renderQuestsPanel(){
   for(const sec of sections){
     if(!sec.quests.length)continue;
     anyShown=true;
-    html+='<div style="padding:.35rem 1rem;font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.1em;color:var(--text-muted);background:var(--surface2);border-bottom:1px solid var(--border);cursor:pointer;user-select:none" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">'
+    html+='<div style="padding:.35rem 1rem;font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.1em;color:var(--text-muted);background:var(--surface2);border-bottom:1px solid var(--border);cursor:pointer;user-select:none" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">'
       +'&#9660; '+sec.label.toUpperCase()+' ('+sec.quests.length+')</div>';
     html+='<div>';
     for(const q of sec.quests){
@@ -5113,9 +5113,11 @@ function renderQuestsPanel(){
       }
 
       // Checkbox — only shown when viewing a specific character
+      const qSafeChar=(name||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const qSafeName=q.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
       const cbHtml=(name&&name!=='__all__')
         ?'<label style="display:flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.72rem;color:var(--text-dim);white-space:nowrap;margin-top:.3rem">'
-          +'<input type="checkbox" '+(manDone?'checked':'')+' onchange="setQuestDone(''+name.replace(/'/g,"\'")+"','"+q.name.replace(/'/g,"\'")+'',this.checked);renderQuestsPanel()" style="accent-color:var(--gold-light)"> have item</label>'
+          +'<input type="checkbox" '+(manDone?'checked':'')+' onchange="setQuestDone(\''+qSafeChar+'\',\''+qSafeName+'\',this.checked);renderQuestsPanel()" style="accent-color:var(--gold-light)"> have item</label>'
         :'';
 
       html+='<div style="padding:.5rem 1rem;border-bottom:1px solid var(--border);display:flex;gap:1rem;align-items:flex-start'+(done?';opacity:.6':'')+'">'
