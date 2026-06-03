@@ -5049,6 +5049,7 @@ function renderQuestsPanel(){
   const searchQ=(document.getElementById('questSearch')?.value||'').toLowerCase();
   const filterMissing=document.getElementById('questFilterMissing')?.checked||false;
   const filterEra=document.getElementById('questFilterEra')?.value||'all';
+  const filterHaveItems=document.getElementById('questFilterHaveItems')?.value||'all';
 
   // Quest manually checked off — any char in the active set
   function isManualDone(questName){
@@ -5061,6 +5062,17 @@ function renderQuestsPanel(){
   const filtered=QUEST_DB.filter(q=>{
     if(filterEra!=='all'&&q.era!==filterEra)return false;
     if(filterMissing&&(isManualDone(q.name)||(haveMap[q.name.toLowerCase()]||[]).length>0))return false;
+    if(filterHaveItems==='have_reward'&&(haveMap[q.name.toLowerCase()]||[]).length===0&&!isManualDone(q.name))return false;
+    if(filterHaveItems==='have_any'){
+      const hasAnyIng=(q.ingredients||[]).some(ing=>(haveMap[ing.toLowerCase()]||[]).length>0);
+      const hasReward=(haveMap[q.name.toLowerCase()]||[]).length>0||isManualDone(q.name);
+      if(!hasAnyIng&&!hasReward)return false;
+    }
+    if(filterHaveItems==='have_none'){
+      const hasAnyIng=(q.ingredients||[]).some(ing=>(haveMap[ing.toLowerCase()]||[]).length>0);
+      const hasReward=(haveMap[q.name.toLowerCase()]||[]).length>0||isManualDone(q.name);
+      if(hasAnyIng||hasReward)return false;
+    }
     if(searchQ&&![q.name,q.quest,q.zone,q.note,...(q.ingredients||[])].some(s=>(s||'').toLowerCase().includes(searchQ)))return false;
     return true;
   });
@@ -5075,6 +5087,7 @@ function renderQuestsPanel(){
     +'<input id="questSearch" type="text" placeholder="Search '+QUEST_DB.length+' quests…" oninput="renderQuestsPanel()" style="flex:1;min-width:180px;padding:.3rem .6rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-size:.83rem">'
     +'<select id="questFilterEra" onchange="renderQuestsPanel()" style="padding:.3rem .5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-size:.8rem">'
     +'<option value="all">All Eras</option><option value="Velious">Velious</option><option value="Kunark">Kunark</option><option value="Classic">Classic</option></select>'
+    +'<select id="questFilterHaveItems" onchange="renderQuestsPanel()" style="padding:.3rem .5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-size:.8rem"><option value="all">All Quests</option><option value="have_reward">Have reward item</option><option value="have_any">Have any ingredient</option><option value="have_none">Have nothing yet</option></select>'
     +'<label style="font-size:.8rem;color:var(--text-dim);display:flex;align-items:center;gap:.35rem;cursor:pointer;white-space:nowrap">'
     +'<input type="checkbox" id="questFilterMissing" onchange="renderQuestsPanel()"> Hide completed</label>'
     +'<span style="font-size:.72rem;color:var(--text-muted)">'+filtered.length+' shown</span>'
@@ -5141,6 +5154,7 @@ function renderQuestsPanel(){
 
   // Restore filter state after re-render
   if(filterEra!=='all'){const el=document.getElementById('questFilterEra');if(el)el.value=filterEra;}
+  if(filterHaveItems!=='all'){const el=document.getElementById('questFilterHaveItems');if(el)el.value=filterHaveItems;}
   if(filterMissing){const el=document.getElementById('questFilterMissing');if(el)el.checked=true;}
   if(searchQ){const el=document.getElementById('questSearch');if(el)el.value=searchQ;}
 }
