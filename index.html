@@ -541,7 +541,6 @@
     <div class="subtab" data-sub="consumes">Raid Consumes</div>
     <div class="subtab" data-sub="factions">Factions</div>
     <div class="subtab" data-sub="skyshrine">Skyshrine</div>
-    <div class="subtab" data-sub="quests">Quests</div>
   </div>
 
   <div id="subInventory">
@@ -602,9 +601,6 @@
 
   <div id="subSkyshrine" style="display:none">
     <div class="rc-panel" id="skyshrinePanel"></div>
-  </div>
-  <div id="subQuests" style="display:none">
-    <div id="questsPanel"></div>
   </div>
 </div>
 
@@ -670,11 +666,9 @@ const CLASS_DMG_CAP={'Warrior':100,'Paladin':100,'Shadow Knight':100,'Monk':200,
 // Used to filter candidate weapons in PRIMARY/SECONDARY slots.
 const CLASS_WEAPON_SKILLS={
   // MNK: H2H, 1H Blunt, 2H Blunt only — no swords, axes, piercing
-  // CSV values: '1HB', 'H2H', '2HB'
-  'Monk':       ['hand to hand','1h blunt','2h blunt','h2h','1hb','2hb'],
+  'Monk':       ['hand to hand','1h blunt','2h blunt'],
   // ROG: 1H Slash/Blunt + Piercing — no 2H at all; OH must also be 1H only
-  // CSV values: '1HS', '1HB', 'PIE' or 'Piercing'
-  'Rogue':      ['1h slashing','1h blunt','piercing','1hs','1hb','pie'],
+  'Rogue':      ['1h slashing','1h blunt','piercing'],
 };
 
 // Per-class weapon DPS scale factors.
@@ -755,7 +749,7 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
 
   // H2H skill cap is slightly lower than 1HB, producing ~97.22% effective hit rate
   // relative to a 1HB weapon of equal ratio. Factor sourced from P1999 damage calculator.
-  const isH2H=itype.includes('hand to hand')||itype==='h2h';
+  const isH2H=itype.includes('hand to hand');
   const h2hFactor=isH2H?0.9722:1.0;
 
   // Damage bonus (MH only, fires every swing)
@@ -767,12 +761,6 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
     bonus=is2h?Math.floor(delay*37/44):Math.floor((lv-25)/3);
   }
 
-  // Dual-wield chance (OH only): (DW_skill + level) / 400
-  // DW skill at 60 = min((level+1)*7, 252) = 252 for Monks
-  // Result: (252 + 60) / 400 = 0.78
-  const dwSkill=Math.min((lv+1)*7,252);
-  const dwChance=(dwSkill+lv)/400;
-
   // Proc DPS — MH full rate, OH half rate
   const effect=itemData._effect||'';
   const effectType=itemData._effectType||'';
@@ -780,10 +768,10 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
   const procDmg=hasCombatProc?(PROC_DB[effect]||35):0;
   const dex=Math.min(255,baseTotals&&baseTotals.dex?baseTotals.dex:175);
   const ppm=(dex/170)+0.5;
-  const procDps=slot==='SECONDARY'?(ppm*0.5*dwChance*procDmg/60):(ppm*procDmg/60);
+  const procDps=slot==='SECONDARY'?(ppm*0.5*procDmg/60):(ppm*procDmg/60);
 
-  // Ratio: OH gets no damage bonus, scaled by DW chance; H2H weapons scaled by h2hFactor (~0.9722)
-  const ratio=slot==='SECONDARY'?((2*d)/delay)*h2hFactor*dwChance:(((2*d+bonus)/delay)*h2hFactor);
+  // Ratio: OH gets no damage bonus; H2H weapons scaled by h2hFactor (~0.9722)
+  const ratio=slot==='SECONDARY'?((2*d)/delay)*h2hFactor:(((2*d+bonus)/delay)*h2hFactor);
 
   // ── ROG backstab bonus (piercing PRIMARY only) ───────────────────────────────
   // Backstab formula: (Backstab_skill × weapon_dmg) / 50
@@ -999,10 +987,10 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     else{renderView();}
   });
 });
-document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();});});
+document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();});});
 function refresh(){buildTabs();renderView();saveState();}
 function renderOnly(){buildTabs();renderView();}
-function renderView(){const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderTovBar();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();}
+function renderView(){const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderTovBar();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();}
 
 // ─── Inventory Table ──────────────────────────────────────────────────────────
 function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.values(chars).flat():(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;return ms&&ml;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=source.reduce((s,i)=>s+i.count,0);const unique=new Set(source.map(i=>i.id)).size;const stacks=source.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span>':'');}
@@ -1145,6 +1133,7 @@ if(document.getElementById('clearCurrentBtn')){
     saveState();renderStatsPanel();
   });
 }
+// RETIRED: document.getElementById('fetchGearBtn').addEventListener('click',()=>fetchGearStats(name));
 document.getElementById('applyDBBtn').addEventListener('click',()=>{const matched=applyDBToChar(name);if(!charMeta[name])charMeta[name]={};charMeta[name].gearFetched=true;saveState();const status=document.getElementById('fetchStatus');status.textContent='✓ '+matched+' item'+(matched!==1?'s':'')+' matched from database';renderStatsPanel();});
 if(base){document.getElementById('statCardsContainer').innerHTML=buildStatCards(base,charGear,name,selClass,selLevel);}else{document.getElementById('statCardsContainer').innerHTML='<div class="empty-state">Enter your current in-game stats to get started.</div>';}
 }
@@ -1311,22 +1300,19 @@ function renderUpgradesPanel(){
   const SIG_KEYS=['ac','hpbonus','manabonus','str','sta','agi','dex','wis','int','cha','svmagic','svfire','svcold','svdisease','svpoison','haste','dmg','delay'];
   const sigMap={};  // slot -> Map<sig, index>
   for(const[itemName,data]of Object.entries(itemDB)){
-    const slotList=data._slots||[data._slot];
-    for(const slot of slotList){
-      if(!slot)continue;
-      if(!bySlot[slot]){bySlot[slot]=[];sigMap[slot]=new Map();}
-      const sig=SIG_KEYS.map(s=>data[s]||0).join(',');
-      const slotMap=sigMap[slot];
-      if(slotMap.has(sig)){
-        const idx=slotMap.get(sig);
-        const existing=bySlot[slot][idx];
-        const newPref=ERA_PREF.indexOf(data._era||'');
-        const exPref=ERA_PREF.indexOf(existing._era||'');
-        if(newPref>=0&&(exPref<0||newPref<exPref))bySlot[slot][idx]={name:itemName,...data};
-      } else {
-        slotMap.set(sig,bySlot[slot].length);
-        bySlot[slot].push({name:itemName,...data});
-      }
+    const slot=data._slot;if(!slot)continue;
+    if(!bySlot[slot]){bySlot[slot]=[];sigMap[slot]=new Map();}
+    const sig=SIG_KEYS.map(s=>data[s]||0).join(',');
+    const slotMap=sigMap[slot];
+    if(slotMap.has(sig)){
+      const idx=slotMap.get(sig);
+      const existing=bySlot[slot][idx];
+      const newPref=ERA_PREF.indexOf(data._era||'');
+      const exPref=ERA_PREF.indexOf(existing._era||'');
+      if(newPref>=0&&(exPref<0||newPref<exPref))bySlot[slot][idx]={name:itemName,...data};
+    } else {
+      slotMap.set(sig,bySlot[slot].length);
+      bySlot[slot].push({name:itemName,...data});
     }
   }
 
@@ -1334,7 +1320,6 @@ function renderUpgradesPanel(){
   const equippedLoreDBNames=new Set(equipped.filter(i=>(itemDBGet(i.name)||charGear[i.name]||{})._lore).map(i=>i.name));
 
   const slotResults=[];
-  const DW_CLASSES_OH=new Set(['Monk','Rogue','Warrior','Ranger','Bard']);
   // Pre-build per-slot equipped name sets — needed inside the loop to exclude same-slot items from candidates
   const equippedBySlot={};
   for(const item of equipped){const s=invSlotToDBSlot(item.location);(equippedBySlot[s]=equippedBySlot[s]||new Set()).add(item.name);}
@@ -1362,14 +1347,9 @@ function renderUpgradesPanel(){
     const wepSkillFilter=CLASS_WEAPON_SKILLS[charClass];
     function wepSkillOk(c){
       if(dbSlot!=='PRIMARY'&&dbSlot!=='SECONDARY')return true;
-      const cSlot=(c._slot||'').toUpperCase();
+      // Monks cannot equip shields in the SECONDARY slot
+      if(charClass==='Monk'&&dbSlot==='SECONDARY'&&(c._slot||'').toUpperCase()==='SHIELD')return false;
       const sk=(c._skill||c._itemType||'').toLowerCase();
-      const isShield=cSlot==='SHIELD'||sk==='shield'||(c.ac>0&&!c.dmg&&!c.delay);
-      // Monks and Rogues DW weapons only — OH must have dmg+delay (no stat sticks, no shields)
-      if((charClass==='Monk'||charClass==='Rogue')&&dbSlot==='SECONDARY'){
-        if(isShield)return false;
-        if(!c.dmg||!c.delay)return false;
-      }
       if(!sk||!c.dmg)return true;
       // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
       if(!window._upgTwoHander&&(sk.includes('2h')||sk.includes('two hand')))return false;
@@ -1377,12 +1357,8 @@ function renderUpgradesPanel(){
       return wepSkillFilter.some(s=>sk.includes(s));
     }
     const slotEquippedNames=equippedBySlot[dbSlot]||new Set();
-    const ohExtra=(dbSlot==="SECONDARY"&&DW_CLASSES_OH.has(charClass)&&!CLASS_NO_DW.has(charClass))
-      ?(bySlot["PRIMARY"]||[]).filter(c=>{const sk2=(c._skill||c._itemType||"").toLowerCase();return !sk2.includes("2h")&&!sk2.includes("two")&&c.dmg&&c.delay;})
-      :[];
-    const candidatePool=[...(bySlot[dbSlot]||[]),...ohExtra.filter(c=>!(bySlot[dbSlot]||[]).some(x=>x.name===c.name))];
-    const candidates=candidatePool
-      .filter(c=>!slotEquippedNames.has(c.name)&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||"")&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith("Custom "))
+    const candidates=(bySlot[dbSlot]||[])
+      .filter(c=>!slotEquippedNames.has(c.name)&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
       .sort((a,b)=>b._effGain-a._effGain);
     slotResults.push({item,dbSlot,currentData,candidates});
@@ -1400,25 +1376,18 @@ function renderUpgradesPanel(){
       const emptyWepSkill=CLASS_WEAPON_SKILLS[charClass];
       function emptyWepOk(c){
         if(slot!=='PRIMARY'&&slot!=='SECONDARY')return true;
-        const cSlot=(c._slot||'').toUpperCase();
+        // Monks cannot equip shields in the SECONDARY slot
+        if(charClass==='Monk'&&slot==='SECONDARY'&&(c._slot||'').toUpperCase()==='SHIELD')return false;
         const sk=(c._skill||c._itemType||'').toLowerCase();
-        const isShield=cSlot==='SHIELD'||sk==='shield'||(c.ac>0&&!c.dmg&&!c.delay);
-        if((charClass==='Monk'||charClass==='Rogue')&&slot==='SECONDARY'){
-          if(isShield)return false;
-          if(!c.dmg||!c.delay)return false;
-        }
         if(!sk||!c.dmg)return true;
+        // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
         if(!window._upgTwoHander&&(sk.includes('2h')||sk.includes('two hand')))return false;
         if(!emptyWepSkill)return true;
         return emptyWepSkill.some(s=>sk.includes(s));
       }
       const slotAlreadyEquipped=equippedBySlot[slot]||new Set();
-      const ohExtraEmpty=(slot==="SECONDARY"&&DW_CLASSES_OH.has(charClass)&&!CLASS_NO_DW.has(charClass))
-        ?(bySlot["PRIMARY"]||[]).filter(c=>{const sk2=(c._skill||c._itemType||"").toLowerCase();return !sk2.includes("2h")&&!sk2.includes("two")&&c.dmg&&c.delay;})
-        :[];
-      const emptyPool=[...(bySlot[slot]||[]),...ohExtraEmpty.filter(c=>!(bySlot[slot]||[]).some(x=>x.name===c.name))];
-      const candidates=emptyPool
-        .filter(c=>!slotAlreadyEquipped.has(c.name)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||"")&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith("Custom "))
+      const candidates=(bySlot[slot]||[])
+        .filter(c=>!slotAlreadyEquipped.has(c.name)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
         .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)}))
         .sort((a,b)=>b._effGain-a._effGain);
       if(!candidates.length)continue;
@@ -1496,44 +1465,6 @@ function renderUpgradesPanel(){
     } else {
       if(fft>0)html+=`<span class="upg-stat-cur">FT${fft} (+${fft} mana/tick)</span>`;
     }
-    // ── Proc info (weapon slots) ──────────────────────────────────────────────
-    function _procInfo(data, slotHint){
-      const eff=data._effect||'';
-      const et=(data._effectType||'').toLowerCase();
-      if(!eff||!et.includes('combat'))return null;
-      const dmg=PROC_DB[eff]!=null?PROC_DB[eff]:35;
-      const dex=Math.min(255,baselineTotals&&baselineTotals.dex?baselineTotals.dex:175);
-      const ppm=(dex/170)+0.5;
-      const lv=charLevel||60;
-      const dwSkill=Math.min((lv+1)*7,252);
-      const dwChance=(dwSkill+lv)/400;
-      const isOH=(slotHint||'').toUpperCase()==='SECONDARY';
-      const dps=isOH?Math.round(ppm*0.5*dwChance*dmg/60*100)/10:Math.round(ppm*dmg/60*100)/10;
-      return {name:eff,dmg,dps,isUtility:dmg===0};
-    }
-    const isFromWeapon=!!(fromData.dmg||fromData.delay||fromData._skill);
-    const isToWeapon=!!(toData.dmg||toData.delay||toData._skill);
-    const fromSlot=(fromData._slot||'').toUpperCase();
-    const toSlot=(toData._slot||'').toUpperCase();
-    if((isFromWeapon||isToWeapon)){
-      const fp=_procInfo(fromData,fromSlot);
-      const tp=_procInfo(toData,toSlot);
-      if(showDelta==='combined'){
-        if(tp&&!fp){
-          html+=tp.isUtility?`<span class="upg-stat-pos">Proc: ${tp.name}</span>`:`<span class="upg-stat-pos">Proc: ${tp.name} (~${tp.dps} dps)</span>`;
-        } else if(fp&&!tp){
-          html+=fp.isUtility?`<span class="upg-stat-neg">Proc lost: ${fp.name}</span>`:`<span class="upg-stat-neg">Proc lost: ${fp.name} (~${fp.dps} dps)</span>`;
-        } else if(tp&&fp){
-          if(tp.name===fp.name){
-            html+=tp.isUtility?`<span class="upg-stat-cur">Proc: ${tp.name}</span>`:`<span class="upg-stat-cur">Proc: ${tp.name} (~${tp.dps} dps)</span>`;
-          } else {
-            html+=tp.isUtility?`<span class="upg-stat-pos">Proc: ${tp.name} (replaces ${fp.name})</span>`:`<span class="upg-stat-pos">Proc: ${tp.name} (~${tp.dps} dps, replaces ${fp.name})</span>`;
-          }
-        }
-      } else if(!showDelta&&fp){
-        html+=fp.isUtility?`<span class="upg-stat-cur">Proc: ${fp.name}</span>`:`<span class="upg-stat-cur">Proc: ${fp.name} (~${fp.dps} dps)</span>`;
-      }
-    }
     return html||`<span class="upg-stat-cur" style="font-style:italic">No stats</span>`;
   }
 
@@ -1585,15 +1516,7 @@ function renderUpgradesPanel(){
     const hasBest=best&&best._effGain>0;
     const sc=hasBest?scoreClass(best._effGain):'upg-score-lo';
     const scoreStr=hasBest?(best._effGain>=0?'+':'')+best._effGain+' pts':'—';
-    const isWepSlot=dbSlot==='PRIMARY'||dbSlot==='SECONDARY'||dbSlot==='TWOHANDER';
-    const opts=candidates.length?`<option value="">— Select —</option>`+candidates.map((c,i)=>{
-      let label=esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
-      if(isWepSlot&&(c.dmg||c.delay)){
-        const dps=weaponDpsScore(c,dbSlot,charClass,charLevel,baselineTotals);
-        if(dps>0)label+=` [${Math.round(dps*100)/10} dps]`;
-      }
-      return `<option value="${i}">${label}</option>`;
-    }).join(''):'';
+    const opts=candidates.length?`<option value="">— Select —</option>`+candidates.map((c,i)=>`<option value="${i}">${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join(''):'';
     const cost=hasBest?[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' \u00b7 '):'';
     cardsHtml+=`<div class="upg-slot-card${isWepDisabled?' upg-wep-disabled':''}">
       <div class="upg-slot-head">
@@ -1603,8 +1526,7 @@ function renderUpgradesPanel(){
       <div class="upg-panes">
         <div class="upg-pane">
           <div class="upg-pane-label">Equipped</div>
-          <div class="upg-pane-name">${itemLink(item.name)}</div>
-          ${(isWepSlot&&(currentData.dmg||currentData.delay))?(()=>{const d=weaponDpsScore(currentData,dbSlot,charClass,charLevel,baselineTotals);return d>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0">${Math.round(d*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)">dps</span></div>`:'';})():''}
+          <div class="upg-pane-name">${esc(item.name)}</div>
           <div class="upg-pane-stats">${paneStats(currentData,currentData,false)}</div>
           ${currentData._from?`<div class="upg-pane-from">${esc(currentData._from)}</div>`:''}
         </div>
@@ -1752,7 +1674,6 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
   if(!cand)return;
   const meta=charMeta[activeTab]||{};
   const charClass=meta.class||'';
-  const charLevel=meta.level||60;
   const base=meta.baseStats||null;
   const charGear=gearStats[activeTab]||{};
   const equipped=getEquippedItems(activeTab);
@@ -1763,13 +1684,9 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
   const paneStats=window._upgPaneStats||(()=>'');
   const statsHtml=paneStats(currentData,cand,'combined');
   const cost=[cand.plat?`${cand.plat}k pp`:'',cand.dkp?`${cand.dkp} DKP`:''].filter(Boolean).join(' · ');
-  const isWepSlotU2=sr.dbSlot==='PRIMARY'||sr.dbSlot==='SECONDARY'||sr.dbSlot==='TWOHANDER';
-  const candDpsVal=(isWepSlotU2&&(cand.dmg||cand.delay))?weaponDpsScore(cand,sr.dbSlot,charClass,charLevel,t):0;
-  const candDpsHtml=candDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0">${Math.round(candDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)">dps</span></div>`:'';
   upgPaneEl.innerHTML=`
     <div class="upg-pane-label">Best upgrade</div>
     <div class="upg-pane-name upg-pane-upgrade">${itemLink(cand.name)}</div>
-    ${candDpsHtml}
     <div class="upg-pane-stats">${statsHtml||'<span class="upg-stat-cur">No stat changes</span>'}</div>
     ${(cand._mob||cand._from)?`<div class="upg-pane-from">${cand._mob?esc(cand._mob)+' · ':''} ${esc(cand._zone||cand._from||'')}</div>`:''}
     ${cost?`<div class="upg-pane-cost">${esc(cost)}</div>`:''}`;
@@ -1782,15 +1699,7 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
     else{scoreEl.style.cssText='';}
   }
   if(altRowEl){
-    const isWepSlotU=sr.dbSlot==='PRIMARY'||sr.dbSlot==='SECONDARY'||sr.dbSlot==='TWOHANDER';
-    const opts=`<option value="">— Select —</option>`+sr.candidates.map((c,i)=>{
-      let label=esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
-      if(isWepSlotU&&(c.dmg||c.delay)){
-        const dps=weaponDpsScore(c,sr.dbSlot,charClass,charLevel,baselineTotals);
-        if(dps>0)label+=` [${Math.round(dps*100)/10} dps]`;
-      }
-      return `<option value="${i}"${i===selIdx?' selected':''}>${label}</option>`;
-    }).join('');
+    const opts=`<option value="">— Select —</option>`+sr.candidates.map((c,i)=>`<option value="${i}"${i===selIdx?' selected':''}>${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join('');
     altRowEl.innerHTML=`<span class="upg-alt-label">Compare</span>
       <select class="upg-alt-select" data-slot="${dbSlot}" data-cardid="${cardId}" onchange="upgSwapAlt('${dbSlot}',this.value,this)">${opts}</select>`;
   }
@@ -1835,9 +1744,7 @@ window.upgRefreshStatSheet=function(){
       // In 1H mode: skip the 2H card if it somehow exists
       if(!is2hModeSheet&&sr.is2hCard)continue;
       const selEl=document.querySelector(`.upg-alt-select[data-cardid="${sr.cardId||sr.dbSlot}"]`);
-      const selVal=selEl?selEl.value:'';
-      if(selVal==='')continue;
-      const idx=parseInt(selVal);
+      const idx=selEl?parseInt(selEl.value):NaN;
       if(isNaN(idx))continue;
       const cand=sr.candidates[idx];
       if(!cand)continue;
@@ -2000,11 +1907,10 @@ function parseItemDB(csvText,filename){
     const name=cols[colMap._nameCol];
     const rawSlot=(cols[colMap._slotCol]||'').trim().toUpperCase();
     if(!name||name==='STAT WEIGHTS:'||name==='Name')continue;
-    // Normalize slot: FINGER→FINGERS, handle space-separated multi-slot values
+    // Normalize slot: FINGER→FINGERS, take first token of multi-slot, fall back to NONE
     const SLOT_ALIAS={'FINGER':'FINGERS'};
-    const allSlotTokens=rawSlot.split(/\s+/).map(t=>SLOT_ALIAS[t]||(validSlots.has(t)?t:null)).filter(Boolean);
-    const normSlot=allSlotTokens[0]||'NONE';
-    stats._slots=allSlotTokens.length>1?allSlotTokens:null; // store multi-slot for bySlot bucketing
+    const firstToken=rawSlot.split(/\s+/)[0]||'';
+    const normSlot=SLOT_ALIAS[firstToken]||(validSlots.has(firstToken)?firstToken:(validSlots.has(rawSlot)?rawSlot:'NONE'));
 
     const stats={};
     for(const[key,idx]of Object.entries(colMap)){
@@ -2095,6 +2001,295 @@ document.getElementById('dbFileInput').addEventListener('change',e=>{const files
 document.getElementById('clearDBBtn').addEventListener('click',()=>{confirmAction('Clear the entire item database?',async()=>{itemDB={};itemDBSources=[];updateItemDbModal();if(activeSub==='stats')renderStatsPanel();if(currentUser){try{await sb.from('item_db').delete().neq('item_name','__never__');console.log('[ItemDB] Cleared from Supabase');}catch(e){console.warn('[ItemDB] Clear error',e);}}});});
 
 // ─── Fetch Gear Stats ─────────────────────────────────────────────────────────
+
+/* ============================================================
+   RETIRED — Wiki Fallback System
+   Replaced by full CSV item database (11k+ items).
+   Kept for potential future use — do not delete.
+   To restore: uncomment this block and re-enable the
+   Wiki Fallback button click handler in renderStatsPanel.
+   ============================================================
+
+const RETIRED_CORS_PROXIES=['https://corsproxy.io/?','https://api.allorigins.win/raw?url='];
+async function RETIRED_fetchWithProxy(url){for(const proxy of CORS_PROXIES){try{const res=await fetch(proxy+encodeURIComponent(url),{signal:AbortSignal.timeout(8000)});if(res.ok)return await res.text();}catch(e){}}throw new Error('All proxies failed');}
+async function RETIRED_fetchGearStats(charName){const equipped=getEquippedItems(charName);if(!equipped.length)return;const btn=document.getElementById('fetchGearBtn');const status=document.getElementById('fetchStatus');const progressWrap=document.getElementById('fetchProgress');const progressBar=document.getElementById('fetchProgressBar');btn.disabled=true;progressWrap.style.display='block';if(!gearStats[charName])gearStats[charName]={};let fromDB=0,fromWiki=0,failed=0;for(let i=0;i<equipped.length;i++){const item=equipped[i];progressBar.style.width=Math.round((i/equipped.length)*100)+'%';if(itemDB[item.name]){gearStats[charName][item.name]=itemDB[item.name];fromDB++;status.textContent=`${i+1}/${equipped.length}: ${item.name} &#10003; (DB)`;continue;}status.textContent=`${i+1}/${equipped.length}: ${item.name} &mdash; wiki...`;try{const html=await RETIRED_fetchWithProxy(wikiUrl(item.name));gearStats[charName][item.name]=parseWikiStats(html);fromWiki++;}catch(e){gearStats[charName][item.name]={};failed++;}}progressBar.style.width='100%';status.textContent=`Done! ${fromDB} from DB, ${fromWiki} from wiki${failed?`, ${failed} not found`:''}`;if(!charMeta[charName])charMeta[charName]={};charMeta[charName].gearFetched=true;saveState();setTimeout(()=>{progressWrap.style.display='none';renderStatsPanel();},800);}
+function RETIRED_parseWikiStats(html){const stats={};const plain=html.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/\s+/g,' ');const patterns=[[/\bAC[:\s]+(\d+)/i,'ac'],[/\bHP[:\s]+\+?(\d+)/i,'hpbonus'],[/\bMana[:\s]+\+?(\d+)/i,'manabonus'],[/\bSTR[:\s]+\+?(\d+)/i,'str'],[/\bSTA[:\s]+\+?(\d+)/i,'sta'],[/\bDEX[:\s]+\+?(\d+)/i,'dex'],[/\bAGI[:\s]+\+?(\d+)/i,'agi'],[/\bWIS[:\s]+\+?(\d+)/i,'wis'],[/\bINT[:\s]+\+?(\d+)/i,'int'],[/\bCHA[:\s]+\+?(\d+)/i,'cha'],[/SV\s*POISON[:\s]+\+?(\d+)/i,'svpoison'],[/SV\s*MAGIC[:\s]+\+?(\d+)/i,'svmagic'],[/SV\s*DISEASE[:\s]+\+?(\d+)/i,'svdisease'],[/SV\s*FIRE[:\s]+\+?(\d+)/i,'svfire'],[/SV\s*COLD[:\s]+\+?(\d+)/i,'svcold']];for(const[re,key]of patterns){const m=plain.match(re);if(m)stats[key]=parseInt(m[1]);}return stats;}
+*/
+
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function wikiUrl(n){return 'https://wiki.project1999.com/'+encodeURIComponent(n.trim().replace(/ /g,'_'));}
+function itemLink(n){return `<a href="${wikiUrl(n)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold-dim)">${esc(n)}</a>`;}
+
+// ─── Sort ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('th[data-col]').forEach(th=>{th.addEventListener('click',()=>{const col=th.dataset.col;if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=1;}document.querySelectorAll('th').forEach(t=>t.classList.remove('sorted'));th.classList.add('sorted');th.querySelector('.sort-arrow').textContent=sortDir===1?' &#8593;':' &#8595;';renderTable();});});
+document.getElementById('searchBox').addEventListener('input',renderTable);
+document.getElementById('locationFilter').addEventListener('change',renderTable);
+
+// ─── File Loading ─────────────────────────────────────────────────────────────
+function loadFiles(files){const arr=[...files];if(!arr.length)return;let loaded=0,lastName=null;arr.forEach(file=>{const reader=new FileReader();reader.onload=e=>{const cn=extractCharName(file.name);chars[cn]=parseInventory(e.target.result,cn);if(!charMeta[cn])charMeta[cn]={};lastName=cn;if(++loaded===arr.length){activeTab=arr.length>1&&Object.keys(chars).length>1?'__all__':lastName;refresh();}};reader.readAsText(file);});}
+
+document.getElementById('fileInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
+document.getElementById('charRefreshInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const cn=extractCharName(file.name);chars[cn]=parseInventory(ev.target.result,cn);if(!charMeta[cn])charMeta[cn]={};if(activeTab!==cn)activeTab=cn;refresh();};reader.readAsText(file);e.target.value='';});
+document.getElementById('dkpCsvInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const {lookup,txCount}=parseDkpCsv(ev.target.result);dkpLookup=lookup;dkpMeta={updatedAt:new Date().toISOString(),txCount};dkpCacheKey='';saveDkpToSupabase();renderDkpPanel();applyDkpToItemDB();};reader.readAsText(file);e.target.value='';});
+document.getElementById('dzInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
+document.getElementById('tabAdd').addEventListener('click',()=>document.getElementById('fileInput').click());
+const dz=document.getElementById('dropzone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');loadFiles(e.dataTransfer.files);});
+
+// ─── Clear All ────────────────────────────────────────────────────────────────
+document.getElementById('clearAllBtn').addEventListener('click',()=>{document.getElementById('searchBox').value='';document.getElementById('locationFilter').value='';refresh();});
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
+let _confirmCb=null;
+function confirmAction(msg,cb){document.getElementById('modalMsg').textContent=msg;_confirmCb=cb;document.getElementById('modalOverlay').classList.add('open');}
+document.getElementById('modalCancel').addEventListener('click',()=>{document.getElementById('modalOverlay').classList.remove('open');_confirmCb=null;});
+document.getElementById('modalConfirm').addEventListener('click',()=>{document.getElementById('modalOverlay').classList.remove('open');if(_confirmCb){_confirmCb();_confirmCb=null;}});
+document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('modalOverlay')){document.getElementById('modalOverlay').classList.remove('open');_confirmCb=null;}});
+
+// ─── Persist ──────────────────────────────────────────────────────────────────
+// ─── Supabase ─────────────────────────────────────────────────────────────────
+const SUPABASE_URL='https://sonenrhxvmheslwufhqf.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvbmVucmh4dm1oZXNsd3VmaHFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.UEHihq6mga4hqtQ9bd2Ao9AIsR1CghqKO6WjO9ZoonU';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser=null;
+let syncTimeout=null;
+
+// ─── Auth ──────────────────────────────────────────────────────────────────────
+async function initAuth(){
+  const ce=localStorage.getItem('mp_ce'),cp=localStorage.getItem('mp_cp');
+  if(ce&&cp){
+    const{data,error}=await sb.auth.signInWithPassword({email:ce,password:cp});
+    if(!error&&data.session){await onSignedIn(data.session.user);return;}
+    else{localStorage.removeItem('mp_ce');localStorage.removeItem('mp_cp');}
+  }
+  const{data:{session}}=await sb.auth.getSession();
+  if(session)await onSignedIn(session.user);
+  else showAuthScreen();
+  sb.auth.onAuthStateChange(async(event,session)=>{
+    if(event==='SIGNED_IN'&&session)await onSignedIn(session.user);
+    if(event==='SIGNED_OUT')onSignedOut();
+  });
+}
+
+function showAuthScreen(){
+  document.getElementById('authScreen').style.display='flex';
+  document.getElementById('loginBox').style.display='block';
+  document.getElementById('registerBox').style.display='none';
+  document.getElementById('loginMsg').textContent='';
+  const ce=localStorage.getItem('mp_ce');
+  if(ce)document.getElementById('loginEmail').value=ce;
+}
+
+async function onSignedIn(user){
+  currentUser=user;
+  document.getElementById('authScreen').style.display='none';
+  document.getElementById('userBar').style.display='flex';
+  document.getElementById('userEmail').textContent=user.email;
+  document.getElementById('topNav').style.display='flex';
+  await loadFromSupabase();
+  // DKP and kills now loaded inside loadFromSupabase before first render
+}
+
+function onSignedOut(){
+  currentUser=null;
+  chars={};charMeta={};gearStats={};watchList=[];factionData={};skyshrineData={};dkpLookup={};dkpMeta={};platData=[];platMeta={};platCachedRows=[];platCacheKey='';platTypeFilter='all';raidSessions=[];activeSession=null;sessionsView='new';activeTab=null;
+  document.getElementById('userBar').style.display='none';
+  document.getElementById('topNav').style.display='none';
+  document.getElementById('dkpView').style.display='none';
+  document.getElementById('platView').style.display='none';
+  document.getElementById('killsView').style.display='none';
+  showAuthScreen();
+  refresh();
+}
+
+// Sign in
+document.getElementById('loginBtn').addEventListener('click',async()=>{
+  const email=document.getElementById('loginEmail').value.trim();
+  const password=document.getElementById('loginPassword').value;
+  const msg=document.getElementById('loginMsg');
+  const btn=document.getElementById('loginBtn');
+  if(!email||!password){msg.className='auth-msg err';msg.textContent='Please enter email and password.';return;}
+  btn.disabled=true;msg.className='auth-msg';msg.textContent='Signing in…';
+  const{error}=await sb.auth.signInWithPassword({email,password});
+  if(error){msg.className='auth-msg err';msg.textContent='Invalid email or password.';}
+  else{localStorage.setItem('mp_ce',email);localStorage.setItem('mp_cp',password);}
+  btn.disabled=false;
+});
+
+// Register
+document.getElementById('registerBtn').addEventListener('click',async()=>{
+  const email=document.getElementById('regEmail').value.trim();
+  const password=document.getElementById('regPassword').value;
+  const msg=document.getElementById('registerMsg');
+  const btn=document.getElementById('registerBtn');
+  if(!email||!password){msg.className='auth-msg err';msg.textContent='Email and password required.';return;}
+  if(password.length<6){msg.className='auth-msg err';msg.textContent='Password must be at least 6 characters.';return;}
+  btn.disabled=true;msg.className='auth-msg';msg.textContent='Creating account…';
+  const{data,error}=await sb.auth.signUp({email,password});
+  if(error){msg.className='auth-msg err';msg.textContent=error.message;btn.disabled=false;return;}
+  localStorage.setItem('mp_ce',email);localStorage.setItem('mp_cp',password);
+  msg.className='auth-msg ok';msg.textContent='Account created! Signing in…';
+  await sb.auth.signInWithPassword({email,password});
+  btn.disabled=false;
+});
+
+// Navigation
+document.getElementById('showRegister').addEventListener('click',()=>{
+  document.getElementById('loginBox').style.display='none';
+  document.getElementById('registerBox').style.display='block';
+  document.getElementById('registerMsg').textContent='';
+});
+document.getElementById('showLogin').addEventListener('click',()=>{
+  document.getElementById('loginBox').style.display='block';
+  document.getElementById('registerBox').style.display='none';
+  document.getElementById('loginMsg').textContent='';
+});
+
+document.getElementById('loginEmail').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPassword').focus();});
+document.getElementById('loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginBtn').click();});
+document.getElementById('regEmail').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('regPassword').focus();});
+document.getElementById('regPassword').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('registerBtn').click();});
+
+document.getElementById('signOutBtn').addEventListener('click',async()=>{
+  await sb.auth.signOut();
+  localStorage.removeItem('mp_ce');
+  localStorage.removeItem('mp_cp');
+  onSignedOut();
+});
+
+// ─── Supabase Data Sync ────────────────────────────────────────────────────────
+async function loadFromSupabase(){
+  if(!currentUser)return;
+  try{
+    // Load characters
+    const{data:charRows}=await sb.from('characters').select('*').eq('user_id',currentUser.id);
+    if(charRows&&charRows.length){
+      chars={};charMeta={};gearStats={};factionData={};skyshrineData={};
+      for(const row of charRows){
+        chars[row.char_name]=row.inventory||[];
+        if(row.base_stats?.factions)factionData[row.char_name]=row.base_stats.factions;
+        if(row.base_stats?.skyshrine)skyshrineData[row.char_name]=row.base_stats.skyshrine;
+        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,...bs}=row.base_stats||{};
+        const hasRealStats=bs.stats||bs.resists;
+        charMeta[row.char_name]={
+          class:row.class||'',race:row.race||'',level:row.level||1,
+          baseStats:hasRealStats?bs:null,
+          nakedStats:row.base_stats?.nakedStats||null,
+          currentStats:row.base_stats?.currentStats||null,
+          gearFetched:!!row.gear_stats,
+          gearPlans:row.base_stats?.gearPlans||[]
+        };
+        if(row.gear_stats)gearStats[row.char_name]=row.gear_stats;
+      }
+      activeTab=Object.keys(chars).length>1?'__all__':Object.keys(chars)[0]||null;
+    }
+    // Load watch list
+    const{data:wlRow}=await sb.from('watch_list').select('items').eq('user_id',currentUser.id).single();
+    if(wlRow)watchList=wlRow.items||[];
+  }catch(e){console.warn('Load error',e);}
+
+  // Load kills and DKP before first render so history/DKP tabs aren't blank
+  await loadKillsFromSupabase();
+  await loadDkpFromSupabase();
+  applyDkpToItemDB();
+  applyPlatToItemDB();
+
+  // Render immediately — use renderOnly() not refresh() to avoid triggering saveState
+  // which would overwrite Supabase with partial in-memory state
+  renderOnly();
+  updateItemDbModal();
+
+  // Load item DB in background — re-render when done (no saveState — avoid race with fresh data)
+  try{
+    if(Object.keys(BAKED_ITEM_DB).length===0){
+      await loadItemDBFromSupabase();
+    }
+    // Backfill _ft for items loaded from Supabase before FT parsing was added
+    {const _ftr={'I':1,'II':2,'III':3,'IV':4,'V':5,'VI':6};for(const item of Object.values(itemDB)){if(!item._ft&&item._effect){const m=(item._effect||'').match(/Flowing\s+Thought\s+(I{1,3}|IV|V|VI)/i);if(m)item._ft=_ftr[m[1].toUpperCase()]||0;}}}
+    charNames().forEach(cn=>applyDBToChar(cn));
+    renderView(); // re-render only, no saveState
+    updateItemDbModal();
+  }catch(e){console.warn('Item DB background load error',e);}
+}
+
+function scheduleSave(){
+  clearTimeout(syncTimeout);
+  syncTimeout=setTimeout(saveToSupabase,1200);
+}
+
+async function saveToSupabase(){
+  if(!currentUser)return;
+  try{
+    // Upsert all characters
+    const rows=charNames().map(cn=>({
+      user_id:currentUser.id,
+      char_name:cn,
+      class:charMeta[cn]?.class||null,
+      race:charMeta[cn]?.race||null,
+      level:charMeta[cn]?.level||1,
+      base_stats:charMeta[cn]?.baseStats?{...charMeta[cn].baseStats,factions:factionData[cn]||{},nakedStats:charMeta[cn].nakedStats||null,currentStats:charMeta[cn].currentStats||null,skyshrine:skyshrineData[cn]||{},gearPlans:charMeta[cn].gearPlans||[]}:{factions:factionData[cn]||{},nakedStats:charMeta[cn]?.nakedStats||null,currentStats:charMeta[cn]?.currentStats||null,skyshrine:skyshrineData[cn]||{},gearPlans:charMeta[cn]?.gearPlans||[]},
+      gear_stats:gearStats[cn]||null,
+      inventory:chars[cn]||[],
+      updated_at:new Date().toISOString()
+    }));
+    if(rows.length)await sb.from('characters').upsert(rows,{onConflict:'user_id,char_name'});
+    // Upsert watch list
+    await sb.from('watch_list').upsert({user_id:currentUser.id,items:watchList,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+  }catch(e){console.warn('Save error',e);}
+}
+
+async function saveItemDBToSupabase(){
+  if(!currentUser)return;
+  const entries=Object.entries(itemDB);
+  if(!entries.length)return;
+  try{
+    const rows=entries.map(([item_name,data])=>({item_name,data,updated_at:new Date().toISOString()}));
+    for(let i=0;i<rows.length;i+=500){
+      await sb.from('item_db').upsert(rows.slice(i,i+500),{onConflict:'item_name'});
+    }
+    console.log(`Saved ${rows.length} items to Supabase`);
+  }catch(e){console.warn('Item DB save error',e);}
+}
+
+async function loadItemDBFromSupabase(){
+  if(!currentUser)return false;
+  try{
+    let allRows=[], from=0, pageSize=1000;
+    while(true){
+      const{data,error}=await sb.from('item_db').select('item_name,data').range(from,from+pageSize-1);
+      if(error||!data||!data.length)break;
+      allRows=allRows.concat(data);
+      if(data.length<pageSize)break;
+      from+=pageSize;
+    }
+    if(allRows.length){
+      for(const row of allRows)itemDB[row.item_name]=row.data;
+      itemDBSources=['supabase ('+allRows.length+' items)'];
+      console.log(`Loaded ${allRows.length} items from Supabase`);
+      _rebuildItemDBIndex();
+      charNames().forEach(cn=>applyDBToChar(cn));
+      return true;
+    }
+  }catch(e){console.warn('Item DB load error',e);}
+  return false;
+}
+
+// ─── Replace localStorage state functions ─────────────────────────────────────
+function saveState(){scheduleSave();}
+function loadState(){return false;} // handled by loadFromSupabase
+function saveWatchList(){scheduleSave();}
+function loadWatchList(){} // handled by loadFromSupabase
+function saveItemDB(){saveItemDBToSupabase();}
+function loadItemDB(){
+  if(Object.keys(BAKED_ITEM_DB).length>0){
+    itemDB=Object.assign({},BAKED_ITEM_DB);
+    itemDBSources=['baked'];
+  }
+}
 
 
 // ─── Factions ─────────────────────────────────────────────────────────────────
@@ -2554,7 +2749,7 @@ window.raceFromFilename = function(fn){
   for(const[k,v]of Object.entries(FILE_RACE_MAP)){if(low.includes(k))return v;}
   return null;
 };
-
+// RETIRED: // RETIRED: window.parseWikiStats = RETIRED_parseWikiStats;
 window.calcHP           = calcHP;
 window.calcMana         = calcMana;
 window.staRatio         = staRatio;
@@ -2612,6 +2807,7 @@ window.NO_CAP            = new Set(['hpbonus','manabonus']);
 window.saveState        = saveState;
 window.saveItemDB       = saveItemDB;
 window.loadItemDB       = loadItemDB;
+// RETIRED: // RETIRED: window.fetchWithProxy = RETIRED_fetchWithProxy;
 window.saveItemDBToSupabase = saveItemDBToSupabase;
 // Core data — exposed so admin.html can read via window.opener
 Object.defineProperty(window,'itemDB',{get:()=>itemDB,set:v=>{itemDB=v;}});
@@ -2621,6 +2817,7 @@ Object.defineProperty(window,'charMeta',{get:()=>charMeta});
 Object.defineProperty(window,'gearStats',{get:()=>gearStats});
 window.saveDkpToSupabase= saveDkpToSupabase;
 window.loadDkpFromSupabase = loadDkpFromSupabase;
+
 
 
 function renderBridgePanel(){
@@ -2767,6 +2964,7 @@ function renderBridgePanel(){
       </div>
     </div>`;
 }
+
 
 
 // dkpLookup[itemName] = [high, low, avg, count, [[char,dkp,date],...]]
@@ -3700,7 +3898,6 @@ function renderKillsPanel(){
         <input type="text" id="ktSearch" class="kt-date-input" placeholder="Search bosses…" style="flex:1;min-width:180px" oninput="ktFilterBosses(this.value)">
         <div class="kt-dkp-badge" id="ktBadge">${total} DKP &nbsp;·&nbsp; ${killCount} kill${killCount!==1?'s':''}${failtickCount>0?` · ${failtickCount} failtick${failtickCount!==1?'s':''}`:''}</div>
         <button class="kt-save-btn" onclick="ktSaveSession()">💾 Save Session</button>
-        <button class="kt-save-btn" onclick="ktExportPDF()" style="background:rgba(80,50,10,.1);border-color:#8a6020;color:#6a4010">📄 Export PDF</button>
         <button class="kt-undo-btn" onclick="ktClearSession()">Clear</button>
       </div>
       <div style="display:flex;overflow:hidden">
@@ -3863,87 +4060,6 @@ window.ktSaveSession=function(){
 };
 
 window.ktClearSession=function(){activeSession=newSession();ktExpanded={};renderKillsPanel();};
-
-window.ktExportPDF=function(){
-  const s=activeSession;
-  if(!s)return;
-  const total=sessionDkpTotal(s);
-  const d=new Date(s.date+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-  const killed=Object.entries(s.killState||{}).filter(([,v])=>v==='killed').map(([k])=>k);
-  const failticks=Object.entries(s.killState||{}).filter(([,v])=>v==='failtick').map(([k])=>k);
-  const bossRoles=s.bossRoles||{};
-  const hourly=s.hourly||[];
-  const rwChecks=s.rwChecks||{};
-  const bnpQty=s.buffParksQty||0;
-
-  // Build tier sections
-  const tiers=[...new Set(BOSS_ROSTER.map(b=>b.tier))];
-  let tiersHtml='';
-  for(const tier of tiers){
-    const bosses=BOSS_ROSTER.filter(b=>b.tier===tier);
-    const tierKills=bosses.filter(b=>killed.includes(b.target));
-    const tierFt=bosses.filter(b=>failticks.includes(b.target));
-    if(!tierKills.length&&!tierFt.length)continue;
-    tiersHtml+=`<div class="pdf-tier"><strong>${tier}</strong></div>`;
-    tierKills.forEach(b=>{
-      const roles=(bossRoles[b.target]||[]);
-      const roleDkp=roles.reduce((s,r)=>s+(r.value||0),0);
-      const total=Math.round((b.dkp+b.baseDkp+roleDkp)*10)/10;
-      tiersHtml+=`<div class="pdf-row"><span class="pdf-name">✓ ${b.target}</span><span class="pdf-dkp">${total} DKP</span></div>`;
-      roles.forEach(r=>tiersHtml+=`<div class="pdf-row pdf-sub"><span class="pdf-name">↳ ${r.desc}</span><span class="pdf-dkp">+${r.value} DKP</span></div>`);
-    });
-    tierFt.forEach(b=>{
-      tiersHtml+=`<div class="pdf-row pdf-ft"><span class="pdf-name">✗ ${b.target} (failtick)</span><span class="pdf-dkp">${b.baseDkp} DKP</span></div>`;
-    });
-  }
-  // Ring War
-  const rwDkp=Math.round(RW_CHECKPOINTS.reduce((sum,cp)=>rwChecks[cp.key]?sum+cp.value:sum,0)*10)/10;
-  if(rwDkp>0){
-    tiersHtml+=`<div class="pdf-tier"><strong>Ring War</strong></div>`;
-    RW_CHECKPOINTS.filter(cp=>rwChecks[cp.key]).forEach(cp=>{
-      tiersHtml+=`<div class="pdf-row"><span class="pdf-name">✓ ${cp.desc}</span><span class="pdf-dkp">${cp.value} DKP</span></div>`;
-    });
-  }
-  // Hourly
-  if(hourly.length){
-    tiersHtml+=`<div class="pdf-tier"><strong>Hourly</strong></div>`;
-    hourly.forEach(r=>tiersHtml+=`<div class="pdf-row"><span class="pdf-name">${r.qty||1}× ${r.desc}</span><span class="pdf-dkp">${Math.round((r.value||0)*(r.qty||1)*10)/10} DKP</span></div>`);
-  }
-  // B&P
-  if(bnpQty>0){
-    const bnpDkp=Math.round((s.buffParksNinja?0.5:0.3)*bnpQty*10)/10;
-    tiersHtml+=`<div class="pdf-tier"><strong>Buffs &amp; Parks</strong></div>`;
-    tiersHtml+=`<div class="pdf-row"><span class="pdf-name">${bnpQty} click${bnpQty!==1?'s':''}${s.buffParksNinja?' (Ninja Loot)':''}</span><span class="pdf-dkp">${bnpDkp} DKP</span></div>`;
-  }
-
-  const html=`<!DOCTYPE html><html><head><meta charset="utf-8">
-  <title>Raid Report — ${d}</title>
-  <style>
-    body{font-family:Georgia,serif;color:#2a1f0e;margin:0;padding:2rem;max-width:700px}
-    h1{font-size:1.4rem;margin:0 0 .25rem}
-    .pdf-subtitle{font-size:.85rem;color:#666;margin-bottom:1.5rem}
-    .pdf-note{font-style:italic;color:#555;font-size:.85rem;margin-bottom:1rem}
-    .pdf-tier{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:#888;border-bottom:1px solid #ccc;padding:.5rem 0 .2rem;margin-top:1rem}
-    .pdf-row{display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #f0ebe0;font-size:.9rem}
-    .pdf-sub{padding-left:1.5rem;font-size:.82rem;color:#555}
-    .pdf-ft{color:#8a4040}
-    .pdf-name{flex:1}
-    .pdf-dkp{font-weight:bold;min-width:80px;text-align:right}
-    .pdf-total{display:flex;justify-content:space-between;padding:.75rem 0;font-size:1.1rem;font-weight:bold;border-top:2px solid #ccc;margin-top:1rem}
-    @media print{body{padding:.5rem}}
-  </style></head><body>
-  <h1>Mixelflop Raid — DKP Report</h1>
-  <div class="pdf-subtitle">${d}${s.note?` &nbsp;·&nbsp; ${s.note}`:''}</div>
-  ${tiersHtml}
-  <div class="pdf-total"><span>Total DKP</span><span>${total} DKP</span></div>
-  </body></html>`;
-
-  const win=window.open('','_blank');
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  setTimeout(()=>win.print(),400);
-};
 
 window.ktLoadSession=function(id){
   const s=raidSessions.find(x=>x.id===id);
@@ -4172,118 +4288,6 @@ function renderConsumesPanel(){
       </table>
     </div>
   `;
-}
-
-// ─── Quests ───────────────────────────────────────────────────────────────────
-const QUEST_DB=[
-  // Velious quests
-  {name:'Coldain Prayer Shawl',quest:'Coldain Shawl Quest',zone:'Eastern Wastes / Thurgadin',wiki:'https://wiki.project1999.com/Coldain_Prayer_Shawl_Quest',ingredients:['Coldain Skin','Bear Skin','Tanned Bear Skin','Velium Thread','Owlbear Feathers','Coldain Snowshoe','High Quality Bear Skin'],note:'8-step shawl quest, best cloak pre-PoP for casters/priests'},
-  {name:"Wu's Fighting Shin Boots",quest:"Wu's Tranquil Staff Quest",zone:'Western Wastes / NPC',wiki:'https://wiki.project1999.com/Wu%27s_Fighting_Shin_Boots',ingredients:["Wu's Ornate Robe","Wu's Gi","Mithril Vambraces"],note:'Monk epic-tier quest boots'},
-  {name:"Scepter of Mastery",quest:"Hand of Maestro Quest",zone:'Eastern Wastes',wiki:'https://wiki.project1999.com/Scepter_of_Mastery',ingredients:['Fractured Hilt','Chipped Gem','Ancient Blade Fragment'],note:'Monk 2HB, best non-epic option'},
-  {name:'Icicle Circlet',quest:'Thurgadin Icicle Armor Quest',zone:'Thurgadin',wiki:'https://wiki.project1999.com/Thurgadin_Armor_Quest',ingredients:['Coldain Velium Temper','Velium Coldain War Helm Mold','Words of the Sentient'],note:'Wizard/Enchanter/Necro/Mage Velious head quest piece'},
-  {name:'Icicle Pantaloons',quest:'Thurgadin Icicle Armor Quest',zone:'Thurgadin',wiki:'https://wiki.project1999.com/Thurgadin_Armor_Quest',ingredients:['Coldain Velium Temper','Velium Coldain Leg Armor Mold','Words of the Sentient'],note:'Caster Velious legs quest piece'},
-  {name:'Icicle Gloves',quest:'Thurgadin Icicle Armor Quest',zone:'Thurgadin',wiki:'https://wiki.project1999.com/Thurgadin_Armor_Quest',ingredients:['Coldain Velium Temper','Velium Coldain Gauntlet Mold','Words of the Sentient'],note:'Caster Velious gloves quest piece'},
-  {name:'Icicle Sleeves',quest:'Thurgadin Icicle Armor Quest',zone:'Thurgadin',wiki:'https://wiki.project1999.com/Thurgadin_Armor_Quest',ingredients:['Coldain Velium Temper','Velium Coldain Arm Armor Mold','Words of the Sentient'],note:'Caster Velious arms quest piece'},
-  // Kunark quests
-  {name:'Hierophant\'s Cloak',quest:'Hierophant\'s Cloak Quest',zone:'Trakanon\'s Teeth',wiki:'https://wiki.project1999.com/Hierophant%27s_Cloak',ingredients:['Scaled Hierophant\'s Cloak','Rune of Visions'],note:'Best non-epic cloak, all caster/priest classes'},
-  {name:'Runed Bolster Belt',quest:'Belt of the Great Turtle',zone:'Warsliks Woods',wiki:'https://wiki.project1999.com/Runed_Bolster_Belt',ingredients:['Giant Turtle Shell','Runed Bolster Belt Mold','Pottery Sketch'],note:'Best warrior/paladin/SK belt pre-Velious'},
-  {name:'Swiftwind',quest:'Swiftwind/Earthcaller Quest',zone:'Multiple',wiki:'https://wiki.project1999.com/Swiftwind',ingredients:['Vah Shir Bone Chips','Golden Efreeti Boots','Thick Kylong Hide'],note:'Ranger epic-related sword'},
-  {name:'Earthcaller',quest:'Swiftwind/Earthcaller Quest',zone:'Multiple',wiki:'https://wiki.project1999.com/Earthcaller',ingredients:['Vah Shir Bone Chips','Golden Efreeti Boots','Thick Kylong Hide'],note:'Ranger epic-related dagger'},
-  {name:'Mrylokar\'s Demi Lich Skullcap',quest:'Mrylokar\'s Demi Lich Quest',zone:'Karnor\'s Castle',wiki:'https://wiki.project1999.com/Mrylokar%27s_Demi_Lich_Skullcap',ingredients:['Demi Lich Skullcap','Spectral Parchment'],note:'Necromancer quest head'},
-  {name:'Shissar Nullifier Staff',quest:'Shissar Nullifier Quest',zone:'Chardok / Sebilis',wiki:'https://wiki.project1999.com/Shissar_Nullifier_Staff',ingredients:['Shissar Nullifier Shaft','Shissar Nullifier Head'],note:'Best pre-epic caster staff'},
-  // Classic quests
-  {name:'Journeyman\'s Boots',quest:'Journeyman\'s Boots Quest',zone:'Rathe Mountains',wiki:'https://wiki.project1999.com/Journeyman%27s_Boots',ingredients:['Hill Giant Toes','Cyclops Toes','Giant Warrior Helm','Griffon Feathers'],note:'Run speed boots — highly contested, essential for all classes'},
-  {name:'Selo\'s Accelerando',quest:'Bard Epic',zone:'Multiple',wiki:'https://wiki.project1999.com/Bard_Epic',ingredients:['Selo\'s Drum of the March','Lyran\'s Mystical Lute','Horn of Hsagra'],note:'Bard epic instrument'},
-  {name:'Manastone',quest:'Manastone Quest',zone:'Various',wiki:'https://wiki.project1999.com/Manastone',ingredients:['Blue Crystal Staff','Gnomish Mana Battery','Words of Cloudburst'],note:'Pre-Kunark mana item — if anyone has one keep it'},
-  {name:'Flowing Black Silk Sash',quest:'Flowing Black Silk Sash Quest',zone:'Mistmoore / Qeynos',wiki:'https://wiki.project1999.com/Flowing_Black_Silk_Sash',ingredients:['Silk Swatch','Bone Chips','Black Silk Thread'],note:'Necromancer/Shadow Knight waist BIS classic'},
-  {name:'Golden Efreeti Boots',quest:'Golden Efreeti Boots Drop',zone:'Plane of Fire',wiki:'https://wiki.project1999.com/Golden_Efreeti_Boots',ingredients:['Golden Efreeti Boots'],note:'Required for Ranger epic — save if you see it'},
-  {name:'Pearlescent Fragment',quest:'Cleric Epic',zone:'Multiple',wiki:'https://wiki.project1999.com/Cleric_Epic',ingredients:['Pearlescent Fragment'],note:'Cleric epic component — rare spawn'},
-];
-window.QUEST_DB = QUEST_DB;
-
-function renderQuestsPanel(){
-  const panel=document.getElementById('questsPanel');
-  if(!panel)return;
-  const name=activeTab;
-
-  // Build a map of item name -> list of chars who have it (any inventory location)
-  const allChars=name&&name!=='__all__'?[name]:charNames();
-  const haveMap={};
-  for(const cn of allChars){
-    for(const item of (chars[cn]||[])){
-      const n=(item.name||'').toLowerCase();
-      if(!haveMap[n])haveMap[n]=[];
-      if(!haveMap[n].includes(cn))haveMap[n].push(cn);
-    }
-  }
-
-  // Group quests by zone/expansion
-  const sections=[
-    {label:'Velious Quests',quests:QUEST_DB.filter(q=>['Eastern Wastes / Thurgadin','Eastern Wastes','Thurgadin','Western Wastes / NPC'].includes(q.zone))},
-    {label:'Kunark Quests',quests:QUEST_DB.filter(q=>['Trakanon\'s Teeth','Warsliks Woods','Multiple','Karnor\'s Castle','Chardok / Sebilis'].includes(q.zone))},
-    {label:'Classic Quests',quests:QUEST_DB.filter(q=>['Rathe Mountains','Various','Mistmoore / Qeynos','Plane of Fire'].includes(q.zone))},
-  ];
-
-  let html=`<div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
-    <span style="font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.08em;color:var(--text-muted)">QUEST ITEMS</span>
-    <input id="questSearch" type="text" placeholder="Search quests, items, or ingredients…" oninput="renderQuestsPanel()" style="flex:1;min-width:200px;padding:.35rem .6rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-size:.85rem">
-    <label style="font-size:.8rem;color:var(--text-dim);display:flex;align-items:center;gap:.4rem;cursor:pointer">
-      <input type="checkbox" id="questFilterHave" onchange="renderQuestsPanel()" style="accent-color:var(--gold-light)"> Only show items I'm missing
-    </label>
-  </div>`;
-
-  const searchQ=(document.getElementById('questSearch')?.value||'').toLowerCase();
-  const filterHave=document.getElementById('questFilterHave')?.checked||false;
-
-  for(const sec of sections){
-    const filtered=sec.quests.filter(q=>{
-      if(searchQ&&!q.name.toLowerCase().includes(searchQ)&&!q.quest.toLowerCase().includes(searchQ)&&!q.ingredients.some(i=>i.toLowerCase().includes(searchQ))&&!q.note.toLowerCase().includes(searchQ))return false;
-      if(filterHave){
-        const holders=haveMap[q.name.toLowerCase()]||[];
-        if(holders.length>0)return false;
-      }
-      return true;
-    });
-    if(!filtered.length)continue;
-
-    html+=`<div style="padding:.5rem 1rem .2rem;font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.1em;color:var(--text-muted);border-bottom:1px solid var(--border);background:var(--surface2)">${sec.label}</div>`;
-
-    for(const q of filtered){
-      const holders=haveMap[q.name.toLowerCase()]||[];
-      const hasItem=holders.length>0;
-      const ingredientHolders={};
-      for(const ing of q.ingredients){
-        const h=haveMap[ing.toLowerCase()]||[];
-        if(h.length)ingredientHolders[ing]=h;
-      }
-      const ingCount=Object.keys(ingredientHolders).length;
-
-      html+=`<div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;gap:1rem;align-items:flex-start">
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap">
-            <a href="${q.wiki}" target="_blank" style="font-size:.95rem;font-weight:600;color:var(--gold-light);text-decoration:none;font-family:'Crimson Pro',serif">${q.name} ↗</a>
-            <span style="font-size:.75rem;color:var(--text-muted)">${q.quest}</span>
-            <span style="font-size:.72rem;color:var(--text-dim);font-style:italic">${q.zone}</span>
-          </div>
-          ${q.note?`<div style="font-size:.8rem;color:var(--text-dim);margin:.2rem 0">${q.note}</div>`:''}
-          <div style="margin-top:.4rem;display:flex;flex-wrap:wrap;gap:.3rem">
-            ${q.ingredients.map(ing=>{
-              const h=ingredientHolders[ing]||[];
-              return`<span style="font-size:.75rem;padding:.15rem .45rem;border-radius:3px;border:1px solid ${h.length?'#3a7a3a':'var(--border)'};background:${h.length?'rgba(26,90,26,.08)':'var(--surface)'};color:${h.length?'#1a5a1a':'var(--text-dim)'}" title="${h.length?'Has: '+h.join(', '):'Nobody has this yet'}">${ing}${h.length?` ✓ <em style="font-size:.7em">${h.join(', ')}</em>`:''}</span>`;
-            }).join('')}
-          </div>
-        </div>
-        <div style="text-align:right;white-space:nowrap;min-width:100px">
-          ${hasItem
-            ?`<div style="font-size:.78rem;color:#1a5a1a;font-weight:600">✓ ${holders.join(', ')}</div><div style="font-size:.7rem;color:var(--text-muted)">has item</div>`
-            :`<div style="font-size:.78rem;color:var(--text-dim)">Nobody has</div>`}
-          ${ingCount>0&&!hasItem?`<div style="font-size:.72rem;color:#8a6020;margin-top:.2rem">${ingCount}/${q.ingredients.length} ingr. in guild</div>`:''}
-        </div>
-      </div>`;
-    }
-  }
-
-  panel.innerHTML=html;
 }
 
 // ─── Watch List ───────────────────────────────────────────────────────────────
