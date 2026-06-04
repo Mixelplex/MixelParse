@@ -4666,6 +4666,37 @@ function renderQuestsPanel(){
 
 
 initAuth();
+
+
+function renderWatchlistBar(){
+  const container=document.getElementById('watchlistRows');
+  if(!container)return;
+  const names=charNames().filter(n=>n!=='__all__');
+  const isAll=activeTab==='__all__';
+  const visibleChars=isAll?names:(activeTab?[activeTab]:[]);
+  if(!watchList.length){container.innerHTML='<div class="watchlist-empty">No items on watch list — click ⚙ Configure to add items.</div>';return;}
+  if(!visibleChars.length){container.innerHTML='<div class="watchlist-empty">Load characters to see watch list status.</div>';return;}
+  container.innerHTML=watchList.map(itemName=>{
+    const chips=visibleChars.map(n=>{
+      const has=charHasItem(n,itemName);
+      return `<span class="watchlist-chip ${has?'watchlist-chip-ok':'watchlist-chip-miss'}">${has?'✔':'✘'} ${esc(n)}</span>`;
+    }).join('');
+    const wl=`<a href="${wikiUrl(itemName)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.8rem">${esc(itemName)}</a>`;
+    return `<div class="watchlist-row"><div class="watchlist-item-name">${wl}</div>${chips}</div>`;
+  }).join('');
+}
+
+function renderWlModal(){
+  // Item list
+  document.getElementById('wlItemList').innerHTML=watchList.length
+    ?watchList.map((item,i)=>`<div class="wl-item-row"><span>${esc(item)}</span><button type="button" class="wl-item-remove" onclick="wlRemove(${i})">✕</button></div>`).join('')
+    :'<div style="color:var(--text-muted);font-size:.82rem;font-style:italic">No items yet.</div>';
+  // Shortcuts from raid consumes
+  const shortcuts=[...new Set(RAID_CONSUMES.flatMap(c=>c.anyOf||[c.name||'']).filter(Boolean))];
+  document.getElementById('wlShortcuts').innerHTML=shortcuts.map(name=>
+    `<span class="wl-shortcut-chip" onclick="wlQuickAdd('${esc(name)}')">${esc(name)}</span>`
+  ).join('');
+}
 </script>
 </body>
 </html>
