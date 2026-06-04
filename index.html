@@ -4358,212 +4358,197 @@ function renderConsumesPanel(){
 // ─── Quests ───────────────────────────────────────────────────────────────────
 const QUEST_DB={
 
-// ── CRITICAL — every character should have / work toward these ────────────────
 critical:[
   {name:"Journeyman's Boots",shortName:'Jboots',
-   wiki:'https://wiki.project1999.com/Journeyman%27s_Boots',
+   wiki:'https://wiki.project1999.com/Journeyman%27s_Boots_Quest',
    steps:[
-     {desc:"Collect 4x Hill Giant Toes (Hill Giants, Rathe Mountains)",items:["Hill Giant Toes"]},
-     {desc:"Collect 4x Cyclops Toes (Cyclops, Rathe Mountains)",items:["Cyclops Toes"]},
-     {desc:"Collect 1x Giant Warrior Helm (Giant Warrior, Rathe Mountains)",items:["Giant Warrior Helm"]},
-     {desc:"Collect 4x Griffon Feathers (Griffons, South Karana)",items:["Griffon Feathers","Griffon Feather"]},
-     {desc:"Turn all in to Hasten Bootstrutter in Rathe Mountains",items:[]},
+     {desc:'Loot Ring of the Ancients from Ancient Cyclops (Ocean of Tears island 8, or Southern Desert of Ro rare night spawn)',items:['Ring of the Ancients']},
+     {desc:'Kill a shadowed man for Shadowed Rapier — NO RENT, disappears on logout. Confirm Hasten is up first!',items:['Shadowed Rapier']},
+     {desc:'Gather 3250 gold pieces (must be gold coins, not platinum)',items:[]},
+     {desc:'Hand Ring of the Ancients + Shadowed Rapier + 3250gp to Hasten Bootstrutter in Rathe Mountains',items:[]},
    ],
-   note:'SoW-speed boots. Essential for every toon. Turn-in is contested — coordinate.'},
+   note:'SoW-speed boots. Hasten wanders east side of Rathe Mountains. Rapier is no-rent — do not log out with it.'},
 
-  {name:'Reaper of the Dead',shortName:'Thex Mallet',
-   wiki:'https://wiki.project1999.com/Reaper_of_the_Dead',
+  {name:'Reaper of the Dead',shortName:'Thex Mallet Quest',
+   wiki:'https://wiki.project1999.com/Thex_Mallet_Quest',
    steps:[
-     {desc:"Loot Thex Mallet from King Naythox Thex (Castle Mistmoore)",items:["Thex Mallet"]},
-     {desc:"Give Thex Mallet to Telnvar Onyx`ere in Neriak Commons",items:[]},
+     {desc:'Obtain Kizdean Gix Note from Kizdean Gix in East Commonlands (kill or charm him for the note)',items:["Kizdean Gix's Note"]},
+     {desc:'Give note to Skeleton Lrodd in Befallen to receive Rune of Xorbb',items:['Rune of Xorbb']},
+     {desc:'Give Rune of Xorbb to Commander Windstream in Befallen, then kill An Elf Skeleton for the Thex Mallet',items:['Thex Mallet']},
+     {desc:'Turn in Thex Mallet to Loveal S`Nez in Neriak Third Gate for Reaper of the Dead (SHD only) or Thex Mallet stays as reward for others',items:[]},
    ],
-   note:'Proc mace used as a clickie/consume. King Thex rare spawn in Mistmoore.'},
+   note:'Classes: NEC/SHD only for full quest. Requires amiable faction with The Dead. Thex Mallet itself is usable by all. Reaper of the Dead (SHD only) has Complete Heal clicky.'},
 
   {name:'Coldain Prayer Shawl',shortName:'Shawl',
-   wiki:'https://wiki.project1999.com/Coldain_Prayer_Shawl_Quest',
+   wiki:'https://wiki.project1999.com/Coldain_Prayer_Shawl_Quests',
    steps:[
-     {desc:"Step 1: Loot Tattered Coldain Prayer Shawl, combine with Coldain Skin Gloves → Tattered Shawl",items:["Tattered Coldain Prayer Shawl","Coldain Skin Gloves"]},
-     {desc:"Step 2: Velium Thread + Tattered Shawl → Patched Shawl (bought from Thurgadin merchant)",items:["Velium Thread","Tattered Shawl"]},
-     {desc:"Step 3: Owlbear Feathers + Patched Shawl → Stitched Shawl",items:["Owlbear Feathers","Patched Shawl"]},
-     {desc:"Step 4: Bear Skin + Stitched Shawl → Embroidered Shawl",items:["Bear Skin","Stitched Shawl"]},
-     {desc:"Step 5: High Quality Bear Skin + Embroidered Shawl → Entwined Shawl",items:["High Quality Bear Skin","Embroidered Shawl"]},
-     {desc:"Step 6: Coldain Snowshoe (camp in Eastern Wastes) + Entwined Shawl → Adorned Shawl",items:["Coldain Snowshoe","Entwined Shawl"]},
-     {desc:"Step 7: Velium Infused Bear Pelt + Adorned Shawl → Blessed Shawl",items:["Velium Infused Bear Pelt","Adorned Shawl"]},
-     {desc:"Step 8: Ulthork Tusk + Blessed Shawl → Coldain Prayer Shawl",items:["Ulthork Tusk","Blessed Shawl"]},
+     {desc:'Shawl 1 (Burlap): Give 10 Kromrif Heads to Loremaster Borannin in Thurgadin',items:['Kromrif Head']},
+     {desc:'Shawl 2 (Cloth): Turn in Burlap Shawl + 10 Elder Snow Griffin Feathers to NPC in Thurgadin',items:['Burlap Coldain Prayer Shawl','Elder Snow Griffin Feather']},
+     {desc:'Shawl 3 (Woven): Tradeskill combine — requires tailoring skill',items:['Cloth Coldain Prayer Shawl']},
+     {desc:'Shawl 4 (Stitched): Tradeskill combine — requires tailoring skill',items:['Woven Coldain Prayer Shawl']},
+     {desc:'Shawl 5 (Embroidered): Tradeskill combine involving Velium thread',items:['Stitched Coldain Prayer Shawl']},
+     {desc:'Shawl 6 (Fur-Lined): Turn in Embroidered Shawl to Betti in Thurgadin for Runed Prayer Shawl Pattern',items:['Embroidered Coldain Prayer Shawl']},
+     {desc:'Shawl 7 (Runed): Combine Fur-Lined Shawl + Encased Velium Etched Rune + Runed Prayer Shawl Pattern',items:['Fur-Lined Coldain Prayer Shawl','Encased Velium Etched Rune','Runed Prayer Shawl Pattern']},
+     {desc:'Shawl 8 (Silk): Final shawl — Luclin era, NOT AVAILABLE on P99',items:[]},
    ],
-   note:'Best back slot pre-PoP for casters and priests. 8-step combine quest in Thurgadin.'},
+   note:'Series of tradeskill quests. Shawl 7 is the best available on P99. Excellent back slot for all classes. WARNING: Some quest items are edible — keep food above them in bags.'},
 ],
 
-// ── CLASS QUESTS ──────────────────────────────────────────────────────────────
 classes:{
 
 Warrior:[
-  {name:'Runed Bolster Belt',wiki:'https://wiki.project1999.com/Runed_Bolster_Belt',
-   steps:[
-     {desc:'Loot Giant Turtle Shell from Giant Snapping Turtles (Lake Rathetear or North Karana)',items:['Giant Turtle Shell']},
-     {desc:'Purchase Pottery Sketch from Ak\'Anon',items:['Pottery Sketch']},
-     {desc:'Turn in to Tarn Visilin in North Karana',items:[]},
-   ],note:'Best warrior belt pre-Velious.'},
-  {name:"Journeyman's Boots",wiki:'https://wiki.project1999.com/Journeyman%27s_Boots',steps:[],note:'See Critical section.'},
+  {name:"Journeyman's Boots",wiki:'https://wiki.project1999.com/Journeyman%27s_Boots_Quest',steps:[],note:'See Critical section.'},
 ],
 
 Monk:[
+  {name:'Monk Epic — Celestial Fists',wiki:'https://wiki.project1999.com/Monk_Epic_Quest',
+   steps:[
+     {desc:'Complete The Lost Circle quest to obtain Robe of the Whistling Fists (multi-step — involves Brother Qwinn in South Karana)',items:['Robe of the Whistling Fists','Code of Zan Fi']},
+     {desc:'Obtain Robe of the Lost Circle (Brother Zephyl in South Karana, or Plane of Fear/Hate drop)',items:['Robe of the Lost Circle']},
+     {desc:'Travel to Lheao in Timorous Deep hidden oasis, give him Immortals book',items:['Immortals']},
+     {desc:'Obtain Demon Fangs: give Eye of Kaiaren to Astral Projection in LOIO to spawn Vorash/Xenevorash, kill for Demon Fangs',items:['Eye of Kaiaren','Demon Fangs']},
+     {desc:'Final turn-in to Sane Kaiaren (CAUTION: despawns in 30 mins after receiving Book of Celestial Fists — have Demon Fangs ready!)',items:['Book of Celestial Fists']},
+   ],
+   note:'Full epic walkthrough is very long — see wiki. Both Robe of the Whistling Fists and Celestial Fists have clicky haste.'},
   {name:'Scepter of Mastery',wiki:'https://wiki.project1999.com/Scepter_of_Mastery',
    steps:[
-     {desc:'Loot Fractured Hilt from Eastern Wastes giants',items:['Fractured Hilt']},
-     {desc:'Loot Chipped Gem from Eastern Wastes giants',items:['Chipped Gem']},
-     {desc:'Loot Ancient Blade Fragment from Eastern Wastes giants',items:['Ancient Blade Fragment']},
-     {desc:'Turn all 3 in to Loremaster Borannin in Eastern Wastes',items:[]},
-   ],note:'Best Monk 2HB weapon before epic.'},
-  {name:"Wu's Fighting Shin Boots",wiki:'https://wiki.project1999.com/Wu%27s_Fighting_Shin_Boots',
-   steps:[
-     {desc:"Loot Wu's Ornate Robe (Kael)",items:["Wu's Ornate Robe"]},
-     {desc:"Loot Wu's Gi (ToV or Kael)",items:["Wu's Gi"]},
-     {desc:"Loot Mithril Vambraces from giants",items:['Mithril Vambraces']},
-     {desc:"Turn all 3 in to Wu Tang in Thurgadin",items:[]},
-   ],note:'Best Monk feet slot before epic.'},
-  {name:'Monk Epic — Transcendent Fists',wiki:'https://wiki.project1999.com/Transcendent_Fists',
-   steps:[
-     {desc:'Obtain Robe of the Whistling Fists (Old Sebilis)',items:['Robe of the Whistling Fists']},
-     {desc:'Obtain Robe of the Lost Circle (Plane of Fear or Hate)',items:['Robe of the Lost Circle']},
-     {desc:'Obtain Token of Gratitude (multiple turn-ins)',items:['Token of Gratitude']},
-     {desc:'Obtain Celestial Fists (final combine)',items:['Celestial Fists']},
-   ],note:'Monk epic fists. Long quest chain across multiple zones.'},
+     {desc:'Loot Hand of the Maestro from Loremaster Borannin reward (Eastern Wastes giant hunting)',items:['Hand of the Maestro']},
+   ],
+   note:'Best Monk 2HB before epic. Part of Eastern Wastes quest chain.'},
 ],
 
 Cleric:[
   {name:'Cleric Epic — Water Sprinkler of Nem Ankh',wiki:'https://wiki.project1999.com/Water_Sprinkler_of_Nem_Ankh',
    steps:[
-     {desc:'Loot Pearlescent Fragment (various spawns — very rare)',items:['Pearlescent Fragment']},
-     {desc:'Loot Tears of Prexus (Ocean of Tears)',items:['Tears of Prexus']},
-     {desc:'Complete Robe of the Oracle quest',items:['Robe of the Oracle']},
-     {desc:'Obtain Symbol of Marr (Plane of Fear)',items:['Symbol of Marr']},
-   ],note:'Cleric epic. Pearlescent Fragment is the hardest piece.'},
-  {name:'Coldain Prayer Shawl',wiki:'https://wiki.project1999.com/Coldain_Prayer_Shawl_Quest',
-   steps:[],note:'See Critical section. Especially important for clerics — huge mana/healing bonus.'},
+     {desc:'Obtain Pearlescent Fragment — rare spawn in multiple zones (very difficult)',items:['Pearlescent Fragment']},
+     {desc:'Complete sub-quests for Tears of Prexus, Symbol of Marr, Robe of the Oracle',items:['Tears of Prexus','Symbol of Marr','Robe of the Oracle']},
+   ],
+   note:'Cleric epic. Pearlescent Fragment is notoriously rare — flag it any time you see one.'},
+  {name:'Coldain Prayer Shawl',wiki:'https://wiki.project1999.com/Coldain_Prayer_Shawl_Quests',steps:[],note:'See Critical section. Especially valuable for clerics.'},
 ],
 
 Enchanter:[
   {name:'Enchanter Epic — Staff of the Serpent',wiki:'https://wiki.project1999.com/Staff_of_the_Serpent',
    steps:[
-     {desc:'Loot Reins of a Unicorn (South Karana — very rare)',items:['Reins of a Unicorn']},
+     {desc:'Loot Reins of a Unicorn (South Karana — rare named unicorn spawn)',items:['Reins of a Unicorn']},
      {desc:'Loot Staff of Writhing (Plane of Fear)',items:['Staff of Writhing']},
-     {desc:'Loot Blood of Ssraeshza (Nagafen)',items:['Blood of Ssraeshza']},
-     {desc:'Loot Decrepit Hide (Plane of Fear/Hate)',items:['Decrepit Hide']},
-   ],note:'Enchanter epic. Multiple rare drops from high-end zones.'},
+     {desc:'Loot Blood of Ssraeshza (Nagafen/Vox)',items:['Blood of Ssraeshza']},
+     {desc:'Loot Decrepit Hide (Plane of Fear)',items:['Decrepit Hide']},
+   ],
+   note:'Enchanter epic. Reins of Unicorn is the bottleneck.'},
 ],
 
 Wizard:[
-  {name:'Wizard Epic — Staff of the Four',wiki:'https://wiki.project1999.com/Staff_of_the_Four',
+  {name:'Wizard Epic — Staff of the Four',wiki:'https://wiki.project1999.com/Wizard_Epic_Quest',
    steps:[
-     {desc:'Loot Shimmering Staff (multiple possible zones)',items:['Shimmering Staff']},
-     {desc:'Loot Words of Cazic-Thule (Cazic-Thule)',items:['Words of Cazic-Thule']},
-     {desc:'Loot Pages of Xegony (Plane of Air)',items:['Pages of Xegony']},
-     {desc:'Complete Orb of Mastery sub-quest',items:['Orb of Mastery']},
-   ],note:'Wizard epic staff.'},
+     {desc:"Talk to Solomen in Temple of Solusek Ro, receive Note from Arantir. Give note to Kandin Firepot in Butcherblock for Golem Sprocket.",items:['Golem Sprocket']},
+     {desc:"Kill Phinigel Autropos in Kedge Keep, loot Blue Crystal Staff.",items:['Blue Crystal Staff']},
+     {desc:"Kill Venril Sathir in Karnor's Castle, loot Gnarled Staff.",items:['Gnarled Staff']},
+     {desc:"Give Golem Sprocket to a broken golem in Plane of Fear — spawns enraged golem, kill for Green Oil. Give oil to Kandin Firepot for Staff of Gabstik.",items:['Green Oil','Staff of Gabstik']},
+     {desc:"Give Note to Arantir to Dargon to spawn Arantir Karondor. Give him Blue Crystal Staff + Gnarled Staff + Staff of Gabstik. Receive sealed bag.",items:[]},
+     {desc:"Deliver sealed bag to Solomen — receive Staff of the Four. Do NOT open the bag.",items:[]},
+   ],
+   note:'Gnarled Staff from Venril Sathir (Karnor\'s) is the key Velious-era piece. Careful with the sealed bag — cannot be opened.'},
 ],
 
 Magician:[
-  {name:'Magician Epic — Mage Epic Spell Focus',wiki:'https://wiki.project1999.com/Magician_Epic',
+  {name:'Magician Epic — Mage Spell Focus',wiki:'https://wiki.project1999.com/Magician_Epic',
    steps:[
-     {desc:'Loot Earth Pearl (Plane of Earth / Nagafen lair)',items:['Earth Pearl']},
+     {desc:'Loot Earth Pearl (Nagafen/Plane of Earth related)',items:['Earth Pearl']},
      {desc:'Loot Fire Pearl (Nagafen)',items:['Fire Pearl']},
      {desc:'Loot Water Pearl (Kedge Keep)',items:['Water Pearl']},
      {desc:'Loot Air Pearl (Plane of Air)',items:['Air Pearl']},
-   ],note:'Magician epic — requires planar pearls.'},
+   ],
+   note:'Magician epic requires planar pearls.'},
 ],
 
 Necromancer:[
   {name:'Necromancer Epic — Scythe of the Shadowed Soul',wiki:'https://wiki.project1999.com/Scythe_of_the_Shadowed_Soul',
    steps:[
-     {desc:"Loot Dusty Tome (Karnor's Castle or Field of Bone)",items:['Dusty Tome']},
-     {desc:'Loot Burned Out Lightstone (Unrest)',items:['Burned Out Lightstone']},
-     {desc:'Loot Decrepit Hide (Plane of Fear)',items:['Decrepit Hide']},
-     {desc:'Loot Embalming Fluid (Kithicor Forest night-raid undead)',items:['Embalming Fluid']},
-   ],note:'Necromancer epic.'},
-  {name:'Flowing Black Silk Sash',wiki:'https://wiki.project1999.com/Flowing_Black_Silk_Sash',
-   steps:[
-     {desc:'Loot Black Silk Sash from Castle Mistmoore',items:['Black Silk Sash']},
-     {desc:'Loot Swatch of Black Silk from Lesser Faydark spiders',items:['Swatch of Black Silk']},
-     {desc:'Loot Vial of Swirling Smoke from Mistmoore',items:['Vial of Swirling Smoke']},
-     {desc:'Combine in Sewing Kit → Flowing Black Silk Sash',items:[]},
-   ],note:'Best Necromancer waist slot. Classic era BiS.'},
+     {desc:"Loot Dusty Tome from Karnor's Castle or Field of Bone",items:['Dusty Tome']},
+     {desc:'Loot Burned Out Lightstone from Unrest',items:['Burned Out Lightstone']},
+     {desc:'Loot Decrepit Hide from Plane of Fear',items:['Decrepit Hide']},
+     {desc:'Loot Embalming Fluid from Kithicor night undead',items:['Embalming Fluid']},
+   ],
+   note:'Necromancer epic scythe.'},
 ],
 
 'Shadow Knight':[
   {name:'Shadow Knight Epic — Innoruuk\'s Curse',wiki:'https://wiki.project1999.com/Innoruuk%27s_Curse',
    steps:[
-     {desc:"Loot Head of the Valiant (Plane of Hate — Lord Innoruuk)",items:['Head of the Valiant']},
-     {desc:"Loot Decrepit Hide (Plane of Fear)",items:['Decrepit Hide']},
-     {desc:"Loot Soul Leech (Nagafen)",items:['Soul Leech, Dark Sword of Blood']},
-   ],note:'Shadow Knight epic 2H sword.'},
-  {name:'Runed Bolster Belt',wiki:'https://wiki.project1999.com/Runed_Bolster_Belt',
-   steps:[
-     {desc:'Loot Giant Turtle Shell (Lake Rathetear)',items:['Giant Turtle Shell']},
-     {desc:'Turn in with Pottery Sketch to Tarn Visilin (North Karana)',items:['Pottery Sketch']},
-   ],note:'Best SK belt pre-Velious.'},
+     {desc:"Loot Head of the Valiant (Plane of Hate — Lord Innoruuk encounter)",items:['Head of the Valiant']},
+     {desc:'Loot Decrepit Hide from Plane of Fear',items:['Decrepit Hide']},
+     {desc:"Loot Soul Leech, Dark Sword of Blood from Nagafen",items:["Soul Leech, Dark Sword of Blood"]},
+   ],
+   note:'Shadow Knight epic 2H sword.'},
+  {name:'Thex Mallet Quest',wiki:'https://wiki.project1999.com/Thex_Mallet_Quest',steps:[],note:'See Critical section. SKs receive Reaper of the Dead with Complete Heal clicky.'},
 ],
 
 Paladin:[
   {name:'Paladin Epic — Fiery Avenger',wiki:'https://wiki.project1999.com/Fiery_Avenger',
    steps:[
-     {desc:'Loot Ghoulbane (Unrest — rare)',items:['Ghoulbane']},
-     {desc:'Loot Soulfire from Plane of Hate (Lord Innoruuk)',items:['Soulfire']},
+     {desc:'Loot Ghoulbane from Estate of Unrest (rare spawn)',items:['Ghoulbane']},
+     {desc:'Obtain Soulfire via Plane of Hate (Lord Innoruuk drop or quest)',items:['Soulfire']},
      {desc:'Complete Tears of Erollisi Marr sub-quest',items:['Tears of Erollisi Marr']},
-     {desc:'Loot Hand of the Maestro (Eastern Wastes)',items:['Hand of the Maestro']},
-   ],note:'Paladin epic 1H sword.'},
+     {desc:'Loot Hand of the Maestro from Eastern Wastes',items:['Hand of the Maestro']},
+   ],
+   note:'Paladin epic 1H sword with Complete Heal proc.'},
 ],
 
 Ranger:[
   {name:'Ranger Epic — Swiftwind + Earthcaller',wiki:'https://wiki.project1999.com/Swiftwind',
    steps:[
-     {desc:'Loot Golden Efreeti Boots from Plane of Fire (very rare)',items:['Golden Efreeti Boots']},
+     {desc:'Loot Golden Efreeti Boots from Plane of Fire (extremely rare)',items:['Golden Efreeti Boots']},
      {desc:'Collect Vah Shir Bone Chips',items:['Vah Shir Bone Chips']},
-     {desc:'Collect Thick Kylong Hide (Frontier Mountains)',items:['Thick Kylong Hide']},
-     {desc:'Assemble components and turn in to ranger NPC',items:[]},
-   ],note:'Ranger epic dual-wield combo. Golden Efreeti Boots are the rarest piece.'},
+     {desc:'Collect Thick Kylong Hide from Frontier Mountains',items:['Thick Kylong Hide']},
+     {desc:'Complete turn-in for both Swiftwind (MH) and Earthcaller (OH)',items:[]},
+   ],
+   note:'Ranger epic dual-wield combo. Golden Efreeti Boots are extremely rare.'},
 ],
 
 Druid:[
-  {name:'Druid Epic — Nature Walker\'s Scimitar',wiki:'https://wiki.project1999.com/Nature_Walker%27s_Scimitar',
+  {name:"Druid Epic — Nature Walker's Scimitar",wiki:'https://wiki.project1999.com/Nature_Walker%27s_Scimitar',
    steps:[
-     {desc:'Loot Heartwood Blade (Plane of Fear)',items:['Heartwood Blade']},
+     {desc:'Loot Heartwood Blade from Plane of Fear',items:['Heartwood Blade']},
      {desc:'Loot Warmly Glowing Stone (multiple sources)',items:['Warmly Glowing Stone']},
-     {desc:'Loot Fleshbound Tome (Plane of Hate)',items:['Fleshbound Tome']},
-   ],note:'Druid epic scimitar.'},
-  {name:'Coldain Prayer Shawl',wiki:'https://wiki.project1999.com/Coldain_Prayer_Shawl_Quest',
-   steps:[],note:'See Critical section. Very strong for druids too.'},
+     {desc:'Loot Fleshbound Tome from Plane of Hate',items:['Fleshbound Tome']},
+   ],
+   note:'Druid epic scimitar.'},
+  {name:'Coldain Prayer Shawl',wiki:'https://wiki.project1999.com/Coldain_Prayer_Shawl_Quests',steps:[],note:'See Critical section. Also strong for druids.'},
 ],
 
 Shaman:[
   {name:'Shaman Epic — Spear of Fate',wiki:'https://wiki.project1999.com/Spear_of_Fate',
    steps:[
-     {desc:'Loot Talisman of Thunderous Foyer (Plane of Fear)',items:['Talisman of Thunderous Foyer']},
-     {desc:'Loot Ancient Shaman Bones (Trakanon\'s Teeth)',items:["Ancient Shaman's Bones"]},
-     {desc:'Loot Spiroc Wingblade (Plane of Air)',items:['Spiroc Wingblade']},
-   ],note:'Shaman epic spear.'},
+     {desc:'Loot Talisman of Thunderous Foyer from Plane of Fear',items:['Talisman of Thunderous Foyer']},
+     {desc:"Loot Ancient Shaman's Bones from Trakanon's Teeth",items:["Ancient Shaman's Bones"]},
+     {desc:'Loot Spiroc Wingblade from Plane of Air',items:['Spiroc Wingblade']},
+   ],
+   note:'Shaman epic spear.'},
 ],
 
 Bard:[
   {name:'Bard Epic — Singing Short Sword',wiki:'https://wiki.project1999.com/Singing_Short_Sword',
    steps:[
-     {desc:"Loot Lyran's Mystical Lute (Plane of Sky — Mistress of Scorn)",items:["Lyran's Mystical Lute"]},
-     {desc:"Loot Horn of Hsagra (Plane of Fear)",items:['Horn of Hsagra']},
-     {desc:"Loot Selo's Drums of the March (Plane of Growth)",items:["Selo's Drums of the March"]},
-   ],note:'Bard epic. Requires planar drops.'},
+     {desc:"Loot Lyran's Mystical Lute from Plane of Sky (Mistress of Scorn)",items:["Lyran's Mystical Lute"]},
+     {desc:'Loot Horn of Hsagra from Plane of Fear',items:['Horn of Hsagra']},
+     {desc:"Obtain Selo's Drums of the March — Plane of Growth",items:["Selo's Drums of the March"]},
+   ],
+   note:'Bard epic involves planar drops.'},
 ],
 
 Rogue:[
   {name:'Rogue Epic — Ragebringer',wiki:'https://wiki.project1999.com/Ragebringer',
    steps:[
      {desc:'Loot Swiped Gnomish Tools (various gnome zones)',items:['Swiped Gnomish Tools']},
-     {desc:'Loot Rogue Mask of Tricks (Plane of Hate)',items:['Rogue Mask of Tricks']},
-     {desc:"Loot Inlaid Jade Hilt (Plane of Fear)",items:['Inlaid Jade Hilt']},
-   ],note:'Rogue epic dual daggers.'},
+     {desc:'Loot Rogue Mask of Tricks from Plane of Hate',items:['Rogue Mask of Tricks']},
+     {desc:'Loot Inlaid Jade Hilt from Plane of Fear',items:['Inlaid Jade Hilt']},
+   ],
+   note:'Rogue epic dual daggers.'},
 ],
 
 },// end classes
-};
+}
 
 function renderQuestsPanel(){
   const panel=document.getElementById('questsPanel');
