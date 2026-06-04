@@ -11,35 +11,35 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--text);font-family:'Crimson Pro',Georgia,serif;font-size:16px;min-height:100vh;background-image:radial-gradient(ellipse at 20% 0%,rgba(180,140,80,.12) 0%,transparent 60%),radial-gradient(ellipse at 80% 100%,rgba(160,120,60,.08) 0%,transparent 60%)}
   header{text-align:center;padding:1.5rem 1rem 1rem;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(220,200,160,.6) 0%,transparent 100%);position:relative}
-  header h1{font-family:'Cinzel',serif;font-size:clamp(1.3rem,5vw,1.9rem);color:var(--gold-light);letter-spacing:.12em;text-shadow:0 0 30px rgba(201,146,42,.4)}
+  header h1{font-family:\'Cinzel\',serif;font-size:clamp(1.3rem,5vw,1.9rem);color:var(--gold-light);letter-spacing:.12em;text-shadow:0 0 30px rgba(201,146,42,.4)}
   header p{margin-top:.3rem;color:var(--text-dim);font-size:.85rem;font-style:italic}
-  .version-badge{position:absolute;bottom:.5rem;right:1rem;font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.06em}
+  .version-badge{position:absolute;bottom:.5rem;right:1rem;font-family:\'Cinzel\',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.06em}
   .ornament{color:var(--gold-dim);font-size:1.1rem;margin:.25rem 0;letter-spacing:.3em}
   .tab-bar{display:flex;border-bottom:2px solid var(--border-glow);background:var(--surface2);overflow-x:auto;padding:0 1rem}
-  .tab{font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.07em;color:var(--text-muted);padding:.6rem .9rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .15s,border-color .15s;user-select:none;display:flex;align-items:center;gap:.35rem}
+  .tab{font-family:\'Cinzel\',serif;font-size:.72rem;letter-spacing:.07em;color:var(--text-muted);padding:.6rem .9rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .15s,border-color .15s;user-select:none;display:flex;align-items:center;gap:.35rem}
   .tab:hover{color:var(--gold)}.tab.active{color:var(--gold-light);border-bottom-color:var(--gold-light);background:var(--bg)}
   .tab .remove-char{opacity:0;font-size:.8rem;color:var(--text-muted);transition:opacity .15s}
   .tab:hover .remove-char{opacity:1}.tab .remove-char:hover{color:#a03030}
   .tab-add{font-size:1.1rem;padding:.4rem .7rem;color:var(--gold-dim);cursor:pointer;transition:color .15s;display:flex;align-items:center}
   .tab-add:hover{color:var(--gold-light)}
   .subtab-bar{display:flex;border-bottom:1px solid var(--border);background:var(--surface);padding:0 1rem}
-  .subtab{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.06em;color:var(--text-muted);padding:.45rem .8rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:color .15s}
+  .subtab{font-family:\'Cinzel\',serif;font-size:.68rem;letter-spacing:.06em;color:var(--text-muted);padding:.45rem .8rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:color .15s}
   .subtab:hover{color:var(--gold)}.subtab.active{color:var(--gold-light);border-bottom-color:var(--gold-light)}
   .upload-zone{margin:1.5rem;border:2px dashed var(--border-glow);border-radius:4px;padding:2rem 1rem;text-align:center;cursor:pointer;transition:all .2s;background:rgba(201,146,42,.03);position:relative}
   .upload-zone:hover,.upload-zone.drag-over{border-color:var(--gold);background:rgba(201,146,42,.07)}
   .upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
   .upload-icon{font-size:2.5rem;margin-bottom:.5rem}
-  .upload-zone h2{font-family:'Cinzel',serif;font-size:1rem;color:var(--gold);letter-spacing:.08em;margin-bottom:.3rem}
+  .upload-zone h2{font-family:\'Cinzel\',serif;font-size:1rem;color:var(--gold);letter-spacing:.08em;margin-bottom:.3rem}
   .upload-zone p{color:var(--text-dim);font-size:.85rem}
   .how-to{margin-top:1.25rem;padding:1rem;background:rgba(160,120,50,.07);border:1px solid var(--border);border-radius:4px;text-align:left;font-size:.85rem;color:var(--text-dim)}
-  .how-to-title{font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold);letter-spacing:.07em;margin-bottom:.5rem}
+  .how-to-title{font-family:\'Cinzel\',serif;font-size:.7rem;color:var(--gold);letter-spacing:.07em;margin-bottom:.5rem}
   .how-to ol{padding-left:1.25rem;line-height:1.9}
   .how-to code{background:var(--surface2);border:1px solid var(--border);border-radius:2px;padding:.1rem .35rem;font-size:.82rem;color:var(--gold-light)}
   .controls{margin:.75rem 1rem .5rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
-  .search-box{flex:1;min-width:150px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.45rem .75rem;font-family:'Crimson Pro',serif;font-size:.95rem;outline:none;transition:border-color .2s}
+  .search-box{flex:1;min-width:150px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.45rem .75rem;font-family:\'Crimson Pro\',serif;font-size:.95rem;outline:none;transition:border-color .2s}
   .search-box:focus{border-color:var(--gold)}.search-box::placeholder{color:var(--text-muted)}
-  .filter-select{background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.45rem .5rem;font-family:'Crimson Pro',serif;font-size:.9rem;outline:none;cursor:pointer}
-  .btn{background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-dim);padding:.45rem .75rem;cursor:pointer;font-family:'Crimson Pro',serif;font-size:.85rem;transition:all .15s;white-space:nowrap}
+  .filter-select{background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.45rem .5rem;font-family:\'Crimson Pro\',serif;font-size:.9rem;outline:none;cursor:pointer}
+  .btn{background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-dim);padding:.45rem .75rem;cursor:pointer;font-family:\'Crimson Pro\',serif;font-size:.85rem;transition:all .15s;white-space:nowrap}
   .btn:hover{border-color:var(--gold-dim);color:var(--gold)}.btn.danger:hover{border-color:#a03030;color:#a03030}
   .btn.primary{border-color:var(--gold-dim);color:var(--gold);background:rgba(160,120,50,.08)}.btn.primary:hover{background:rgba(160,120,50,.18)}
   .btn:disabled{opacity:.45;cursor:not-allowed}
@@ -48,7 +48,7 @@
   .table-wrap{margin:0 1rem 2rem;border:1px solid var(--border);border-radius:4px;overflow:hidden;overflow-x:auto}
   table{width:100%;border-collapse:collapse;font-size:.9rem}
   thead tr{background:var(--surface2);border-bottom:2px solid var(--border-glow)}
-  th{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.08em;color:var(--gold);padding:.55rem .75rem;text-align:left;cursor:pointer;user-select:none;white-space:nowrap;transition:color .15s}
+  th{font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.08em;color:var(--gold);padding:.55rem .75rem;text-align:left;cursor:pointer;user-select:none;white-space:nowrap;transition:color .15s}
   th:hover{color:var(--gold-light)}.sorted{color:var(--gold-light)}
   .sort-arrow{margin-left:.2rem;opacity:.6}
   tbody tr{border-bottom:1px solid rgba(74,58,26,.35);transition:background .1s}
@@ -61,7 +61,7 @@
   .td-count{text-align:right;color:var(--text-dim);font-variant-numeric:tabular-nums}
   .td-count.stack{color:var(--gold-light);font-weight:500}
   td.td-id{font-size:.78rem;color:var(--text-muted);font-variant-numeric:tabular-nums}
-  .badge{display:inline-block;padding:.08rem .38rem;border-radius:2px;font-size:.7rem;font-family:'Cinzel',serif;letter-spacing:.05em;white-space:nowrap}
+  .badge{display:inline-block;padding:.08rem .38rem;border-radius:2px;font-size:.7rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;white-space:nowrap}
   .badge-equipped{background:rgba(180,230,180,.5);border:1px solid #5a9a5a;color:#1a5a1a}
   .badge-bank{background:rgba(200,210,240,.6);border:1px solid #7080c0;color:#2030a0}
   .badge-bag{background:rgba(220,190,130,.4);border:1px solid var(--border);color:var(--gold)}
@@ -72,7 +72,7 @@
   .fetch-progress-bar{height:100%;background:var(--gold-dim);border-radius:2px;transition:width .3s}
   .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.75rem;margin-bottom:.75rem}
   .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.75rem 1rem}
-  .stat-card-title{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);margin-bottom:.5rem}
+  .stat-card-title{font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);margin-bottom:.5rem}
   .stat-row{display:flex;justify-content:space-between;align-items:center;padding:.15rem 0;border-bottom:1px solid rgba(74,58,26,.15);font-size:.88rem}
   .stat-row:last-child{border-bottom:none}.stat-row-label{color:var(--text-dim)}
   .stat-row-vals{display:flex;gap:.25rem;align-items:center;font-variant-numeric:tabular-nums}
@@ -80,16 +80,16 @@
   .val-gear{font-size:.8rem;font-weight:500;min-width:3rem;text-align:right}.val-gear.pos{color:#3a7a3a}.val-gear.neg{color:#a03030}.val-gear.zero{color:var(--text-muted)}
   .val-total{color:var(--gold-light);font-weight:600;min-width:2.5rem;text-align:right}
   .gear-breakdown{margin-top:1rem}
-  .gear-breakdown-title{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.08em;color:var(--gold);margin-bottom:.5rem}
+  .gear-breakdown-title{font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.08em;color:var(--gold);margin-bottom:.5rem}
   .gear-table{width:100%;border-collapse:collapse;font-size:.82rem}
-  .gear-table th{font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.05em;padding:.3rem .5rem;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+  .gear-table th{font-family:\'Cinzel\',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.05em;padding:.3rem .5rem;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
   .gear-table th:first-child{text-align:left}
   .gear-table td{padding:.28rem .5rem;text-align:right;border-bottom:1px solid rgba(74,58,26,.15);color:var(--text-dim)}
   .gear-table td:first-child{text-align:left;color:var(--text);font-weight:500}
   .gear-table tr:last-child td{border-bottom:none}
   .gear-val-pos{color:#3a7a3a;font-weight:500}.gear-val-neg{color:#a03030;font-weight:500}.gear-val-zero{color:var(--text-muted)}
   .legend{font-size:.75rem;color:var(--text-muted);font-style:italic;margin-bottom:.75rem}
-  .combined-header{margin:.75rem 1rem 0;display:flex;align-items:center;gap:.5rem;font-family:'Cinzel',serif;font-size:.8rem;color:var(--gold-dim);letter-spacing:.07em}
+  .combined-header{margin:.75rem 1rem 0;display:flex;align-items:center;gap:.5rem;font-family:\'Cinzel\',serif;font-size:.8rem;color:var(--gold-dim);letter-spacing:.07em}
   .combined-header hr{flex:1;border:none;border-top:1px solid var(--border)}
   /* ── Gear Planner layout ── */
   .upg-layout{display:grid;grid-template-columns:1fr 190px;gap:.85rem;margin:0 1rem 2rem;align-items:start}
@@ -97,15 +97,15 @@
   .upg-slots-panel{display:flex;flex-direction:column;gap:.55rem}
   .upg-slot-card{border:1px solid var(--border);border-radius:5px;overflow:hidden}
   .upg-slot-head{display:flex;align-items:center;gap:.6rem;padding:.35rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border)}
-  .upg-slot-label{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.09em;color:var(--text-muted);text-transform:uppercase}
-  .upg-score-pill{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.03em;font-weight:600;padding:.1rem .45rem;border-radius:20px;margin-left:auto;border:1px solid transparent;white-space:nowrap}
+  .upg-slot-label{font-family:\'Cinzel\',serif;font-size:.6rem;letter-spacing:.09em;color:var(--text-muted);text-transform:uppercase}
+  .upg-score-pill{font-family:\'Cinzel\',serif;font-size:.62rem;letter-spacing:.03em;font-weight:600;padding:.1rem .45rem;border-radius:20px;margin-left:auto;border:1px solid transparent;white-space:nowrap}
   .upg-score-hi{background:rgba(58,122,58,.18);border-color:#5a9a5a;color:#1a5a1a}
   .upg-score-mid{background:rgba(160,120,0,.13);border-color:#a08000;color:#6a5000}
   .upg-score-lo{background:var(--surface2);border-color:var(--border);color:var(--text-muted)}
   .upg-panes{display:grid;grid-template-columns:minmax(0,1fr) 1px minmax(0,1fr)}
   .upg-pane-divider{background:var(--border)}
   .upg-pane{padding:.5rem .75rem}
-  .upg-pane-label{font-family:'Cinzel',serif;font-size:.56rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;margin-bottom:.25rem}
+  .upg-pane-label{font-family:\'Cinzel\',serif;font-size:.56rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;margin-bottom:.25rem}
   .upg-pane-name{font-size:.88rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.2rem}
   .upg-pane-name.upg-pane-upgrade{color:#1a5a1a}
   .upg-pane-name.upg-pane-bis{color:var(--text-muted);font-style:italic;font-weight:400}
@@ -117,21 +117,21 @@
   .upg-pane-cost{font-size:.72rem;color:var(--text-muted)}
   /* alt picker row */
   .upg-alt-row{padding:.3rem .75rem .4rem;border-top:1px solid rgba(74,58,26,.12);background:rgba(160,120,50,.03);display:flex;align-items:center;gap:.5rem}
-  .upg-alt-label{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.07em;color:var(--text-muted);text-transform:uppercase;white-space:nowrap}
-  .upg-alt-select{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.2rem .4rem;font-family:'Crimson Pro',serif;font-size:.8rem;outline:none;cursor:pointer;min-width:0}
+  .upg-alt-label{font-family:\'Cinzel\',serif;font-size:.58rem;letter-spacing:.07em;color:var(--text-muted);text-transform:uppercase;white-space:nowrap}
+  .upg-alt-select{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.2rem .4rem;font-family:\'Crimson Pro\',serif;font-size:.8rem;outline:none;cursor:pointer;min-width:0}
   .upg-alt-select:focus{border-color:var(--gold)}
   /* bis card */
   .upg-bis-pane{padding:.45rem .75rem;opacity:.45;font-size:.82rem;color:var(--text-dim)}
   /* ── Stat sheet (right) ── */
   .upg-stat-panel{border:1px solid var(--border);border-radius:5px;overflow:hidden;position:sticky;top:1rem}
-  .upg-stat-head{padding:.5rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.08em;color:var(--gold);text-transform:uppercase}
+  .upg-stat-head{padding:.5rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border);font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--gold);text-transform:uppercase}
   .upg-stat-body{padding:.5rem .65rem}
-  .upg-stat-section{font-family:'Cinzel',serif;font-size:.56rem;letter-spacing:.09em;color:var(--text-muted);text-transform:uppercase;padding:.4rem 0 .15rem;border-bottom:1px solid rgba(74,58,26,.15);margin-bottom:.15rem}
+  .upg-stat-section{font-family:\'Cinzel\',serif;font-size:.56rem;letter-spacing:.09em;color:var(--text-muted);text-transform:uppercase;padding:.4rem 0 .15rem;border-bottom:1px solid rgba(74,58,26,.15);margin-bottom:.15rem}
   .upg-stat-section:first-child{padding-top:0}
   .upg-stat-row{display:flex;justify-content:space-between;align-items:center;padding:.1rem .1rem;border-radius:2px}
   .upg-stat-row.upg-stat-changed{background:rgba(58,122,58,.1)}
   .upg-stat-key{font-size:.75rem;color:var(--text-muted)}
-  .upg-stat-vals{display:flex;align-items:center;gap:.3rem;font-family:'Crimson Pro',serif}
+  .upg-stat-vals{display:flex;align-items:center;gap:.3rem;font-family:\'Crimson Pro\',serif}
   .upg-stat-cur-val{font-size:.78rem;color:var(--text-muted)}
   .upg-stat-proj-val{font-size:.82rem;font-weight:600;color:var(--text)}
   .upg-stat-delta{font-size:.68rem;font-weight:700;color:#1a6a1a}
@@ -144,61 +144,61 @@
   .upg-2h-thumb{position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;background:var(--text-muted);transition:transform .18s,background .18s}
   .upg-2h-toggle input:checked~.upg-2h-track{background:rgba(122,80,16,.25);border-color:var(--gold-dim)}
   .upg-2h-toggle input:checked~.upg-2h-track .upg-2h-thumb{transform:translateX(14px);background:var(--gold)}
-  .upg-2h-label{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;transition:color .2s}
+  .upg-2h-label{font-family:\'Cinzel\',serif;font-size:.6rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;transition:color .2s}
   .upg-2h-toggle input:checked~.upg-2h-label{color:var(--gold)}
   .upg-slot-card.upg-wep-disabled{opacity:.38;pointer-events:none;filter:grayscale(.5)}
   .upg-slot-label.upg-wep-mh::before{content:'MH · '}
   .upg-slot-label.upg-wep-oh::before{content:'OH · '}
   .upg-save-bar{display:flex;align-items:center;gap:.75rem;margin:0 1rem .6rem;padding:.4rem .75rem;background:var(--surface2);border:1px solid var(--border);border-radius:5px}
-  .upg-save-label{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;flex:1}
-  .upg-save-btn{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;background:var(--surface2);border:1px solid var(--border-glow);border-radius:4px;padding:.3rem .75rem;color:var(--gold);cursor:pointer;white-space:nowrap;transition:border-color .15s}
+  .upg-save-label{font-family:\'Cinzel\',serif;font-size:.58rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;flex:1}
+  .upg-save-btn{font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.07em;background:var(--surface2);border:1px solid var(--border-glow);border-radius:4px;padding:.3rem .75rem;color:var(--gold);cursor:pointer;white-space:nowrap;transition:border-color .15s}
   .upg-save-btn:hover{border-color:var(--gold-light);color:var(--gold-light)}
   .gpr-toolbar{display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap}
   .gpr-plan-chips{display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:.85rem}
-  .gpr-chip{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.06em;padding:.28rem .65rem;border:1px solid var(--border);border-radius:12px;background:var(--surface2);color:var(--text-muted);cursor:pointer;transition:border-color .15s,color .15s;display:flex;align-items:center;gap:.35rem}
+  .gpr-chip{font-family:\'Cinzel\',serif;font-size:.62rem;letter-spacing:.06em;padding:.28rem .65rem;border:1px solid var(--border);border-radius:12px;background:var(--surface2);color:var(--text-muted);cursor:pointer;transition:border-color .15s,color .15s;display:flex;align-items:center;gap:.35rem}
   .gpr-chip:hover{border-color:var(--gold);color:var(--gold)}
   .gpr-chip.active{border-color:var(--gold);color:var(--gold-light);background:rgba(122,80,16,.12)}
   .gpr-chip-date{font-size:.55rem;color:var(--text-muted);opacity:.7}
   .gpr-chip-del{opacity:.5;font-size:.65rem;cursor:pointer;margin-left:.15rem;line-height:1}
   .gpr-chip-del:hover{opacity:1;color:#a03030}
-  .gpr-section-head{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;padding:.3rem 0 .5rem;border-bottom:1px solid var(--border);margin-bottom:.7rem}
+  .gpr-section-head{font-family:\'Cinzel\',serif;font-size:.6rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;padding:.3rem 0 .5rem;border-bottom:1px solid var(--border);margin-bottom:.7rem}
   .gpr-dkp-day-row{border-bottom:1px solid var(--border-light,var(--border))}
-  .gpr-dkp-date{font-family:'Cinzel',serif;font-size:.78rem;font-weight:600;color:var(--text);padding:.5rem 1rem;white-space:nowrap;vertical-align:top}
+  .gpr-dkp-date{font-family:\'Cinzel\',serif;font-size:.78rem;font-weight:600;color:var(--text);padding:.5rem 1rem;white-space:nowrap;vertical-align:top}
   .gpr-dkp-sessions{padding:.5rem .5rem;font-size:.8rem;color:var(--text-secondary,var(--text-muted))}
   .gpr-dkp-sess{margin-bottom:.15rem}
   .gpr-dkp-total{text-align:right;padding:.5rem 1rem;font-weight:600;color:var(--gold-light);white-space:nowrap;vertical-align:top}
   .gpr-table{width:100%;border-collapse:collapse;font-size:.88rem}
-  .gpr-table th{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;padding:.35rem .65rem;text-align:left;border-bottom:1px solid var(--border-glow);background:var(--surface2);white-space:nowrap}
+  .gpr-table th{font-family:\'Cinzel\',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;padding:.35rem .65rem;text-align:left;border-bottom:1px solid var(--border-glow);background:var(--surface2);white-space:nowrap}
   .gpr-table td{padding:.42rem .65rem;border-bottom:1px solid rgba(74,58,26,.12);vertical-align:middle}
   .gpr-table tr:hover td{background:rgba(160,120,50,.05)}
-  .gpr-slot{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;width:70px}
-  .gpr-item{color:var(--gold-light);font-family:'Crimson Pro',serif;font-size:.95rem}
-  .gpr-from{color:var(--text-muted);font-style:italic;font-family:'Crimson Pro',serif;font-size:.82rem}
-  .gpr-cost-dkp{font-family:'Cinzel',serif;font-size:.72rem;color:var(--gold);white-space:nowrap}
-  .gpr-cost-plat{font-family:'Cinzel',serif;font-size:.72rem;color:#6a9a4a;white-space:nowrap}
-  .gpr-none{color:var(--text-muted);font-style:italic;font-family:'Crimson Pro',serif;font-size:.85rem;opacity:.5}
+  .gpr-slot{font-family:\'Cinzel\',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;width:70px}
+  .gpr-item{color:var(--gold-light);font-family:\'Crimson Pro\',serif;font-size:.95rem}
+  .gpr-from{color:var(--text-muted);font-style:italic;font-family:\'Crimson Pro\',serif;font-size:.82rem}
+  .gpr-cost-dkp{font-family:\'Cinzel\',serif;font-size:.72rem;color:var(--gold);white-space:nowrap}
+  .gpr-cost-plat{font-family:\'Cinzel\',serif;font-size:.72rem;color:#6a9a4a;white-space:nowrap}
+  .gpr-none{color:var(--text-muted);font-style:italic;font-family:\'Crimson Pro\',serif;font-size:.85rem;opacity:.5}
   .gpr-totals{display:flex;gap:1.5rem;padding:.6rem .75rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px;margin-top:.85rem;flex-wrap:wrap}
   .gpr-total-item{display:flex;flex-direction:column;gap:.15rem}
-  .gpr-total-label{font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase}
-  .gpr-total-val{font-size:.95rem;color:var(--gold-light);font-family:'Crimson Pro',serif}
-  .gpr-empty{text-align:center;padding:3rem;color:var(--text-muted);font-style:italic;font-family:'Crimson Pro',serif}
+  .gpr-total-label{font-family:\'Cinzel\',serif;font-size:.55rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase}
+  .gpr-total-val{font-size:.95rem;color:var(--gold-light);font-family:\'Crimson Pro\',serif}
+  .gpr-empty{text-align:center;padding:3rem;color:var(--text-muted);font-style:italic;font-family:\'Crimson Pro\',serif}
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;align-items:center;justify-content:center}
   .modal-overlay.open{display:flex}
   .modal{background:var(--bg);border:2px solid var(--border-glow);border-radius:5px;padding:1.5rem;max-width:480px;width:90%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.4)}
-  .modal h2{font-family:'Cinzel',serif;font-size:1rem;color:var(--gold-light);letter-spacing:.08em;margin-bottom:.6rem}
+  .modal h2{font-family:\'Cinzel\',serif;font-size:1rem;color:var(--gold-light);letter-spacing:.08em;margin-bottom:.6rem}
   .modal p{color:var(--text-dim);font-size:.9rem;margin-bottom:1.2rem}
   .modal-btns{display:flex;gap:.6rem;justify-content:center}
-  .btn-confirm-danger{background:#7a1010;border:1px solid #a02020;border-radius:3px;color:#f8d0d0;padding:.45rem 1rem;cursor:pointer;font-family:'Crimson Pro',serif;font-size:.9rem}
+  .btn-confirm-danger{background:#7a1010;border:1px solid #a02020;border-radius:3px;color:#f8d0d0;padding:.45rem 1rem;cursor:pointer;font-family:\'Crimson Pro\',serif;font-size:.9rem}
   .btn-confirm-danger:hover{background:#a01010}
   /* ── Auth Screen ── */
   .auth-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:2000;background-image:radial-gradient(ellipse at 20% 0%,rgba(180,140,80,.12) 0%,transparent 60%),radial-gradient(ellipse at 80% 100%,rgba(160,120,60,.08) 0%,transparent 60%)}
   .auth-box{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2rem;width:min(380px,90vw);text-align:center}
-  .auth-title{font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold-light);letter-spacing:.1em;margin-bottom:.25rem}
+  .auth-title{font-family:\'Cinzel\',serif;font-size:1.1rem;color:var(--gold-light);letter-spacing:.1em;margin-bottom:.25rem}
   .auth-sub{color:var(--text-muted);font-size:.85rem;font-style:italic;margin-bottom:1.5rem}
   .auth-ornament{color:var(--gold-dim);font-size:.9rem;letter-spacing:.3em;margin-bottom:1rem}
-  .auth-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.55rem .75rem;font-family:'Crimson Pro',serif;font-size:1rem;outline:none;margin-bottom:.6rem;transition:border-color .2s}
+  .auth-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.55rem .75rem;font-family:\'Crimson Pro\',serif;font-size:1rem;outline:none;margin-bottom:.6rem;transition:border-color .2s}
   .auth-input:focus{border-color:var(--gold)}
-  .auth-btn{width:100%;background:rgba(160,120,50,.12);border:1px solid var(--gold-dim);border-radius:3px;color:var(--gold);padding:.6rem;font-family:'Cinzel',serif;font-size:.78rem;letter-spacing:.08em;cursor:pointer;transition:all .15s;margin-bottom:.5rem}
+  .auth-btn{width:100%;background:rgba(160,120,50,.12);border:1px solid var(--gold-dim);border-radius:3px;color:var(--gold);padding:.6rem;font-family:\'Cinzel\',serif;font-size:.78rem;letter-spacing:.08em;cursor:pointer;transition:all .15s;margin-bottom:.5rem}
   .auth-btn:hover{background:rgba(160,120,50,.22)}
   .auth-btn:disabled{opacity:.5;cursor:not-allowed}
   .auth-toggle{font-size:.82rem;color:var(--text-muted);cursor:pointer;text-decoration:underline;margin-top:.5rem;display:inline-block}
@@ -206,18 +206,18 @@
   .auth-msg{font-size:.82rem;margin-top:.5rem;min-height:1.2rem}
   .auth-msg.err{color:#a03030}.auth-msg.ok{color:#3a7a3a}
   .auth-user-bar{position:absolute;top:.75rem;left:1rem;font-size:.75rem;color:var(--text-muted);display:flex;align-items:center;gap:.5rem}
-  .auth-signout{background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-muted);padding:.15rem .45rem;font-size:.72rem;cursor:pointer;font-family:'Crimson Pro',serif;transition:all .15s}
+  .auth-signout{background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-muted);padding:.15rem .45rem;font-size:.72rem;cursor:pointer;font-family:\'Crimson Pro\',serif;transition:all .15s}
   .auth-signout:hover{border-color:#a03030;color:#a03030}
   /* ── Watch List Banner ── */
   .watchlist-bar{background:var(--surface);border:1px solid var(--border);border-radius:5px;margin:.5rem 0;overflow:hidden}
   .watchlist-bar-header{display:flex;align-items:center;justify-content:space-between;padding:.45rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border)}
-  .watchlist-bar-title{font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;font-weight:700}
+  .watchlist-bar-title{font-family:\'Cinzel\',serif;font-size:.72rem;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;font-weight:700}
   .watchlist-gear-btn{background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:.1rem .3rem;line-height:1;border-radius:3px;transition:all .15s}
   .watchlist-gear-btn:hover{color:var(--gold);background:rgba(122,80,16,.1)}
   .watchlist-rows{padding:.4rem .75rem .5rem;display:flex;flex-direction:column;gap:.3rem}
   .watchlist-row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
   .watchlist-item-name{font-size:.85rem;font-weight:600;color:var(--text-dim);min-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .watchlist-chip{display:inline-flex;align-items:center;gap:.25rem;padding:.15rem .55rem;border-radius:3px;font-size:.75rem;font-family:'Cinzel',serif;letter-spacing:.04em;white-space:nowrap;font-weight:600}
+  .watchlist-chip{display:inline-flex;align-items:center;gap:.25rem;padding:.15rem .55rem;border-radius:3px;font-size:.75rem;font-family:\'Cinzel\',serif;letter-spacing:.04em;white-space:nowrap;font-weight:600}
   .watchlist-chip-ok{background:rgba(58,122,58,.2);border:1px solid #5a9a5a;color:#1a5a1a}
   .watchlist-chip-miss{background:rgba(160,48,48,.15);border:1px solid #c03030;color:#8a1010}
   .watchlist-empty{color:var(--text-muted);font-size:.8rem;font-style:italic;padding:.1rem 0}
@@ -225,9 +225,9 @@
   .wl-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:none;align-items:center;justify-content:center}
   .wl-modal-overlay.open{display:flex}
   .wl-modal{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:1.25rem;width:min(420px,90vw);max-height:80vh;overflow-y:auto}
-  .wl-modal-title{font-family:'Cinzel',serif;font-size:.85rem;color:var(--gold);margin-bottom:.75rem;letter-spacing:.06em}
+  .wl-modal-title{font-family:\'Cinzel\',serif;font-size:.85rem;color:var(--gold);margin-bottom:.75rem;letter-spacing:.06em}
   .wl-modal-input-row{display:flex;gap:.5rem;margin-bottom:.75rem}
-  .wl-modal-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:'Crimson Pro',serif;font-size:.9rem;outline:none}
+  .wl-modal-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:\'Crimson Pro\',serif;font-size:.9rem;outline:none}
   .wl-modal-input:focus{border-color:var(--gold)}
   .wl-item-list{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.75rem}
   .wl-item-row{display:flex;align-items:center;justify-content:space-between;padding:.3rem .5rem;background:var(--surface);border:1px solid var(--border);border-radius:3px;font-size:.85rem;color:var(--text-dim)}
@@ -240,15 +240,15 @@
   /* ── Raid Consumes ── */
   .rc-panel{margin:0 1rem 2rem}
   .rc-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem}
-  .rc-title{font-family:'Cinzel',serif;font-size:.75rem;letter-spacing:.1em;color:var(--gold);text-transform:uppercase}
+  .rc-title{font-family:\'Cinzel\',serif;font-size:.75rem;letter-spacing:.1em;color:var(--gold);text-transform:uppercase}
   .rc-legend{display:flex;gap:1rem;font-size:.78rem;color:var(--text-muted)}
   .rc-legend span{display:flex;align-items:center;gap:.3rem}
   .rc-table{width:100%;border-collapse:collapse;font-size:.88rem}
-  .rc-table th{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.07em;color:var(--gold);padding:.5rem .75rem;text-align:left;border-bottom:2px solid var(--border-glow);background:var(--surface2);white-space:nowrap}
+  .rc-table th{font-family:\'Cinzel\',serif;font-size:.68rem;letter-spacing:.07em;color:var(--gold);padding:.5rem .75rem;text-align:left;border-bottom:2px solid var(--border-glow);background:var(--surface2);white-space:nowrap}
   .rc-table th.rc-th-center{text-align:center}
   .rc-table td{padding:.45rem .75rem;border-bottom:1px solid rgba(74,58,26,.2);vertical-align:middle}
   .rc-table tr:hover td{background:rgba(160,120,50,.06)}
-  .rc-char-name{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.06em;color:var(--text-muted);background:var(--surface2);padding:.25rem .6rem;border-radius:2px;border:1px solid var(--border)}
+  .rc-char-name{font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.06em;color:var(--text-muted);background:var(--surface2);padding:.25rem .6rem;border-radius:2px;border:1px solid var(--border)}
   .rc-item-name{font-weight:500;color:var(--text)}
   .rc-item-note{font-size:.75rem;color:var(--text-muted);font-style:italic;margin-top:.1rem}
   .rc-check{text-align:center;font-size:1.1rem;line-height:1}
@@ -256,41 +256,41 @@
   .rc-check-yellow{color:#b07800}
   .rc-check-red{color:#a03030}
   .rc-check-na{color:var(--text-muted);font-size:.75rem}
-  .rc-status-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .6rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.06em;white-space:nowrap}
+  .rc-status-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .6rem;border-radius:3px;font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.06em;white-space:nowrap}
   .rc-status-green{background:rgba(58,122,58,.15);border:1px solid #5a9a5a;color:#1a5a1a}
   .rc-status-yellow{background:rgba(176,120,0,.12);border:1px solid #b07800;color:#7a5000}
   .rc-status-red{background:rgba(160,48,48,.12);border:1px solid #a03030;color:#7a1010}
-  .rc-section-divider td{background:var(--surface);padding:.3rem .75rem;font-family:'Cinzel',serif;font-size:.63rem;letter-spacing:.1em;color:var(--text-muted);border-bottom:1px solid var(--border);border-top:2px solid var(--border)}
+  .rc-section-divider td{background:var(--surface);padding:.3rem .75rem;font-family:\'Cinzel\',serif;font-size:.63rem;letter-spacing:.1em;color:var(--text-muted);border-bottom:1px solid var(--border);border-top:2px solid var(--border)}
   .top-nav{display:flex;border-bottom:2px solid var(--border-glow);background:var(--surface);padding:0 1rem;gap:0}
-  .top-nav-item{font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.07em;color:var(--text-muted);padding:.55rem .9rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .15s,border-color .15s}
+  .top-nav-item{font-family:\'Cinzel\',serif;font-size:.72rem;letter-spacing:.07em;color:var(--text-muted);padding:.55rem .9rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .15s,border-color .15s}
   .top-nav-item:hover{color:var(--gold)}
   .top-nav-item.active{color:var(--gold-light);border-bottom-color:var(--gold-light)}
   /* ── Factions ── */
   .faction-panel{margin:0 1rem 2rem}
   .faction-table{width:100%;border-collapse:collapse;font-size:.88rem}
-  .faction-table th{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.07em;color:var(--gold);padding:.5rem .75rem;text-align:left;border-bottom:2px solid var(--border-glow);background:var(--surface2);white-space:nowrap}
+  .faction-table th{font-family:\'Cinzel\',serif;font-size:.68rem;letter-spacing:.07em;color:var(--gold);padding:.5rem .75rem;text-align:left;border-bottom:2px solid var(--border-glow);background:var(--surface2);white-space:nowrap}
   .faction-table th.faction-th-center{text-align:center}
   .faction-table td{padding:.45rem .75rem;border-bottom:1px solid rgba(74,58,26,.2);vertical-align:middle}
   .faction-table tr:hover td{background:rgba(160,120,50,.06)}
-  .faction-section-divider td{background:var(--surface);padding:.3rem .75rem;font-family:'Cinzel',serif;font-size:.63rem;letter-spacing:.1em;color:var(--text-muted);border-bottom:1px solid var(--border);border-top:2px solid var(--border)}
+  .faction-section-divider td{background:var(--surface);padding:.3rem .75rem;font-family:\'Cinzel\',serif;font-size:.63rem;letter-spacing:.1em;color:var(--text-muted);border-bottom:1px solid var(--border);border-top:2px solid var(--border)}
   .faction-name{font-weight:500;color:var(--text)}
-  .faction-select{background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.25rem .4rem;font-family:'Crimson Pro',serif;font-size:.85rem;outline:none;cursor:pointer;min-width:160px}
+  .faction-select{background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.25rem .4rem;font-family:\'Crimson Pro\',serif;font-size:.85rem;outline:none;cursor:pointer;min-width:160px}
   .faction-select:focus{border-color:var(--gold)}
   .faction-badge-ally{color:#1a5a1a;font-weight:700}
   .faction-badge-yellow{color:#7a5000;font-weight:700}
   .faction-badge-warn{color:#a03030;font-weight:700}
   .faction-badge-none{color:var(--text-muted);font-style:italic}
-  .tov-chip{display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .55rem;border-radius:3px;font-size:.75rem;font-family:'Cinzel',serif;letter-spacing:.04em;white-space:nowrap;font-weight:600}
+  .tov-chip{display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .55rem;border-radius:3px;font-size:.75rem;font-family:\'Cinzel\',serif;letter-spacing:.04em;white-space:nowrap;font-weight:600}
   .tov-chip-ally{background:rgba(58,122,58,.2);border:1px solid #5a9a5a;color:#1a5a1a}
   .tov-chip-yellow{background:rgba(176,120,0,.12);border:1px solid #b07800;color:#7a5000}
   .tov-chip-warn{background:rgba(160,48,48,.15);border:1px solid #c03030;color:#8a1010}
   .tov-chip-none{background:rgba(120,100,60,.12);border:1px solid var(--border);color:var(--text-muted)}
   /* ── Skyshrine ── */
   .ss-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem}
-  .ss-title{font-family:'Cinzel',serif;font-size:.75rem;letter-spacing:.1em;color:var(--gold);text-transform:uppercase}
+  .ss-title{font-family:\'Cinzel\',serif;font-size:.75rem;letter-spacing:.1em;color:var(--gold);text-transform:uppercase}
   .ss-progress{font-size:.8rem;color:var(--text-muted);font-style:italic}
   .ss-table{width:100%;border-collapse:collapse;font-size:.88rem}
-  .ss-table th{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.07em;color:var(--gold);padding:.5rem .75rem;text-align:left;border-bottom:2px solid var(--border-glow);background:var(--surface2);white-space:nowrap}
+  .ss-table th{font-family:\'Cinzel\',serif;font-size:.68rem;letter-spacing:.07em;color:var(--gold);padding:.5rem .75rem;text-align:left;border-bottom:2px solid var(--border-glow);background:var(--surface2);white-space:nowrap}
   .ss-table th.ss-th-center{text-align:center}
   .ss-table td{padding:.45rem .75rem;border-bottom:1px solid rgba(74,58,26,.2);vertical-align:middle}
   .ss-table tr:hover td{background:rgba(160,120,50,.06)}
@@ -301,19 +301,19 @@
   .ss-check-green{color:#3a7a3a}
   .ss-check-red{color:#a03030}
   .ss-check-na{color:var(--text-muted)}
-  .ss-done-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:.15rem .5rem;font-size:.75rem;cursor:pointer;font-family:'Cinzel',serif;color:var(--text-muted);transition:all .15s;white-space:nowrap}
+  .ss-done-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:.15rem .5rem;font-size:.75rem;cursor:pointer;font-family:\'Cinzel\',serif;color:var(--text-muted);transition:all .15s;white-space:nowrap}
   .ss-done-btn:hover{border-color:var(--gold);color:var(--gold)}
   .ss-done-btn.done{border-color:#5a9a5a;color:#1a5a1a;background:rgba(58,122,58,.1)}
   .ss-wrist-note{font-size:.68rem;color:var(--text-muted);font-style:italic}
   /* ── DKP History ── */
   .dkp-toolbar{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem}
-  .dkp-search{flex:1;min-width:180px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.4rem .7rem;font-family:'Crimson Pro',serif;font-size:.95rem;color:var(--text);outline:none}
+  .dkp-search{flex:1;min-width:180px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.4rem .7rem;font-family:\'Crimson Pro\',serif;font-size:.95rem;color:var(--text);outline:none}
   .dkp-search:focus{border-color:var(--gold)}
-  .dkp-upload-btn{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.06em;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.4rem .8rem;color:var(--gold);cursor:pointer;white-space:nowrap;transition:border-color .15s}
+  .dkp-upload-btn{font-family:\'Cinzel\',serif;font-size:.68rem;letter-spacing:.06em;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.4rem .8rem;color:var(--gold);cursor:pointer;white-space:nowrap;transition:border-color .15s}
   .dkp-upload-btn:hover{border-color:var(--gold-light)}
   .dkp-meta{font-size:.78rem;color:var(--text-muted);font-style:italic}
   .dkp-table{width:100%;border-collapse:collapse;font-size:.88rem}
-  .dkp-table th{font-family:'Cinzel',serif;font-size:.66rem;letter-spacing:.07em;color:var(--gold);padding:.5rem .75rem;text-align:left;border-bottom:2px solid var(--border-glow);background:var(--surface2);white-space:nowrap;cursor:pointer;user-select:none}
+  .dkp-table th{font-family:\'Cinzel\',serif;font-size:.66rem;letter-spacing:.07em;color:var(--gold);padding:.5rem .75rem;text-align:left;border-bottom:2px solid var(--border-glow);background:var(--surface2);white-space:nowrap;cursor:pointer;user-select:none}
   .dkp-table th:hover{color:var(--gold-light)}
   .dkp-table th.sort-asc::after{content:' ▲';font-size:.55rem}
   .dkp-table th.sort-desc::after{content:' ▼';font-size:.55rem}
@@ -328,9 +328,9 @@
   .dkp-history-row td{background:var(--surface2)!important;padding:0}
   .dkp-history-inner{padding:.5rem 1rem .75rem 1.5rem}
   .dkp-history-table{width:100%;border-collapse:collapse;font-size:.8rem}
-  .dkp-history-table th{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.06em;color:var(--text-muted);padding:.25rem .5rem;text-align:left;border-bottom:1px solid var(--border)}
+  .dkp-history-table th{font-family:\'Cinzel\',serif;font-size:.62rem;letter-spacing:.06em;color:var(--text-muted);padding:.25rem .5rem;text-align:left;border-bottom:1px solid var(--border)}
   .dkp-history-table td{padding:.25rem .5rem;border-bottom:1px solid rgba(74,58,26,.1)}
-  .dkp-chip{display:inline-block;padding:.05rem .35rem;border-radius:3px;font-size:.72rem;font-family:'Cinzel',serif;font-weight:600;letter-spacing:.03em;vertical-align:middle}
+  .dkp-chip{display:inline-block;padding:.05rem .35rem;border-radius:3px;font-size:.72rem;font-family:\'Cinzel\',serif;font-weight:600;letter-spacing:.03em;vertical-align:middle}
   .dkp-chip-avg{background:rgba(120,80,16,.12);border:1px solid var(--border);color:var(--gold-light)}
   .dkp-empty{text-align:center;padding:2rem;color:var(--text-muted);font-style:italic}
   .dkp-no-data{color:var(--text-muted);font-style:italic;font-size:.8rem}
@@ -338,35 +338,35 @@
   .plat-ask{color:#1a5a1a;font-weight:600}
   .plat-bid{color:#a03030;font-weight:600}
   .plat-count{color:var(--text-muted);font-size:.8rem}
-  .plat-fetch-btn{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.06em;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.4rem .8rem;color:var(--gold);cursor:pointer;white-space:nowrap;transition:border-color .15s}
+  .plat-fetch-btn{font-family:\'Cinzel\',serif;font-size:.68rem;letter-spacing:.06em;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.4rem .8rem;color:var(--gold);cursor:pointer;white-space:nowrap;transition:border-color .15s}
   .plat-fetch-btn:hover{border-color:var(--gold-light)}
   .plat-fetch-btn:disabled{opacity:.5;cursor:not-allowed}
   .plat-history-row td{background:var(--surface2)!important;padding:0}
   .plat-history-inner{padding:.5rem 1rem .75rem 1.5rem}
   .plat-history-table{width:100%;border-collapse:collapse;font-size:.8rem}
-  .plat-history-table th{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.06em;color:var(--text-muted);padding:.25rem .5rem;text-align:left;border-bottom:1px solid var(--border)}
+  .plat-history-table th{font-family:\'Cinzel\',serif;font-size:.62rem;letter-spacing:.06em;color:var(--text-muted);padding:.25rem .5rem;text-align:left;border-bottom:1px solid var(--border)}
   .plat-history-table td{padding:.25rem .5rem;border-bottom:1px solid rgba(74,58,26,.1)}
   /* ── Kill / Session Tracker ── */
-  .kt-tier-header{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);padding:.5rem 1rem .3rem;border-bottom:1px solid var(--border)}
+  .kt-tier-header{font-family:\'Cinzel\',serif;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);padding:.5rem 1rem .3rem;border-bottom:1px solid var(--border)}
   .kt-check-row{display:flex;align-items:center;gap:.6rem;padding:.35rem 1rem;border-bottom:1px solid rgba(200,184,144,.2);cursor:pointer;transition:background .1s}
   .kt-check-row:hover{background:rgba(200,184,144,.1)}
   .kt-check-row.kt-checked{background:rgba(26,90,26,.06)}
   .kt-check-row input[type=checkbox]{accent-color:var(--gold-light);width:14px;height:14px;flex-shrink:0;cursor:pointer}
-  .kt-check-name{font-family:'Cinzel',serif;font-size:.78rem;font-weight:600;color:var(--text);flex:1}
+  .kt-check-name{font-family:\'Cinzel\',serif;font-size:.78rem;font-weight:600;color:var(--text);flex:1}
   .kt-check-full{font-size:.7rem;color:var(--text-muted);font-style:italic}
-  .kt-check-dkp{font-size:.72rem;color:var(--gold-dim);font-family:'Cinzel',serif;margin-left:auto;white-space:nowrap}
+  .kt-check-dkp{font-size:.72rem;color:var(--gold-dim);font-family:\'Cinzel\',serif;margin-left:auto;white-space:nowrap}
   .kt-role-row{display:flex;align-items:center;gap:.5rem;padding:.4rem .75rem;border-bottom:1px solid rgba(200,184,144,.2);cursor:pointer}
   .kt-role-row:hover{background:rgba(200,184,144,.08)}
   .kt-role-row.kt-role-active{background:rgba(26,90,26,.07)}
   .kt-role-row input[type=checkbox]{accent-color:var(--gold-light);width:14px;height:14px;flex-shrink:0;cursor:pointer}
   .kt-role-desc{font-size:.78rem;color:var(--text-dim);flex:1;line-height:1.2}
-  .kt-role-val{font-size:.7rem;color:var(--gold-dim);white-space:nowrap;font-family:'Cinzel',serif}
+  .kt-role-val{font-size:.7rem;color:var(--gold-dim);white-space:nowrap;font-family:\'Cinzel\',serif}
   .kt-role-qty{display:flex;align-items:center;gap:.3rem;margin-left:.3rem}
   .kt-qty-btn{width:20px;height:20px;border:1px solid var(--border);border-radius:3px;background:var(--surface2);color:var(--gold);font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;transition:border-color .1s}
   .kt-qty-btn:hover{border-color:var(--gold-light)}
   .kt-check-row.kt-failtick{background:rgba(160,48,48,.06)}
   .kt-radio-group{display:flex;gap:.3rem;flex-shrink:0}
-  .kt-radio-label{display:flex;align-items:center;gap:.25rem;font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.04em;padding:.2rem .45rem;border:1px solid var(--border);border-radius:3px;cursor:pointer;color:var(--text-muted);white-space:nowrap;transition:all .12s}
+  .kt-radio-label{display:flex;align-items:center;gap:.25rem;font-family:\'Cinzel\',serif;font-size:.62rem;letter-spacing:.04em;padding:.2rem .45rem;border:1px solid var(--border);border-radius:3px;cursor:pointer;color:var(--text-muted);white-space:nowrap;transition:all .12s}
   .kt-radio-label input[type=radio]{display:none}
   .kt-radio-label:hover{border-color:var(--gold-dim);color:var(--gold-dim)}
   .kt-radio-label.active{background:rgba(26,90,26,.12);border-color:#3a7a3a;color:#1a5a1a}
@@ -374,34 +374,34 @@
   .kt-expand-btn:hover{color:var(--gold-dim)}
   .kt-boss-roles-panel{border-top:1px solid rgba(200,184,144,.3)}
   .kt-boss-roles-panel .kt-role-row{padding:.3rem 1rem .3rem 2rem;gap:.5rem}
-  .kt-role-val-inline{font-size:.7rem;color:var(--gold-dim);font-family:'Cinzel',serif;white-space:nowrap;margin-left:.35rem;flex-shrink:0}
-  .kt-boss-role-total{font-family:'Cinzel',serif;font-size:.72rem;font-weight:700;color:var(--gold-light);padding:.35rem 1rem .35rem 2rem;border-top:1px solid rgba(200,184,144,.3);background:rgba(122,80,16,.06);text-align:right}
-  .kt-dkp-badge{font-family:'Cinzel',serif;font-size:.82rem;font-weight:700;color:var(--gold-light);background:rgba(122,80,16,.1);border:1px solid var(--border-glow);border-radius:4px;padding:.3rem .7rem;white-space:nowrap}
-  .kt-date-input{font-family:'Crimson Pro',serif;font-size:.85rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.25rem .5rem;color:var(--text)}
+  .kt-role-val-inline{font-size:.7rem;color:var(--gold-dim);font-family:\'Cinzel\',serif;white-space:nowrap;margin-left:.35rem;flex-shrink:0}
+  .kt-boss-role-total{font-family:\'Cinzel\',serif;font-size:.72rem;font-weight:700;color:var(--gold-light);padding:.35rem 1rem .35rem 2rem;border-top:1px solid rgba(200,184,144,.3);background:rgba(122,80,16,.06);text-align:right}
+  .kt-dkp-badge{font-family:\'Cinzel\',serif;font-size:.82rem;font-weight:700;color:var(--gold-light);background:rgba(122,80,16,.1);border:1px solid var(--border-glow);border-radius:4px;padding:.3rem .7rem;white-space:nowrap}
+  .kt-date-input{font-family:\'Crimson Pro\',serif;font-size:.85rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.25rem .5rem;color:var(--text)}
   .kt-date-input:focus{outline:none;border-color:var(--gold-dim)}
-  .kt-save-btn{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.06em;background:rgba(26,90,26,.1);border:1px solid #3a7a3a;border-radius:4px;padding:.4rem .8rem;color:#1a5a1a;cursor:pointer;white-space:nowrap;transition:all .15s}
+  .kt-save-btn{font-family:\'Cinzel\',serif;font-size:.68rem;letter-spacing:.06em;background:rgba(26,90,26,.1);border:1px solid #3a7a3a;border-radius:4px;padding:.4rem .8rem;color:#1a5a1a;cursor:pointer;white-space:nowrap;transition:all .15s}
   .kt-save-btn:hover{background:rgba(26,90,26,.2)}
-  .kt-undo-btn{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.05em;background:none;border:1px solid var(--border);border-radius:4px;padding:.3rem .6rem;color:var(--text-muted);cursor:pointer;transition:all .15s;white-space:nowrap}
+  .kt-undo-btn{font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.05em;background:none;border:1px solid var(--border);border-radius:4px;padding:.3rem .6rem;color:var(--text-muted);cursor:pointer;transition:all .15s;white-space:nowrap}
   .kt-undo-btn:hover{border-color:#a03030;color:#a03030}
-  .kt-view-tab{font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.07em;padding:.55rem 1.2rem;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;transition:all .15s}
+  .kt-view-tab{font-family:\'Cinzel\',serif;font-size:.72rem;letter-spacing:.07em;padding:.55rem 1.2rem;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;transition:all .15s}
   .kt-view-tab:hover{color:var(--gold-dim)}
   .kt-view-tab.active{color:var(--gold-light);border-bottom-color:var(--gold-light)}
   .kt-hist-row{display:flex;align-items:center;gap:.75rem;padding:.6rem 1rem;border-bottom:1px solid rgba(200,184,144,.25);cursor:pointer;transition:background .1s}
   .kt-hist-row:hover{background:rgba(200,184,144,.1)}
-  .kt-hist-date{font-family:'Cinzel',serif;font-size:.78rem;color:var(--text);font-weight:600}
+  .kt-hist-date{font-family:\'Cinzel\',serif;font-size:.78rem;color:var(--text);font-weight:600}
   .kt-hist-kills{font-size:.73rem;color:var(--text-muted);margin-top:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .kt-hist-dkp{font-family:'Cinzel',serif;font-size:.85rem;font-weight:700;color:var(--gold-light);white-space:nowrap;margin-left:auto}
+  .kt-hist-dkp{font-family:\'Cinzel\',serif;font-size:.85rem;font-weight:700;color:var(--gold-light);white-space:nowrap;margin-left:auto}
   .kt-seg-card{border:1px solid var(--border);border-radius:4px;margin:.75rem 1rem;overflow:hidden}
   .kt-seg-header{display:flex;align-items:center;gap:.6rem;padding:.55rem .85rem;background:var(--surface2);border-bottom:1px solid var(--border)}
-  .kt-seg-date{font-family:'Cinzel',serif;font-size:.78rem;font-weight:600;color:var(--text);flex:1}
+  .kt-seg-date{font-family:\'Cinzel\',serif;font-size:.78rem;font-weight:600;color:var(--text);flex:1}
   .kt-seg-note{font-family:var(--font-sans);font-weight:400;font-size:.75rem;color:var(--text-muted)}
-  .kt-seg-total{font-family:'Cinzel',serif;font-size:.85rem;font-weight:700;color:var(--gold-light);white-space:nowrap}
-  .kt-seg-load{font-size:.7rem;padding:.2rem .55rem;border:1px solid var(--border);border-radius:3px;background:var(--surface);color:var(--text-muted);cursor:pointer;font-family:'Cinzel',serif;letter-spacing:.04em}
+  .kt-seg-total{font-family:\'Cinzel\',serif;font-size:.85rem;font-weight:700;color:var(--gold-light);white-space:nowrap}
+  .kt-seg-load{font-size:.7rem;padding:.2rem .55rem;border:1px solid var(--border);border-radius:3px;background:var(--surface);color:var(--text-muted);cursor:pointer;font-family:\'Cinzel\',serif;letter-spacing:.04em}
   .kt-seg-load:hover{background:var(--gold-light);color:var(--bg);border-color:var(--gold-light)}
   .kt-seg-body{padding:.35rem 0}
   .kt-seg-row{display:grid;grid-template-columns:80px 1fr auto;gap:.4rem .75rem;padding:.25rem .85rem;font-size:.78rem;align-items:baseline}
   .kt-seg-row:not(:last-child){border-bottom:1px solid rgba(200,184,144,.12)}
-  .kt-seg-label{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted);text-transform:uppercase}
+  .kt-seg-label{font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted);text-transform:uppercase}
   .kt-seg-val{color:var(--text);line-height:1.4}
   .kt-seg-dkp{font-weight:600;color:var(--gold-light);white-space:nowrap;text-align:right;font-size:.75rem}
 </style>
@@ -444,8 +444,8 @@
   <h1>MixelParse</h1>
   <p>Project 1999 &middot; Guild Inventory Tool</p>
   <div class="ornament">&#10022;</div>
-  <button class="btn primary" id="itemDbBtn" style="position:absolute;top:1rem;right:1rem;font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.06em">&#128230; Item Database</button>
-  <button class="btn" id="gearReportsBtn" style="position:absolute;top:3.2rem;right:1rem;font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.06em">&#128202; Gear Planner Reports</button>
+  <button class="btn primary" id="itemDbBtn" style="position:absolute;top:1rem;right:1rem;font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.06em">&#128230; Item Database</button>
+  <button class="btn" id="gearReportsBtn" style="position:absolute;top:3.2rem;right:1rem;font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.06em">&#128202; Gear Planner Reports</button>
   <div class="version-badge">v1.0</div>
 </header>
 
@@ -1005,13 +1005,13 @@ function renderTable(){const query=document.getElementById('searchBox').value.to
 
 // ─── Stats Panel ──────────────────────────────────────────────────────────────
 function renderStatsPanel(){const panel=document.getElementById('statsPanel');const name=activeTab;if(!name||name==='__all__'){panel.innerHTML='';return;}const meta=charMeta[name]||{};const base=meta.baseStats||null;const selClass=meta.class||'';const selLevel=meta.level||1;const selRace=meta.race||'';const charGear=gearStats[name]||{};const dbCount=Object.keys(itemDB).length;const getBaseVal=(k)=>{if(!base)return'';const si=STAT_KEYS.indexOf(k);if(si>=0)return base.stats[si]||'';const ri=RESIST_KEYS.indexOf(k);if(ri>=0)return base.resists[ri]||'';const pi=POOL_KEYS.indexOf(k);if(pi>=0)return base.pools?.[pi]||'';return'';};
-const raceSelect=`<label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Race<select id="raceSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:'Crimson Pro',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">— Select Race —</option>${EQ_RACES.map(r=>`<option value="${r}"${r===selRace?' selected':''}>${r}</option>`).join('')}</select></label>`;
+const raceSelect=`<label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Race<select id="raceSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:\'Crimson Pro\',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">— Select Race —</option>${EQ_RACES.map(r=>`<option value="${r}"${r===selRace?' selected':''}>${r}</option>`).join('')}</select></label>`;
 panel.innerHTML=`<div class="char-setup" style="flex-direction:column;align-items:flex-start;gap:.75rem;display:flex">
-<div style="font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em">CHARACTER</div>
+<div style="font-family:\'Cinzel\',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em">CHARACTER</div>
 <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center">
-  <label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Class<select id="classSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:'Crimson Pro',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">&#8212; Select Class &#8212;</option>${EQ_CLASSES.map(c=>`<option value="${c}"${c===selClass?' selected':''}>${c}</option>`).join('')}</select></label>
+  <label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Class<select id="classSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:\'Crimson Pro\',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">&#8212; Select Class &#8212;</option>${EQ_CLASSES.map(c=>`<option value="${c}"${c===selClass?' selected':''}>${c}</option>`).join('')}</select></label>
   ${raceSelect}
-  <label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Level<input type="number" id="levelInput" min="1" max="60" value="${selLevel}" style="width:55px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .4rem;font-family:'Crimson Pro',serif;font-size:.9rem;text-align:center;outline:none"></label>
+  <label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Level<input type="number" id="levelInput" min="1" max="60" value="${selLevel}" style="width:55px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .4rem;font-family:\'Crimson Pro\',serif;font-size:.9rem;text-align:center;outline:none"></label>
 </div>
 
 ${(meta.nakedStats||meta.currentStats)?`<div style="font-size:.75rem;color:var(--text-muted)">&#9432; Active baseline: <strong style="color:var(--gold)">${meta.nakedStats?'Naked Stats (manual)':'Current Stats (stored)'}</strong></div>`:''}
@@ -1019,7 +1019,7 @@ ${(meta.nakedStats||meta.currentStats)?`<div style="font-size:.75rem;color:var(-
 <!-- NAKED STATS -->
 <div style="border-top:1px solid var(--border);width:100%;padding-top:.75rem">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem">
-    <div style="font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em">NAKED STATS</div>
+    <div style="font-family:\'Cinzel\',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em">NAKED STATS</div>
     <div style="display:flex;align-items:center;gap:.5rem">
       ${meta.nakedStats?'<span style="color:#3a7a3a;font-size:.8rem">&#10003; Set</span>':''}
       <button class="btn primary" id="nakedBtn">${meta.nakedStats?'&#9999; Edit':'&#9999; Enter'}</button>
@@ -1028,14 +1028,14 @@ ${(meta.nakedStats||meta.currentStats)?`<div style="font-size:.75rem;color:var(-
   </div>
   <div style="font-size:.76rem;color:var(--text-muted);font-style:italic;margin-bottom:.4rem">No gear equipped. Most accurate. Saved permanently — enter once.</div>
   <div id="nakedForm" style="display:none;width:100%;margin-top:.5rem">
-    <div style="font-family:'Cinzel',serif;font-size:.63rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.35rem">PRIMARY STATS</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${STAT_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ns_${STAT_KEYS[i]}" value="${meta.nakedStats?.stats[i]||''}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
+    <div style="font-family:\'Cinzel\',serif;font-size:.63rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.35rem">PRIMARY STATS</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${STAT_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ns_${STAT_KEYS[i]}" value="${meta.nakedStats?.stats[i]||''}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:\'Crimson Pro\',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
     <div style="border-top:1px solid var(--border);margin:.6rem 0 .35rem"></div>
-    <div style="font-family:'Cinzel',serif;font-size:.63rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.35rem">RESISTANCES</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${RESIST_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ns_${RESIST_KEYS[i]}" value="${meta.nakedStats?.resists[i]||''}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
+    <div style="font-family:\'Cinzel\',serif;font-size:.63rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.35rem">RESISTANCES</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${RESIST_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ns_${RESIST_KEYS[i]}" value="${meta.nakedStats?.resists[i]||''}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:\'Crimson Pro\',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
     <div style="border-top:1px solid var(--border);margin:.6rem 0 .35rem"></div>
-    <div style="font-family:'Cinzel',serif;font-size:.63rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.35rem">POOLS &amp; COMBAT</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${POOL_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ns_${POOL_KEYS[i]}" value="${meta.nakedStats?.pools?.[i]||''}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
+    <div style="font-family:\'Cinzel\',serif;font-size:.63rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.35rem">POOLS &amp; COMBAT</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${POOL_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ns_${POOL_KEYS[i]}" value="${meta.nakedStats?.pools?.[i]||''}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:\'Crimson Pro\',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
     <button class="btn primary" id="saveNakedBtn" style="margin-top:.65rem">Save Naked Stats</button>
   </div>
 </div>
@@ -1043,7 +1043,7 @@ ${(meta.nakedStats||meta.currentStats)?`<div style="font-size:.75rem;color:var(-
 <!-- CURRENT STATS -->
 <div style="border-top:1px solid var(--border);width:100%;padding-top:.75rem">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem">
-    <div style="font-family:'Cinzel',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em">CURRENT STATS</div>
+    <div style="font-family:\'Cinzel\',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em">CURRENT STATS</div>
     <div style="display:flex;align-items:center;gap:.5rem">
       ${meta.currentStats?'<span style="color:#3a7a3a;font-size:.8rem">&#10003; Set</span>':''}
       <button class="btn ${meta.nakedStats?'':'primary'}" id="currentBtn">${meta.currentStats?'&#9999; Edit':'&#9999; Enter'}</button>
@@ -1052,14 +1052,14 @@ ${(meta.nakedStats||meta.currentStats)?`<div style="font-size:.75rem;color:var(-
   </div>
   <div style="font-size:.76rem;color:var(--text-muted);font-style:italic;margin-bottom:.4rem">Gear on, unbuffed. Used as fallback if no naked stats set.${meta.nakedStats?' <span style="color:#b07800">(Naked stats take priority)</span>':''}</div>
   <div id="currentForm" style="display:none;width:100%;margin-top:.5rem">
-    <div style="font-family:'Cinzel',serif;font-size:.63rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.35rem">PRIMARY STATS</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${STAT_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ms_${STAT_KEYS[i]}" value="${getBaseVal(STAT_KEYS[i])}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
+    <div style="font-family:\'Cinzel\',serif;font-size:.63rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.35rem">PRIMARY STATS</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${STAT_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ms_${STAT_KEYS[i]}" value="${getBaseVal(STAT_KEYS[i])}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:\'Crimson Pro\',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
     <div style="border-top:1px solid var(--border);margin:.6rem 0 .35rem"></div>
-    <div style="font-family:'Cinzel',serif;font-size:.63rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.35rem">RESISTANCES</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${RESIST_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ms_${RESIST_KEYS[i]}" value="${getBaseVal(RESIST_KEYS[i])}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
+    <div style="font-family:\'Cinzel\',serif;font-size:.63rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.35rem">RESISTANCES</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${RESIST_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ms_${RESIST_KEYS[i]}" value="${getBaseVal(RESIST_KEYS[i])}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:\'Crimson Pro\',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
     <div style="border-top:1px solid var(--border);margin:.6rem 0 .35rem"></div>
-    <div style="font-family:'Cinzel',serif;font-size:.63rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.35rem">POOLS &amp; COMBAT</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${POOL_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ms_${POOL_KEYS[i]}" value="${getBaseVal(POOL_KEYS[i])}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:'Crimson Pro',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
+    <div style="font-family:\'Cinzel\',serif;font-size:.63rem;color:var(--text-muted);letter-spacing:.07em;margin-bottom:.35rem">POOLS &amp; COMBAT</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem">${POOL_LABELS.map((l,i)=>`<label style="font-size:.72rem;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center">${l}<input type="number" id="ms_${POOL_KEYS[i]}" value="${getBaseVal(POOL_KEYS[i])}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .4rem;font-family:\'Crimson Pro\',serif;font-size:.95rem;text-align:center;outline:none"></label>`).join('')}</div>
     <button class="btn primary" id="saveCurrentBtn" style="margin-top:.65rem">Save Current Stats</button>
     <div style="font-size:.73rem;color:var(--text-muted);font-style:italic;margin-top:.3rem">&#9432; Stored as-is. Enter naked stats above for more accurate calculations.</div>
   </div>
@@ -2928,17 +2928,17 @@ function renderBridgePanel(){
   platMatched.sort((a,b)=>b.kplat-a.kplat);
 
   const ts=(iso)=>iso?new Date(iso).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'}):'never';
-  const pill=(txt,col)=>`<span style="display:inline-block;padding:.1rem .4rem;border-radius:3px;font-size:.72rem;font-family:'Cinzel',serif;letter-spacing:.04em;background:${col==='g'?'rgba(26,90,26,.12)':col==='r'?'rgba(160,48,48,.1)':'rgba(160,120,50,.1)'};border:1px solid ${col==='g'?'#3a7a3a':col==='r'?'#a03030':'#c8b890'};color:${col==='g'?'#1a5a1a':col==='r'?'#a03030':'#7a5010'}">${txt}</span>`;
+  const pill=(txt,col)=>`<span style="display:inline-block;padding:.1rem .4rem;border-radius:3px;font-size:.72rem;font-family:\'Cinzel\',serif;letter-spacing:.04em;background:${col==='g'?'rgba(26,90,26,.12)':col==='r'?'rgba(160,48,48,.1)':'rgba(160,120,50,.1)'};border:1px solid ${col==='g'?'#3a7a3a':col==='r'?'#a03030':'#c8b890'};color:${col==='g'?'#1a5a1a':col==='r'?'#a03030':'#7a5010'}">${txt}</span>`;
 
   const noData=(label)=>`<div style="color:var(--text-muted);font-style:italic;font-size:.82rem;padding:.5rem 0">${label}</div>`;
 
   const dkpTable=dkpMatched.length?`
     <table style="width:100%;border-collapse:collapse;font-size:.8rem">
       <thead><tr>
-        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:left;border-bottom:2px solid var(--border)">Item</th>
-        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:right;border-bottom:2px solid var(--border)">60d Avg</th>
-        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:right;border-bottom:2px solid var(--border)">Stored</th>
-        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:left;border-bottom:2px solid var(--border)">Last Written</th>
+        <th style="font-family:\'Cinzel\',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:left;border-bottom:2px solid var(--border)">Item</th>
+        <th style="font-family:\'Cinzel\',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:right;border-bottom:2px solid var(--border)">60d Avg</th>
+        <th style="font-family:\'Cinzel\',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:right;border-bottom:2px solid var(--border)">Stored</th>
+        <th style="font-family:\'Cinzel\',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:left;border-bottom:2px solid var(--border)">Last Written</th>
       </tr></thead>
       <tbody>${dkpMatched.map(m=>{
         const changed=m.prev!==m.r60;
@@ -2954,10 +2954,10 @@ function renderBridgePanel(){
   const platTable=platMatched.length?`
     <table style="width:100%;border-collapse:collapse;font-size:.8rem">
       <thead><tr>
-        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:left;border-bottom:2px solid var(--border)">Item</th>
-        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:right;border-bottom:2px solid var(--border)">60d WTS Avg</th>
-        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:right;border-bottom:2px solid var(--border)">Stored</th>
-        <th style="font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:left;border-bottom:2px solid var(--border)">Last Written</th>
+        <th style="font-family:\'Cinzel\',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:left;border-bottom:2px solid var(--border)">Item</th>
+        <th style="font-family:\'Cinzel\',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:right;border-bottom:2px solid var(--border)">60d WTS Avg</th>
+        <th style="font-family:\'Cinzel\',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:right;border-bottom:2px solid var(--border)">Stored</th>
+        <th style="font-family:\'Cinzel\',serif;font-size:.62rem;letter-spacing:.07em;color:var(--text-muted);padding:.3rem .5rem;text-align:left;border-bottom:2px solid var(--border)">Last Written</th>
       </tr></thead>
       <tbody>${platMatched.map(m=>{
         const changed=m.prev!==m.kplat;
@@ -2972,7 +2972,7 @@ function renderBridgePanel(){
 
   const missedBlock=(items,label)=>items.length?`
     <details style="margin-top:.75rem">
-      <summary style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted);cursor:pointer">${label} (${items.length})</summary>
+      <summary style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted);cursor:pointer">${label} (${items.length})</summary>
       <div style="margin-top:.4rem;display:flex;flex-wrap:wrap;gap:.3rem;padding:.4rem 0">
         ${items.slice(0,100).map(n=>`<span style="font-size:.72rem;color:var(--text-muted);background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:.1rem .4rem">${esc(n)}</span>`).join('')}
         ${items.length>100?`<span style="font-size:.72rem;color:var(--text-muted);font-style:italic">…+${items.length-100} more</span>`:''}
@@ -2981,30 +2981,30 @@ function renderBridgePanel(){
 
   panel.innerHTML=`
     <div style="padding:1rem 1.25rem">
-      <div style="font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.09em;color:var(--gold);margin-bottom:1rem">&#9741; PRICE BRIDGE DIAGNOSTICS</div>
+      <div style="font-family:\'Cinzel\',serif;font-size:.72rem;letter-spacing:.09em;color:var(--gold);margin-bottom:1rem">&#9741; PRICE BRIDGE DIAGNOSTICS</div>
 
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1.25rem">
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.5rem .75rem">
-          <div style="font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted)">ITEM DB</div>
-          <div style="font-size:1.1rem;font-family:'Crimson Pro',serif;font-weight:600;color:var(--text)">${dbCount.toLocaleString()} items</div>
+          <div style="font-family:\'Cinzel\',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted)">ITEM DB</div>
+          <div style="font-size:1.1rem;font-family:\'Crimson Pro\',serif;font-weight:600;color:var(--text)">${dbCount.toLocaleString()} items</div>
         </div>
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.5rem .75rem">
-          <div style="font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted)">DKP SOURCE</div>
-          <div style="font-size:1.1rem;font-family:'Crimson Pro',serif;font-weight:600;color:var(--text)">${dkpCount.toLocaleString()} items</div>
+          <div style="font-family:\'Cinzel\',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted)">DKP SOURCE</div>
+          <div style="font-size:1.1rem;font-family:\'Crimson Pro\',serif;font-weight:600;color:var(--text)">${dkpCount.toLocaleString()} items</div>
         </div>
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.5rem .75rem">
-          <div style="font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted)">PLAT SOURCE</div>
-          <div style="font-size:1.1rem;font-family:'Crimson Pro',serif;font-weight:600;color:var(--text)">${platCount.toLocaleString()} entries</div>
+          <div style="font-family:\'Cinzel\',serif;font-size:.58rem;letter-spacing:.08em;color:var(--text-muted)">PLAT SOURCE</div>
+          <div style="font-size:1.1rem;font-family:\'Crimson Pro\',serif;font-weight:600;color:var(--text)">${platCount.toLocaleString()} entries</div>
         </div>
       </div>
 
       <div style="margin-bottom:1.5rem">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-          <div style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.08em;color:var(--gold)">&#9876; DKP MATCHES</div>
+          <div style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--gold)">&#9876; DKP MATCHES</div>
           <div style="display:flex;gap:.4rem;align-items:center">
             ${pill(dkpMatched.length+' matched','g')}
             ${dkpMissed.length?pill(dkpMissed.length+' unmatched','r'):''}
-            <button onclick="applyDkpToItemDB();renderBridgePanel()" style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.06em;background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:.25rem .6rem;color:var(--gold);cursor:pointer">&#8635; Apply Now</button>
+            <button onclick="applyDkpToItemDB();renderBridgePanel()" style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.06em;background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:.25rem .6rem;color:var(--gold);cursor:pointer">&#8635; Apply Now</button>
           </div>
         </div>
         <div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;max-height:280px;overflow-y:auto">
@@ -3015,11 +3015,11 @@ function renderBridgePanel(){
 
       <div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-          <div style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.08em;color:var(--gold)">&#128176; PLAT MATCHES</div>
+          <div style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--gold)">&#128176; PLAT MATCHES</div>
           <div style="display:flex;gap:.4rem;align-items:center">
             ${pill(platMatched.length+' matched','g')}
             ${platMissed.length?pill(platMissed.length+' unmatched','r'):''}
-            <button onclick="applyPlatToItemDB();renderBridgePanel()" style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.06em;background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:.25rem .6rem;color:var(--gold);cursor:pointer">&#8635; Apply Now</button>
+            <button onclick="applyPlatToItemDB();renderBridgePanel()" style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.06em;background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:.25rem .6rem;color:var(--gold);cursor:pointer">&#8635; Apply Now</button>
           </div>
         </div>
         <div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;max-height:280px;overflow-y:auto">
@@ -3279,7 +3279,7 @@ let platTypeFilter='all'; // 'all','wts','wtb'
 function platTypeLabel(t){return t===0?'WTS':'WTB';}
 function platTypeChip(t){
   const isWts=t===0;
-  return `<span style="display:inline-block;padding:.05rem .3rem;border-radius:3px;font-size:.68rem;font-family:'Cinzel',serif;font-weight:700;letter-spacing:.04em;background:${isWts?'rgba(26,90,26,.12)':'rgba(160,48,48,.1)'};border:1px solid ${isWts?'#3a7a3a':'#a03030'};color:${isWts?'#1a5a1a':'#a03030'}">${isWts?'WTS':'WTB'}</span>`;
+  return `<span style="display:inline-block;padding:.05rem .3rem;border-radius:3px;font-size:.68rem;font-family:\'Cinzel\',serif;font-weight:700;letter-spacing:.04em;background:${isWts?'rgba(26,90,26,.12)':'rgba(160,48,48,.1)'};border:1px solid ${isWts?'#3a7a3a':'#a03030'};color:${isWts?'#1a5a1a':'#a03030'}">${isWts?'WTS':'WTB'}</span>`;
 }
 
 function getPlatRows(){
@@ -3629,7 +3629,7 @@ async function saveSessionsToSupabase(){
 
 function buildHourlyHtml(){
   let html='<div style="border-bottom:1px solid var(--border)">';
-  html+=`<div style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">HOURLY TICKS — SESSION</div>`;
+  html+=`<div style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">HOURLY TICKS — SESSION</div>`;
   for(const role of HOURLY_ROLES){
     const existing=(activeSession.hourly||[]).find(r=>r.desc===role.desc);
     const qty=existing?existing.qty:0;
@@ -3650,7 +3650,7 @@ function buildHourlyHtml(){
   const bpVal=bpNinja?0.5:0.3;
   const bpQty=activeSession.buffParksQty||0;
   html+='<div style="border-bottom:1px solid var(--border)">';
-  html+=`<div style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">BUFF AND PARKS — SESSION</div>`;
+  html+=`<div style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">BUFF AND PARKS — SESSION</div>`;
   html+=`<div class="kt-role-row${bpQty>0?' kt-role-active':''}">
     <span class="kt-role-desc">Buff and Parks</span>
     <span class="kt-role-val">${bpVal} DKP</span>
@@ -3803,7 +3803,7 @@ function renderGearReportsPanel(){
       </tr></thead>
       <tbody>${dkpRows}</tbody>
       <tfoot><tr>
-        <td colspan="2" style="text-align:right;font-family:'Cinzel',serif;font-size:.78rem;letter-spacing:.05em;padding:.6rem 1rem">TOTAL EARNED</td>
+        <td colspan="2" style="text-align:right;font-family:\'Cinzel\',serif;font-size:.78rem;letter-spacing:.05em;padding:.6rem 1rem">TOTAL EARNED</td>
         <td style="text-align:right;font-weight:600;padding:.6rem 1rem;color:var(--gold-light)">${Math.round(grandTotal*10)/10} DKP</td>
       </tr></tfoot>
     </table>`:'';
@@ -3957,7 +3957,7 @@ function renderKillsPanel(){
     ${sessionsView==='history'?`<div style="padding:.5rem 0">${histHtml}</div>`:`
       <div style="display:flex;gap:.75rem;padding:.6rem 1rem;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap;background:var(--surface2)">
         <div style="display:flex;align-items:center;gap:.4rem">
-          <label style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted)">DATE</label>
+          <label style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted)">DATE</label>
           <input type="date" value="${activeSession.date}" class="kt-date-input" onchange="activeSession.date=this.value">
         </div>
         <input type="text" id="ktSearch" class="kt-date-input" placeholder="Search bosses…" style="flex:1;min-width:180px" oninput="ktFilterBosses(this.value)">
@@ -3969,7 +3969,7 @@ function renderKillsPanel(){
         <div style="flex:1;border-right:1px solid var(--border);overflow-y:auto;max-height:72vh" id="ktBossCol">${bossHtml}</div>
         <div style="width:260px;overflow-y:auto;max-height:72vh">
           <div style="padding:.5rem .75rem;border-bottom:1px solid var(--border);background:var(--surface2)">
-            <label style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted);display:block;margin-bottom:.3rem">SESSION NOTE</label>
+            <label style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted);display:block;margin-bottom:.3rem">SESSION NOTE</label>
             <textarea class="kt-date-input" placeholder="e.g. Full ToV clear" style="width:100%;height:60px;resize:vertical;font-size:.82rem;line-height:1.4" oninput="activeSession.note=this.value">${esc(activeSession.note||'')}</textarea>
           </div>
           ${buildHourlyHtml()}
@@ -4591,6 +4591,8 @@ function renderQuestsPanel(){
   }
 
   function renderQuest(q){
+    const qSafeChar=(name||'').replace(/'/g,"\\'");
+    const qSafeName=(q.name||'').replace(/'/g,"\\'");
     const manDone=(name&&name!=='__all__')?getQuestDone(name,q.name):false;
     const allStepsDone=q.steps.every(s=>!s.items.length||stepStatus(s)==='done');
     const anyProgress=q.steps.some(s=>stepStatus(s)==='done'||stepStatus(s)==='partial');
@@ -4614,13 +4616,13 @@ function renderQuestsPanel(){
 
     const cbHtml=(name&&name!=='__all__')
       ?'<label style="display:flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.72rem;color:var(--text-dim);margin-top:.4rem">'
-        +'<input type="checkbox" '+(manDone?'checked':'')+' onchange="setQuestDone(''+name.replace(/\/g,'\\').replace(/'/g,"\'")+'',''+q.name.replace(/\/g,'\\').replace(/'/g,"\'")+'',this.checked);renderQuestsPanel()" style="accent-color:var(--gold-light)"> Mark completed</label>'
+        +'<input type="checkbox" '+(manDone?'checked':'')+' onchange="setQuestDone(\x27'+qSafeChar+'\x27,\x27'+qSafeName+'\x27,this.checked);renderQuestsPanel()" style="accent-color:var(--gold-light)"> Mark completed</label>'
       :'';
 
     return '<div style="border:1px solid var(--border);border-radius:6px;margin:.5rem 0;overflow:hidden;opacity:'+(done?.65:1)+'">'
       +'<div style="padding:.6rem 1rem;background:var(--surface2);display:flex;align-items:center;gap:.75rem">'
       +'<div style="flex:1">'
-      +'<a href="'+q.wiki+'" target="_blank" style="font-size:.95rem;font-weight:600;color:var(--gold-light);text-decoration:none;font-family:'Crimson Pro',serif">'+q.name+' ↗</a>'
+      +'<a href="'+q.wiki+'" target="_blank" style="font-size:.95rem;font-weight:600;color:var(--gold-light);text-decoration:none;font-family:\'Crimson Pro\',serif">'+q.name+' \u2197</a>'
       +(q.note?'<div style="font-size:.75rem;color:var(--text-dim);margin-top:.15rem">'+q.note+'</div>':'')
       +'</div>'
       +(done?'<span style="color:#2a6a2a;font-weight:700;font-size:.85rem">✓ Done</span>'
@@ -4634,14 +4636,14 @@ function renderQuestsPanel(){
 
   let html='<div style="padding:.65rem 1rem;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">';
   if(charClass){
-    html+='<span style="font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.06em;color:var(--text-muted)">'+name+' · '+charClass+'</span>';
+    html+='<span style="font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.06em;color:var(--text-muted)">'+name+' \u00b7 '+charClass+'</span>';
   } else {
     html+='<span style="font-size:.78rem;color:var(--text-dim);font-style:italic">Set a class in Character Stats to see class-specific quests</span>';
   }
   html+='</div>';
 
   // Critical section
-  html+='<div style="padding:.4rem 1rem .25rem;font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.1em;color:var(--text-muted);background:var(--surface2);border-bottom:1px solid var(--border);border-top:1px solid var(--border);margin-top:.5rem">'
+  html+='<div style="padding:.4rem 1rem .25rem;font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.1em;color:var(--text-muted);background:var(--surface2);border-bottom:1px solid var(--border);border-top:1px solid var(--border);margin-top:.5rem">'
     +'⚠ CRITICAL — ALL CHARACTERS</div>';
   html+='<div style="padding:.5rem 1rem">';
   (QUEST_DB.critical||[]).forEach(q=>{html+=renderQuest(q);});
@@ -4650,7 +4652,7 @@ function renderQuestsPanel(){
   // Class section
   const classQuests=(QUEST_DB.classes||{})[charClass]||[];
   if(classQuests.length){
-    html+='<div style="padding:.4rem 1rem .25rem;font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.1em;color:var(--text-muted);background:var(--surface2);border-bottom:1px solid var(--border);border-top:1px solid var(--border);margin-top:.5rem">'
+    html+='<div style="padding:.4rem 1rem .25rem;font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.1em;color:var(--text-muted);background:var(--surface2);border-bottom:1px solid var(--border);border-top:1px solid var(--border);margin-top:.5rem">'
       +charClass.toUpperCase()+' QUESTS</div>';
     html+='<div style="padding:.5rem 1rem">';
     classQuests.forEach(q=>{html+=renderQuest(q);});
