@@ -304,6 +304,31 @@
   .ss-done-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:.15rem .5rem;font-size:.75rem;cursor:pointer;font-family:\'Cinzel\',serif;color:var(--text-muted);transition:all .15s;white-space:nowrap}
   .ss-done-btn:hover{border-color:var(--gold);color:var(--gold)}
   .ss-done-btn.done{border-color:#5a9a5a;color:#1a5a1a;background:rgba(58,122,58,.1)}
+  .quests-wrap{padding:.75rem;display:flex;flex-direction:column;gap:1rem}
+  .quest-section-label{font-family:\'Cinzel\',serif;font-size:.8rem;color:var(--gold);letter-spacing:.08em;text-transform:uppercase;padding:.25rem 0;border-bottom:1px solid var(--border);margin-top:.25rem}
+  .quest-card{border:1px solid var(--border);border-radius:4px;overflow:hidden;background:var(--bg-card)}
+  .quest-card.quest-done{opacity:.55;border-color:rgba(90,154,90,.4)}
+  .quest-card-header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.5rem .75rem;background:rgba(0,0,0,.15);border-bottom:1px solid var(--border)}
+  .quest-card-title{display:flex;align-items:center;gap:.75rem;flex:1;min-width:0}
+  .quest-wiki-link{font-family:\'Cinzel\',serif;font-size:.85rem;color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);white-space:nowrap}
+  .quest-wiki-link:hover{color:var(--gold)}
+  .quest-progress-bar{width:80px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;flex-shrink:0}
+  .quest-progress-fill{height:100%;background:var(--gold);border-radius:3px}
+  .quest-progress-label{font-size:.7rem;color:var(--text-muted);white-space:nowrap}
+  .quest-done-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:.15rem .5rem;font-size:.75rem;cursor:pointer;font-family:\'Cinzel\',serif;color:var(--text-muted);transition:all .15s;white-space:nowrap;flex-shrink:0}
+  .quest-done-btn:hover{border-color:var(--gold);color:var(--gold)}
+  .quest-done-btn.done{border-color:#5a9a5a;color:#1a5a1a;background:rgba(58,122,58,.1)}
+  .quest-step{display:flex;gap:.6rem;padding:.5rem .75rem;border-bottom:1px solid rgba(255,255,255,.04)}
+  .quest-step:last-of-type{border-bottom:none}
+  .quest-step-num{width:18px;height:18px;border-radius:50%;background:var(--border);color:var(--text-muted);font-size:.65rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.1rem}
+  .quest-step-body{flex:1;min-width:0}
+  .quest-step-desc{font-size:.8rem;color:var(--text);line-height:1.4}
+  .quest-item-chips{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.35rem}
+  .quest-item-chip{display:inline-flex;align-items:center;gap:.25rem;padding:.15rem .45rem;border-radius:3px;font-size:.72rem;border:1px solid var(--border)}
+  .quest-item-chip.have{background:rgba(58,122,58,.12);border-color:#5a9a5a;color:#3a7a3a}
+  .quest-item-chip.missing{background:rgba(120,40,40,.1);border-color:#7a3a3a;color:#8a5a5a}
+  .quest-chip-chars{font-size:.65rem;opacity:.8}
+  .quest-note{padding:.4rem .75rem;font-size:.75rem;color:var(--text-muted);background:rgba(0,0,0,.1);line-height:1.4;border-top:1px solid var(--border)}
   .ss-wrist-note{font-size:.68rem;color:var(--text-muted);font-style:italic}
   /* ── DKP History ── */
   .dkp-toolbar{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem}
@@ -2634,6 +2659,86 @@ function renderSkyshrinePanel(){
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
+    </div>`;
+}
+
+function renderQuestsPanel(){
+  const panel=document.getElementById('questsPanel');
+  if(!panel)return;
+  const name=activeTab;
+  if(!name||name==='__all__'){panel.innerHTML='<div class="empty-state">Select a character to view quests.</div>';return;}
+  const meta=charMeta[name]||{};
+  const cls=meta.class||'';
+
+  // Build flat item inventory map across ALL characters for "who has it"
+  const haveMap={};
+  for(const cn of Object.keys(chars)){
+    for(const row of (chars[cn]||[])){
+      const n=row.name;
+      if(!haveMap[n])haveMap[n]=[];
+      if(!haveMap[n].includes(cn))haveMap[n].push(cn);
+    }
+  }
+
+  const wikiBase='https://wiki.project1999.com/';
+
+  function renderQuest(q){
+    const done=getQuestDone(name,q.name);
+    const allItems=q.steps.flatMap(s=>s.items||[]);
+    const haveCount=allItems.filter(it=>haveMap[it]&&haveMap[it].length>0).length;
+    const totalItems=allItems.length;
+    const progressPct=totalItems>0?Math.round(haveCount/totalItems*100):0;
+    const wikiHref=q.wiki||`${wikiBase}${encodeURIComponent((q.shortName||q.name).replace(/ /g,'_'))}`;
+
+    let stepsHtml='';
+    for(let si=0;si<q.steps.length;si++){
+      const step=q.steps[si];
+      if(step.steps&&step.steps.length===0&&!step.items?.length&&!step.desc)continue;
+      let itemChips='';
+      if(step.items&&step.items.length){
+        for(const it of step.items){
+          const owners=haveMap[it]||[];
+          if(owners.length>0){
+            itemChips+=`<span class="quest-item-chip have" title="${esc(owners.join(', '))}">✔ ${esc(it)} <span class="quest-chip-chars">${esc(owners.join(', '))}</span></span>`;
+          } else {
+            itemChips+=`<span class="quest-item-chip missing">✘ ${esc(it)}</span>`;
+          }
+        }
+      }
+      stepsHtml+=`<div class="quest-step">
+        <span class="quest-step-num">${si+1}</span>
+        <div class="quest-step-body">
+          <div class="quest-step-desc">${esc(step.desc||'')}</div>
+          ${itemChips?`<div class="quest-item-chips">${itemChips}</div>`:''}
+        </div>
+      </div>`;
+    }
+
+    const noteHtml=q.note?`<div class="quest-note">💡 ${esc(q.note)}</div>`:'';
+    const progressBar=totalItems>0?`<div class="quest-progress-bar"><div class="quest-progress-fill" style="width:${progressPct}%"></div></div><span class="quest-progress-label">${haveCount}/${totalItems} items</span>`:'';
+
+    return `<div class="quest-card ${done?'quest-done':''}">
+      <div class="quest-card-header">
+        <div class="quest-card-title">
+          <a href="${wikiHref}" target="_blank" rel="noopener" class="quest-wiki-link">${esc(q.shortName||q.name)}</a>
+          ${progressBar}
+        </div>
+        <button type="button" class="quest-done-btn ${done?'done':''}" onclick="window.setQuestDone('${esc(name)}','${esc(q.name)}',${!done})">${done?'✔ Completed':'Mark Done'}</button>
+      </div>
+      ${stepsHtml}
+      ${noteHtml}
+    </div>`;
+  }
+
+  const criticalHtml=(QUEST_DB.critical||[]).map(renderQuest).join('');
+  const classQuests=QUEST_DB.classes&&QUEST_DB.classes[cls]?QUEST_DB.classes[cls]:[];
+  const classHtml=classQuests.map(renderQuest).join('');
+
+  panel.innerHTML=`
+    <div class="quests-wrap">
+      ${criticalHtml||classHtml?'':'<div class="empty-state">No quest data. Set your class in Character Stats.</div>'}
+      ${criticalHtml?`<div class="quest-section-label">🌟 Critical Quests (All Classes)</div>${criticalHtml}`:''}
+      ${classHtml?`<div class="quest-section-label">⚔️ ${esc(cls)} Quests</div>${classHtml}`:''}
     </div>`;
 }
 
