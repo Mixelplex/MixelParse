@@ -324,7 +324,8 @@
   .quest-step-body{flex:1;min-width:0}
   .quest-step-desc{font-size:.8rem;color:var(--text);line-height:1.4}
   .quest-item-chips{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.35rem}
-  .quest-item-chip{display:inline-flex;align-items:center;gap:.25rem;padding:.15rem .45rem;border-radius:3px;font-size:.72rem;border:1px solid var(--border)}
+  .quest-item-chip{display:inline-flex;align-items:center;gap:.25rem;padding:.15rem .45rem;border-radius:3px;font-size:.72rem;border:1px solid var(--border);text-decoration:none;cursor:pointer}
+  .quest-item-chip:hover{opacity:.8;filter:brightness(1.1)}
   .quest-item-chip.have{background:rgba(58,122,58,.12);border-color:#5a9a5a;color:#3a7a3a}
   .quest-item-chip.missing{background:rgba(120,40,40,.1);border-color:#7a3a3a;color:#8a5a5a}
   .quest-chip-chars{font-size:.65rem;opacity:.8}
@@ -2698,10 +2699,11 @@ function renderQuestsPanel(){
       if(step.items&&step.items.length){
         for(const it of step.items){
           const owners=haveMap[it]||[];
+          const wikiUrl=`https://wiki.project1999.com/${encodeURIComponent(it.replace(/ /g,'_'))}`;
           if(owners.length>0){
-            itemChips+=`<span class="quest-item-chip have" title="${esc(owners.join(', '))}">✔ ${esc(it)} <span class="quest-chip-chars">${esc(owners.join(', '))}</span></span>`;
+            itemChips+=`<a href="${wikiUrl}" target="_blank" rel="noopener" class="quest-item-chip have" title="${esc(owners.join(', '))}">✔ ${esc(it)} <span class="quest-chip-chars">${esc(owners.join(', '))}</span></a>`;
           } else {
-            itemChips+=`<span class="quest-item-chip missing">✘ ${esc(it)}</span>`;
+            itemChips+=`<a href="${wikiUrl}" target="_blank" rel="noopener" class="quest-item-chip missing">✘ ${esc(it)}</a>`;
           }
         }
       }
