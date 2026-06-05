@@ -318,17 +318,25 @@
   .quest-done-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:.15rem .5rem;font-size:.75rem;cursor:pointer;font-family:\'Cinzel\',serif;color:var(--text-muted);transition:all .15s;white-space:nowrap;flex-shrink:0}
   .quest-done-btn:hover{border-color:var(--gold);color:var(--gold)}
   .quest-done-btn.done{border-color:#5a9a5a;color:#1a5a1a;background:rgba(58,122,58,.1)}
-  .quest-step{display:flex;gap:.6rem;padding:.5rem .75rem;border-bottom:1px solid rgba(255,255,255,.04)}
+  .quest-step{display:flex;gap:.5rem;padding:.45rem .75rem;border-bottom:1px solid rgba(255,255,255,.04)}
   .quest-step:last-of-type{border-bottom:none}
-  .quest-step-num{width:18px;height:18px;border-radius:50%;background:var(--border);color:var(--text-muted);font-size:.65rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.1rem}
-  .quest-step-body{flex:1;min-width:0}
-  .quest-step-desc{font-size:.8rem;color:var(--text);line-height:1.4}
-  .quest-item-chips{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.35rem}
-  .quest-item-chip{display:inline-flex;align-items:center;gap:.25rem;padding:.15rem .45rem;border-radius:3px;font-size:.72rem;border:1px solid var(--border);text-decoration:none;cursor:pointer}
+  .quest-step-left{flex-shrink:0;padding-top:.1rem}
+  .quest-step-num{width:18px;height:18px;border-radius:50%;background:var(--border);color:var(--text-muted);font-size:.65rem;display:flex;align-items:center;justify-content:center}
+  .quest-step-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:.3rem}
+  .quest-step-header{display:flex;align-items:baseline;flex-wrap:wrap;gap:.3rem .4rem;font-size:.8rem;line-height:1.4}
+  .quest-test-name{color:var(--text-muted);font-style:italic}
+  .quest-arrow{color:var(--gold);opacity:.6}
+  .quest-reward-name{color:var(--text);font-weight:600}
+  .quest-npc-badge{margin-left:.2rem;padding:.05rem .35rem;border-radius:2px;background:rgba(255,255,255,.05);border:1px solid var(--border);font-size:.68rem;color:var(--text-muted);white-space:nowrap}
+  .quest-step-note{font-size:.72rem;color:var(--text-muted);font-style:italic}
+  .quest-item-chips{display:flex;flex-wrap:wrap;gap:.3rem}
+  .quest-item-chip{display:inline-flex;flex-direction:column;gap:.05rem;padding:.2rem .5rem;border-radius:3px;font-size:.72rem;border:1px solid var(--border);text-decoration:none;cursor:pointer}
   .quest-item-chip:hover{opacity:.8;filter:brightness(1.1)}
   .quest-item-chip.have{background:rgba(58,122,58,.12);border-color:#5a9a5a;color:#3a7a3a}
-  .quest-item-chip.missing{background:rgba(120,40,40,.1);border-color:#7a3a3a;color:#8a5a5a}
-  .quest-chip-chars{font-size:.65rem;opacity:.8}
+  .quest-item-chip.missing{background:rgba(120,40,40,.1);border-color:#7a3a3a;color:#7a4a4a}
+  .quest-chip-name{font-weight:600;font-size:.73rem}
+  .quest-chip-src{font-size:.63rem;opacity:.75;font-weight:400}
+  .quest-chip-own{font-size:.63rem;color:#4a9a4a;font-weight:400}
   .quest-note{padding:.4rem .75rem;font-size:.75rem;color:var(--text-muted);background:rgba(0,0,0,.1);line-height:1.4;border-top:1px solid var(--border)}
   .ss-wrist-note{font-size:.68rem;color:var(--text-muted);font-style:italic}
   /* ── DKP History ── */
@@ -2683,6 +2691,54 @@ function renderQuestsPanel(){
 
   const wikiBase='https://wiki.project1999.com/';
 
+  function parseStepDesc(desc){
+    // Returns {testName, reward, npc, trigger, drops}
+    // desc format: "Test of X → Reward Name (stats). NPC: Foo (say "bar"). Drops: ..."
+    let testName='',reward='',npc='',trigger='',drops='',note='';
+    const arrowIdx=desc.indexOf('→');
+    if(arrowIdx>=0){
+      testName=desc.substring(0,arrowIdx).trim();
+      const rest=desc.substring(arrowIdx+1).trim();
+      const npcIdx=rest.indexOf('. NPC:');
+      if(npcIdx>=0){
+        reward=rest.substring(0,npcIdx).trim();
+        const afterNpc=rest.substring(npcIdx+6).trim();
+        const sayM=afterNpc.match(/^([^(]+)\(say "([^"]+)"\)[.)]*(.*)$/s);
+        if(sayM){
+          npc=sayM[1].trim();
+          trigger=sayM[2].trim();
+          const remaining=sayM[3].trim().replace(/^\.\s*Drops:\s*/,'').replace(/^Drops:\s*/,'');
+          // Split NOTE out
+          const noteIdx=remaining.indexOf('. NOTE:');
+          if(noteIdx>=0){drops=remaining.substring(0,noteIdx).trim();note=remaining.substring(noteIdx+7).trim();}
+          else drops=remaining;
+        } else {
+          // No say pattern — just grab drops
+          const dropsIdx=afterNpc.indexOf('Drops:');
+          if(dropsIdx>=0) drops=afterNpc.substring(dropsIdx+6).trim();
+          else drops=afterNpc;
+        }
+      } else {
+        // No NPC marker — treat whole rest as reward+drops
+        const dropsIdx=rest.indexOf('. Drops:');
+        if(dropsIdx>=0){reward=rest.substring(0,dropsIdx).trim();drops=rest.substring(dropsIdx+8).trim();}
+        else reward=rest;
+      }
+    } else {
+      // No arrow — plain desc
+      drops=desc;
+    }
+    return {testName,reward,drops,npc,trigger,note};
+  }
+
+  // Build island→source map from drops text for a given item name
+  function getItemSource(itemName, dropsText){
+    // Look for "Item Name (isl X, ...)" or "Item Name (isl X boss ...)"
+    const escaped=itemName.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const m=dropsText.match(new RegExp(escaped+'\\s*\\(([^)]+)\\)'));
+    return m?m[1]:null;
+  }
+
   function renderQuest(q){
     const done=getQuestDone(name,q.name);
     const allItems=q.steps.flatMap(s=>s.items||[]);
@@ -2694,30 +2750,46 @@ function renderQuestsPanel(){
     let stepsHtml='';
     for(let si=0;si<q.steps.length;si++){
       const step=q.steps[si];
-      if(step.steps&&step.steps.length===0&&!step.items?.length&&!step.desc)continue;
+      if(!step.items?.length&&!step.desc)continue;
+      const {testName,reward,drops,npc,trigger,note:stepNote}=parseStepDesc(step.desc||'');
+
+      // Build item chips
       let itemChips='';
       if(step.items&&step.items.length){
         for(const it of step.items){
           const owners=haveMap[it]||[];
+          const src=getItemSource(it,drops);
           const wikiUrl=`https://wiki.project1999.com/${encodeURIComponent(it.replace(/ /g,'_'))}`;
-          if(owners.length>0){
-            itemChips+=`<a href="${wikiUrl}" target="_blank" rel="noopener" class="quest-item-chip have" title="${esc(owners.join(', '))}">✔ ${esc(it)} <span class="quest-chip-chars">${esc(owners.join(', '))}</span></a>`;
-          } else {
-            itemChips+=`<a href="${wikiUrl}" target="_blank" rel="noopener" class="quest-item-chip missing">✘ ${esc(it)}</a>`;
-          }
+          const srcHtml=src?`<span class="quest-chip-src">${esc(src)}</span>`:'';
+          const ownHtml=owners.length?`<span class="quest-chip-own">${esc(owners.join(', '))}</span>`:'';
+          const cls2=owners.length?'have':'missing';
+          const icon=owners.length?'✔':'✘';
+          itemChips+=`<a href="${wikiUrl}" target="_blank" rel="noopener" class="quest-item-chip ${cls2}">${icon} <span class="quest-chip-name">${esc(it)}</span>${srcHtml}${ownHtml}</a>`;
         }
       }
+
+      // Reward string — strip parens stats for brevity, keep up to first '('
+      const rewardShort=reward.replace(/\s*\([^)]*\)\s*/g,' ').trim();
+
+      const npcBadge=npc&&trigger?`<span class="quest-npc-badge">${esc(npc)} · say "${esc(trigger)}"</span>`:'';
+      const noteSpan=stepNote?`<div class="quest-step-note">💡 ${esc(stepNote)}</div>`:'';
+
       stepsHtml+=`<div class="quest-step">
-        <span class="quest-step-num">${si+1}</span>
+        <div class="quest-step-left"><span class="quest-step-num">${si+1}</span></div>
         <div class="quest-step-body">
-          <div class="quest-step-desc">${esc(step.desc||'')}</div>
+          <div class="quest-step-header">
+            <span class="quest-test-name">${esc(testName)}</span>
+            ${rewardShort?`<span class="quest-arrow">→</span><span class="quest-reward-name">${esc(rewardShort)}</span>`:''}
+            ${npcBadge}
+          </div>
           ${itemChips?`<div class="quest-item-chips">${itemChips}</div>`:''}
+          ${noteSpan}
         </div>
       </div>`;
     }
 
     const noteHtml=q.note?`<div class="quest-note">💡 ${esc(q.note)}</div>`:'';
-    const progressBar=totalItems>0?`<div class="quest-progress-bar"><div class="quest-progress-fill" style="width:${progressPct}%"></div></div><span class="quest-progress-label">${haveCount}/${totalItems} items</span>`:'';
+    const progressBar=totalItems>0?`<div class="quest-progress-bar"><div class="quest-progress-fill" style="width:${progressPct}%"></div></div><span class="quest-progress-label">${haveCount}/${totalItems}</span>`:'';
 
     return `<div class="quest-card ${done?'quest-done':''}">
       <div class="quest-card-header">
@@ -4512,7 +4584,7 @@ Warrior:[
      {desc:'Test of Strength → Runed Wind Amulet (NECK AC6 STR+7 AGI+7 HP+40). NPC: Falorn (say "strength"). Drops: Bronze Disc (isl 2, an azarack) + Small Pick (isl 3, harpies/gorgalask) + Stone Amulet (isl 4 boss Keeper of Souls)',items:['Bronze Disc','Small Pick','Stone Amulet']},
      {desc:'Test of Force → Pauldrons of the Blue Sky (SHOULDERS AC12 STR+8 DEX+10 STA+7 AGI+10, Spirit of Cheetah clicky ×3). NPC: Falorn (say "force"). Drops: Pearlescent Globe (isl 3, clouds/meteors/wind) + Silver Mesh (isl 4, soul carriers) + Spiroc Air Totem (isl 5 boss The Spiroc Lord)',items:['Pearlescent Globe','Silver Mesh','Spiroc Air Totem']},
      {desc:'Test of Skill → Azure Ruby Ring (FINGER AC5 STR+6 DEX+9 STA+6). NPC: Falorn (say "skill"). Drops: Ivory Tessera (isl 1, thunder spirits) + Small Ruby (isl 2 boss Protector of Sky) + Azure Ring (isl 3 boss Gorgalosk)',items:['Ivory Tessera','Small Ruby','Azure Ring']},
-     {desc:'Test of Bash → Fangol (PRIMARY 2H Slash 29/35 STR+3 DEX+10 STA+10, Fangol\'s Breath proc). NPC: Ogog (say "bash"). Drops: Honeyed Nectar (isl 6, Bazzzazzt) + Ethereal Emerald (isl 8 boss Eye of Veeshan) + Bottled Djinni (isl 7, drakes/sphinxes) + Efreeti Battle Axe (Noble Dojorn/Overseer of Air)',items:['Honeyed Nectar','Ethereal Emerald','Bottled Djinni','Efreeti Battle Axe']},
+     {desc:'Test of Bash → Fangol (PRIMARY 2H Slash 29/35 STR+3 DEX+10 STA+10, Fangol\'s Breath proc). NPC: Ogog (say "bash"). Drops: Honeyed Nectar (isl 6, Bazzzazzt) + Bottled Djinni (isl 7, drakes/sphinxes) + Ethereal Emerald (isl 8 boss Eye of Veeshan) + Efreeti Battle Axe (Noble Dojorn/Overseer of Air)',items:['Honeyed Nectar','Ethereal Emerald','Bottled Djinni','Efreeti Battle Axe']},
      {desc:'Test of Smash → Dagas (PRIMARY/SECONDARY 1H Slash 11/21 AC20 STR+3 AGI+2 HP+100). NPC: Ogog (say "smash"). Drops: Mottled Spiroc Feather (isl 5, spiroc arbiters) + Virulent Poison (isl 6, Bizazzzt/Bazzzazzt) + Djinni War Blade (isl 1.5/4/8, Sister of the Spire)',items:['Mottled Spiroc Feather','Virulent Poison','Djinni War Blade']},
      {desc:'Test of Think → Belt of the Four Winds (WAIST AC5 STR+12 DEX+6 STA+12 AGI+6 Haste+41%). NPC: Ogog (say "think"). Drops: Pegasus Statuette (isl 4, soul carriers/harvesters) + Wind Tablet (isl 5+ boss Bazzt Zzzt/Spiroc Lord) + Spiroc Wind Totem (isl 5, normal spirocs) + Efreeti Belt (Noble Dojorn/Overseer of Air)',items:['Pegasus Statuette','Wind Tablet','Spiroc Wind Totem','Efreeti Belt']},
    ],
@@ -4542,7 +4614,7 @@ Monk:[
      {desc:'Test of Speed → Sandals of Alacrity (FEET AC6 STR+10 AGI+10 HP+20, Alacrity clicky ×2). NPC: Ton Po (say "speed"). Drops: Adumbrate Globe (isl 3, clouds/meteors/wind) + Shimmering Opal (isl 4, soul tamers) + Dove Slippers (isl 5 boss The Spiroc Lord)',items:['Adumbrate Globe','Shimmering Opal','Dove Slippers']},
      {desc:'Test of Tears → Ton Po\'s Shoulder Wraps (SHOULDERS AC8 STR+4 DEX+4 AGI+4, all resists +10). NPC: Wu the Enlightened (say "tears"). Drops: Spiroc Statuette (isl 4, soul harvesters) + Spiroc Talon (isl 5, spiroc expulsers/revolters) + Silken Wrap (isl 6 boss Bazzt Zzzt)',items:['Spiroc Statuette','Spiroc Talon','Silken Wrap']},
      {desc:'Test of Fists → Wu\'s Fist of Mastery (PRIMARY/SECONDARY 1H Blunt 16/22). NPC: Wu the Enlightened (say "fists"). Drops: White Spiroc Feather (isl 5, spiroc arbiters) + Ethereal Amethyst (isl 6, Bazzzazzt/Bizazzzt/Bzzzt) + Brass Knuckles (Noble Dojorn/Overseer/Hand of Veeshan) + Nebulous Sapphire (isl 6-7, Sister of Spire/Bazzzazzt)',items:['White Spiroc Feather','Ethereal Amethyst','Brass Knuckles','Nebulous Sapphire']},
-     {desc:'Test of Tranquility → Golden Sash of Tranquility (WAIST AC5 Haste+41% STR+15 DEX+15 AGI+15). NPC: Wu the Enlightened (say "tranquility"). Drops: Aged Nectar (isl 6, bees) + Nebulous Sapphire (isl 6-7, Sister of Spire/Bazzzazzt) + additional drops — see wiki',items:['Aged Nectar','Nebulous Sapphire']},
+     {desc:'Test of Tranquility → Golden Sash of Tranquility (WAIST AC5 Haste+41% STR+15 DEX+15 AGI+15). NPC: Wu the Enlightened (say "tranquility"). Drops: Aged Nectar (isl 6, bees) + Writ of Quellious (isl 7, drakes/sphinxes) + Tear of Quellious (isl 8 boss Eye of Veeshan)',items:['Aged Nectar','Writ of Quellious','Tear of Quellious']},
    ],
    note:'NPC: Talk to Holwin in PoSky, then choose Ton Po (Tests 1-3) or Wu the Enlightened (Tests 4-6). Golden Sash of Tranquility (41% haste, Test of Tranquility) and Wu\'s Fist of Mastery (16/22, best pre-epic fist) are top priorities. Epic pieces Immortals and Eye of Kaiaren also come from PoSky.'},
 ],
@@ -4563,7 +4635,7 @@ Cleric:[
      {desc:'Test of Protection → Pauldrons of Piety (SHOULDERS AC11 STA+8 CHA+2 WIS+12 MANA+35). NPC: Alan Harten (say "protection"). Drops: Adumbrate Globe (isl 3, clouds/meteors/wind) + Faintly Glowing Diamond (isl 4, soul carriers) + Shiny Pauldrons (isl 5 boss The Spiroc Lord)',items:['Adumbrate Globe','Faintly Glowing Diamond','Shiny Pauldrons']},
      {desc:'Test of Resolution → Necklace of Resolution (NECK 1 charge Complete Heal clicky at lvl 45, STR+5 WIS+7 HP+30 MANA+15). NPC: Deric Lennox (say "resolution"). Drops: Spiroc Statuette (isl 4, soul harvesters) + Spiroc Healing Totem (isl 5, spiroc expulsers/revolters) + Silvered Spiroc Necklace (isl 6 boss Bazzt Zzzt)',items:['Spiroc Statuette','Spiroc Healing Totem','Silvered Spiroc Necklace']},
      {desc:'Test of Theurgy → Theurgist\'s Star (PRIMARY 1H Blunt 15/25 WIS+10 MANA+40 SV DIS+25 SV POI+25, Blessing proc). NPC: Deric Lennox (say "theurgy"). Drops: Saffron Spiroc Feather (isl 5, spiroc arbiters) + Glowing Sapphire (isl 6, Bazzzazzt/Bazzt Zzzt/Bzzzt) + Djinni Aura (isl 7 boss Sister of the Spire) + Efreeti Mace (Noble Dojorn/Overseer/Hand)',items:['Saffron Spiroc Feather','Glowing Sapphire','Djinni Aura','Efreeti Mace']},
-     {desc:'Test of The Weak → Truwian Baton (PRIMARY 2H Blunt AC25 STR+10 WIS+15 MANA+75, Resurrection clicky ×3 at lvl 49). NPC: Deric Lennox (say "the weak"). Drops: Manna Nectar (isl 6, Bzzazzt) + Shimmering Topaz (isl 7, drakes/sphinxes) + Large Glowing Shield (isl 8 boss Eye of Veeshan)',items:['Manna Nectar','Shimmering Topaz']},
+     {desc:'Test of The Weak → Truwian Baton (PRIMARY 2H Blunt AC25 STR+10 WIS+15 MANA+75, Resurrection clicky ×3 at lvl 49). NPC: Deric Lennox (say "the weak"). Drops: Manna Nectar (isl 6, Bzzazzt) + Shimmering Topaz (isl 7, drakes/sphinxes) + Mithril Bands (isl 8 boss Eye of Veeshan) + Efreeti Standard (Noble Dojorn/Overseer/Hand)',items:['Manna Nectar','Shimmering Topaz','Mithril Bands','Efreeti Standard']},
    ],
    note:'NPC: Talk to Josin Faithbringer in PoSky, then choose Alan Harten or Deric Lennox. Necklace of Resolution (Complete Heal clicky, Test of Resolution) is extremely valuable — one of the best items in the zone. Aegis of the Wind is a great shield upgrade.'},
 ],
@@ -4583,8 +4655,8 @@ Enchanter:[
      {desc:'Test of Metamorphism → Wind Walker\'s Mantle (SHOULDERS AC6 STR+5 DEX+5 CHA+10 AGI+2 HP+50). NPC: Lelulean (say "metamorphism"). Drops: Silver Disc (isl 2, azarack) + Bluish Stone (isl 3, gorgalask/harpies) + Light Cloth Mantle (isl 4 boss Keeper of Souls)',items:['Silver Disc','Bluish Stone','Light Cloth Mantle']},
      {desc:'Test of Deception → Ivory Mask (FACE AC6 CHA+6 INT+6 MANA+30). NPC: Lelulean (say "deception"). Drops: Rugous Globe (isl 3, clouds/meteors/wind) + Sky Pearl (isl 4, soul carriers) + Silken Mask (isl 5 boss The Spiroc Lord)',items:['Rugous Globe','Sky Pearl','Silken Mask']},
      {desc:'Test of Memorization → Necklace of Whispering Winds (NECK 2 charges Cajoling Whispers clicky at lvl 45, STA+5 CHA+10 INT+5 MANA+35). NPC: Enderbite (say "memorization"). Drops: Carmine Spiroc Feather (isl 5, spiroc arbiters) + Ganoric Poison (isl 6, bee bosses) + Glowing Necklace (isl 7 boss Sister of the Spire)',items:['Carmine Spiroc Feather','Ganoric Poison','Glowing Necklace']},
-     {desc:'Test of Disillusion → Earring of Displacement (EAR 2 charges Gravity Flux clicky, CHA+4 INT+4 MANA+25). NPC: Enderbite (say "disillusion"). Drops: Harpy Statuette (isl 4, soul harvesters) + Black Nebulous Sapphire (isl 5, Spiroc Guardian/walker) + additional drops — see wiki',items:['Harpy Statuette','Black Nebulous Sapphire']},
-     {desc:'Test of Incapacitation → Talisman of Benevolence (NECK, INT+9 MANA+75, Incapacitate proc). NPC: Enderbite (say "incapacitation"). Drops from higher islands — see wiki',items:[]},
+     {desc:'Test of Disillusion → Earring of Displacement (EAR 2 charges Gravity Flux clicky, CHA+4 INT+4 MANA+25). NPC: Enderbite (say "disillusion"). Drops: Harpy Statuette (isl 4, soul harvesters) + Black Nebulous Sapphire (isl 5, spiroc walker/Guardian) + Adamantium Earring (isl 6 boss Bazzt Zzzt)',items:['Harpy Statuette','Black Nebulous Sapphire','Adamantium Earring']},
+     {desc:'Test of Incapacitation → Rod of Warding Winds → Rod of the Protecting Winds (SECONDARY, see wiki). NPC: Enderbite (say "incapacitation"). Drops: Sweet Nectar (isl 6, Bzzazzt) + Black Sky Diamond (isl 7, drakes/sphinxes) + Large Sky Sapphire (isl 8 boss Eye of Veeshan) + Efreeti Wind Staff (Noble Dojorn/Overseer/Hand)',items:['Sweet Nectar','Black Sky Diamond','Large Sky Sapphire','Efreeti Wind Staff']},
    ],
    note:'NPC: Talk to Enchanter Jolas in PoSky, then choose Lelulean or Enderbite. Necklace of Whispering Winds (Cajoling Whispers clicky) and Earring of Displacement (Gravity Flux) are the standout rewards. Efreeti Magi Staff available from Noble Dojorn/Overseer of Air.'},
 ],
@@ -4602,12 +4674,12 @@ Wizard:[
    note:'Gnarled Staff from Venril Sathir (Karnor\'s) is the key Velious-era piece. Epic clicky: Barrier of Force (800hp rune, 1hr 40min). Stacks with enc/druid mana regen.'},
   {name:'Plane of Sky Quests — Wizard',shortName:'PoSky (WIZ)',wiki:'https://wiki.project1999.com/Wizard_Plane_of_Sky_Tests',
    steps:[
-     {desc:'Test of Concentration → Augmentor\'s Mask (FACE AC6 DEX+4 INT+9 AGI+8 MANA+9). NPC: Neasin Leornic (say "concentration"). Drops: Azure Tessera (isl 1, thunder spirits) + Augmentor\'s Gem (isl 2 boss Protector of Sky) + Grey Damask Cloak (isl 3 boss Gorgalosk)',items:["Augmentor\'s Gem",'Grey Damask Cloak']},
+     {desc:'Test of Concentration → Augmentor\'s Mask (FACE AC6 DEX+4 INT+9 AGI+8 MANA+9). NPC: Neasin Leornic (say "concentration"). Drops: Azure Tessera (isl 1, thunder spirits) + Augmentor\'s Gem (isl 2 boss Protector of Sky) + Grey Damask Cloak (isl 3 boss Gorgalosk)',items:['Azure Tessera',"Augmentor\'s Gem",'Grey Damask Cloak']},
      {desc:'Test of Focus → Al\'Kabor\'s Cap of Binding (HEAD 4 charges Bonds of Force clicky, AC6 STR+5 INT+8 HP+40 MANA+20 SV FIRE/COLD+10). NPC: Neasin Leornic (say "focus"). Drops: Iron Disc (isl 2, azarack) + Ethereal Opal (isl 3, gorgalask/harpies) + Woven Skull Cap (isl 4 boss Keeper of Souls)',items:['Iron Disc','Ethereal Opal','Woven Skull Cap']},
      {desc:'Test of Meditation → Raiment of Thunder (SHOULDERS 2 charges Thunder Strike clicky, AC4 STR+5 INT+5 MANA+15). NPC: Neasin Leornic (say "meditation"). Drops: Hyaline Globe (isl 3, clouds) + Sky Topaz (isl 4, soul carriers) + High Quality Raiment (isl 5 boss The Spiroc Lord)',items:['Hyaline Globe','Sky Topaz','High Quality Raiment']},
      {desc:'Test of Conception → Solidate Mithril Ring (FINGER 3 charges Steelskin, STR+5 INT+5 AGI+6 MANA+50). NPC: Abec Ianor (say "conception"). Drops: Efreeti Statuette (isl 4, soul harvesters) + Mithril Air Ring (isl 5, spiroc expulsers) + Box of Winds (isl 6 boss Bazzt Zzzt)',items:['Efreeti Statuette','Mithril Air Ring','Box of Winds']},
      {desc:'Test of Visualization → Amulet of the Void (NECK 1 charge Alter Plane: Sky clicky, DEX+5 CHA+5 INT+5 AGI+5 MANA+50). NPC: Abec Ianor (say "visualization"). Drops: White-tipped Spiroc Feather (isl 5, spiroc arbiters) + Pulsating Sapphire (isl 6, Bazzzazzt/Bzzzt) + Amethyst Amulet (isl 7 boss Sister of the Spire)',items:['White-tipped Spiroc Feather','Pulsating Sapphire','Amethyst Amulet']},
-     {desc:'Test of Preparation → Nargon\'s Staff (PRIMARY 2H Blunt 16/48 INT+15 MANA+75 SV DIS+25 SV MAG+10). NPC: Abec Ianor (say "preparation"). Drops: Lush Nectar (isl 6, Bazzzazzt) + Copper Amulet (isl 7, drakes) + Large Sky Diamond (isl 8 boss Eye of Veeshan) + Efreeti Magi Staff (Noble Dojorn/Overseer/Hand)',items:['Lush Nectar','Efreeti Magi Staff']},
+     {desc:'Test of Preparation → Nargon\'s Staff (PRIMARY 2H Blunt 16/48 INT+15 MANA+75 SV DIS+25 SV MAG+10). NPC: Abec Ianor (say "preparation"). Drops: Lush Nectar (isl 6, Bazzzazzt) + Copper Air Band (isl 7, drakes) + Large Sky Sapphire (isl 8 boss Eye of Veeshan) + Efreeti War Staff (Noble Dojorn/Overseer/Hand)',items:['Lush Nectar','Copper Air Band','Large Sky Sapphire','Efreeti War Staff']},
    ],
    note:'NPC: Talk to Wizard Schrock in PoSky, then choose Neasin Leornic or Abec Ianor. Amulet of the Void (Alter Plane: Sky clicky — free port to PoSky!) is unique and extremely valuable. Nargon\'s Staff is top tier 2HB for wizards. Efreeti Magi Staff from efreeti bosses on islands 1.5/4/8.'},
 ],
@@ -4630,7 +4702,7 @@ Magician:[
      {desc:'Test of Shielding → Gold White Pendant (NECK AC2 INT+5 MANA+50). NPC: Frederic Calermin (say "shielding"). Drops: Hyaline Globe (isl 3, clouds) + Ivory Pendant (isl 4, soul carriers) + Golden Coffer (isl 5 boss The Spiroc Lord)',items:['Hyaline Globe','Ivory Pendant','Golden Coffer']},
      {desc:'Test of Summoning → Drake-Hide Amice (SHOULDERS 10 charges Malaise clicky, AC6 STA+5 HP+50 MANA+50). NPC: Roanis Elindar (say "summoning"). Drops: Harpy Statuette (isl 4, essence harvesters) + Finely Woven Cloth Amice (isl 5, Spiroc Guardian) + Large Diamond (isl 6 boss Bazzt Zzzt)',items:['Harpy Statuette','Finely Woven Cloth Amice','Large Diamond']},
      {desc:'Test of Interpretation → Duennan Shielding Ring (FINGER 1 charge Harmshield clicky, WIS+5 INT+5 MANA+30). NPC: Roanis Elindar (say "interpretation"). Drops: Carmine Spiroc Feather (isl 5) + Blood Sky Amethyst (isl 6, bees) + Golden Efreeti Ring (isl 7 boss Sister of the Spire)',items:['Carmine Spiroc Feather','Blood Sky Amethyst','Golden Efreeti Ring']},
-     {desc:'Test of Displacement → Crown of Elemental Mastery (MAGICIAN EPIC ITEM — see Magician Epic quest). NPC: Roanis Elindar (say "displacement"). Drops from isl 7 — see wiki. ALSO needed for Magician epic quest.',items:['Crown of Elemental Mastery']},
+     {desc:'Test of Displacement → Staff of Elemental Mastery: Air (Magician epic component). NPC: Roanis Elindar (say "displacement"). Drops: Sweet Nectar (isl 6, Bzzazzt) + Crown of Elemental Mastery (isl 7, drakes) + Large Opal (isl 8 boss Eye of Veeshan) + Djinni Stave (isl 7 boss Sister of the Spire). Crown of Elemental Mastery also needed for Magician epic.',items:['Sweet Nectar','Crown of Elemental Mastery','Large Opal','Djinni Stave']},
    ],
    note:'NPC: Talk to Magi Frinon in PoSky, then choose Frederic Calermin or Roanis Elindar. Duennan Shielding Ring (Harmshield clicky) is premier. Drake-Hide Amice (Malaise clicky) is valuable for any group. Crown of Elemental Mastery is also a Magician epic piece.'},
 ],
@@ -4652,7 +4724,7 @@ Necromancer:[
      {desc:'Test of Mind → Bloodsoaked Raiment (SHOULDERS AC4 DEX+3 INT+5 HP+30 MANA+65). NPC: Jzil GSix (say "mind"). Drops: Rugous Globe (isl 3, clouds) + Djinni Blood (isl 4, soul carriers) + Fine Cloth Raiment (isl 5 boss The Spiroc Lord)',items:['Rugous Globe','Djinni Blood','Fine Cloth Raiment']},
      {desc:'Test of Heart → Sphinx Heart Amulet (NECK AC4 STR+10 INT+10 MANA+25 SV DIS+5, Ultravision worn). NPC: Dugaas Helpyre (say "heart"). Drops: Imp Statuette (isl 4, soul harvesters) + Obsidian Amulet (isl 5, spiroc banisher) + Pulsating Ruby (isl 6 boss Bazzt Zzzt)',items:['Imp Statuette','Obsidian Amulet','Pulsating Ruby']},
      {desc:'Test of Hands → Gorgon Head Staff (PRIMARY 2H Blunt 14/41 INT+15 MANA+75 SV DIS+25, Tishan\'s Clash proc). NPC: Dugaas Helpyre (say "hands"). Drops: Aged Nectar (isl 6, Bzzazzt) + Gorgon Head (isl 3 boss Gorgalosk) + Glowing Black Pearl (isl 7, heartsbane drake/undine) + Efreeti Great Staff (Noble Dojorn/Overseer/Hand)',items:['Aged Nectar','Gorgon Head','Glowing Black Pearl','Efreeti Great Staff']},
-     {desc:'Test of Finger → Band of Wailing Winds (FINGER 3 charges Invoke Fear clicky, INT+5 MANA+50). NPC: Dugaas Helpyre (say "finger"). Drops: White Spiroc Feather (isl 5, spiroc arbiters) + additional isl 6-7 drops — see wiki',items:['White Spiroc Feather']},
+     {desc:'Test of Finger → Band of Screaming Winds → Band of Wailing Winds (FINGER 3 charges Invoke Fear clicky). NPC: Dugaas Helpyre (say "finger"). Drops: White Spiroc Feather (isl 5, spiroc arbiters) + Nebulous Ruby (isl 6, Bazzzazzt/Bizazzzt/Bzzzt) + Ring of Veeshan (isl 7 boss Sister of the Spire)',items:['White Spiroc Feather','Nebulous Ruby','Ring of Veeshan']},
    ],
    note:'NPC: Talk to Drakis Bloodcaster in PoSky, then choose Jzil GSix or Dugaas Helpyre (any class can complete once NPC is spawned, but a Necromancer must trigger it). Gorgon Head Staff is excellent 2HB. Band of Wailing Winds (Invoke Fear clicky) is very useful. Gkzzallk in a Box (Necromancer epic) also comes from PoSky island 3.'},
 ],
@@ -4673,8 +4745,8 @@ Necromancer:[
      {desc:'Test of Slash → Pegasus-Hide Belt (WAIST AC8 STR+6 INT+6 AGI+6 Haste+41%). NPC: Gragrot (say "slash"). Drops: Diaphanous Globe (isl 3, clouds) + Dried Leather (isl 4, soul tamers) + Finely Woven Cloth Belt (isl 5 boss The Spiroc Lord)',items:['Diaphanous Globe','Dried Leather','Finely Woven Cloth Belt']},
      {desc:'Test of Disempowerment → Blood Sky Face Plate (FACE AC9 STR+10 DEX+12 MANA+60 SV DIS+10). NPC: Tynicon Dlin (say "disempowerment"). Drops: Griffon Statuette (isl 4, soul harvesters) + Blood Sky Emerald (isl 5, spiroc expulsers) + Rusted Pauldrons (isl 6 boss Bazzt Zzzt)',items:['Griffon Statuette','Blood Sky Emerald','Rusted Pauldrons']},
      {desc:'Test of Envenoming → Obtenebrate Mithril Guard (SECONDARY AC35 STR+15 SV FIRE+15). NPC: Tynicon Dlin (say "envenoming"). Drops: Dark Spiroc Feather (isl 5, spiroc arbiters) + Obsidian Shard (isl 6, Bazzzazzt/Bizazzzt/Bzzzt) + Efreeti War Shield (Noble Dojorn/Overseer/Hand)',items:['Dark Spiroc Feather','Obsidian Shard (Sky)','Efreeti War Shield']},
-     {desc:'Test of Raising of the Dead → Pearlescent Pauldrons (SHOULDERS AC10 STR+10 DEX+15 INT+15 MANA+50). NPC: Tynicon Dlin (say "raising"). Drops: Jar of Honey (isl 6, Bazzzazzt) + Sphinxian Ring (isl 7, drakes/sphinxes) + additional drops — see wiki',items:['Jar of Honey','Sphinxian Ring']},
-     {desc:'Test of Necropotence → Midnight Mace (PRIMARY 1H Blunt 17/25 INT+8 STA+8 HP+50, Lifetap proc). NPC: Tynicon Dlin (say "necropotence"). Drops from isl 6-8 — see wiki',items:[]},
+     {desc:'Test of Raising of the Dead → Pearlescent Pauldrons (SHOULDERS AC10 STR+10 DEX+15 INT+15 MANA+50). NPC: Tynicon Dlin (say "raising"). Drops: Jar of Honey (isl 6, Bazzzazzt) + Sphinxian Ring (isl 7, drakes/sphinxes) + Fae Pauldrons (isl 8 boss Eye of Veeshan) + Large Sky Pearl (isl 8 area)',items:['Jar of Honey','Sphinxian Ring','Fae Pauldrons','Large Sky Pearl']},
+     {desc:'Test of Necropotence → Rheumguls → Khyldorn the Blood Drinker (PRIMARY, see wiki). NPC: Tynicon Dlin (say "necropotence"). Drops: Dulcet Nectar (isl 6, Bzzazzt) + Bloodstained Hilt (isl 7, drakes/sphinxes) + Blood Sky Ruby (isl 8 boss Eye of Veeshan) + Efreeti War Axe (Noble Dojorn/Overseer/Hand)',items:['Dulcet Nectar','Bloodstained Hilt','Blood Sky Ruby','Efreeti War Axe']},
    ],
    note:'NPC: Talk to Sarkis Ebonblade in PoSky, then choose Gragrot or Tynicon Dlin. Pegasus-Hide Belt (41% haste, Test of Slash) is the top priority. Amulet of the Sphinx Eye (Ultravision + great stats) is excellent. Obtenebrate Mithril Guard (AC35!) is one of the best shields.'},
 ],
@@ -4715,7 +4787,7 @@ Ranger:[
      {desc:'Test of The Earth → Earthshaker\'s Mantle (SHOULDERS 2 charges Earthquake clicky, AC9 STR+8 DEX+8 WIS+8 SV FIRE/MAG+10). NPC: Relinin Skyrunner (say "earth"). Drops: Gridelin Globe (isl 3, clouds) + Dragon-hide Mantle (isl 4, soul tamers) + Spiroc Earth Totem (isl 5 boss The Spiroc Lord)',items:['Gridelin Globe','Dragon-hide Mantle','Spiroc Earth Totem']},
      {desc:'Test of Thunder → Thunderforged Earring (EAR AC8 DEX+8 WIS+8 AGI+8 MANA+25, Careless Lightning clicky at lvl 45). NPC: Gordon Treecaller (say "thunder"). Drops: Djinni Statuette (isl 4, soul harvesters) + Spiroc Thunder Totem (isl 5, spiroc expulsers) + White Gold Earring (isl 6 boss Bazzt Zzzt)',items:['Djinni Statuette','Spiroc Thunder Totem','White Gold Earring']},
      {desc:'Test of Blade → Arydryidriyorn (PRIMARY/SECONDARY 1H Slash 12/21 STR+8 WIS+8 HP+50, Shield of Brambles proc). NPC: Gordon Treecaller (say "blade"). Drops: Emerald Spiroc Feather (isl 5, spiroc arbiters) + Bitter Honey (isl 6, Bazzzazzt/Bizazzzt) + Circlet of Brambles (isl 7 boss Sister of the Spire) + Efreeti Long Sword (Noble Dojorn/Overseer/Hand)',items:['Emerald Spiroc Feather','Bitter Honey','Circlet of Brambles','Efreeti Long Sword']},
-     {desc:'Test of Ranged Attack → Windstriker (RANGE bow). NPC: Gordon Treecaller (say "ranged"). NOTE: Swirling Sphere of Color (Ranger epic piece) also drops in PoSky from essence tamers on island 4',items:['Swirling Sphere of Color']},
+     {desc:'Test of Ranged Attack → Windstriker (RANGE bow, see wiki for stats). NPC: Gordon Treecaller (say "ranged"). Drops: Thickened Nectar (isl 6, Bzzazzt) + Sphinx Tallow (isl 7, drakes/sphinxes) + Shimmering Pearl (isl 8 boss Eye of Veeshan) + Efreeti War Bow (Noble Dojorn/Overseer/Hand). NOTE: Swirling Sphere of Color (Ranger epic piece) drops from essence tamers on isl 4.',items:['Thickened Nectar','Sphinx Tallow','Shimmering Pearl','Efreeti War Bow','Swirling Sphere of Color']},
    ],
    note:'NPC: Talk to Ranger Spirit in PoSky, then choose Relinin Skyrunner or Gordon Treecaller. Dark Cloak of the Sky (worn Haste) and Earthshaker\'s Mantle (Earthquake clicky) are top picks. Swirling Sphere of Color (isl 4, Ranger epic component) is also found here.'},
 ],
@@ -4736,7 +4808,7 @@ Druid:[
      {desc:'Test of Tree → Shillelagh (PRIMARY 1H Blunt 10/25 AC2 CHA+4 WIS+9 AGI+2 MANA+50 SV FIRE+5). NPC: Will Treewalker (say "tree"). Drops: Diaphanous Globe (isl 3, clouds) + Hardened Clay (isl 4, soul carriers) + Spiroc Battle Staff (isl 5 boss The Spiroc Lord)',items:['Diaphanous Globe','Hardened Clay','Spiroc Battle Staff']},
      {desc:'Test of The Bee → Honeycomb Belt (WAIST AC6 CHA+2 WIS+8 MANA+75 Haste+26%). NPC: Fenalla Moonshadow (say "bee"). Drops: Efreeti Statuette (isl 4, soul harvesters) + Wilder\'s Girdle (isl 5, spiroc expulsers) + Divine Honeycomb (isl 6 boss Bazzt Zzzt)',items:['Efreeti Statuette',"Wilder's Girdle",'Divine Honeycomb']},
      {desc:'Test of Eagle → Spiroc Banisher Focus (PRIMARY/SECONDARY WIS+20 MANA+10, STR/DEX/AGI -2). NPC: Fenalla Moonshadow (say "eagle"). Drops: White-tipped Spiroc Feather (isl 5, spiroc arbiters) + Spiroc Elder\'s Totem (isl 5 boss The Spiroc Lord) + Acidic Venom (isl 6, bee bosses) + Ethereal Ruby (isl 7 boss Sister of the Spire)',items:['White-tipped Spiroc Feather',"Spiroc Elder's Totem",'Acidic Venom','Ethereal Ruby']},
-     {desc:'Test of Nature → Espri (PRIMARY 1H Slash 10/23 DEX+9 WIS+9 MANA+50, Combust proc at lvl 45). NPC: Fenalla Moonshadow (say "nature"). Drops: Lush Nectar (isl 6, Bzzazzt) + additional isl 7-8 drops — see wiki',items:['Lush Nectar']},
+     {desc:'Test of Nature → Espri (PRIMARY 1H Slash 10/23 DEX+9 WIS+9 MANA+50, Combust proc at lvl 45). NPC: Fenalla Moonshadow (say "nature"). Drops: Lush Nectar (isl 6, Bzzazzt) + Fire Sky Ruby (isl 7, drakes/sphinxes) + Storm Sky Opal (isl 8 boss Eye of Veeshan) + Efreeti Scimitar (Noble Dojorn/Overseer/Hand)',items:['Lush Nectar','Fire Sky Ruby','Storm Sky Opal','Efreeti Scimitar']},
    ],
    note:'NPC: Talk to Strandar Pinemist in PoSky, then choose Will Treewalker or Fenalla Moonshadow. Drake-Hide Mask (all stats +10 MANA+10) is exceptional. Honeycomb Belt has 26% haste (not 41% — be aware). Espri has Combust proc, good DPS for a druid weapon.'},
 ],
@@ -4756,7 +4828,7 @@ Shaman:[
      {desc:'Test of Sight → Fairy-Hide Mantle (SHOULDERS 2 charges Guardian Spirit clicky, AC9 STR+5 WIS+12 SV FIRE/COLD/MAG+10). NPC: Gina MacStargan (say "sight"). Drops: Phosphoric Globe (isl 3, clouds) + Sphinx Hide (isl 4, soul tamers) + Light Damask Mantle (isl 5 boss The Spiroc Lord)',items:['Phosphoric Globe','Sphinx Hide','Light Damask Mantle']},
      {desc:'Test of Shrink → Warhammer of the Wind (PRIMARY 1H Blunt 12/24 WIS+14 HP+50 MANA+50). NPC: Ooga (say "shrink"). Drops: Djinni Statuette (isl 4, soul harvesters) + Wooden Bands (isl 5, spiroc expulsers) + Corrosive Venom (isl 6 boss Bazzt Zzzt) + Efreeti War Club (Noble Dojorn/Overseer/Hand)',items:['Djinni Statuette','Wooden Bands','Corrosive Venom','Efreeti War Club']},
      {desc:'Test of Snake → Vermilion Sky Ring (FINGER 2 charges Feign Death clicky, AC5 DEX+3 WIS+7 SV DIS+20). NPC: Ooga (say "snake"). Drops: Emerald Spiroc Feather (isl 5, spiroc arbiters) + Bixie Essence (isl 6, Bazzzazzt/Bizazzzt/Bzzzt) + Spiritualist\'s Ring (isl 7 boss Sister of the Spire)',items:['Emerald Spiroc Feather','Bixie Essence',"Spiritualist's Ring"]},
-     {desc:'Test of The Witch Doctor → Garduk (2H Blunt, WIS+15 MANA+75, proc weapon). NPC: Ooga (say "witch doctor"). Drops from isl 6-8 — see wiki',items:[]},
+     {desc:'Test of The Witch Doctor → Garduk (2H Blunt, WIS+15 MANA+75 proc, see wiki). NPC: Ooga (say "witch doctor"). Drops: Thickened Nectar (isl 6, Bzzazzt) + Fire Sky Ruby weight 12.0 (isl 7, drakes/sphinxes) + Symbol of Veeshan (isl 8 boss Eye of Veeshan) + Efreeti War Maul (Noble Dojorn/Overseer/Hand)',items:['Thickened Nectar','Symbol of Veeshan','Efreeti War Maul']},
    ],
    note:'NPC: Talk to Medicine Man Veetra in PoSky, then choose Gina MacStargan or Ooga. Vermilion Sky Ring (Feign Death clicky — yes, on a shaman!) is the most unique item in the set. Fairy-Hide Mantle (Guardian Spirit clicky) and Warhammer of the Wind are excellent.'},
 ],
@@ -4777,7 +4849,7 @@ Bard:[
      {desc:'Test of Tone → Mask of Song (FACE AC12 all stats+3 all resists+7). NPC: Denise Songweaver (say "tone"). Drops: Ochre Tessera (isl 1, thunder spirits) + Songbird Statuette (isl 2 boss Protector of Sky) + Light Woolen Mask (isl 3 boss Gorgalosk)',items:['Ochre Tessera','Songbird Statuette','Light Woolen Mask']},
      {desc:'Test of Brass → Denon\'s Horn of Disaster (PRIMARY Brass Instrument 24 STR+5 CHA+10 INT+5 HP+50). NPC: Clarisa Spiritsong (say "brass"). Drops: Saffron Spiroc Feather (isl 5, spiroc arbiters) + Adamantium Bands (isl 6, Bazzzazzt/Bizazzzt) + Glowing Diamond (isl 7 boss Sister of the Spire) + Efreeti War Horn (Noble Dojorn/Overseer/Hand)',items:['Saffron Spiroc Feather','Adamantium Bands','Glowing Diamond','Efreeti War Horn']},
      {desc:'Test of Wind → Amulet of the Fae (NECK 4 charges Healing clicky at lvl 45, AC8 STR+5 DEX+4 STA+4 HP+50 SV DIS/POI+10). NPC: Clarisa Spiritsong (say "wind"). Drops: Imp Statuette (isl 4, soul harvesters) + Dull Stone (isl 5, spiroc arbiters) + Amulet of Woven Hair (isl 6, Bizazzzt)',items:['Imp Statuette','Dull Stone','Amulet of Woven Hair']},
-     {desc:'Test of Harmony → Harmonic Spear (PRIMARY/SECONDARY piercing weapon). NPC: Clarisa Spiritsong (say "harmony"). NOTE: Lyran\'s Mystical Lute (Bard epic piece) drops from Mistress of Scorn in PoSky.',items:["Lyran's Mystical Lute"]},
+     {desc:'Test of Harmony → Harmonic Spear (PRIMARY/SECONDARY). NPC: Clarisa Spiritsong (say "harmony"). Drops: Manna Nectar (isl 6, Bzzazzt) + Nebulous Emerald (isl 7, drakes/sphinxes) + Nebulous Diamond (isl 8 boss Eye of Veeshan) + Efreeti War Spear (Noble Dojorn/Overseer/Hand). NOTE: Lyran\'s Mystical Lute (Bard epic piece) drops from Mistress of Scorn in PoSky.',items:['Manna Nectar','Nebulous Emerald','Nebulous Diamond','Efreeti War Spear',"Lyran's Mystical Lute"]},
    ],
    note:'NPC: Talk to Cilin Spellsinger in PoSky, then choose Denise Songweaver or Clarisa Spiritsong. Mask of Song (all stats +3 all resists +7) is exceptional. Mantle of the Songweaver (Fury clicky ×9 charges) is a fantastic clickie. Lyran\'s Mystical Lute (Bard epic component) also drops in PoSky from Mistress of Scorn.'},
 ],
@@ -4799,10 +4871,10 @@ Rogue:[
    steps:[
      {desc:'Test of Thievery → Wispy Choker of Vigor (NECK AC5 STR+9 DEX+9 AGI+3 HP+20). NPC: Kendrick the Great (say "thievery"). Drops: Ivory Tessera (isl 1, thunder spirits) + Gem of Invigoration (isl 2 boss Protector of Sky) + Inlaid Choker (isl 3 boss Gorgalosk)',items:['Ivory Tessera','Gem of Invigoration','Inlaid Choker']},
      {desc:'Test of Silence → Griffon Wing Spauldors (SHOULDERS 10 charges Levitate clicky, AC9 STR+6 DEX+6 AGI+4 HP+30). NPC: Kendrick the Great (say "silence"). Drops: Pearlescent Globe (isl 3, clouds) + Black Griffon Feather (isl 4, soul carriers) + Spiroc Sky Totem (isl 5 boss The Spiroc Lord)',items:['Pearlescent Globe','Black Griffon Feather','Spiroc Sky Totem']},
-     {desc:'Test of Trickery → Renard\'s Belt of Quickness (WAIST AC6 STR+5 DEX+12 CHA+5 AGI+12 Haste+41%). NPC: Kendrick the Great (say "trickery"). Drops: Mottled Spiroc Feather (isl 5, spiroc arbiters) + Cracked Leather Belt (isl 6, Bazzzazzt area) + additional drop — see wiki',items:['Mottled Spiroc Feather']},
-     {desc:'Test of Cunning → Bladestopper (SECONDARY AC10 STR+8 DEX+8 AGI+8 HP+40). NPC: Rayne (say "cunning"). Drops from isl 4-6 — see wiki',items:[]},
-     {desc:'Test of Stealth → Rogue\'s Mask of Trickery (FACE DEX+10 AGI+10 HP+50, See Invisible, Ultravision). NPC: Rayne (say "stealth"). Drops from isl 5-7 — see wiki',items:[]},
-     {desc:'Test of Deception → Shadow Sabre (PRIMARY 1H Slash 20/28 STR+8 DEX+12 AGI+8 HP+40, Backstab proc). NPC: Rayne (say "deception"). Drops from isl 6-8 including Eye of Veeshan — see wiki',items:[]},
+     {desc:'Test of Trickery → Renard\'s Belt of Quickness (WAIST AC6 STR+5 DEX+12 CHA+5 AGI+12 Haste+41%). NPC: Kendrick the Great (say "trickery"). Drops: Mottled Spiroc Feather (isl 5, spiroc arbiters) + Cracked Leather Belt (isl 6, bee area) + Sphinxian Circlet (isl 7 boss Sister of the Spire)',items:['Mottled Spiroc Feather','Cracked Leather Belt','Sphinxian Circlet']},
+     {desc:'Test of Cunning → Transparent Mask → Crystal Mask (FACE, see wiki). NPC: Rayne (say "cunning"). Drops: Bronze Disc (isl 2, azarack) + Red Face Paint (isl 3, gorgalask/harpies) + Jester\'s Mask (isl 4 boss Keeper of Souls)',items:['Bronze Disc','Red Face Paint',"Jester's Mask"]},
+     {desc:'Test of Stealth → Scintillating Bracer of Protection (WRIST, see wiki). NPC: Rayne (say "stealth"). Drops: Pegasus Statuette (isl 4, soul harvesters) + Prismatic Sphere (isl 5, spiroc expulsers/walkers) + Fine Wool Cloak (isl 6 boss Bazzt Zzzt)',items:['Pegasus Statuette','Prismatic Sphere','Fine Wool Cloak']},
+     {desc:'Test of Deception → Ebonsting → Thornstinger (PRIMARY, see wiki). NPC: Rayne (say "deception"). Drops: Honeyed Nectar (isl 6, Bzzazzt) + Bixie Stinger (isl 6 boss Bazzt Zzzt) + Lightning Rod (isl 7, drakes/sphinxes) + Bloodsky Sapphire (isl 8 boss Eye of Veeshan)',items:['Honeyed Nectar','Bixie Stinger','Lightning Rod','Bloodsky Sapphire']},
    ],
    note:'NPC: Talk to Thalik Silenthand in PoSky, then choose Kendrick the Great or Rayne. Renard\'s Belt of Quickness (41% haste, Test of Trickery) is the top priority. Rogue\'s Mask of Trickery (See Invis + Ultravision) is great utility. Griffon Wing Spauldors (Levitate ×10 charges) is highly useful.'},
 ],
