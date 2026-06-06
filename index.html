@@ -2087,7 +2087,7 @@ async function initAuth(){
   if(session)await onSignedIn(session.user);
   else showAuthScreen();
   sb.auth.onAuthStateChange(async(event,session)=>{
-    if(event==='SIGNED_IN'&&session)await onSignedIn(session.user);
+    if(event==='SIGNED_IN'&&session&&!currentUser)await onSignedIn(session.user);
     if(event==='SIGNED_OUT')onSignedOut();
   });
 }
