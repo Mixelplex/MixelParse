@@ -2718,7 +2718,8 @@ function renderQuestsPanel(){
       const {testName,reward,drops,npc,trigger,note:stepNote}=parseStepDesc(step.desc||'');
       const rewardShort=reward.replace(/\s*\([^)]*\)\s*/g,' ').trim();
       const stepLabel=testName||`Step ${si+1}`;
-      const rewardCell=rewardShort?`<span style="color:var(--text);font-weight:600">${esc(rewardShort)}</span>`:'—';
+      const rewardWikiUrl=rewardShort?`${wikiBase}${encodeURIComponent(rewardShort.replace(/ /g,'_'))}`:null;
+      const rewardCell=rewardShort?`<a href="${rewardWikiUrl}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-weight:600">${esc(rewardShort)}</a>`:'—';
       const npcCell=npc?`<div style="font-size:.78rem;color:var(--text-muted)">${esc(npc)}${trigger?` <span style="font-style:italic">· say "${esc(trigger)}"</span>`:''}</div>`:'—';
 
       let itemsCell='';
@@ -4505,44 +4506,50 @@ critical:[
   {name:"Journeyman's Boots",shortName:'Jboots',
    wiki:'https://wiki.project1999.com/Journeyman%27s_Boots_Quest',
    steps:[
-     {desc:'Loot Ring of the Ancients from Ancient Cyclops — Ocean of Tears (island 8, PH is a pirate/cyclops) or Southern Desert of Ro (rare 10% night spawn)',items:['Ring of the Ancients']},
-     {desc:'Kill a shadowed man for Shadowed Rapier — NO RENT (disappears on logout 30min+). Confirm Hasten is up FIRST. Shared PH with Brother Zephyl (lvl 61, unkillable), Brother Qwinn, Maldyn the Unkempt',items:['Shadowed Rapier']},
-     {desc:'Have 3250 gold coins (must be GOLD, not platinum)',items:[]},
-     {desc:'Hand all three to Hasten Bootstrutter who wanders east side of Rathe Mountains. Has extra weight — need SoW or high STR to keep up',items:[]},
+     {desc:'Loot Ring of the Ancients from Ancient Cyclops. Best camp: Ocean of Tears island 8 — Ancient Cyclops spawns every ~6 minutes but is a rare spawn off the placeholder. SDRo also has an Ancient Cyclops but spawns less frequently and is harder to camp. Ring is tradeable and can be MQ\'d',items:['Ring of the Ancients']},
+     {desc:'⚠ NO-RENT ITEM: Kill a shadowed man in Rathe Mountains for Shadowed Rapier. Verify Hasten Bootstrutter is UP and in zone BEFORE looting — the rapier vanishes on logout (30-min timer). The shadowed man shares a PH with Brother Zephyl (lvl 61, unkillable — do not engage) and Brother Qwinn. Only one shadowed man up at a time',items:['Shadowed Rapier']},
+     {desc:'Get exactly 3250 gold coins (must be GOLD, not platinum — platinum will not work). Stack as needed',items:[]},
+     {desc:'Give Ring of the Ancients + Shadowed Rapier + 3250gp all at once to Hasten Bootstrutter. He wanders the east side of Rathe Mountains — track him or watch for him near loc +1800, -500. He moves fast; use SoW or high STR to keep up',items:[]},
    ],
-   note:'SoW-speed boots. Essential for every character. Ring can be MQ\'d. Rapier is no-rent — do not log out with it.'},
+   note:'SoW-speed boots. Essential for every character in the game. Ring can be MQ\'d (tradeable). Rapier is NO-RENT — do not log out with it in your inventory. If Hasten is not up when you loot the rapier, you will lose it.'},
 
   {name:'Thex Mallet Quest',shortName:'Reaper of the Dead',
    wiki:'https://wiki.project1999.com/Thex_Mallet_Quest',
    steps:[
-     {desc:'Get Kizdean Gix\'s Note from Kizdean Gix in East Commonlands (kill him or have enchanter charm him)',items:["Kizdean Gix's Note"]},
-     {desc:'Give note to Skeleton Lrodd in Befallen, receive Rune of Xorbb',items:['Rune of Xorbb']},
-     {desc:'Give Rune of Xorbb to Commander Windstream in Befallen, then kill An Elf Skeleton for Thex Mallet',items:['Thex Mallet']},
-     {desc:'Turn in Thex Mallet to Loveal S`Nez in Neriak Third Gate. Requires amiable faction with The Dead',items:[]},
+     {desc:'Find Kizdean Gix roaming in East Commonlands. Hail him and say the phrase (see wiki for exact text) — he gives you Kizdean Gix\'s Note. You do NOT need to kill him',items:["Kizdean Gix's Note"]},
+     {desc:'Give the note to Skeleton Lrodd in Befallen. This spawns a mob in the basement. Kill that mob, then kill Elf Skeleton until you loot both the Mallet Head and the Hilt container',items:['Mallet Head','Hilt']},
+     {desc:'Combine the Mallet Head into the Hilt container to craft the Thex Mallet',items:['Thex Mallet']},
+     {desc:'Take the Thex Mallet to Loral S\'Nez in Neriak Third Gate. Requires Amiable faction with The Dead. NEC/SHD receive Reaper of the Dead (1-charge Complete Heal clicky). Others keep the Thex Mallet',items:[]},
    ],
-   note:'NEC/SHD only for full quest. Thex Mallet stays as reward for others (tradeable). SHD gets Reaper of the Dead (Complete Heal clicky, 1 charge). Faction can be difficult — dark elf illusion (Guise of the Deceiver) helps.'},
+   note:'Thex Mallet is tradeable — can be bought/sold. NEC and SHD get Reaper of the Dead (1-charge Complete Heal clicky, extremely valuable). Neriak faction can be a barrier for non-dark-elves — a Guise of the Deceiver or DE illusion from an enchanter helps significantly. Lrodd is on the ground floor of Befallen near the entrance area.'},
 
   {name:'Coldain Ring Quests',shortName:'Coldain Rings',
    wiki:'https://wiki.project1999.com/Coldain_Ring_Quests',
    steps:[
-     {desc:'Ring 1 (Copper): Tailor a Coldain Hunting Blanket from 2x HQ Cougarskin (5% drop from snow cougars, EW) + 2x HQ Tundra Kodiak Pelt (2% drop, EW). Trivial 41. Give blanket to Garadain Glacierbane (EW, -2714 -390)',items:['High Quality Cougarskin','High Quality Tundra Kodiak Pelt','Coldain Hunting Blanket']},
-     {desc:'Ring 2 (Silver): Say "I will give assistance" to Garadain for Dull Bladed Axe. Give axe to nephew Boridain Glacierbane (EW, -2450 +1550). Escort him — protect from wandering mobs. Kill the Rabid Tundra Kodiak (you must land kill shot or corpse vanishes). Loot Rabid Kodiak Skin and immediately give to Boridain for Broken Axe. Turn in Broken Axe + Copper Ring to Garadain',items:['Dull Bladed Axe','Rabid Kodiak Skin','Broken Axe']},
-     {desc:'Ring 3 (Gold): Smith a Coldain Hunting Knife (trivial 41) from Skinning Rock (EW ground spawn) + Wooly Rhino Horn (rare drop, a wooly rhino) + HQ Walrus Hide (rare drop, a walrus). Turn in knife + Silver Ring to Garadain',items:['Skinning Rock','Wooly Rhino Horn','High Quality Walrus Hide','Coldain Hunting Knife']},
-     {desc:'Ring 4 (Platinum): Find Tain Hammerfrost (EW, -4950 -2650). Say "I will help" — kill Ghrek Squatnot and 3 frost giants before they reach Tain. Loot Frozen Elixir from Ghrek. Give elixir to Tain for Coldain Smithing Hammer. Turn in hammer + Gold Ring to Garadain',items:['Frozen Elixir','Coldain Smithing Hammer']},
-     {desc:'Ring 5 (Obsidian): Kill Ry\'Gorr Messenger (runs from north toward Ry\'Gorr fort, EW), loot Ry\'Gorr Invasion Plans. Give plans to a coldain lookout near Garadain\'s hut to trigger orc invasion. Kill Scarbrow Ga\'Hruk (must be YOUR kill or corpse despawns — do NOT let dwarves get the kill shot). Loot Head of Scarbrow. Turn in head + Platinum Ring to Garadain',items:["Ry'Gorr Invasion Plans",'Head of Scarbrow']},
-     {desc:'Ring 6 (Mithril): Find Korrigain (EW, southwest near Icefang\'s hut, spawns ~9PM game time). Give him Obsidian Ring (returned) to unlock — follow Icefang at SoW speed. Kill Poxbreath Yellowfang (orc shaman, near Iceclad bridge), loot Note from Kromrif. Kill Rodrick Tardok (traitor, small tower NW of Ry\'Gorr Keep), loot Rodrick\'s Head AND Dirk of the Traitor. Turn in Note from Kromrif + Rodrick\'s Head + Dirk of the Traitor + Obsidian Ring to Garadain',items:["Note from Kromrif","Rodrick's Head","Dirk of the Traitor"]},
-     {desc:'Ring 7 (Adamantium): Kill Warden Bruke (Ry\'Gorr Keep east building, magic immune, spawns 3 giant guards) for Shackle Key. Give key + Mithril Ring to Corbin Blackwell (prisoner in same area). Escort Corbin to Dobbin Crossaxe — survive ambush of 4 Ry\'Gorr Bashers + 4 Frost Giant Warriors + Commander Bahreck. IMPORTANT: Give ring to Dobbin with the BLACK beard only (red-bearded Dobbin will eat your ring). Turn in Note from Corbin to Garadain',items:['Shackle key','Note from Corbin']},
-     {desc:'Ring 8 (Velium) — CAN FAIL AND LOSE RING. See Ring 8 Server Roll page for approved roll times. Give Adamantium Ring to Garadain for Marching Orders. Give Marching Orders to Gloradin Coldheart (24hr spawn) to trigger war. Pre-position group inside Ry\'Gorr fort. Kill special Chief Ry\'Gorr (spawns at fort entrance), loot his head. Wait for Garadain to shout "CHARGE!" — then hand him Chief\'s head. Do NOT hand head in before the CHARGE shout',items:["Chief Ry'Gorr's Head"]},
-     {desc:'Ring 9 (Hero\'s): In Icewell Keep, say "I will accept this task" to Seneschal Aldikar (Royal Court, ~8AM game time) for Traitor\'s Bane Box. Kill 5 traitors: (1) Rodrick Tardok (EW, NW tower Ry\'Gorr Keep) for Dirk of the Traitor; (2) Murdrick Tardok (GD, -5900 +3700 cave); (3) Captain Berradin (EW, give him Tainted Avalanche Ale first); (4) Peffin Ambersnow (EW giant fort, give Letter to Peffin first); (5) Doldigun Steinwielder (Kael, -850 +1150). Doldigun drops Ring of the Coldain Council — give to Councilor Juliash Lockhear (Icewell Keep, +540 -25) to spawn and kill for Juliah\'s Head. Combine all 5 heads + Dirk in Traitor\'s Bane Box for Box of the Guilty. Give Box of the Guilty + Velium Ring to Dain Frostreaver IV',items:["Dirk of the Traitor","Murdrick's head","Berradin's head","Peffin's head","Doldigun's head","Juliah's Head","Ring of the Coldain Council","Box of the Guilty"]},
-     {desc:'Ring 10 (Ring of Dain) — SERVER-WIDE EVENT (Ring War). Give Dirk of the Dain (reward from Ring 9) to Dain Frostreaver IV then get it back. Say "You can count on my help" to Dain for Declaration of War. Give Declaration of War + Hero\'s Ring to Sentry Badain (GD, -1080 +140, guard tower). Follow him to circle of dwarves, wait for him to despawn. Give Hero\'s Ring to Seneschal Aldikar for Orders of Engagement. Give Orders to Zrelik the Scout (NON-Thurgadin version). Win the Ring War against Narandi the Wretched. Turn in Hero\'s Ring + Narandi\'s Head to Seneschal Aldikar',items:["Declaration of War","Orders of engagement","Narandi's head"]},
+     {desc:'Ring 1 (Copper Coldain Ring): Tailor a Coldain Hunting Blanket — combine 2x High Quality Cougarskin + 2x High Quality Tundra Kodiak Pelt + Silk Thread in a loom (Tailoring trivial ~41). HQ Cougarskins drop from snow cougars in Eastern Wastes (~5%), HQ Kodiak Pelts from tundra kodiaks (~2%). Give blanket to Garadain Glacierbane (EW, loc -2714 -390)',items:['High Quality Cougarskin','High Quality Tundra Kodiak Pelt','Coldain Hunting Blanket']},
+     {desc:'Ring 2 (Silver Coldain Ring): Say "I will give assistance" to Garadain to receive Dull Bladed Axe. Bring axe to Garadain\'s nephew Boridain Glacierbane (EW, loc -2450 +1550). Escort him north — protect him from wandering mobs. He stops to fight a Rabid Tundra Kodiak: YOU must land the kill shot or the corpse vanishes. Loot Rabid Kodiak Skin and hand it to Boridain immediately for Broken Axe. Return Broken Axe + Copper Ring to Garadain',items:['Dull Bladed Axe','Rabid Kodiak Skin','Broken Axe']},
+     {desc:'Ring 3 (Gold Coldain Ring): Smith a Coldain Hunting Knife — combine Skinning Rock (EW ground spawn near Garadain) + Wooly Rhino Horn (rare drop from a wooly rhino, EW) + High Quality Walrus Hide (rare drop from a walrus, EW) in a forge (Smithing trivial ~41, use a quality forge in Thurgadin for bonuses). Give knife + Silver Ring to Garadain',items:['Skinning Rock','Wooly Rhino Horn','High Quality Walrus Hide','Coldain Hunting Knife']},
+     {desc:'Ring 4 (Platinum Coldain Ring): Find Tain Hammerfrost (EW, loc -4950 -2650, near the frozen waterfall). Say "I will help" to trigger spawn of Ghrek Squatnot + 3 frost giants marching toward Tain — kill them all before they reach him. Loot Frozen Elixir from Ghrek. Give elixir to Tain for Coldain Smithing Hammer. Turn in hammer + Gold Ring to Garadain',items:['Frozen Elixir','Coldain Smithing Hammer']},
+     {desc:'Ring 5 (Obsidian Coldain Ring): Kill Ry\'Gorr Messenger (roams from north into EW toward the Ry\'Gorr fort, roughly every 8 min), loot Ry\'Gorr Invasion Plans. Give plans to a coldain lookout (small dwarf near Garadain\'s hut area) to trigger an orc invasion wave. Kill Scarbrow Ga\'Hruk who leads the wave — YOU must land the killing blow or his corpse despawns instantly (do not let the coldain guards steal the kill). Loot Head of Scarbrow. Give head + Platinum Ring to Garadain',items:["Ry'Gorr Invasion Plans",'Head of Scarbrow']},
+     {desc:'Ring 6 (Mithril Coldain Ring): Find Corbin Blackwell in a cell in Ry\'Gorr Keep east building. Find Warden Bruke (same building, magic immune — use non-magic attacks/spells). Kill Bruke for Shackle Key. Free Corbin — give him the key + your Mithril Ring (NOTE: you hand him the ring and he gives it back later via Note from Corbin). Escort Corbin to Dobbin Crossaxe past a large ambush (4 Ry\'Gorr Bashers + 4 Frost Giant Warriors + Commander Bahreck). ⚠ Give the Adamantium Ring ONLY to the Dobbin with the BLACK beard — the red-bearded Dobbin is a decoy and will destroy your ring. Turn in Note from Corbin to Garadain',items:['Shackle key','Note from Corbin']},
+     {desc:'Ring 7 (Adamantium Coldain Ring): Find Korrigain near Icefang\'s area (EW southwest, spawns around 9PM game time). Hand him your Obsidian Ring — he returns it. Then follow Icefang at SoW speed west toward Iceclad Ocean bridge. Kill Poxbreath Yellowfang (orc shaman near the bridge), loot Note from Kromrif. Kill Rodrick Tardok (traitor dwarf, small tower NW of Ry\'Gorr Keep), loot Rodrick\'s Head AND Dirk of the Traitor. ⚠ Keep the Dirk — you need another one for Ring 9 (kill Rodrick twice total). Give Note from Kromrif + Rodrick\'s Head + Dirk of the Traitor + Mithril Ring to Garadain',items:["Note from Kromrif","Rodrick's Head","Dirk of the Traitor"]},
+     {desc:'Ring 8 (Velium Coldain Ring) — ⚠ CAN PERMANENTLY FAIL. Check the P1999 Ring 8 Server Roll thread for your approved time window before starting. Give Adamantium Ring to Garadain for Marching Orders. Give orders to Gloradin Coldheart (24hr spawn timer in EW) to begin the assault. Pre-position your group inside the Ry\'Gorr fort. A special named Chief Ry\'Gorr spawns at the fort entrance — kill him, loot Chief Ry\'Gorr\'s Head. Wait for Garadain to shout "CHARGE!" — only THEN hand him the head. Handing in before the shout fails the event and loses your ring permanently',items:["Chief Ry'Gorr's Head"]},
+     {desc:'Ring 9 (Hero\'s Coldain Ring): In Icewell Keep, say "I will accept this task" to Seneschal Aldikar (Royal Court area, only available ~8AM–2PM game time) for Traitor\'s Bane Box. Kill 5 traitors and collect heads: (1) Rodrick Tardok (EW, NW tower near Ry\'Gorr Keep) — also drops Dirk of the Traitor; (2) Murdrick Tardok (GD, cave at -5900 +3700); (3) Captain Berradin (EW, give him Tainted Avalanche Ale purchased from Thurgadin to make him attackable); (4) Peffin Ambersnow (inside Kael giant fort EW area, give him Letter to Peffin obtained from Garadain first); (5) Doldigun Steinwielder (Kael Drakkel, loc -850 +1150). Doldigun drops Ring of the Coldain Council — give it to Councilor Juliash Lockhear (Icewell Keep, loc +540 -25) to spawn Juliash\'s undead form. Kill for Juliash\'s Head. Combine all 5 heads + Dirk of the Traitor inside Traitor\'s Bane Box → Box of the Guilty. Give Box of the Guilty + Velium Ring to Dain Frostreaver IV',items:["Tainted Avalanche Ale","Letter to Peffin","Dirk of the Traitor","Murdrick's Head","Berradin's Head","Peffin's Head","Doldigun's Head","Juliash's Head","Ring of the Coldain Council","Box of the Guilty"]},
+     {desc:'Ring 10 (Ring of the Dain) — SERVER-WIDE EVENT: Receive Dirk of the Dain from Ring 9 reward. Give it to Dain Frostreaver IV then retrieve it back. Say "You can count on my help" to Dain for Declaration of War. Give Declaration of War + Hero\'s Ring to Sentry Badain (GD, loc -1080 +140 guard tower). Follow him to a circle of dwarves — wait until he despawns. Give Hero\'s Ring to Seneschal Aldikar for Orders of Engagement. Deliver Orders of Engagement to Zrelik the Scout (the non-Thurgadin version of Zrelik). The Ring War against Narandi the Wretched then begins as a full server-wide event. Win, loot Narandi\'s Head, give Head + Hero\'s Ring to Seneschal Aldikar',items:["Declaration of War","Orders of Engagement","Narandi's Head"]},
    ],
-   note:'Rings scale from +1/+1 to +10/+10/+100hp with Frostreaver\'s Blessing clicky at Ring 10. Ring 8 uses a server roll system — only one group can do it per day window. Ring 8 CAN fail and you lose your ring permanently and must start over from Ring 1. Ring 6 requires turning in the Dirk of the Traitor — Ring 9 requires killing Rodrick a SECOND time for another Dirk. Ring 10 is a full server event involving the Ring War in Great Divide.'},
+   note:'⚠ Ring 6: hand ring to BLACK-bearded Dobbin only — red-bearded Dobbin destroys it. ⚠ Ring 8 uses a P1999 server roll system — check the forums for your approved window. Failure at Ring 8 loses your ring permanently and you restart from Ring 1. Ring 9 requires killing Rodrick Tardok TWICE (once for Ring 7, once for Ring 9) — plan accordingly. Ring 10 is a full server-wide event. Final ring: +10/+10/+10/+100hp with Frostreaver\'s Blessing clicky.'},
 ],
 
 classes:{
 
 Warrior:[
   {name:"Journeyman's Boots",wiki:'https://wiki.project1999.com/Journeyman%27s_Boots_Quest',steps:[],note:'See Critical section.'},
+  {name:"Warrior's Dwarven Work Boots",wiki:'https://wiki.project1999.com/Warrior_Dwarven_Work_Boots',
+   steps:[
+     {desc:'Collect 4 Coldain cultural items: Coldain Skin Boots (tailored from 2x Polar Bear Skin + thread), Coldain Fur Boots (tailored from 2x Coldain Fur + thread), Coldain Leather Boots (tailored from 2x Snow Cougar Pelt + thread), Coldain Hide Boots (tailored from 2x Tundra Kodiak Pelt + thread). All trivials under 100.',items:['Coldain Skin Boots','Coldain Fur Boots','Coldain Leather Boots','Coldain Hide Boots']},
+     {desc:'Give all 4 boots to Garadain Glacierbane (Eastern Wastes, -2714 -390) for Warrior\'s Dwarven Work Boots (FEET AC8 STR+10 STA+10 HP+35, SoW clicky)',items:[]},
+   ],
+   note:'Note: Warriors have no class epic in EQ. These boots (SoW clicky) are a popular Warrior-specific goal. Tailoring trivials are low — any crafter can make these. Garadain is the same NPC as the Coldain Ring chain.'},
   {name:'Plane of Sky Quests — Warrior',shortName:'PoSky (WAR)',wiki:'https://wiki.project1999.com/Warrior_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Strength → Runed Wind Amulet (NECK AC6 STR+7 AGI+7 HP+40). NPC: Falorn (say "strength"). Drops: Bronze Disc (isl 2, an azarack) + Small Pick (isl 3, harpies/gorgalask) + Stone Amulet (isl 4 boss Keeper of Souls)',items:['Bronze Disc','Small Pick','Stone Amulet']},
@@ -4628,14 +4635,14 @@ Enchanter:[
 Wizard:[
   {name:'Wizard Epic — Staff of the Four',wiki:'https://wiki.project1999.com/Wizard_Epic_Quest',
    steps:[
-     {desc:'Talk to Solomen in Temple of Solusek Ro, receive Note from Arantir. Give to Kandin Firepot in Butcherblock Mountains for Golem Sprocket',items:['Golem Sprocket']},
-     {desc:'Kill Phinigel Autropos in Kedge Keep for Blue Crystal Staff',items:['Blue Crystal Staff']},
-     {desc:'Kill Venril Sathir in Karnor\'s Castle for Gnarled Staff (can be MQ\'d)',items:['Gnarled Staff']},
-     {desc:'Give Golem Sprocket to a broken golem in Plane of Fear — spawns enraged golem. Kill for Green Oil. Give oil to Kandin Firepot for Staff of Gabstik + Note to Arantir',items:['Green Oil','Staff of Gabstik']},
-     {desc:'Give Note to Arantir to Dargon to spawn Arantir Karondor. Give him Blue Crystal Staff + Gnarled Staff + Staff of Gabstik. Receive sealed bag — DO NOT OPEN IT',items:[]},
-     {desc:'Deliver sealed bag to Solomen in Temple of Solusek Ro for Staff of the Four',items:[]},
+     {desc:'Talk to Solomen in Temple of Solusek Ro (loc +330, +370 inside the temple). Receive Note from Arantir. Deliver note to Kandin Firepot in Butcherblock Mountains (loc -735, +2870, near the dwarven guards). Receive Golem Sprocket',items:['Golem Sprocket']},
+     {desc:'Kill Phinigel Autropos in Kedge Keep for Blue Crystal Staff. Phinigel is the zone boss (underwater, loc +0 +0 roughly) — requires a solid group. Shared bottleneck with Cleric and Magician epics',items:['Blue Crystal Staff']},
+     {desc:'Kill Venril Sathir in Karnor\'s Castle for Gnarled Staff. VS is in the throne room at the back of KC — raid-level encounter. Gnarled Staff can be MQ\'d',items:['Gnarled Staff']},
+     {desc:'Give Golem Sprocket to a broken golem in Plane of Fear (loc approximately -400 +800, near the edge of the zone — it wanders). The golem enrages and attacks; kill it for Green Oil. Bring Green Oil to Kandin Firepot in Butcherblock for Staff of Gabstik + Note to Arantir',items:['Green Oil','Staff of Gabstik']},
+     {desc:'Find Dargon in Everfrost Peaks (loc -3850 +490, in a hut near the gnoll cave area). Give him the Note to Arantir to spawn Arantir Karondor nearby. Give Arantir: Blue Crystal Staff + Gnarled Staff + Staff of Gabstik. Receive a Sealed Box — DO NOT OPEN IT under any circumstances',items:[]},
+     {desc:'Deliver the Sealed Box unopened to Solomen in Temple of Solusek Ro to receive the Staff of the Four',items:[]},
    ],
-   note:'Gnarled Staff from Venril Sathir (Karnor\'s) is the key Velious-era piece. Epic clicky: Barrier of Force (800hp rune, 1hr 40min). Stacks with enc/druid mana regen.'},
+   note:'Venril Sathir is a straight kill in Karnor\'s Castle throne room — Gnarled Staff can be MQ\'d. The broken golem in PoFear wanders near the zone edges — bring the Sprocket in your bags. Do NOT open the Sealed Box. Epic clicky: Barrier of Force (800hp damage shield rune, ~100 min recast). Stacks with enchanter/druid mana regen buffs.'},
   {name:'Plane of Sky Quests — Wizard',shortName:'PoSky (WIZ)',wiki:'https://wiki.project1999.com/Wizard_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Concentration → Augmentor\'s Mask (FACE AC6 DEX+4 INT+9 AGI+8 MANA+9). NPC: Neasin Leornic (say "concentration"). Drops: Azure Tessera (isl 1, thunder spirits) + Augmentor\'s Gem (isl 2 boss Protector of Sky) + Grey Damask Cloak (isl 3 boss Gorgalosk)',items:['Azure Tessera',"Augmentor\'s Gem",'Grey Damask Cloak']},
@@ -4780,11 +4787,13 @@ Druid:[
 Shaman:[
   {name:'Shaman Epic — Spear of Fate',wiki:'https://wiki.project1999.com/Shaman_Epic_Quest',
    steps:[
-     {desc:'Obtain Iksar Scale from Rak\'Ashiir in City of Mist (requires group/raid). NOTE: Final turn-in is to the Spirit Sentinel DOG UNDER THE POND in Emerald Jungle (loc +3685, -640) — NOT the Spirit Sentinel near CoM',items:['Iksar Scale']},
-     {desc:'Kill various raid-level mobs across Kunark for required drops — full walkthrough on wiki',items:[]},
-     {desc:'Give Iksar Scale to Spirit Sentinel under the pond in Emerald Jungle for Spear of Fate',items:[]},
+     {desc:'Collect 4 Shaman spirit items: Modest Totemic Idol (purchase from Dleria Treewhisper, Greater Faydark), Elaborate Totemic Idol (crafted from Totemic components), Ancient Totemic Idol (purchase from Dleria + rare vendor components), and Legendary Totemic Idol (rare ground spawn or vendor, multiple zones)',items:['Modest Totemic Idol','Elaborate Totemic Idol','Ancient Totemic Idol','Legendary Totemic Idol']},
+     {desc:'Turn all 4 Idols into Spirit Sentinel in Emerald Jungle for Idol of Rites. Kill Vessel Drozlin (Cabilis East) and Wraith of Shisssar (Plane of Fear) for additional components',items:['Idol of Rites','Heart of Drozlin','Essence of Shissar']},
+     {desc:'Kill Rak\'Ashiir in City of Mist (raid-level mob) for Iksar Scale',items:['Iksar Scale']},
+     {desc:'Kill Verix Kylox (Overthere, near the cliffs by the coast) for Verix Kylox\'s Remains',items:["Verix Kylox's Remains"]},
+     {desc:'⚠ CAUTION: Final turn-in is to the Spirit Sentinel DOG UNDER THE POND in Emerald Jungle (loc +3685, -640) — NOT the Spirit Sentinel standing near CoM entrance. Give Iksar Scale + Idol of Rites + other combines to complete Spear of Fate',items:[]},
    ],
-   note:'WARNING: The final turn-in NPC is underwater in Emerald Jungle — easily missed. Do NOT give Iksar Scale to the wrong Spirit Sentinel. Full walkthrough required.'},
+   note:'WARNING: The final NPC is an underwater dog in Emerald Jungle — extremely easy to give to the wrong Spirit Sentinel and lose your items. The Spear of Fate has a Spirit Strike proc (massive damage). Rak\'Ashiir in CoM requires a solid raid group.'},
   {name:'Plane of Sky Quests — Shaman',shortName:'PoSky (SHM)',wiki:'https://wiki.project1999.com/Shaman_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Might → Amulet of the Fang (NECK AC8 CHA+2 WIS+8 MANA+10 SV FIRE+10 SV MAG+5). NPC: Gina MacStargan (say "might"). Drops: Auburn Tessera (isl 1, thunder spirits) + Drake Fang (isl 2 boss Protector of Sky) + Leather Cord (isl 3 boss Gorgalosk)',items:['Auburn Tessera','Drake Fang','Leather Cord']},
@@ -4800,12 +4809,15 @@ Shaman:[
 Bard:[
   {name:'Bard Epic — Singing Short Sword',wiki:'https://wiki.project1999.com/Singing_Short_Sword',
    steps:[
-     {desc:"Loot Lyran's Mystical Lute from Mistress of Scorn (Plane of Sky)",items:["Lyran's Mystical Lute"]},
-     {desc:"Loot Horn of Hsagra from Plane of Fear",items:['Horn of Hsagra']},
-     {desc:"Obtain Selo's Drums of the March from Plane of Growth",items:["Selo's Drums of the March"]},
-     {desc:'Various combining and NPC turn-in steps — full walkthrough on wiki',items:[]},
+     {desc:'Start: Get Note to Forpar from Kelkim Menkia (South Karana). Bring to Forpar Fizgig (Steamfont). Kill Kragplunk for Crude Flute. Also collect: Breath of Ro (Lord Nagafen, Efreeti, or Plane of Fire), Salil\'s Writ Pg. 24 top (CoM ghosts), Salil\'s Writ Pg. 24 bottom (CoM undead), Dragoon Dirk (Dragoon Zytl in Najena). Combine all to craft Mystical Lute Head and return to Forpar',items:['Crude Flute','Breath of Ro',"Salil's Writ Pg. 24 top","Salil's Writ Pg. 24 bottom",'Dragoon Dirk']},
+     {desc:'Kill Phinigel Autropos (Kedge Keep) for Pearlescent Fragment. Combine with Mystical Lute Head → Mystical Lute Body. Give to Forpar',items:['Pearlescent Fragment']},
+     {desc:'Give Singing Steel Breastplate (tradeable crafted) + Lynuga\'s Lament (Nortlav the Scalekeeper, City of Mist) to Kelkim for Lute String',items:['Singing Steel Breastplate',"Lynuga's Lament"]},
+     {desc:'⚠ Loot Lyran\'s Mystical Lute from Mistress of Scorn in Plane of Sky (Sister of the Spire island area)',items:["Lyran's Mystical Lute"]},
+     {desc:'⚠ Loot Horn of Hsagra from Plane of Fear (Dread, Fright, Terror, or Cazic-Thule area spawns)',items:['Horn of Hsagra']},
+     {desc:'⚠ Obtain Selo\'s Drums of the March from Plane of Growth (Tunare encounter or planar ground spawn)',items:["Selo's Drums of the March"]},
+     {desc:'Final turn-in: Combine Lute Head + String + all three planar pieces with Forpar Fizgig to complete',items:[]},
    ],
-   note:'Requires Plane of Sky, Fear, and Growth access. Full walkthrough on wiki.'},
+   note:'Three planar items required across PoSky, PoFear, and PoGrowth. Also rewards Blade of Tactics (offhand). Singing Steel Breastplate is crafted and tradeable — relatively easy to get. Pearlescent Fragment from Phinigel is a shared bottleneck with other epics.'},
   {name:'Plane of Sky Quests — Bard',shortName:'PoSky (BRD)',wiki:'https://wiki.project1999.com/Bard_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Pitch → Ervaj\'s Flute of Flight (PRIMARY Wind Instrument 22 STR+8 STA+10 CHA+10 INT+5). NPC: Denise Songweaver (say "pitch"). Drops: Phosphoric Globe (isl 3, clouds) + Shimmering Diamond (isl 4, soul carriers) + Crude Wooden Flute (isl 5 boss The Spiroc Lord)',items:['Phosphoric Globe','Shimmering Diamond','Crude Wooden Flute']},
