@@ -1598,7 +1598,7 @@ function renderUpgradesPanel(){
     }).join(''):'';
     const cost=hasBest?[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' · '):'';
     const equippedDpsVal=(isWepSlotCard&&(currentData.dmg||currentData.delay))?weaponDpsScore(currentData,dbSlot,charClass,charLevel,baselineTotals):0;
-    const equippedDpsHtml=equippedDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0">${Math.round(equippedDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)">dps</span></div>`:'';
+    const equippedDpsHtml=equippedDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0;text-align:right">${Math.round(equippedDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)">dps</span></div>`:'';
     cardsHtml+=`<div class="upg-slot-card${isWepDisabled?' upg-wep-disabled':''}">
       <div class="upg-slot-head">
         <span class="upg-slot-label${slotLabelExtra}">${slotLabelText}</span>
@@ -1769,7 +1769,7 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
   const isWepSlotUpg=sr.dbSlot==='PRIMARY'||sr.dbSlot==='SECONDARY'||sr.dbSlot==='TWOHANDER';
   const charLevel=meta.level||60;
   const candDpsVal=(isWepSlotUpg&&(cand.dmg||cand.delay))?weaponDpsScore(cand,sr.dbSlot,meta.class||'',charLevel,null):0;
-  const candDpsHtml=candDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0">${Math.round(candDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)">dps</span></div>`:'';
+  const candDpsHtml=candDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0;text-align:right">${Math.round(candDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)">dps</span></div>`:'';
   upgPaneEl.innerHTML=`
     <div class="upg-pane-label">Best upgrade</div>
     <div class="upg-pane-name upg-pane-upgrade">${itemLink(cand.name)}</div>
