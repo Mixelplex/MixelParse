@@ -936,6 +936,7 @@ function getStatWeights(cls, baseTotals) {
     const thresholds = CLASS_STAT_THRESHOLDS[cls];
     if (thresholds) {
       for (const [stat, cap] of Object.entries(thresholds)) {
+        if (stat === 'haste') continue; // haste is single-item — handled standalone in effectiveGain
         if ((baseTotals[stat] || 0) >= cap) {
           w[stat] = 0.0001;
         }
@@ -1282,11 +1283,10 @@ function renderUpgradesPanel(){
     const hasteW=weights.haste||0;
     if(hasteW){
       const ch=Number(curItemData.haste||0),nh=Number(candData.haste||0);
-      const hasteThresh=(CLASS_STAT_THRESHOLDS[charClass]||{}).haste||Infinity;
-      const curTotal=baseTotals.haste||0;
-      // Only score haste up to the cap — points above cap are worthless
-      const cappedCh=Math.min(ch,Math.max(0,hasteThresh-(curTotal-ch)));
-      const cappedNh=Math.min(nh,Math.max(0,hasteThresh-(curTotal-ch)));
+      const hasteThresh=(CLASS_STAT_THRESHOLDS[charClass]||{}).haste||41;
+      // Haste comes from a single item — score each item's haste standalone, capped at 41
+      const cappedCh=Math.min(ch,hasteThresh);
+      const cappedNh=Math.min(nh,hasteThresh);
       if(cappedNh-cappedCh)total+=(cappedNh-cappedCh)*hasteW;
     }
     // Weapon DPS scoring — PRIMARY, SECONDARY, and RANGE slots for melee/hybrid classes

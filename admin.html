@@ -2068,9 +2068,14 @@ function gcBuildBaseTotals(charName) {
     const RK = ['svpoison','svmagic','svdisease','svfire','svcold'];
     SK.forEach((k,i) => { t[k] = base.stats[i]   || 0; });
     RK.forEach((k,i) => { t[k] = base.resists[i] || 0; });
-    for (const gs of Object.values(cg)) {
+    const itemDB2 = A2.itemDB || {};
+    for (const [itemName, gs] of Object.entries(cg)) {
       for (const k of SK) if (gs[k]) t[k] = (t[k]||0) + Number(gs[k]||0);
       for (const k of RK) if (gs[k]) t[k] = (t[k]||0) + Number(gs[k]||0);
+      // Haste comes from itemDB, not gearStats
+      const dbItem = itemDB2[itemName] || {};
+      const hasteVal = Number(dbItem.haste || gs.haste || 0);
+      if (hasteVal) t.haste = (t.haste||0) + hasteVal;
     }
   }
   t._level = parseInt(document.getElementById('gc-level')?.value) || 60;
@@ -2108,7 +2113,14 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
     } else { total += v * w; }
   }
   if (weights.ac && itemData.ac) total += Number(itemData.ac) * weights.ac;
-  if (weights.haste && itemData.haste) total += Number(itemData.haste) * weights.haste;
+  if (weights.haste && itemData.haste) {
+    const hasteVal = Number(itemData.haste || 0);
+    const CLASS_STAT_THRESHOLDS_gc = A2?.CLASS_STAT_THRESHOLDS || {};
+    const hasteThresh = (CLASS_STAT_THRESHOLDS_gc[cls] || {}).haste || 41;
+    // Haste comes from a single item — score standalone, capped at 41
+    const cappedHaste = Math.min(hasteVal, hasteThresh);
+    total += cappedHaste * weights.haste;
+  }
   // ── Flowing Thought mana regen scoring (mirrors index.html effectiveGain) ──
   const MANA_CLASSES_gc = A2 ? (A2.MANA_CLASSES || new Set()) : new Set();
   if (MANA_CLASSES_gc.has(cls) && itemData._ft) {
@@ -2571,6 +2583,12 @@ function gcCompare() {
           return (Math.min(255, curSta + v) - curSta) * hpPerSta * (weights.hpbonus || 1.5);
         }
         if (!w) return 0;
+        if (k === 'haste') {
+          // Haste comes from a single item — score standalone, capped at 41
+          const CLASS_STAT_THRESHOLDS_gc = A2?.CLASS_STAT_THRESHOLDS || {};
+          const hasteThresh = (CLASS_STAT_THRESHOLDS_gc[cls] || {}).haste || 41;
+          return Math.min(v, hasteThresh) * w;
+        }
         if (NO_CAP.has(k)) return v * w;
         const ct = baseTotals[k] || 0;
         if (v > 0) {
