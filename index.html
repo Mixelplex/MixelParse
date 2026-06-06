@@ -2087,6 +2087,7 @@ async function initAuth(){
   if(session)await onSignedIn(session.user);
   else showAuthScreen();
   sb.auth.onAuthStateChange(async(event,session)=>{
+    if(event==='TOKEN_REFRESHED'||event==='INITIAL_SESSION')return;
     if(event==='SIGNED_IN'&&session&&!currentUser)await onSignedIn(session.user);
     if(event==='SIGNED_OUT')onSignedOut();
   });
@@ -2203,7 +2204,7 @@ async function loadFromSupabase(){
         };
         if(row.gear_stats)gearStats[row.char_name]=row.gear_stats;
       }
-      activeTab=Object.keys(chars).length>1?'__all__':Object.keys(chars)[0]||null;
+      if(!activeTab||!chars[activeTab])activeTab=Object.keys(chars).length>1?'__all__':Object.keys(chars)[0]||null;
     }
     // Load watch list
     const{data:wlRow}=await sb.from('watch_list').select('items').eq('user_id',currentUser.id).single();
