@@ -305,69 +305,63 @@
   .ss-done-btn:hover{border-color:var(--gold);color:var(--gold)}
   .ss-done-btn.done{border-color:#5a9a5a;color:#1a5a1a;background:rgba(58,122,58,.1)}
   /* ── Quest Overview ── */
-  .quests-wrap{padding:.875rem;display:flex;flex-direction:column;gap:1.25rem}
-  .quest-section-label{font-family:\'Cinzel\',serif;font-size:.75rem;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;padding:.5rem 0 .4rem;border-bottom:1px solid var(--border);margin-top:.25rem;display:flex;align-items:center;gap:.5rem}
-  .quest-section-label::before{content:'';display:inline-block;width:3px;height:.9em;background:var(--gold);border-radius:2px;flex-shrink:0;opacity:.7}
+  .quests-wrap{padding:.875rem;display:flex;flex-direction:column;gap:1.1rem}
 
-  /* Card shell */
-  .quest-card{border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--bg-card);transition:border-color .15s,box-shadow .15s;box-shadow:0 1px 4px rgba(0,0,0,.25)}
-  .quest-card:hover{border-color:rgba(180,150,80,.35);box-shadow:0 2px 8px rgba(0,0,0,.35)}
-  .quest-card.quest-done{opacity:.5;border-color:rgba(90,154,90,.3);box-shadow:none}
-  .quest-card.quest-done:hover{border-color:rgba(90,154,90,.55)}
+  .quest-section-label{font-family:\'Cinzel\',serif;font-size:.72rem;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;padding:.35rem 0 .35rem .6rem;border-left:3px solid var(--gold-dim);border-bottom:1px solid var(--border);margin-top:.1rem;margin-bottom:-.1rem}
 
-  /* Card header */
-  .quest-card-header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.55rem .875rem;background:linear-gradient(to right,rgba(0,0,0,.22),rgba(0,0,0,.1));border-bottom:1px solid var(--border)}
+  /* Card */
+  .quest-card{border:1px solid var(--border);border-radius:5px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(120,90,30,.1);transition:box-shadow .15s,border-color .15s}
+  .quest-card:hover{box-shadow:0 2px 8px rgba(120,90,30,.18);border-color:var(--border-glow)}
+  .quest-card.quest-done{opacity:.52;box-shadow:none}
+
+  /* Header */
+  .quest-card-header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.5rem .85rem;background:var(--surface2);border-bottom:1px solid var(--border)}
   .quest-card-title{display:flex;align-items:center;gap:.75rem;flex:1;min-width:0}
-  .quest-wiki-link{font-family:\'Cinzel\',serif;font-size:.88rem;color:var(--gold-light);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;transition:color .12s}
+  .quest-wiki-link{font-family:\'Cinzel\',serif;font-size:.86rem;color:var(--gold-light);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1;transition:color .12s}
   .quest-wiki-link:hover{color:var(--gold);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
 
-  /* Progress pip-track */
-  .quest-progress-track{display:flex;align-items:center;gap:.45rem;flex-shrink:0}
-  .quest-progress-bar{width:72px;height:5px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden;flex-shrink:0}
-  .quest-progress-fill{height:100%;background:linear-gradient(to right,var(--gold),#d4a017);border-radius:99px;transition:width .3s ease}
+  /* Progress */
+  .quest-progress-track{display:flex;align-items:center;gap:.4rem;flex-shrink:0}
+  .quest-progress-bar{width:68px;height:5px;background:var(--border);border-radius:99px;overflow:hidden;flex-shrink:0}
+  .quest-progress-fill{height:100%;background:linear-gradient(to right,var(--gold-dim),var(--gold));border-radius:99px;transition:width .3s}
   .quest-progress-label{font-size:.68rem;color:var(--text-muted);white-space:nowrap;font-variant-numeric:tabular-nums}
 
-  /* Mark Done button */
-  .quest-done-btn{background:none;border:1px solid rgba(255,255,255,.12);border-radius:3px;padding:.18rem .55rem;font-size:.72rem;cursor:pointer;font-family:\'Cinzel\',serif;color:var(--text-muted);transition:all .15s;white-space:nowrap;flex-shrink:0;letter-spacing:.04em}
-  .quest-done-btn:hover{border-color:var(--gold);color:var(--gold);background:rgba(180,150,80,.07)}
-  .quest-done-btn.done{border-color:rgba(90,154,90,.55);color:#5a9a5a;background:rgba(58,122,58,.1)}
+  /* Done button */
+  .quest-done-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:.18rem .55rem;font-size:.7rem;cursor:pointer;font-family:\'Cinzel\',serif;color:var(--text-muted);transition:all .15s;white-space:nowrap;flex-shrink:0;letter-spacing:.04em}
+  .quest-done-btn:hover{border-color:var(--gold-dim);color:var(--gold);background:rgba(160,120,50,.08)}
+  .quest-done-btn.done{border-color:#5a9a5a;color:#3a7a3a;background:rgba(80,140,80,.08)}
 
-  /* Step list */
+  /* Steps */
   .quest-steps{display:flex;flex-direction:column}
-  .quest-step{display:flex;gap:.6rem;padding:.5rem .875rem;border-bottom:1px solid rgba(255,255,255,.035);position:relative}
+  .quest-step{display:flex;gap:.65rem;padding:.5rem .85rem;border-bottom:1px solid var(--surface2)}
   .quest-step:last-of-type{border-bottom:none}
-  .quest-step-left{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0;padding-top:.15rem}
-  .quest-step-num{width:20px;height:20px;border-radius:50%;background:rgba(180,150,80,.12);border:1px solid rgba(180,150,80,.3);color:var(--gold);font-size:.62rem;font-weight:700;font-family:\'Cinzel\',serif;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
-  .quest-step-connector{width:1px;flex:1;min-height:6px;background:rgba(255,255,255,.07);margin-top:3px}
+  .quest-step-left{flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding-top:.12rem}
+  .quest-step-num{width:20px;height:20px;border-radius:50%;background:var(--surface2);border:1px solid var(--border-glow);color:var(--gold-light);font-size:.6rem;font-weight:700;font-family:\'Cinzel\',serif;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
+  .quest-step-connector{width:1px;flex:1;min-height:8px;background:var(--border);margin-top:2px}
   .quest-step:last-of-type .quest-step-connector{display:none}
-  .quest-step-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:.35rem;padding-bottom:.05rem}
+  .quest-step-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:.3rem;padding-bottom:.1rem}
 
-  /* Step header line */
-  .quest-step-header{display:flex;align-items:baseline;flex-wrap:wrap;gap:.25rem .45rem;font-size:.79rem;line-height:1.45}
-  .quest-test-name{color:var(--text-muted);font-style:italic}
-  .quest-arrow{color:var(--gold);opacity:.5;font-size:.72rem;margin:0 .1rem}
+  /* Step content */
+  .quest-step-header{display:flex;align-items:baseline;flex-wrap:wrap;gap:.2rem .4rem;font-size:.8rem;line-height:1.45}
+  .quest-test-name{color:var(--text-dim);font-style:italic}
+  .quest-arrow{color:var(--gold-dim);font-size:.75rem;margin:0 .05rem}
   .quest-reward-name{color:var(--text);font-weight:600}
-
-  /* NPC badge */
-  .quest-npc-badge{display:inline-flex;align-items:center;gap:.3rem;margin-left:.3rem;padding:.1rem .45rem;border-radius:3px;background:rgba(100,130,200,.07);border:1px solid rgba(100,130,200,.2);font-size:.67rem;color:#8899cc;white-space:nowrap}
-  .quest-npc-badge::before{content:'⚑';font-size:.6rem;opacity:.7}
-
-  /* Step note */
-  .quest-step-note{font-size:.71rem;color:var(--text-muted);font-style:italic;display:flex;gap:.35rem;align-items:flex-start;line-height:1.4;padding:.2rem .45rem;background:rgba(255,255,255,.025);border-radius:3px;border-left:2px solid rgba(180,150,80,.3)}
+  .quest-npc-badge{display:inline-flex;align-items:center;gap:.3rem;margin-left:.25rem;padding:.08rem .4rem;border-radius:3px;background:rgba(80,100,170,.07);border:1px solid rgba(80,100,170,.22);font-size:.67rem;color:#5060a0;white-space:nowrap}
+  .quest-step-note{font-size:.71rem;color:var(--text-muted);font-style:italic;line-height:1.45;padding:.22rem .5rem;background:rgba(160,120,50,.06);border-radius:3px;border-left:2px solid var(--border-glow)}
 
   /* Item chips */
-  .quest-item-chips{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.05rem}
-  .quest-item-chip{display:inline-flex;flex-direction:column;gap:.06rem;padding:.22rem .55rem;border-radius:4px;font-size:.72rem;border:1px solid var(--border);text-decoration:none;cursor:pointer;transition:all .12s;background:rgba(0,0,0,.15)}
-  .quest-item-chip:hover{filter:brightness(1.18);transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.3)}
-  .quest-item-chip.have{background:rgba(40,80,40,.15);border-color:rgba(80,160,80,.4);color:#5aaa5a}
-  .quest-item-chip.missing{background:rgba(80,30,30,.15);border-color:rgba(150,60,60,.35);color:#9a5a5a}
+  .quest-item-chips{display:flex;flex-wrap:wrap;gap:.3rem}
+  .quest-item-chip{display:inline-flex;flex-direction:column;gap:.05rem;padding:.2rem .5rem;border-radius:3px;font-size:.72rem;border:1px solid var(--border);text-decoration:none;cursor:pointer;transition:all .12s;background:var(--surface)}
+  .quest-item-chip:hover{border-color:var(--border-glow);box-shadow:0 1px 4px rgba(120,90,30,.15);transform:translateY(-1px)}
+  .quest-item-chip.have{background:rgba(80,140,60,.08);border-color:rgba(80,150,60,.45);color:#3a7a30}
+  .quest-item-chip.missing{background:rgba(160,60,40,.07);border-color:rgba(160,80,60,.35);color:#8a3a2a}
   .quest-chip-name{font-weight:600;font-size:.73rem;line-height:1.25}
-  .quest-chip-src{font-size:.62rem;opacity:.65;font-weight:400}
-  .quest-chip-own{font-size:.62rem;color:#5aaa5a;font-weight:500;opacity:.9}
+  .quest-chip-src{font-size:.62rem;opacity:.68;font-weight:400}
+  .quest-chip-own{font-size:.62rem;color:#3a7a30;font-weight:500}
 
-  /* Quest footer note */
-  .quest-note{padding:.45rem .875rem;font-size:.74rem;color:var(--text-muted);background:rgba(0,0,0,.12);line-height:1.5;border-top:1px solid rgba(255,255,255,.04);display:flex;gap:.45rem;align-items:flex-start}
-  .quest-note::before{content:'💡';flex-shrink:0;font-size:.8rem;margin-top:.05rem}
+  /* Footer note */
+  .quest-note{padding:.45rem .85rem;font-size:.74rem;color:var(--text-dim);background:var(--surface);line-height:1.5;border-top:1px solid var(--border);display:flex;gap:.4rem;align-items:flex-start}
+  .quest-note::before{content:'💡';flex-shrink:0;font-size:.78rem;margin-top:.06rem}
   .ss-wrist-note{font-size:.68rem;color:var(--text-muted);font-style:italic}
   /* ── DKP History ── */
   .dkp-toolbar{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem}
