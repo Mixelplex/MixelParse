@@ -2718,8 +2718,10 @@ function renderQuestsPanel(){
       const {testName,reward,drops,npc,trigger,note:stepNote}=parseStepDesc(step.desc||'');
       const rewardShort=reward.replace(/\s*\([^)]*\)\s*/g,' ').trim();
       const stepLabel=testName||`Step ${si+1}`;
-      const rewardWikiUrl=rewardShort?`${wikiBase}${encodeURIComponent(rewardShort.replace(/ /g,'_'))}`:null;
-      const rewardCell=rewardShort?`<a href="${rewardWikiUrl}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-weight:600">${esc(rewardShort)}</a>`:'—';
+      // For chained rewards (e.g. "Ebonsting → Thornstinger"), link to the final item
+      const rewardFinal=rewardShort.includes('→')?rewardShort.split('→').pop().trim():rewardShort;
+      const rewardWikiUrl=rewardFinal?`${wikiBase}${encodeURIComponent(rewardFinal.replace(/ /g,'_'))}`:null;
+      const rewardCell=rewardFinal?`<a href="${rewardWikiUrl}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-weight:600">${esc(rewardShort)}</a>`:"—";
       const npcCell=npc?`<div style="font-size:.78rem;color:var(--text-muted)">${esc(npc)}${trigger?` <span style="font-style:italic">· say "${esc(trigger)}"</span>`:''}</div>`:'—';
 
       let itemsCell='';
@@ -4503,53 +4505,21 @@ function renderConsumesPanel(){
 const QUEST_DB={
 
 critical:[
-  {name:"Journeyman's Boots",shortName:'Jboots',
-   wiki:'https://wiki.project1999.com/Journeyman%27s_Boots_Quest',
-   steps:[
-     {desc:'Loot Ring of the Ancients from Ancient Cyclops. Best camp: Ocean of Tears island 8 — Ancient Cyclops spawns every ~6 minutes but is a rare spawn off the placeholder. SDRo also has an Ancient Cyclops but spawns less frequently and is harder to camp. Ring is tradeable and can be MQ\'d',items:['Ring of the Ancients']},
-     {desc:'⚠ NO-RENT ITEM: Kill a shadowed man in Rathe Mountains for Shadowed Rapier. Verify Hasten Bootstrutter is UP and in zone BEFORE looting — the rapier vanishes on logout (30-min timer). The shadowed man shares a PH with Brother Zephyl (lvl 61, unkillable — do not engage) and Brother Qwinn. Only one shadowed man up at a time',items:['Shadowed Rapier']},
-     {desc:'Get exactly 3250 gold coins (must be GOLD, not platinum — platinum will not work). Stack as needed',items:[]},
-     {desc:'Give Ring of the Ancients + Shadowed Rapier + 3250gp all at once to Hasten Bootstrutter. He wanders the east side of Rathe Mountains — track him or watch for him near loc +1800, -500. He moves fast; use SoW or high STR to keep up',items:[]},
-   ],
-   note:'SoW-speed boots. Essential for every character in the game. Ring can be MQ\'d (tradeable). Rapier is NO-RENT — do not log out with it in your inventory. If Hasten is not up when you loot the rapier, you will lose it.'},
-
   {name:'Thex Mallet Quest',shortName:'Reaper of the Dead',
    wiki:'https://wiki.project1999.com/Thex_Mallet_Quest',
    steps:[
-     {desc:'Find Kizdean Gix roaming in East Commonlands. Hail him and say the phrase (see wiki for exact text) — he gives you Kizdean Gix\'s Note. You do NOT need to kill him',items:["Kizdean Gix's Note"]},
-     {desc:'Give the note to Skeleton Lrodd in Befallen. This spawns a mob in the basement. Kill that mob, then kill Elf Skeleton until you loot both the Mallet Head and the Hilt container',items:['Mallet Head','Hilt']},
-     {desc:'Combine the Mallet Head into the Hilt container to craft the Thex Mallet',items:['Thex Mallet']},
-     {desc:'Take the Thex Mallet to Loral S\'Nez in Neriak Third Gate. Requires Amiable faction with The Dead. NEC/SHD receive Reaper of the Dead (1-charge Complete Heal clicky). Others keep the Thex Mallet',items:[]},
+     {desc:'Start: Hail Loveal S`Nez in Neriak Third Gate. Say "I am interested in your appointed tasks" — she gives you the password "Utalk Adarev Otcin". Requires Amiable faction with The Dead to receive the quest',items:[]},
+     {desc:'Travel to West Commonlands. Find Kizdean Gix near the toll booth. Say "Utalk Adarev Otcin" — he gives you A Tattered Cloth Note (LORE NO DROP)',items:["A Tattered Cloth Note"]},
+     {desc:'Go to Befallen. Find Skeleton Lrodd on level 2 near the well (loc -359, 91). Give him the note. This spawns Cmdr Windstream on level 3 (near the invisible wall past the pit). Kill Windstream for Mallet Stem',items:['Mallet Stem']},
+     {desc:'On level 3, find An Elf Skeleton near the fake wall (next to the spikes, near the hanging dwarf). Kill it for Mallet Head and/or Mallet Hilt — it can drop either, both, or neither. 6:40 respawn. Kill until you have both pieces',items:['Mallet Head','Mallet Hilt']},
+     {desc:'Combine: Put Mallet Head + Mallet Hilt inside the Mallet Stem container and hit Combine to create the Thex Mallet',items:['Thex Mallet']},
+     {desc:'Return to Loveal S`Nez in Neriak Third Gate. Hand her the Thex Mallet to receive Reaper of the Dead',items:[]},
    ],
-   note:'Thex Mallet is tradeable — can be bought/sold. NEC and SHD get Reaper of the Dead (1-charge Complete Heal clicky, extremely valuable). Neriak faction can be a barrier for non-dark-elves — a Guise of the Deceiver or DE illusion from an enchanter helps significantly. Lrodd is on the ground floor of Befallen near the entrance area.'},
-
-  {name:'Coldain Ring Quests',shortName:'Coldain Rings',
-   wiki:'https://wiki.project1999.com/Coldain_Ring_Quests',
-   steps:[
-     {desc:'Ring 1 (Copper Coldain Ring): Tailor a Coldain Hunting Blanket — combine 2x High Quality Cougarskin + 2x High Quality Tundra Kodiak Pelt + Silk Thread in a loom (Tailoring trivial ~41). HQ Cougarskins drop from snow cougars in Eastern Wastes (~5%), HQ Kodiak Pelts from tundra kodiaks (~2%). Give blanket to Garadain Glacierbane (EW, loc -2714 -390)',items:['High Quality Cougarskin','High Quality Tundra Kodiak Pelt','Coldain Hunting Blanket']},
-     {desc:'Ring 2 (Silver Coldain Ring): Say "I will give assistance" to Garadain to receive Dull Bladed Axe. Bring axe to Garadain\'s nephew Boridain Glacierbane (EW, loc -2450 +1550). Escort him north — protect him from wandering mobs. He stops to fight a Rabid Tundra Kodiak: YOU must land the kill shot or the corpse vanishes. Loot Rabid Kodiak Skin and hand it to Boridain immediately for Broken Axe. Return Broken Axe + Copper Ring to Garadain',items:['Dull Bladed Axe','Rabid Kodiak Skin','Broken Axe']},
-     {desc:'Ring 3 (Gold Coldain Ring): Smith a Coldain Hunting Knife — combine Skinning Rock (EW ground spawn near Garadain) + Wooly Rhino Horn (rare drop from a wooly rhino, EW) + High Quality Walrus Hide (rare drop from a walrus, EW) in a forge (Smithing trivial ~41, use a quality forge in Thurgadin for bonuses). Give knife + Silver Ring to Garadain',items:['Skinning Rock','Wooly Rhino Horn','High Quality Walrus Hide','Coldain Hunting Knife']},
-     {desc:'Ring 4 (Platinum Coldain Ring): Find Tain Hammerfrost (EW, loc -4950 -2650, near the frozen waterfall). Say "I will help" to trigger spawn of Ghrek Squatnot + 3 frost giants marching toward Tain — kill them all before they reach him. Loot Frozen Elixir from Ghrek. Give elixir to Tain for Coldain Smithing Hammer. Turn in hammer + Gold Ring to Garadain',items:['Frozen Elixir','Coldain Smithing Hammer']},
-     {desc:'Ring 5 (Obsidian Coldain Ring): Kill Ry\'Gorr Messenger (roams from north into EW toward the Ry\'Gorr fort, roughly every 8 min), loot Ry\'Gorr Invasion Plans. Give plans to a coldain lookout (small dwarf near Garadain\'s hut area) to trigger an orc invasion wave. Kill Scarbrow Ga\'Hruk who leads the wave — YOU must land the killing blow or his corpse despawns instantly (do not let the coldain guards steal the kill). Loot Head of Scarbrow. Give head + Platinum Ring to Garadain',items:["Ry'Gorr Invasion Plans",'Head of Scarbrow']},
-     {desc:'Ring 6 (Mithril Coldain Ring): Find Corbin Blackwell in a cell in Ry\'Gorr Keep east building. Find Warden Bruke (same building, magic immune — use non-magic attacks/spells). Kill Bruke for Shackle Key. Free Corbin — give him the key + your Mithril Ring (NOTE: you hand him the ring and he gives it back later via Note from Corbin). Escort Corbin to Dobbin Crossaxe past a large ambush (4 Ry\'Gorr Bashers + 4 Frost Giant Warriors + Commander Bahreck). ⚠ Give the Adamantium Ring ONLY to the Dobbin with the BLACK beard — the red-bearded Dobbin is a decoy and will destroy your ring. Turn in Note from Corbin to Garadain',items:['Shackle key','Note from Corbin']},
-     {desc:'Ring 7 (Adamantium Coldain Ring): Find Korrigain near Icefang\'s area (EW southwest, spawns around 9PM game time). Hand him your Obsidian Ring — he returns it. Then follow Icefang at SoW speed west toward Iceclad Ocean bridge. Kill Poxbreath Yellowfang (orc shaman near the bridge), loot Note from Kromrif. Kill Rodrick Tardok (traitor dwarf, small tower NW of Ry\'Gorr Keep), loot Rodrick\'s Head AND Dirk of the Traitor. ⚠ Keep the Dirk — you need another one for Ring 9 (kill Rodrick twice total). Give Note from Kromrif + Rodrick\'s Head + Dirk of the Traitor + Mithril Ring to Garadain',items:["Note from Kromrif","Rodrick's Head","Dirk of the Traitor"]},
-     {desc:'Ring 8 (Velium Coldain Ring) — ⚠ CAN PERMANENTLY FAIL. Check the P1999 Ring 8 Server Roll thread for your approved time window before starting. Give Adamantium Ring to Garadain for Marching Orders. Give orders to Gloradin Coldheart (24hr spawn timer in EW) to begin the assault. Pre-position your group inside the Ry\'Gorr fort. A special named Chief Ry\'Gorr spawns at the fort entrance — kill him, loot Chief Ry\'Gorr\'s Head. Wait for Garadain to shout "CHARGE!" — only THEN hand him the head. Handing in before the shout fails the event and loses your ring permanently',items:["Chief Ry'Gorr's Head"]},
-     {desc:'Ring 9 (Hero\'s Coldain Ring): In Icewell Keep, say "I will accept this task" to Seneschal Aldikar (Royal Court area, only available ~8AM–2PM game time) for Traitor\'s Bane Box. Kill 5 traitors and collect heads: (1) Rodrick Tardok (EW, NW tower near Ry\'Gorr Keep) — also drops Dirk of the Traitor; (2) Murdrick Tardok (GD, cave at -5900 +3700); (3) Captain Berradin (EW, give him Tainted Avalanche Ale purchased from Thurgadin to make him attackable); (4) Peffin Ambersnow (inside Kael giant fort EW area, give him Letter to Peffin obtained from Garadain first); (5) Doldigun Steinwielder (Kael Drakkel, loc -850 +1150). Doldigun drops Ring of the Coldain Council — give it to Councilor Juliash Lockhear (Icewell Keep, loc +540 -25) to spawn Juliash\'s undead form. Kill for Juliash\'s Head. Combine all 5 heads + Dirk of the Traitor inside Traitor\'s Bane Box → Box of the Guilty. Give Box of the Guilty + Velium Ring to Dain Frostreaver IV',items:["Tainted Avalanche Ale","Letter to Peffin","Dirk of the Traitor","Murdrick's Head","Berradin's Head","Peffin's Head","Doldigun's Head","Juliash's Head","Ring of the Coldain Council","Box of the Guilty"]},
-     {desc:'Ring 10 (Ring of the Dain) — SERVER-WIDE EVENT: Receive Dirk of the Dain from Ring 9 reward. Give it to Dain Frostreaver IV then retrieve it back. Say "You can count on my help" to Dain for Declaration of War. Give Declaration of War + Hero\'s Ring to Sentry Badain (GD, loc -1080 +140 guard tower). Follow him to a circle of dwarves — wait until he despawns. Give Hero\'s Ring to Seneschal Aldikar for Orders of Engagement. Deliver Orders of Engagement to Zrelik the Scout (the non-Thurgadin version of Zrelik). The Ring War against Narandi the Wretched then begins as a full server-wide event. Win, loot Narandi\'s Head, give Head + Hero\'s Ring to Seneschal Aldikar',items:["Declaration of War","Orders of Engagement","Narandi's Head"]},
-   ],
-   note:'⚠ Ring 6: hand ring to BLACK-bearded Dobbin only — red-bearded Dobbin destroys it. ⚠ Ring 8 uses a P1999 server roll system — check the forums for your approved window. Failure at Ring 8 loses your ring permanently and you restart from Ring 1. Ring 9 requires killing Rodrick Tardok TWICE (once for Ring 7, once for Ring 9) — plan accordingly. Ring 10 is a full server-wide event. Final ring: +10/+10/+10/+100hp with Frostreaver\'s Blessing clicky.'},
+   note:'Reaper of the Dead is SHD-only (2H Slash 12/40, STR+4, 1-charge Complete Heal clicky). Both the Thex Mallet and Reaper are tradeable — can be bought/sold to bypass the faction requirement. Non-dark-elves need Amiable faction with The Dead for the initial quest pickup; a Guise of the Deceiver or enchanter DE illusion helps. An Elf Skeleton can drop neither piece — be prepared to kill it multiple times.'},
 ],
-
 classes:{
 
 Warrior:[
-  {name:"Journeyman's Boots",wiki:'https://wiki.project1999.com/Journeyman%27s_Boots_Quest',steps:[],note:'See Critical section.'},
-  {name:"Warrior's Dwarven Work Boots",wiki:'https://wiki.project1999.com/Warrior_Dwarven_Work_Boots',
-   steps:[
-     {desc:'Collect 4 Coldain cultural items: Coldain Skin Boots (tailored from 2x Polar Bear Skin + thread), Coldain Fur Boots (tailored from 2x Coldain Fur + thread), Coldain Leather Boots (tailored from 2x Snow Cougar Pelt + thread), Coldain Hide Boots (tailored from 2x Tundra Kodiak Pelt + thread). All trivials under 100.',items:['Coldain Skin Boots','Coldain Fur Boots','Coldain Leather Boots','Coldain Hide Boots']},
-     {desc:'Give all 4 boots to Garadain Glacierbane (Eastern Wastes, -2714 -390) for Warrior\'s Dwarven Work Boots (FEET AC8 STR+10 STA+10 HP+35, SoW clicky)',items:[]},
-   ],
-   note:'Note: Warriors have no class epic in EQ. These boots (SoW clicky) are a popular Warrior-specific goal. Tailoring trivials are low — any crafter can make these. Garadain is the same NPC as the Coldain Ring chain.'},
   {name:'Plane of Sky Quests — Warrior',shortName:'PoSky (WAR)',wiki:'https://wiki.project1999.com/Warrior_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Strength → Runed Wind Amulet (NECK AC6 STR+7 AGI+7 HP+40). NPC: Falorn (say "strength"). Drops: Bronze Disc (isl 2, an azarack) + Small Pick (isl 3, harpies/gorgalask) + Stone Amulet (isl 4 boss Keeper of Souls)',items:['Bronze Disc','Small Pick','Stone Amulet']},
@@ -4563,21 +4533,6 @@ Warrior:[
 ],
 
 Monk:[
-  {name:'Monk Epic — Celestial Fists',wiki:'https://wiki.project1999.com/Monk_Epic_Quest',
-   steps:[
-     {desc:'Robe of the Lost Circle sub-quest: Get Purple Headband (Monk Headband quests, Qeynos), Red Sash of Order (Monk Sash quests, Freeport), Code of Zan Fi (kill Targin the Rock in Nagafen\'s Lair), The Idol (kill Raster of Guk in Lower Guk)',items:['Purple Headband','Red Sash of Order','Code of Zan Fi','The Idol']},
-     {desc:'Turn in Purple Headband + Code of Zan Fi to Brother Qwinn (South Karana) for Needle of the Void. Turn in Red Sash + Idol to Brother Zephyl (Rathe Mountains) for Rare Robe Pattern. Combine to make Robe of the Lost Circle',items:['Needle of the Void','Rare Robe Pattern','Robe of the Lost Circle']},
-     {desc:'Obtain Robe of the Whistling Fists (drop from Brother Zephyl/Qwinn, or craft via sub-quest using Shadow Silk + Rare Robe Pattern + Jonthan\'s Whistling Warsong)',items:['Robe of the Whistling Fists']},
-     {desc:'Go to Lheao in hidden oasis in Timorous Deep. Give him the book Immortals',items:['Immortals']},
-     {desc:'Give Eye of Kaiaren to Astral Projection in LOIO (loc -1900, -950 on shore) to spawn Vorash and Deep. Kill Xenevorash for Demon Fangs',items:['Eye of Kaiaren','Demon Fangs']},
-     {desc:'CAUTION: Do NOT turn in Book of Celestial Fists to Sane Kaiaren until Demon Fangs are in hand — Sane despawns in 30 minutes! Final turn-in for Celestial Fists',items:['Book of Celestial Fists']},
-   ],
-   note:'Long quest — full walkthrough on wiki. Both robes have clicky haste (Whistling Fists at lvl 30, Celestial Tranquility at lvl 50). Epic changes both fist D/D to 9/16.'},
-  {name:'Scepter of Mastery',wiki:'https://wiki.project1999.com/Scepter_of_Mastery',
-   steps:[
-     {desc:'Eastern Wastes giant quest chain — obtain Hand of the Maestro as reward from Loremaster Borannin',items:['Hand of the Maestro']},
-   ],
-   note:'Best Monk 2HB before epic.'},
   {name:'Plane of Sky Quests — Monk',shortName:'PoSky (MNK)',wiki:'https://wiki.project1999.com/Monk_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Strength → Back Straps of Mastery (BACK/WRIST AC15 STR+7 STA+7 CHA+5 HP+50). NPC: Ton Po (say "strength"). Drops: Verdant Tessera (isl 1, thunder spirits) + Finely Woven Gold Mesh (isl 2 boss Protector of Sky) + Silken Strands (isl 3 boss Gorgalosk)',items:['Verdant Tessera','Finely Woven Gold Mesh','Silken Strands']},
@@ -4591,14 +4546,6 @@ Monk:[
 ],
 
 Cleric:[
-  {name:'Cleric Epic — Water Sprinkler of Nem Ankh',wiki:'https://wiki.project1999.com/Cleric_Epic_Quest',
-   steps:[
-     {desc:'Kill Lord Bergurgle (rare spawn, underwater cave in Lake Rathetear at 2800, 150). Loot Lord Bergurgle\'s Crown. Give to Shmendrik Lavawalker',items:["Lord Bergurgle's Crown"]},
-     {desc:'Kill Phinigel Autropos in Kedge Keep for Pearlescent Fragment (rare — very difficult)',items:['Pearlescent Fragment']},
-     {desc:'Obtain Orb of Clear Water, Orb of Frozen Water, Orb of Vapor via sub-quests. Do NOT give Orb of Vapor to Omat Vastsea until all three orbs are ready for final turn-in',items:['Orb of Clear Water','Orb of Frozen Water','Orb of Vapor']},
-     {desc:'Give all 3 orbs to Jhassad Oceanson in Timorous Deep — spawns Avatar of Water. Give Orb of Triumvirate to Avatar of Water for epic',items:['Orb of Triumvirate']},
-   ],
-   note:'Right-click is lvl 56 Cleric resurrection (96% exp restore). Equippable at 46, clickable at 50. Pearlescent Fragment bottleneck — flag it any time you see one.'},
   {name:'Plane of Sky Quests — Cleric',shortName:'PoSky (CLR)',wiki:'https://wiki.project1999.com/Cleric_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Courage → Truewind Earring (EAR DEX+5 WIS+9 SV COLD+10). NPC: Alan Harten (say "courage"). Drops: Ochre Tessera (isl 1, thunder spirits) + Sky Emerald (isl 2 boss Protector of Sky) + Silver Hoop (isl 3 boss Gorgalosk)',items:['Ochre Tessera','Sky Emerald','Silver Hoop']},
@@ -4612,14 +4559,6 @@ Cleric:[
 ],
 
 Enchanter:[
-  {name:'Enchanter Epic — Staff of the Serpent',wiki:'https://wiki.project1999.com/Enchanter_Epic_Quest',
-   steps:[
-     {desc:'Start with Jeb Lumsed (a sarnak imitator in Field of Bone). Receive Enchanters Sack and Jeb\'s Seal. Find 4 master enchanters: Modani Qu\'Loni, Mizzle Gepple, Nadia Starfeast, Polzin Mrid',items:["Jeb's Seal"]},
-     {desc:'1st piece: Combine enchanted gems (Diamond, Sapphire, Ruby, Emerald) in sack. Give to Nadia Starfeast in Firiona Vie',items:['Enchanted Diamond','Enchanted Sapphire','Enchanted Ruby','Enchanted Emerald']},
-     {desc:'Kill Wraith of a Shissar (Plane of Fear) for Head of the Serpent. Kill Ghost of Kindle (The Hole) for Essence of a Ghost. Kill a forsaken revenant (Plane of Hate) for Essence of a Vampire. Kill The Tangrin (Field of Bone) for Sands of the Mystics. Combine in sack, give to Polzin Mrid in The Hole for 4th piece',items:['Head of the Serpent','Essence of a Ghost','Essence of a Vampire','Sands of the Mystics']},
-     {desc:'Kill Verina Tomb in Neriak Third Gate (2-7 day spawn — major bottleneck). Combine 4 pieces in Enchanters Sack, give to Jeb Lumsed for Staff of the Serpent',items:['Verina Tomb']},
-   ],
-   note:'Verina Tomb is the main bottleneck — 2-7 day respawn. Requires faction in The Hole. Effect: Speed of the Shissar (haste).'},
   {name:'Plane of Sky Quests — Enchanter',shortName:'PoSky (ENC)',wiki:'https://wiki.project1999.com/Enchanter_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Illusion → Sphinx Hair Cord (WAIST AC4 CHA+5 INT+5 SV FIRE/DIS/COLD+10). NPC: Lelulean (say "illusion"). Drops: Crimson Tessera (isl 1, thunder spirits) + Darkstone Emerald (isl 2 boss Protector of Sky) + Finely Woven Cloth Cord (isl 3 boss Gorgalosk)',items:['Crimson Tessera','Darkstone Emerald','Finely Woven Cloth Cord']},
@@ -4633,20 +4572,10 @@ Enchanter:[
 ],
 
 Wizard:[
-  {name:'Wizard Epic — Staff of the Four',wiki:'https://wiki.project1999.com/Wizard_Epic_Quest',
-   steps:[
-     {desc:'Talk to Solomen in Temple of Solusek Ro (loc +330, +370 inside the temple). Receive Note from Arantir. Deliver note to Kandin Firepot in Butcherblock Mountains (loc -735, +2870, near the dwarven guards). Receive Golem Sprocket',items:['Golem Sprocket']},
-     {desc:'Kill Phinigel Autropos in Kedge Keep for Blue Crystal Staff. Phinigel is the zone boss (underwater, loc +0 +0 roughly) — requires a solid group. Shared bottleneck with Cleric and Magician epics',items:['Blue Crystal Staff']},
-     {desc:'Kill Venril Sathir in Karnor\'s Castle for Gnarled Staff. VS is in the throne room at the back of KC — raid-level encounter. Gnarled Staff can be MQ\'d',items:['Gnarled Staff']},
-     {desc:'Give Golem Sprocket to a broken golem in Plane of Fear (loc approximately -400 +800, near the edge of the zone — it wanders). The golem enrages and attacks; kill it for Green Oil. Bring Green Oil to Kandin Firepot in Butcherblock for Staff of Gabstik + Note to Arantir',items:['Green Oil','Staff of Gabstik']},
-     {desc:'Find Dargon in Everfrost Peaks (loc -3850 +490, in a hut near the gnoll cave area). Give him the Note to Arantir to spawn Arantir Karondor nearby. Give Arantir: Blue Crystal Staff + Gnarled Staff + Staff of Gabstik. Receive a Sealed Box — DO NOT OPEN IT under any circumstances',items:[]},
-     {desc:'Deliver the Sealed Box unopened to Solomen in Temple of Solusek Ro to receive the Staff of the Four',items:[]},
-   ],
-   note:'Venril Sathir is a straight kill in Karnor\'s Castle throne room — Gnarled Staff can be MQ\'d. The broken golem in PoFear wanders near the zone edges — bring the Sprocket in your bags. Do NOT open the Sealed Box. Epic clicky: Barrier of Force (800hp damage shield rune, ~100 min recast). Stacks with enchanter/druid mana regen buffs.'},
   {name:'Plane of Sky Quests — Wizard',shortName:'PoSky (WIZ)',wiki:'https://wiki.project1999.com/Wizard_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Concentration → Augmentor\'s Mask (FACE AC6 DEX+4 INT+9 AGI+8 MANA+9). NPC: Neasin Leornic (say "concentration"). Drops: Azure Tessera (isl 1, thunder spirits) + Augmentor\'s Gem (isl 2 boss Protector of Sky) + Grey Damask Cloak (isl 3 boss Gorgalosk)',items:['Azure Tessera',"Augmentor\'s Gem",'Grey Damask Cloak']},
-     {desc:'Test of Focus → Al\'Kabor\'s Cap of Binding (HEAD 4 charges Bonds of Force clicky, AC6 STR+5 INT+8 HP+40 MANA+20 SV FIRE/COLD+10). NPC: Neasin Leornic (say "focus"). Drops: Iron Disc (isl 2, azarack) + Ethereal Opal (isl 3, gorgalask/harpies) + Woven Skull Cap (isl 4 boss Keeper of Souls)',items:['Iron Disc','Ethereal Opal','Woven Skull Cap']},
+     {desc:'Test of Focus → Al`Kabor`s Cap of Binding (HEAD 4 charges Bonds of Force clicky, AC6 STR+5 INT+8 HP+40 MANA+20 SV FIRE/COLD+10). NPC: Neasin Leornic (say "focus"). Drops: Iron Disc (isl 2, azarack) + Ethereal Opal (isl 3, gorgalask/harpies) + Woven Skull Cap (isl 4 boss Keeper of Souls)',items:['Iron Disc','Ethereal Opal','Woven Skull Cap']},
      {desc:'Test of Meditation → Raiment of Thunder (SHOULDERS 2 charges Thunder Strike clicky, AC4 STR+5 INT+5 MANA+15). NPC: Neasin Leornic (say "meditation"). Drops: Hyaline Globe (isl 3, clouds) + Sky Topaz (isl 4, soul carriers) + High Quality Raiment (isl 5 boss The Spiroc Lord)',items:['Hyaline Globe','Sky Topaz','High Quality Raiment']},
      {desc:'Test of Conception → Solidate Mithril Ring (FINGER 3 charges Steelskin, STR+5 INT+5 AGI+6 MANA+50). NPC: Abec Ianor (say "conception"). Drops: Efreeti Statuette (isl 4, soul harvesters) + Mithril Air Ring (isl 5, spiroc expulsers) + Box of Winds (isl 6 boss Bazzt Zzzt)',items:['Efreeti Statuette','Mithril Air Ring','Box of Winds']},
      {desc:'Test of Visualization → Amulet of the Void (NECK 1 charge Alter Plane: Sky clicky, DEX+5 CHA+5 INT+5 AGI+5 MANA+50). NPC: Abec Ianor (say "visualization"). Drops: White-tipped Spiroc Feather (isl 5, spiroc arbiters) + Pulsating Sapphire (isl 6, Bazzzazzt/Bzzzt) + Amethyst Amulet (isl 7 boss Sister of the Spire)',items:['White-tipped Spiroc Feather','Pulsating Sapphire','Amethyst Amulet']},
@@ -4656,15 +4585,6 @@ Wizard:[
 ],
 
 Magician:[
-  {name:'Magician Epic — Orb of Mastery (Spell: Summon Orb)',wiki:'https://wiki.project1999.com/Magician_Epic_Quest',
-   steps:[
-     {desc:'Element of Earth: Loot Staff of Elemental Mastery: Earth from Magi P\'Tasa (Plane of Hate). Extremely rare.',items:['Staff of Elemental Mastery: Earth']},
-     {desc:'Element of Water: Kill Phinigel Autropos (Kedge Keep) for Staff of Elemental Mastery: Water. Kill Captain Rottgrime (Overthere) for Tears of Erollisi. Kill Tarbul Earthstrider (East Karana) for Rain of Karana. Give all 3 to Jinalis Andir in Dagnor\'s Cauldron',items:['Staff of Elemental Mastery: Water','Tears of Erollisi','Rain of Karana']},
-     {desc:'Element of Wind: Kill mobs on Plane of Sky island 7 for Crown of Elemental Mastery. Kill mobs in The Hole for Elemental Binder. Kill Quillmane (South Karana) for Pegasus Feather Cloak. Give all to Kihun Solstin in Plane of Air',items:['Crown of Elemental Mastery','Elemental Binder','Pegasus Feather Cloak']},
-     {desc:'Element of Fire: Kill Neh\'Ashiir in City of Mist for Torch of the Elements (rare). Kill a burning wood dragon (Phurzikon/Nezekezena/Gylton) for Burning Embers. Kill Undertow (Kedge) for Blazing Wand. Give all to Jennus Lyklobar in Skyfire',items:['Torch of the Elements','Burning Embers','Blazing Wand']},
-     {desc:'Give all 4 Elements to Master of Elements in Plane of Air. Receive Spell: Summon Orb. Scribe and summon the Orb of Mastery',items:['Spell: Summon Orb']},
-   ],
-   note:'Final reward is a SPELL, not a weapon directly — scribe it to summon the Orb. Staff of Elemental Mastery: Earth (Magi P\'Tasa, PoHate) is the hardest piece. Torch of Elements from Neh\'Ashiir in CoM is also difficult.'},
   {name:'Plane of Sky Quests — Magician',shortName:'PoSky (MAG)',wiki:'https://wiki.project1999.com/Magician_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Clarification → Bracelet of Clarification (BACK/WRIST AC6 CHA+1 INT+9 MANA+10). NPC: Frederic Calermin (say "clarification"). Drops: Crimson Tessera (isl 1) + Ethereal Sapphire (isl 2 boss Protector of Sky) + Feathered Cape (isl 3 boss Gorgalosk)',items:['Crimson Tessera','Ethereal Sapphire','Feathered Cape']},
@@ -4679,15 +4599,6 @@ Magician:[
 ],
 
 Necromancer:[
-  {name:'Necromancer Epic — Scythe of the Shadowed Soul',wiki:'https://wiki.project1999.com/Necromancer_Epic_Quest',
-   steps:[
-     {desc:'Start: Find Kazen Fecae in Lake Rathetear (340, -1600). Kill Sir Edwin Motte (paladin NPC, various zones) for his head',items:["Sir Edwin Motte's Head"]},
-     {desc:'Obtain Slime Blood of Cazic-Thule (very expensive, ~150k pp), obtain Ravenscale armor pieces from Plane of Hate/Fear',items:['Slime Blood of Cazic-Thule']},
-     {desc:'Kill Dread/Terror/Fright in Plane of Fear to obtain the three named drops needed for the quest',items:[]},
-     {desc:'Plane of Sky island 3 step — spawning Princess and getting Gkzzallk in a Box (NOTE: do NOT turn in to Gkzzallk until raid is ready — may despawn boss)',items:['Gkzzallk in a Box']},
-     {desc:'Give Gkzzallk in a Box to Kazen Fecae for Scythe of the Shadowed Soul',items:[]},
-   ],
-   note:'One of the more complex epics. Slime Blood of Cazic-Thule alone costs ~150k pp. Full walkthrough on wiki — many intermediate steps omitted here.'},
   {name:'Plane of Sky Quests — Necromancer',shortName:'PoSky (NEC)',wiki:'https://wiki.project1999.com/Necromancer_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Flight → Bloody Griffon-Hide Wrist Guard (WRIST 10 charges Levitate clicky at lvl 30, DEX+5 CHA+10 INT+5 AGI+5 MANA+25). NPC: Jzil GSix (say "flight"). Drops: Verdant Tessera (isl 1) + Ebon Shard (isl 2 boss Protector of Sky) + Griffon\'s Beak (isl 3 boss Gorgalosk)',items:['Verdant Tessera','Ebon Shard',"Griffon's Beak"]},
@@ -4701,14 +4612,6 @@ Necromancer:[
 ],
 
 'Shadow Knight':[
-  {name:'Shadow Knight Epic — Innoruuk\'s Curse',wiki:'https://wiki.project1999.com/Shadow_Knight_Epic_Quest',
-   steps:[
-     {desc:'Start: Find Kurron Ni in The Overthere outpost. Obtain 3 pieces of Darkforge Armor (Breastplate, Greaves, Helm) and 900pp to give him',items:['Darkforge Breastplate','Darkforge Greaves','Darkforge Helm']},
-     {desc:'Obtain Heart of an Innocent, Head of the Valiant, and Will of Innoruuk (Plane of Hate — thought destroyer for Will). Give all 4 items to Lhranc',items:['Heart of an Innocent','Head of the Valiant','Will of Innoruuk']},
-     {desc:'Kill Lhranc (level 63 SK — harmtouches constantly, cannot be mezzed/slowed. Needs 5-6 full groups of 50-60s). Loot Innoruuk\'s Curse',items:["Innoruuk's Curse"]},
-   ],
-   note:'Lhranc is an extremely difficult fight — cannot be mezzed, slowed, or debuffed. Needs significant raid force. Will of Innoruuk from thought destroyer (PoHate) is a bottleneck.'},
-  {name:'Thex Mallet Quest',wiki:'https://wiki.project1999.com/Thex_Mallet_Quest',steps:[],note:'See Critical section. SKs receive Reaper of the Dead with Complete Heal clicky (1 charge).'},
   {name:'Plane of Sky Quests — Shadow Knight',shortName:'PoSky (SHD)',wiki:'https://wiki.project1999.com/Shadow_Knight_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Bash → Amulet of the Sphinx Eye (NECK AC15 STR+7 CHA+3 WIS+3 INT+14 MANA+25, Ultravision worn). NPC: Gragrot (say "bash"). Drops: Ebon Tessera (isl 1, thunder spirits) + Sphinx Eye Opal (isl 2 boss Protector of Sky) + Finely Crafted Amulet (isl 3 boss Gorgalosk)',items:['Ebon Tessera','Sphinx Eye Opal','Finely Crafted Amulet']},
@@ -4723,13 +4626,6 @@ Necromancer:[
 ],
 
 Paladin:[
-  {name:'Paladin Epic — Fiery Avenger → Fiery Defender',wiki:'https://wiki.project1999.com/Paladin_Epic_Quest',
-   steps:[
-     {desc:'Obtain Ghoulbane (rare drop from Estate of Unrest) and SoulFire (Zimel\'s Blades quest). Give both + Miragul\'s Head + Miragul\'s Robe to Inte Akera on Plane of Sky island 4. NOTE: Inte despawns in 5 minutes — be ready!',items:['Ghoulbane','Soulfire',"Miragul's Head","Miragul's Robe"]},
-     {desc:'For Miragul\'s Head/Robe: Loot Torn burnt book (Nagafen/Talendor/Severilous) and Torn frost-covered book (Vox/Gorenaire/Faydedar). Rysva To\'Biath in Neriak combines them into Book of Scale for 1000pp',items:['Torn, burnt book','Torn, frost covered book']},
-     {desc:'Fiery Defender upgrade: Get Tainted Darksteel Breastplate (Plane of Hate) + Pure Crystal (North Kaladim quest). Turn in to Reklon Gnallen in Erudin for Gleaming Crested Breastplate. Get Mark of Atonement. Turn in Mark of Atonement + Fiery Avenger to Irak Altil in Plane of Fear for Fiery Defender',items:['Tainted Darksteel Breastplate','Fiery Avenger']},
-   ],
-   note:'Two-stage epic: Fiery Avenger (classic) → Fiery Defender (epic quests era). Inte Akera on Plane of Sky despawns in 5 minutes — must trigger and be ready. Requires warmly faction with Erudite Paladins.'},
   {name:'Plane of Sky Quests — Paladin',shortName:'PoSky (PAL)',wiki:'https://wiki.project1999.com/Paladin_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Spirit → Girdle of Faith (WAIST AC10 STR+6 WIS+6 AGI+6 Haste+41%). NPC: Dirkog Steelhand (say "spirit"). Drops: Diaphanous Globe (isl 3, clouds) + Silvery Girdle (isl 4, soul carriers) + Ivory Sky Diamond (isl 5 boss The Spiroc Lord)',items:['Diaphanous Globe','Silvery Girdle','Ivory Sky Diamond']},
@@ -4741,16 +4637,6 @@ Paladin:[
 ],
 
 Ranger:[
-  {name:'Ranger Epic — Swiftwind + Earthcaller',wiki:'https://wiki.project1999.com/Ranger_Epic_Quest',
-   steps:[
-     {desc:'Start: Telin Darkforest (Burning Wood) → Faelin Bloodbriar (Greater Faydark) → Giz X\'Tin (Kithicor) → Althele (East Karana). Long NPC chain. Spawn and kill Dark Elf Corruptor in East Karana',items:["Faelin's Ring"]},
-     {desc:'Forage 5 items: Rose of Firiona (Firiona Vie), Chilled Tundra Root (Everfrost), Ripened Heartfruit (Greater Faydark), Speckled Molded Mushroom (Innothule Swamp), Sweetened Mudroot (Misty Thicket)',items:['Rose of Firiona','Chilled Tundra Root','Ripened Heartfruit','Speckled Molded Mushroom','Sweetened Mudroot']},
-     {desc:'Acquire Jade Reaver (drop from black reavers in City of Mist, or buy). Acquire Pulsing Green Stone (Venril Sathir spawned via remains in Karnor\'s — can MQ). Acquire Soulbound Hammer (kill Jaeil the Insane in The Hole)',items:['Jade Reaver','Pulsing Green Stone','Soulbound Hammer']},
-     {desc:'Acquire Swirling Sphere of Color (essence tamers on Plane of Sky)',items:['Swirling Sphere of Color']},
-     {desc:'⚠ MAIN BOTTLENECK: Shattered Emerald of Corruption — drops from Plane of Hate mini-bosses (72-hour respawn) or Innoruuk himself',items:['Shattered Emerald of Corruption']},
-     {desc:'Final combines and turn-ins for both Swiftwind (OH, worn SoW) and Earthcaller (MH, proc)',items:[]},
-   ],
-   note:'Shattered Emerald of Corruption (Plane of Hate mini-bosses, 72hr respawn) is the true bottleneck. Swiftwind has a worn SoW effect — extremely useful.'},
   {name:'Plane of Sky Quests — Ranger',shortName:'PoSky (RNG)',wiki:'https://wiki.project1999.com/Ranger_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Body → Griffon Talon Necklace (NECK AC4 STR+4 STA+4 WIS+5 SV FIRE/COLD+5). NPC: Relinin Skyrunner (say "body"). Drops: Auburn Tessera (isl 1, thunder spirits) + Ysgaril Root (isl 2 boss Protector of Sky) + Griffon Talon (isl 3 boss Gorgalosk)',items:['Auburn Tessera','Ysgaril Root','Griffon Talon']},
@@ -4764,14 +4650,6 @@ Ranger:[
 ],
 
 Druid:[
-  {name:"Druid Epic — Nature Walker's Scimitar",wiki:'https://wiki.project1999.com/Druid_Epic_Quest',
-   steps:[
-     {desc:'Start: Speak with Telin Darkforest in Burning Wood, say "I will take action" for Worn Note. Give to Faelin Bloodbriar in Greater Faydark for Faelin\'s Ring',items:["Faelin's Ring"]},
-     {desc:'Kill Venril Sathir (spawned version via Venril Sathir\'s Remains — requires raid) for Pulsing Green Stone. Can be MQ\'d',items:['Pulsing Green Stone']},
-     {desc:'Kill 4 Corrupted creatures (Seahorse, Seafury Cyclops, Brownie — all summon, need group/raid). Collect their drops + Pod of Seawater',items:['Pod of Seawater']},
-     {desc:'Give final items to Nekexin Virulence in Overthere (north end, near water by evil outpost)',items:[]},
-   ],
-   note:'Venril Sathir (the spawned version from remains) requires a small raid. Corrupted Seahorse and Seafury Cyclops both summon — bring a group. Nature Walker\'s Scimitar.'},
   {name:'Plane of Sky Quests — Druid',shortName:'PoSky (DRU)',wiki:'https://wiki.project1999.com/Druid_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Wolf → Drake-Hide Mask (FACE AC4 STR+10 DEX+10 WIS+10 AGI+10 MANA+10 SV MAG+7). NPC: Will Treewalker (say "wolf"). Drops: Azure Tessera (isl 1, thunder spirits) + Black Face Paint (isl 2 boss Protector of Sky) + Worn Leather Mask (isl 3 boss Gorgalosk)',items:['Azure Tessera','Black Face Paint','Worn Leather Mask']},
@@ -4785,15 +4663,6 @@ Druid:[
 ],
 
 Shaman:[
-  {name:'Shaman Epic — Spear of Fate',wiki:'https://wiki.project1999.com/Shaman_Epic_Quest',
-   steps:[
-     {desc:'Collect 4 Shaman spirit items: Modest Totemic Idol (purchase from Dleria Treewhisper, Greater Faydark), Elaborate Totemic Idol (crafted from Totemic components), Ancient Totemic Idol (purchase from Dleria + rare vendor components), and Legendary Totemic Idol (rare ground spawn or vendor, multiple zones)',items:['Modest Totemic Idol','Elaborate Totemic Idol','Ancient Totemic Idol','Legendary Totemic Idol']},
-     {desc:'Turn all 4 Idols into Spirit Sentinel in Emerald Jungle for Idol of Rites. Kill Vessel Drozlin (Cabilis East) and Wraith of Shisssar (Plane of Fear) for additional components',items:['Idol of Rites','Heart of Drozlin','Essence of Shissar']},
-     {desc:'Kill Rak\'Ashiir in City of Mist (raid-level mob) for Iksar Scale',items:['Iksar Scale']},
-     {desc:'Kill Verix Kylox (Overthere, near the cliffs by the coast) for Verix Kylox\'s Remains',items:["Verix Kylox's Remains"]},
-     {desc:'⚠ CAUTION: Final turn-in is to the Spirit Sentinel DOG UNDER THE POND in Emerald Jungle (loc +3685, -640) — NOT the Spirit Sentinel standing near CoM entrance. Give Iksar Scale + Idol of Rites + other combines to complete Spear of Fate',items:[]},
-   ],
-   note:'WARNING: The final NPC is an underwater dog in Emerald Jungle — extremely easy to give to the wrong Spirit Sentinel and lose your items. The Spear of Fate has a Spirit Strike proc (massive damage). Rak\'Ashiir in CoM requires a solid raid group.'},
   {name:'Plane of Sky Quests — Shaman',shortName:'PoSky (SHM)',wiki:'https://wiki.project1999.com/Shaman_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Might → Amulet of the Fang (NECK AC8 CHA+2 WIS+8 MANA+10 SV FIRE+10 SV MAG+5). NPC: Gina MacStargan (say "might"). Drops: Auburn Tessera (isl 1, thunder spirits) + Drake Fang (isl 2 boss Protector of Sky) + Leather Cord (isl 3 boss Gorgalosk)',items:['Auburn Tessera','Drake Fang','Leather Cord']},
@@ -4807,17 +4676,6 @@ Shaman:[
 ],
 
 Bard:[
-  {name:'Bard Epic — Singing Short Sword',wiki:'https://wiki.project1999.com/Singing_Short_Sword',
-   steps:[
-     {desc:'Start: Get Note to Forpar from Kelkim Menkia (South Karana). Bring to Forpar Fizgig (Steamfont). Kill Kragplunk for Crude Flute. Also collect: Breath of Ro (Lord Nagafen, Efreeti, or Plane of Fire), Salil\'s Writ Pg. 24 top (CoM ghosts), Salil\'s Writ Pg. 24 bottom (CoM undead), Dragoon Dirk (Dragoon Zytl in Najena). Combine all to craft Mystical Lute Head and return to Forpar',items:['Crude Flute','Breath of Ro',"Salil's Writ Pg. 24 top","Salil's Writ Pg. 24 bottom",'Dragoon Dirk']},
-     {desc:'Kill Phinigel Autropos (Kedge Keep) for Pearlescent Fragment. Combine with Mystical Lute Head → Mystical Lute Body. Give to Forpar',items:['Pearlescent Fragment']},
-     {desc:'Give Singing Steel Breastplate (tradeable crafted) + Lynuga\'s Lament (Nortlav the Scalekeeper, City of Mist) to Kelkim for Lute String',items:['Singing Steel Breastplate',"Lynuga's Lament"]},
-     {desc:'⚠ Loot Lyran\'s Mystical Lute from Mistress of Scorn in Plane of Sky (Sister of the Spire island area)',items:["Lyran's Mystical Lute"]},
-     {desc:'⚠ Loot Horn of Hsagra from Plane of Fear (Dread, Fright, Terror, or Cazic-Thule area spawns)',items:['Horn of Hsagra']},
-     {desc:'⚠ Obtain Selo\'s Drums of the March from Plane of Growth (Tunare encounter or planar ground spawn)',items:["Selo's Drums of the March"]},
-     {desc:'Final turn-in: Combine Lute Head + String + all three planar pieces with Forpar Fizgig to complete',items:[]},
-   ],
-   note:'Three planar items required across PoSky, PoFear, and PoGrowth. Also rewards Blade of Tactics (offhand). Singing Steel Breastplate is crafted and tradeable — relatively easy to get. Pearlescent Fragment from Phinigel is a shared bottleneck with other epics.'},
   {name:'Plane of Sky Quests — Bard',shortName:'PoSky (BRD)',wiki:'https://wiki.project1999.com/Bard_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Pitch → Ervaj\'s Flute of Flight (PRIMARY Wind Instrument 22 STR+8 STA+10 CHA+10 INT+5). NPC: Denise Songweaver (say "pitch"). Drops: Phosphoric Globe (isl 3, clouds) + Shimmering Diamond (isl 4, soul carriers) + Crude Wooden Flute (isl 5 boss The Spiroc Lord)',items:['Phosphoric Globe','Shimmering Diamond','Crude Wooden Flute']},
@@ -4831,18 +4689,6 @@ Bard:[
 ],
 
 Rogue:[
-  {name:'Rogue Epic — Ragebringer',wiki:'https://wiki.project1999.com/Rogue_Epic_Quest',
-   steps:[
-     {desc:'Start: Find Malka Rale in Qeynos Aqueducts at 8PM game time, say "I can help" for Stanos\' Pouch',items:["Stanos' Pouch"]},
-     {desc:'Pickpocket Stained Parchment Top from Founy Jestands (North Kaladim) and Stained Parchment Bottom from Tani N\'Mar (Neriak Third Gate). Combine via Stanos Herkanor in Highpass Hold',items:['Stained Parchment Top','Stained Parchment Bottom','Combined Parchment']},
-     {desc:'Give Combined Parchment + 100pp + 2 unstacked Bottles of Milk to Eldreth (Lake Rathetear) → Scribbled Parchment. Give to Yendar Starpyre (Steamfont) → Tattered Parchment',items:['Scribbled Parchment','Tattered Parchment']},
-     {desc:'⚠ Plane of Hate: Obtain Book of Souls — 10hr ground spawn at loc (-60, +325). Requires wizard port. Give Tattered Parchment + Book of Souls to Yendar Starpyre to spawn Renux Herkanor. Kill Renux for Translated Parchment + Jagged Diamond Dagger (not guaranteed)',items:['Book of Souls','Translated Parchment','Jagged Diamond Dagger']},
-     {desc:'If Jagged Diamond Dagger didn\'t drop: Get Fleshripper (Solusek Kobold King, Nagafen\'s Lair) + Manacle of Fire (PoFire) + combine for dagger',items:['Fleshripper']},
-     {desc:'Cazic Quill sub-quest (if didn\'t drop from General V\'ghera): Collect 4 robes — Robe of the Kedge (Phinigel, Kedge Keep), Robe of the Ishva (Ishva Mal, Splitpaw), Shining Metallic Robes (Ghoul Archmagus, Lower Guk), Robe of the Oracle (Oracle of K\'Arnon, Ocean of Tears). Turn all 4 to Vilnius the Small in West Karana',items:['Robe of the Kedge','Robe of the Ishva','Shining Metallic Robes','Robe of the Oracle','Cazic Quill']},
-     {desc:'Give Translated Parchment to Stanos → Sealed Box. Turn in Sealed Box to Dark Elves in Kithicor (sneak, NOT hidden, cons indifferent) to spawn General V\'ghera. Kill for General\'s Pouch + Cazic Quill (if not from sub-quest). IMPORTANT: Do not hide/invis during box turn-in!',items:["General's Pouch"]},
-     {desc:'Final turn-in: Jagged Diamond Dagger + Cazic Quill + General\'s Pouch to complete Ragebringer',items:[]},
-   ],
-   note:'Ragebringer: 15dmg/25dly piercing, 40% haste, worn Seething Fury. Book of Souls (10hr PoHate ground spawn) and Cazic Quill 4-robe sub-quest are the main bottlenecks. CRITICAL: Do NOT use hide/invis during Kithicor turn-in — only sneak.'},
   {name:'Plane of Sky Quests — Rogue',shortName:'PoSky (ROG)',wiki:'https://wiki.project1999.com/Rogue_Plane_of_Sky_Tests',
    steps:[
      {desc:'Test of Thievery → Wispy Choker of Vigor (NECK AC5 STR+9 DEX+9 AGI+3 HP+20). NPC: Kendrick the Great (say "thievery"). Drops: Ivory Tessera (isl 1, thunder spirits) + Gem of Invigoration (isl 2 boss Protector of Sky) + Inlaid Choker (isl 3 boss Gorgalosk)',items:['Ivory Tessera','Gem of Invigoration','Inlaid Choker']},
@@ -4857,7 +4703,6 @@ Rogue:[
 
 },// end classes
 }
-
 function renderWatchlistBar(){
   const container=document.getElementById('watchlistRows');
   if(!container)return;
