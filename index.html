@@ -2724,7 +2724,7 @@ function renderQuestsPanel(){
       const rewardWikiUrl=rewardFinal?`${wikiBase}${encodeURIComponent(rewardFinal.replace(/ /g,'_'))}`:null;
       // Sum 60-day avg DKP of all items in this step for the reward total
       const stepItems=step.items||[];
-      const rewardDkpTotal=stepItems.reduce((sum,it)=>{const d=getDkp(it);return sum+(d&&d[5]?d[5]:0);},0);
+      const rewardDkpTotal=stepItems.reduce((sum,it)=>{const d=getDkp(it);const v=d?(d[5]||d[2]||0):0;return sum+v;},0);
       const rewardDkpHtml=rewardDkpTotal>0?`<div style="font-size:.68rem;color:var(--gold);font-weight:600;margin-top:.15rem">⚔ ~${Math.round(rewardDkpTotal)} DKP total</div>`:`<div style="font-size:.68rem;color:var(--text-muted);margin-top:.15rem">— DKP</div>`;
       const rewardCell=rewardFinal?`<a href="${rewardWikiUrl}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-weight:600">${esc(rewardShort)}</a>${rewardDkpHtml}`:"—";
       const npcCell=npc?`<div style="font-size:.78rem;color:var(--text-muted)">${esc(npc)}${trigger?` <span style="font-style:italic">· say "${esc(trigger)}"</span>`:''}</div>`:'—';
@@ -3299,9 +3299,11 @@ function dkpChip(itemName){
 }
 function dkpChip60(itemName){
   const d=getDkp(itemName);
-  const v=d?d[5]:null;
-  if(!v)return '<span style="font-size:.68rem;color:var(--text-muted)">— DKP</span>';
-  return `<span style="font-size:.68rem;color:var(--gold);font-weight:600" title="60-day avg DKP (${d[6]} sales)">⚔ ${v} DKP</span>`;
+  if(!d)return '<span style="font-size:.68rem;color:var(--text-muted)">— DKP</span>';
+  const v60=d[5];const vAll=d[2];
+  if(v60)return `<span style="font-size:.68rem;color:var(--gold);font-weight:600" title="60-day avg DKP (${d[6]} sales)">⚔ ${v60} DKP</span>`;
+  if(vAll)return `<span style="font-size:.68rem;color:var(--text-muted);font-weight:600" title="All-time avg DKP (${d[3]} sales) — no sales in last 60 days">⚔ ${vAll} DKP*</span>`;
+  return '<span style="font-size:.68rem;color:var(--text-muted)">— DKP</span>';
 }
 
 function updateDkpBody(){
