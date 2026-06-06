@@ -785,10 +785,12 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
   const procDmg=hasCombatProc?(PROC_DB[effect]||35):0;
   const dex=Math.min(255,baseTotals&&baseTotals.dex?baseTotals.dex:175);
   const ppm=(dex/170)+0.5;
-  const procDps=slot==='SECONDARY'?(ppm*0.5*procDmg/60):(ppm*procDmg/60);
+  const dwSkill=Math.min((lv+1)*7,252);
+  const dwChance=(dwSkill+lv)/400;
+  const procDps=slot==='SECONDARY'?(ppm*0.5*dwChance*procDmg/60):(ppm*procDmg/60);
 
   // Ratio: OH gets no damage bonus; H2H weapons scaled by h2hFactor (~0.9722)
-  const ratio=slot==='SECONDARY'?((2*d)/delay)*h2hFactor:(((2*d+bonus)/delay)*h2hFactor);
+  const ratio=slot==='SECONDARY'?((2*d)/delay)*h2hFactor*dwChance:(((2*d+bonus)/delay)*h2hFactor);
 
   // ── ROG backstab bonus (piercing PRIMARY only) ───────────────────────────────
   // Backstab formula: (Backstab_skill × weapon_dmg) / 50
@@ -1317,25 +1319,29 @@ function renderUpgradesPanel(){
   const SIG_KEYS=['ac','hpbonus','manabonus','str','sta','agi','dex','wis','int','cha','svmagic','svfire','svcold','svdisease','svpoison','haste','dmg','delay'];
   const sigMap={};  // slot -> Map<sig, index>
   for(const[itemName,data]of Object.entries(itemDB)){
-    const slot=data._slot;if(!slot)continue;
-    if(!bySlot[slot]){bySlot[slot]=[];sigMap[slot]=new Map();}
-    const sig=SIG_KEYS.map(s=>data[s]||0).join(',');
-    const slotMap=sigMap[slot];
-    if(slotMap.has(sig)){
-      const idx=slotMap.get(sig);
-      const existing=bySlot[slot][idx];
-      const newPref=ERA_PREF.indexOf(data._era||'');
-      const exPref=ERA_PREF.indexOf(existing._era||'');
-      if(newPref>=0&&(exPref<0||newPref<exPref))bySlot[slot][idx]={name:itemName,...data};
-    } else {
-      slotMap.set(sig,bySlot[slot].length);
-      bySlot[slot].push({name:itemName,...data});
+    const slotList=data._slots||[data._slot];
+    for(const slot of slotList){
+      if(!slot)continue;
+      if(!bySlot[slot]){bySlot[slot]=[];sigMap[slot]=new Map();}
+      const sig=SIG_KEYS.map(s=>data[s]||0).join(',');
+      const slotMap=sigMap[slot];
+      if(slotMap.has(sig)){
+        const idx=slotMap.get(sig);
+        const existing=bySlot[slot][idx];
+        const newPref=ERA_PREF.indexOf(data._era||'');
+        const exPref=ERA_PREF.indexOf(existing._era||'');
+        if(newPref>=0&&(exPref<0||newPref<exPref))bySlot[slot][idx]={name:itemName,...data};
+      } else {
+        slotMap.set(sig,bySlot[slot].length);
+        bySlot[slot].push({name:itemName,...data});
+      }
     }
   }
 
   // Build lore exclusion set — lore items already equipped can't be suggested again
   const equippedLoreDBNames=new Set(equipped.filter(i=>(itemDBGet(i.name)||charGear[i.name]||{})._lore).map(i=>i.name));
 
+  const DW_CLASSES_OH=new Set(['Monk','Rogue','Warrior','Ranger','Bard']);
   const slotResults=[];
   // Pre-build per-slot equipped name sets — needed inside the loop to exclude same-slot items from candidates
   const equippedBySlot={};
@@ -1364,9 +1370,14 @@ function renderUpgradesPanel(){
     const wepSkillFilter=CLASS_WEAPON_SKILLS[charClass];
     function wepSkillOk(c){
       if(dbSlot!=='PRIMARY'&&dbSlot!=='SECONDARY')return true;
-      // Monks cannot equip shields in the SECONDARY slot
-      if(charClass==='Monk'&&dbSlot==='SECONDARY'&&(c._slot||'').toUpperCase()==='SHIELD')return false;
+      const cSlot=(c._slot||'').toUpperCase();
       const sk=(c._skill||c._itemType||'').toLowerCase();
+      const isShield=cSlot==='SHIELD'||sk==='shield'||(c.ac>0&&!c.dmg&&!c.delay);
+      // Monks and Rogues DW weapons only — OH must have dmg+delay
+      if((charClass==='Monk'||charClass==='Rogue')&&dbSlot==='SECONDARY'){
+        if(isShield)return false;
+        if(!c.dmg||!c.delay)return false;
+      }
       if(!sk||!c.dmg)return true;
       // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
       if(!window._upgTwoHander&&(sk.includes('2h')||sk.includes('two hand')))return false;
@@ -1374,7 +1385,11 @@ function renderUpgradesPanel(){
       return wepSkillFilter.some(s=>sk.includes(s));
     }
     const slotEquippedNames=equippedBySlot[dbSlot]||new Set();
-    const candidates=(bySlot[dbSlot]||[])
+    const ohExtra=(dbSlot==='SECONDARY'&&DW_CLASSES_OH.has(charClass)&&!CLASS_NO_DW.has(charClass))
+      ?(bySlot['PRIMARY']||[]).filter(c=>{const sk2=(c._skill||c._itemType||'').toLowerCase();return !sk2.includes('2h')&&!sk2.includes('two')&&c.dmg&&c.delay;})
+      :[];
+    const candidatePool=[...(bySlot[dbSlot]||[]),...ohExtra.filter(c=>!(bySlot[dbSlot]||[]).some(x=>x.name===c.name))];
+    const candidates=candidatePool
       .filter(c=>!slotEquippedNames.has(c.name)&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
       .sort((a,b)=>b._effGain-a._effGain);
@@ -1393,9 +1408,14 @@ function renderUpgradesPanel(){
       const emptyWepSkill=CLASS_WEAPON_SKILLS[charClass];
       function emptyWepOk(c){
         if(slot!=='PRIMARY'&&slot!=='SECONDARY')return true;
-        // Monks cannot equip shields in the SECONDARY slot
-        if(charClass==='Monk'&&slot==='SECONDARY'&&(c._slot||'').toUpperCase()==='SHIELD')return false;
+        const cSlot2=(c._slot||'').toUpperCase();
         const sk=(c._skill||c._itemType||'').toLowerCase();
+        const isShield2=cSlot2==='SHIELD'||sk==='shield'||(c.ac>0&&!c.dmg&&!c.delay);
+        // Monks and Rogues DW weapons only — OH must have dmg+delay
+        if((charClass==='Monk'||charClass==='Rogue')&&slot==='SECONDARY'){
+          if(isShield2)return false;
+          if(!c.dmg||!c.delay)return false;
+        }
         if(!sk||!c.dmg)return true;
         // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
         if(!window._upgTwoHander&&(sk.includes('2h')||sk.includes('two hand')))return false;
@@ -1403,7 +1423,11 @@ function renderUpgradesPanel(){
         return emptyWepSkill.some(s=>sk.includes(s));
       }
       const slotAlreadyEquipped=equippedBySlot[slot]||new Set();
-      const candidates=(bySlot[slot]||[])
+      const ohExtraEmpty=(slot==='SECONDARY'&&DW_CLASSES_OH.has(charClass)&&!CLASS_NO_DW.has(charClass))
+        ?(bySlot['PRIMARY']||[]).filter(c=>{const sk2=(c._skill||c._itemType||'').toLowerCase();return !sk2.includes('2h')&&!sk2.includes('two')&&c.dmg&&c.delay;})
+        :[];
+      const emptyPool=[...(bySlot[slot]||[]),...ohExtraEmpty.filter(c=>!(bySlot[slot]||[]).some(x=>x.name===c.name))];
+      const candidates=emptyPool
         .filter(c=>!slotAlreadyEquipped.has(c.name)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
         .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)}))
         .sort((a,b)=>b._effGain-a._effGain);
@@ -1482,6 +1506,39 @@ function renderUpgradesPanel(){
     } else {
       if(fft>0)html+=`<span class="upg-stat-cur">FT${fft} (+${fft} mana/tick)</span>`;
     }
+    // Proc display
+    function _procInfo(data,slotHint){
+      const eff=data._effect||'';
+      const et=(data._effectType||'').toLowerCase();
+      if(!eff||!et.includes('combat'))return null;
+      const dmg=PROC_DB[eff]!=null?PROC_DB[eff]:35;
+      const dex=Math.min(255,baselineTotals&&baselineTotals.dex?baselineTotals.dex:175);
+      const ppm=(dex/170)+0.5;
+      const lv=charLevel||60;
+      const dwSkillP=Math.min((lv+1)*7,252);
+      const dwChanceP=(dwSkillP+lv)/400;
+      const isOH=(slotHint||'').toUpperCase()==='SECONDARY';
+      const dps=isOH?Math.round(ppm*0.5*dwChanceP*dmg/60*100)/10:Math.round(ppm*dmg/60*100)/10;
+      return{name:eff,dmg,dps,isUtility:dmg===0};
+    }
+    const isFromWeapon=!!(fromData.dmg||fromData.delay||fromData._skill);
+    const isToWeapon=!!(toData.dmg||toData.delay||toData._skill);
+    const fromSlotH=(fromData._slot||'').toUpperCase();
+    const toSlotH=(toData._slot||'').toUpperCase();
+    if(isFromWeapon||isToWeapon){
+      const fp=_procInfo(fromData,fromSlotH);
+      const tp=_procInfo(toData,toSlotH);
+      if(showDelta==='combined'){
+        if(tp&&!fp) html+=tp.isUtility?`<span class="upg-stat-pos">Proc: ${tp.name}</span>`:`<span class="upg-stat-pos">Proc: ${tp.name} (~${tp.dps} dps)</span>`;
+        else if(fp&&!tp) html+=fp.isUtility?`<span class="upg-stat-neg">Proc lost: ${fp.name}</span>`:`<span class="upg-stat-neg">Proc lost: ${fp.name} (~${fp.dps} dps)</span>`;
+        else if(tp&&fp){
+          if(tp.name===fp.name) html+=tp.isUtility?`<span class="upg-stat-cur">Proc: ${tp.name}</span>`:`<span class="upg-stat-cur">Proc: ${tp.name} (~${tp.dps} dps)</span>`;
+          else html+=tp.isUtility?`<span class="upg-stat-pos">Proc: ${tp.name} (replaces ${fp.name})</span>`:`<span class="upg-stat-pos">Proc: ${tp.name} (~${tp.dps} dps, replaces ${fp.name})</span>`;
+        }
+      } else if(!showDelta&&fp){
+        html+=fp.isUtility?`<span class="upg-stat-cur">Proc: ${fp.name}</span>`:`<span class="upg-stat-cur">Proc: ${fp.name} (~${fp.dps} dps)</span>`;
+      }
+    }
     return html||`<span class="upg-stat-cur" style="font-style:italic">No stats</span>`;
   }
 
@@ -1533,8 +1590,15 @@ function renderUpgradesPanel(){
     const hasBest=best&&best._effGain>0;
     const sc=hasBest?scoreClass(best._effGain):'upg-score-lo';
     const scoreStr=hasBest?(best._effGain>=0?'+':'')+best._effGain+' pts':'—';
-    const opts=candidates.length?`<option value="">— Select —</option>`+candidates.map((c,i)=>`<option value="${i}">${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join(''):'';
-    const cost=hasBest?[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' \u00b7 '):'';
+    const isWepSlotCard=dbSlot==='PRIMARY'||dbSlot==='SECONDARY'||dbSlot==='TWOHANDER';
+    const opts=candidates.length?`<option value="">— Select —</option>`+candidates.map((c,i)=>{
+      let label=esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
+      if(isWepSlotCard&&(c.dmg||c.delay)){const dps=weaponDpsScore(c,dbSlot,charClass,charLevel,baselineTotals);if(dps>0)label+=` [${Math.round(dps*100)/10} dps]`;}
+      return `<option value="${i}">${label}</option>`;
+    }).join(''):'';
+    const cost=hasBest?[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' · '):'';
+    const equippedDpsVal=(isWepSlotCard&&(currentData.dmg||currentData.delay))?weaponDpsScore(currentData,dbSlot,charClass,charLevel,baselineTotals):0;
+    const equippedDpsHtml=equippedDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0">${Math.round(equippedDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)">dps</span></div>`:'';
     cardsHtml+=`<div class="upg-slot-card${isWepDisabled?' upg-wep-disabled':''}">
       <div class="upg-slot-head">
         <span class="upg-slot-label${slotLabelExtra}">${slotLabelText}</span>
@@ -1543,7 +1607,8 @@ function renderUpgradesPanel(){
       <div class="upg-panes">
         <div class="upg-pane">
           <div class="upg-pane-label">Equipped</div>
-          <div class="upg-pane-name">${esc(item.name)}</div>
+          <div class="upg-pane-name">${itemLink(item.name)}</div>
+          ${equippedDpsHtml}
           <div class="upg-pane-stats">${paneStats(currentData,currentData,false)}</div>
           ${currentData._from?`<div class="upg-pane-from">${esc(currentData._from)}</div>`:''}
         </div>
@@ -1701,9 +1766,14 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
   const paneStats=window._upgPaneStats||(()=>'');
   const statsHtml=paneStats(currentData,cand,'combined');
   const cost=[cand.plat?`${cand.plat}k pp`:'',cand.dkp?`${cand.dkp} DKP`:''].filter(Boolean).join(' · ');
+  const isWepSlotUpg=sr.dbSlot==='PRIMARY'||sr.dbSlot==='SECONDARY'||sr.dbSlot==='TWOHANDER';
+  const charLevel=meta.level||60;
+  const candDpsVal=(isWepSlotUpg&&(cand.dmg||cand.delay))?weaponDpsScore(cand,sr.dbSlot,meta.class||'',charLevel,null):0;
+  const candDpsHtml=candDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0">${Math.round(candDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)">dps</span></div>`:'';
   upgPaneEl.innerHTML=`
     <div class="upg-pane-label">Best upgrade</div>
     <div class="upg-pane-name upg-pane-upgrade">${itemLink(cand.name)}</div>
+    ${candDpsHtml}
     <div class="upg-pane-stats">${statsHtml||'<span class="upg-stat-cur">No stat changes</span>'}</div>
     ${(cand._mob||cand._from)?`<div class="upg-pane-from">${cand._mob?esc(cand._mob)+' · ':''} ${esc(cand._zone||cand._from||'')}</div>`:''}
     ${cost?`<div class="upg-pane-cost">${esc(cost)}</div>`:''}`;
@@ -1716,7 +1786,12 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
     else{scoreEl.style.cssText='';}
   }
   if(altRowEl){
-    const opts=`<option value="">— Select —</option>`+sr.candidates.map((c,i)=>`<option value="${i}"${i===selIdx?' selected':''}>${esc(c.name)} (${c._effGain>=0?'+':''}${c._effGain})</option>`).join('');
+    const isWepSlotAlt=sr.dbSlot==='PRIMARY'||sr.dbSlot==='SECONDARY'||sr.dbSlot==='TWOHANDER';
+    const opts=`<option value="">— Select —</option>`+sr.candidates.map((c,i)=>{
+      let label=esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
+      if(isWepSlotAlt&&(c.dmg||c.delay)){const dps=weaponDpsScore(c,sr.dbSlot,meta.class||'',meta.level||60,null);if(dps>0)label+=` [${Math.round(dps*100)/10} dps]`;}
+      return `<option value="${i}"${i===selIdx?' selected':''}>${label}</option>`;
+    }).join('');
     altRowEl.innerHTML=`<span class="upg-alt-label">Compare</span>
       <select class="upg-alt-select" data-slot="${dbSlot}" data-cardid="${cardId}" onchange="upgSwapAlt('${dbSlot}',this.value,this)">${opts}</select>`;
   }
@@ -1924,10 +1999,10 @@ function parseItemDB(csvText,filename){
     const name=cols[colMap._nameCol];
     const rawSlot=(cols[colMap._slotCol]||'').trim().toUpperCase();
     if(!name||name==='STAT WEIGHTS:'||name==='Name')continue;
-    // Normalize slot: FINGER→FINGERS, take first token of multi-slot, fall back to NONE
+    // Normalize slot: FINGER→FINGERS, support multi-slot values (PRIMARY SECONDARY), fall back to NONE
     const SLOT_ALIAS={'FINGER':'FINGERS'};
-    const firstToken=rawSlot.split(/\s+/)[0]||'';
-    const normSlot=SLOT_ALIAS[firstToken]||(validSlots.has(firstToken)?firstToken:(validSlots.has(rawSlot)?rawSlot:'NONE'));
+    const allSlotTokens=rawSlot.split(/\s+/).map(t=>SLOT_ALIAS[t]||(validSlots.has(t)?t:null)).filter(Boolean);
+    const normSlot=allSlotTokens[0]||'NONE';
 
     const stats={};
     for(const[key,idx]of Object.entries(colMap)){
@@ -1937,6 +2012,7 @@ function parseItemDB(csvText,filename){
       if(!isNaN(v)&&v!==0)stats[key]=Math.round(v*100)/100;
     }
     stats._slot=normSlot;
+    if(allSlotTokens.length>1)stats._slots=allSlotTokens;
     // Source: prefer in-CSV drops-from column, fall back to filename-derived class
     const fromVal=colMap._fromCol>=0?cols[colMap._fromCol]?.trim():'';
     stats._from=fromVal||'';
@@ -4123,6 +4199,7 @@ function renderKillsPanel(){
         <input type="text" id="ktSearch" class="kt-date-input" placeholder="Search bosses…" style="flex:1;min-width:180px" oninput="ktFilterBosses(this.value)">
         <div class="kt-dkp-badge" id="ktBadge">${total} DKP &nbsp;·&nbsp; ${killCount} kill${killCount!==1?'s':''}${failtickCount>0?` · ${failtickCount} failtick${failtickCount!==1?'s':''}`:''}</div>
         <button class="kt-save-btn" onclick="ktSaveSession()">💾 Save Session</button>
+        <button class="kt-save-btn" onclick="ktExportPDF()" style="background:rgba(80,50,10,.1);border-color:#8a6020;color:#6a4010">📄 Export PDF</button>
         <button class="kt-undo-btn" onclick="ktClearSession()">Clear</button>
       </div>
       <div style="display:flex;overflow:hidden">
@@ -4284,6 +4361,55 @@ window.ktSaveSession=function(){
   renderKillsPanel();
 };
 
+window.ktExportPDF=function(){
+  const s=activeSession;
+  if(!s){alert('No active session to export.');return;}
+  const total=sessionDkpTotal(s);
+  const d=new Date(s.date+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const killed=Object.entries(s.killState||{}).filter(([,v])=>v==='killed').map(([k])=>k);
+  const failticks=Object.entries(s.killState||{}).filter(([,v])=>v==='failtick').map(([k])=>k);
+  const bossRoles=s.bossRoles||{};
+  const hourly=s.hourly||[];
+  const rwChecks=s.rwChecks||{};
+  const bnpQty=s.buffParksQty||0;
+  const tiers=[...new Set(BOSS_ROSTER.map(b=>b.tier))];
+  let tiersHtml='';
+  for(const tier of tiers){
+    const bosses=BOSS_ROSTER.filter(b=>b.tier===tier);
+    const tierKills=bosses.filter(b=>killed.includes(b.target));
+    const tierFt=bosses.filter(b=>failticks.includes(b.target));
+    if(!tierKills.length&&!tierFt.length)continue;
+    tiersHtml+=`<div class="pdf-tier"><strong>${tier}</strong></div>`;
+    tierKills.forEach(b=>{
+      const roles=(bossRoles[b.target]||[]);
+      const roleDkp=roles.reduce((sum,r)=>sum+(r.value||0),0);
+      const t=Math.round((b.dkp+b.baseDkp+roleDkp)*10)/10;
+      tiersHtml+=`<div class="pdf-row"><span class="pdf-name">&#x2713; ${b.target}</span><span class="pdf-dkp">${t} DKP</span></div>`;
+      roles.forEach(r=>tiersHtml+=`<div class="pdf-row pdf-sub"><span class="pdf-name">&#x2937; ${r.desc}</span><span class="pdf-dkp">+${r.value} DKP</span></div>`);
+    });
+    tierFt.forEach(b=>tiersHtml+=`<div class="pdf-row pdf-ft"><span class="pdf-name">&#x2717; ${b.target} (failtick)</span><span class="pdf-dkp">${b.baseDkp} DKP</span></div>`);
+  }
+  if(hourly.length){
+    tiersHtml+=`<div class="pdf-tier"><strong>Hourly</strong></div>`;
+    hourly.forEach(r=>tiersHtml+=`<div class="pdf-row"><span class="pdf-name">${r.qty||1}&times; ${r.desc}</span><span class="pdf-dkp">${Math.round((r.value||0)*(r.qty||1)*10)/10} DKP</span></div>`);
+  }
+  if(bnpQty>0){
+    const bnpDkp=Math.round((s.buffParksNinja?0.5:0.3)*bnpQty*10)/10;
+    tiersHtml+=`<div class="pdf-tier"><strong>Buffs &amp; Parks</strong></div>`;
+    tiersHtml+=`<div class="pdf-row"><span class="pdf-name">${bnpQty} click${bnpQty!==1?'s':''}${s.buffParksNinja?' (Ninja Loot)':''}</span><span class="pdf-dkp">${bnpDkp} DKP</span></div>`;
+  }
+  const pdfHtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Raid Report — '+d+'</title>'
+    +'<style>body{font-family:Georgia,serif;color:#2a1f0e;margin:0;padding:2rem;max-width:700px}h1{font-size:1.4rem;margin:0 0 .25rem}.pdf-subtitle{font-size:.85rem;color:#666;margin-bottom:1.5rem}.pdf-tier{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:#888;border-bottom:1px solid #ccc;padding:.5rem 0 .2rem;margin-top:1rem}.pdf-row{display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #f0ebe0;font-size:.9rem}.pdf-sub{padding-left:1.5rem;font-size:.82rem;color:#555}.pdf-ft{color:#8a4040}.pdf-name{flex:1}.pdf-dkp{font-weight:bold;min-width:80px;text-align:right}.pdf-total{display:flex;justify-content:space-between;padding:.75rem 0;font-size:1.1rem;font-weight:bold;border-top:2px solid #ccc;margin-top:1rem}@media print{body{padding:.5rem}}</style>'
+    +'</head><body>'
+    +'<h1>MixelParse Raid — DKP Report</h1>'
+    +'<div class="pdf-subtitle">'+d+(s.note?' &nbsp;&middot;&nbsp; '+s.note:'')+'</div>'
+    +tiersHtml
+    +'<div class="pdf-total"><span>Total DKP</span><span>'+total+' DKP</span></div>'
+    +'</body></html>';
+  const win=window.open('','_blank');
+  win.document.write(pdfHtml);win.document.close();win.focus();
+  setTimeout(()=>win.print(),400);
+};
 window.ktClearSession=function(){activeSession=newSession();ktExpanded={};renderKillsPanel();};
 
 window.ktLoadSession=function(id){
