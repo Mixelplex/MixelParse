@@ -2773,13 +2773,15 @@ function applyFactionSnapshot(charName, factions){
 // factionData[charName][factionName] = level string
 
 function getFaction(charName, factionName){
-  return (factionData[charName]||{})[factionName]||'';
+  const key=resolveCharKey(charName);
+  return (factionData[key]||{})[factionName]||'';
 }
 
 function setFaction(charName, factionName, level){
-  if(!factionData[charName])factionData[charName]={};
-  if(level)factionData[charName][factionName]=level;
-  else delete factionData[charName][factionName];
+  const key=resolveCharKey(charName);
+  if(!factionData[key])factionData[key]={};
+  if(level)factionData[key][factionName]=level;
+  else delete factionData[key][factionName];
   saveState();
   renderTovBar();
 }
