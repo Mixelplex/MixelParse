@@ -2310,6 +2310,8 @@ async function onSignedIn(user){
   document.getElementById('topNav').style.display='flex';
   await loadFromSupabase();
   supabaseLoaded=true;
+  // Re-request watcher state now that Supabase is loaded so faction data saves correctly
+  if(typeof requestWatcherAll === 'function') requestWatcherAll();
   // DKP and kills now loaded inside loadFromSupabase before first render
 }
 
@@ -3340,6 +3342,9 @@ window.applyDBToChar    = applyDBToChar;
       clearTimeout(retryTimer);
       // Ask for all cached files immediately
       ws.send(JSON.stringify({ type: 'requestAll' }));
+    };
+    window.requestWatcherAll = () => {
+      if(ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'requestAll' }));
     };
 
     ws.onmessage = e => {
