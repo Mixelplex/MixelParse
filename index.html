@@ -3299,9 +3299,11 @@ window.applyDBToChar    = applyDBToChar;
     const isNew = !chars[cn];
     chars[cn] = parseInventory(content, cn);
     if(!charMeta[cn]) charMeta[cn] = {};
-    // Only switch tab if this is a brand new char we've never seen, or nothing is loaded yet
-    if(!activeTab) activeTab = cn;
-    else if(isNew && activeTab === '__all__') activeTab = cn;
+    // Only switch tab if nothing is loaded yet and no saved preference exists
+    if(!activeTab){
+      const saved = localStorage.getItem('mp_activeTab');
+      activeTab = (saved && (saved === '__all__' || true)) ? saved : cn;
+    }
     refresh();
     // Toast only for new chars — suppress spam on reconnect replay
     if(isNew) showWatcherToast(`📦 Loaded ${cn}`);
