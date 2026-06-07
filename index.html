@@ -613,6 +613,7 @@
 <input type="file" id="fileInput" accept=".txt" multiple style="display:none">
 <input type="file" id="charRefreshInput" accept=".txt" style="display:none">
 <input type="file" id="dkpCsvInput" accept=".csv" style="display:none">
+<input type="file" id="creditCsvInput" accept=".csv" style="display:none">
 
 <div class="upload-zone" id="dropzone" style="display:none">
   <input type="file" id="dzInput" accept=".txt" multiple>
@@ -2249,6 +2250,7 @@ function loadFiles(files){const arr=[...files];if(!arr.length)return;let loaded=
 document.getElementById('fileInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
 document.getElementById('charRefreshInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const cn=extractCharName(file.name);chars[cn]=parseInventory(ev.target.result,cn);if(!charMeta[cn])charMeta[cn]={};if(activeTab!==cn)activeTab=cn;refresh();};reader.readAsText(file);e.target.value='';});
 document.getElementById('dkpCsvInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const {lookup,txCount}=parseDkpCsv(ev.target.result);dkpLookup=lookup;dkpMeta={updatedAt:new Date().toISOString(),txCount};dkpCacheKey='';saveDkpToSupabase();renderDkpPanel();applyDkpToItemDB();};reader.readAsText(file);e.target.value='';});
+document.getElementById('creditCsvInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{creditData=parseOdkpDetailsCsv(ev.target.result);saveCreditDataToSupabase();renderKillsPanel();};reader.readAsText(file);e.target.value='';});;
 document.getElementById('dzInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
 document.getElementById('tabAdd').addEventListener('click',()=>document.getElementById('fileInput').click());
 const dz=document.getElementById('dropzone');
@@ -2318,7 +2320,7 @@ async function onSignedIn(user){
 
 function onSignedOut(){
   currentUser=null;
-  chars={};charMeta={};gearStats={};watchList=[];factionData={};skyshrineData={};questData={};dkpLookup={};dkpMeta={};platData=[];platMeta={};platCachedRows=[];platCacheKey='';platTypeFilter='all';raidSessions=[];activeSession=null;sessionsView='new';activeTab=null;
+  chars={};charMeta={};gearStats={};watchList=[];factionData={};skyshrineData={};questData={};dkpLookup={};dkpMeta={};platData=[];platMeta={};platCachedRows=[];platCacheKey='';platTypeFilter='all';raidSessions=[];activeSession=null;sessionsView='new';activeTab=null;creditData=null;
   document.getElementById('userBar').style.display='none';
   document.getElementById('topNav').style.display='none';
   document.getElementById('dkpView').style.display='none';
@@ -4129,8 +4131,9 @@ const BOSS_ROSTER=[
 // Sessions: [{id, date, kills:[target,...], roles:[{desc,value,qty},...], note}] [{id, date, kills:[target,...], roles:[{desc,value,qty},...], note}]
 let raidSessions=[];
 let activeSession=null;
-let sessionsView='new'; // 'new' | 'history'
+let sessionsView='new'; // 'new' | 'history' | 'creditcheck'
 let ktExpanded={}; // {target: true} — which boss role panels are open
+let creditData=null; // parsed ODKP details CSV: {charName→{date→Set<normalizedBoss>}}
 
 // Hourly ticks — session level, shown at top
 const HOURLY_ROLES=[
@@ -4211,9 +4214,11 @@ function sessionDkpTotal(session){
 
 async function loadKillsFromSupabase(){
   try{
-    const{data}=await sb.from('guild_data').select('raid_sessions').eq('pool','SoV').single();
+    const{data}=await sb.from('guild_data').select('raid_sessions,credit_data').eq('pool','SoV').single();
     if(data?.raid_sessions)raidSessions=data.raid_sessions;
+    if(data)loadCreditDataFromSupabase(data);
   }catch(e){console.warn('[Sessions] Load error',e);}
+}
 }
 
 async function saveSessionsToSupabase(){
@@ -4553,8 +4558,9 @@ function renderKillsPanel(){
     <div style="display:flex;border-bottom:1px solid var(--border)">
       <div class="kt-view-tab${sessionsView==='new'?' active':''}" onclick="ktSetView('new')">⚔ New Session</div>
       <div class="kt-view-tab${sessionsView==='history'?' active':''}" onclick="ktSetView('history')">📜 History (${raidSessions.length})</div>
+      <div class="kt-view-tab${sessionsView==='creditcheck'?' active':''}" onclick="ktSetView('creditcheck')">🔍 Credit Check</div>
     </div>
-    ${sessionsView==='history'?`<div style="padding:.5rem 0">${histHtml}</div>`:`
+    ${sessionsView==='creditcheck'?renderCreditCheckPanel():sessionsView==='history'?`<div style="padding:.5rem 0">${histHtml}</div>`:`
       <div style="display:flex;gap:.75rem;padding:.6rem 1rem;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap;background:var(--surface2)">
         <div style="display:flex;align-items:center;gap:.4rem">
           <label style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted)">DATE</label>
@@ -4789,6 +4795,344 @@ window.ktDeleteSession=function(id){
 };
 
 window.ktSetView=function(v){sessionsView=v;renderKillsPanel();};
+
+// ── ODKP alias map: normalizes ODKP source labels → tracker target names ──
+const ODKP_ALIAS={
+  // Avatar of War
+  'aow':'Avatar of War','avatar of war':'Avatar of War','avatar':'Avatar of War',
+  'aow unity kill':'Avatar of War',
+  // Cazic Thule
+  'ct':'Cazic Thule','cazic thule':'Cazic Thule','cazic thule natty kill':'Cazic Thule',
+  'ct kill with bonus':'Cazic Thule',
+  // Dain
+  'dain':'Dain','dain frostreaver iv':'Dain',
+  // Dozekar
+  'doze':'Dozekar','dozekar':'Dozekar','dozekar the cursed':'Dozekar',
+  // Dracoliche
+  'draco':'Dracoliche','dracoliche':'Dracoliche',
+  // Druushk
+  'driishk':'Druushk','druushk':'Druushk',
+  // Eashen
+  'eash':'Eashen','eashen':'Eashen','eashen of the sky':'Eashen',
+  // Feshlak
+  'fesh':'Feshlak','feshlak':'Feshlak','lord feshlak':'Feshlak',
+  // Gorenaire
+  'gore':'Gorenaire','gorenaire':'Gorenaire',
+  // Gozzrem
+  'goz':'Gozzrem','gozzrem':'Gozzrem','grozzmel':'Gozzrem',
+  // Ikatiar
+  'ik':'Ikatiar','ikatiar':'Ikatiar','ikatier':'Ikatiar',
+  // Innoruuk
+  'inny':'Inny','innoruuk':'Inny','innoruuuk':'Inny',
+  // Jorlleag
+  'jorl':'Jorlleag','jorlleag':'Jorlleag',
+  // Kelorek Dar
+  'kd':'Kelorek Dar','kelorek dar':'Kelorek Dar','kelorek\'dar':'Kelorek Dar',
+  // KDT
+  'kdt':'KDT',
+  // Klandicar
+  'klandi':'Klandicar','klandicar':'Klandicar',
+  // Koi
+  'koi':'Koi',
+  // Kreizenn
+  'kreiz':'Kreizenn','kreizenn':'Kreizenn',
+  // Lepethida
+  'lep':'Lepethida','lepethida':'Lepethida',
+  // LTK
+  'ltk':'LTK','lendiniara the keeper':'LTK',
+  // Mirenilla
+  'ladym':'Mirenilla','lady m':'Mirenilla','lady mirenilla':'Mirenilla','mirenilla':'Mirenilla',
+  // MOTG
+  'motg':'MOTG','master of the guard':'MOTG',
+  // Naggy
+  'nagafan':'Naggy','nagafen':'Naggy','lord nagafen':'Naggy','naggy':'Naggy',
+  // Nevederia
+  'nev':'Nevederia','lady n':'Nevederia','lady nevederia':'Nevederia','nevederia':'Nevederia',
+  // Nexona
+  'nexona':'Nexona',
+  // Phara Dar
+  'phara dar':'Phara Dar',
+  // Prog
+  'prog':'Prog','the progenitor':'Prog','progenitor':'Prog',
+  // Sevalak
+  'seva':'Sevalak','sevalak':'Sevalak',
+  // Severilous
+  'severilous':'Severilous','severilious':'Severilous',
+  // Silverwing
+  'silverwing':'Silverwing',
+  // Sontalak
+  'sontalak':'Sontalak',
+  // Statue
+  'statue':'Statue','statue of rallos zek':'Statue','the statue of rallos zek':'Statue',
+  // Takish
+  'takish':'Takish','guardian of takish':'Takish',
+  // Talendor
+  'talendor':'Talendor',
+  // TFA
+  'tfa':'TFA','the final arbiter':'TFA',
+  // Telk
+  'telk':'Telk','telkorenar':'Telk',
+  // Terror
+  'terror':'Terror',
+  // Tormax
+  'kt':'Tormax','king tormax':'Tormax','tormax':'Tormax',
+  // Trakanon
+  'trakanon':'Trakanon',
+  // Tunare
+  'tuna':'Tunare','tunare':'Tunare',
+  // UDB
+  'udb':'UDB','undead bard':'UDB',
+  // Vaniki
+  'vaniki':'Vaniki',
+  // Velketor
+  'velk':'Velketor','velketor':'Velketor','velketor the sorcerer':'Velketor',
+  // Vindi
+  'vindi':'Vindi','derakor the vindicator':'Vindi',
+  // Vox
+  'vox':'Vox','lady vox':'Vox',
+  // VS
+  'vs':'VS','venril sathir':'VS',
+  // Vulak
+  'vulak':'Vulak','vulak`aerr':'Vulak','vulak\'aerr':'Vulak',
+  // Vyemm
+  'vyem':'Vyemm','vyemm':'Vyemm','lord vyemm':'Vyemm',
+  // Wuoshi
+  'wuo':'Wuoshi','wuoshi':'Wuoshi',
+  // Xygoz
+  'xygoz':'Xygoz',
+  // Yael
+  'yael':'Yael',
+  // Yelinak
+  'yeli':'Yelinak','yelinak':'Yelinak','lord yelinak':'Yelinak',
+  // Zlandicar
+  'zlandi':'Zlandicar','zlandicar':'Zlandicar',
+  // Zlexak
+  'zlex':'Zlexak','zlexak':'Zlexak',
+  // Bazzt Zzzt
+  'queen bee':'Bazzt Zzzt','queenbee':'Bazzt Zzzt','bazzt zzzt':'Bazzt Zzzt','bzzzt':'Bazzt Zzzt',
+  // Cekenar
+  'cek':'Cekenar','cekenar':'Cekenar',
+  // Dread
+  'dread':'Dread',
+  // Essedera
+  'ess':'Essedera','essedera':'Essedera',
+  // Fright
+  'fright':'Fright',
+  // Garzicor
+  'garzicor':'Garzicor',
+  // HoT Minis
+  'midayor':'HoT Minis','tavekalem':'HoT Minis','casalen':'HoT Minis',
+  'krigara':'HoT Minis','ymmeln':'HoT Minis','grozzmel':'HoT Minis',
+  // Lord Bob
+  'lord bob':'Lord Bob','lord doljonijiarnimorinar':'Lord Bob',
+  // Hoshkar
+  'hoshkar':'Hoshkar',
+  // Kozzalym
+  'kozz':'Kozzalym','kozzalym':'Kozzalym',
+  // Lord of Ire
+  'lord of ire':'Lord of Ire',
+};
+
+// Normalize a raw ODKP source label to a tracker target name
+function normalizeOdkpLabel(raw){
+  if(!raw)return null;
+  // Strip trailing content after " kill", " no kill", " bnp", etc. — keep the boss name
+  let s=raw.trim().toLowerCase();
+  // Remove common suffixes
+  s=s.replace(/\s+(kill|no kill|bnp|b&p|quake|unity raid chaos|unity kill|am kill|natty kill|batphone|kill with bonus|kill \(.*|no kill \(.*)\s*$/i,'').trim();
+  // Try exact match first
+  if(ODKP_ALIAS[s])return ODKP_ALIAS[s];
+  // Try stripping leading date pattern "M-D HH:MM " or "M-D "
+  s=s.replace(/^\d{1,2}-\d{1,2}(\s+\d{1,2}:\d{2})?\s+/,'').trim();
+  // Strip trailing number (kill index like "1","2","3")
+  s=s.replace(/\s+\d+$/,'').trim();
+  if(ODKP_ALIAS[s])return ODKP_ALIAS[s];
+  // Partial match — check if any alias key is contained in s or vice versa
+  for(const[k,v] of Object.entries(ODKP_ALIAS)){
+    if(s===k||s.startsWith(k+' ')||s.endsWith(' '+k))return v;
+  }
+  return null;
+}
+
+// Parse the ODKP details CSV into creditData: {charNameLower → {dateStr → Set<target>}}
+function parseOdkpDetailsCsv(text){
+  const lines=text.split(/\r?\n/);
+  const result={};
+  let header=null;
+  for(const line of lines){
+    if(!line.trim())continue;
+    // Simple CSV split (handles no internal quotes in these fields)
+    const cols=line.split(',');
+    if(!header){header=cols;continue;}
+    // Columns: Date,Amount,SourceType,Source,CharacterName,...
+    const date=cols[0]?.trim();
+    const sourceType=cols[2]?.trim();
+    const source=cols[3]?.trim();
+    const charName=cols[4]?.trim();
+    if(!charName||!date||sourceType!=='Raid')continue;
+    // Parse date → YYYY-MM-DD
+    const d=new Date(date);
+    if(isNaN(d))continue;
+    const dateStr=d.toISOString().slice(0,10);
+    // Extract the specific kill from source — after last " - "
+    let label=source;
+    if(source.includes(' - '))label=source.split(' - ').pop().trim();
+    // Strip parenthetical suffix  "(AoW kill)" → take the inner text
+    const pm=label.match(/\(([^)]+)\)/);
+    if(pm)label=pm[1];
+    const target=normalizeOdkpLabel(label);
+    if(!target)continue;
+    const key=charName.toLowerCase();
+    if(!result[key])result[key]={};
+    if(!result[key][dateStr])result[key][dateStr]=new Set();
+    result[key][dateStr].add(target);
+  }
+  return result;
+}
+
+// Save/load creditData from Supabase guild_data
+async function saveCreditDataToSupabase(){
+  if(!currentUser||!creditData)return;
+  try{
+    // Convert Sets to arrays for JSON
+    const serializable={};
+    for(const[char,dates] of Object.entries(creditData)){
+      serializable[char]={};
+      for(const[date,set] of Object.entries(dates)){
+        serializable[char][date]=[...set];
+      }
+    }
+    const{data}=await sb.from('guild_data').select('id').eq('pool','SoV').single();
+    if(data){
+      await sb.from('guild_data').update({credit_data:serializable,updated_at:new Date().toISOString()}).eq('pool','SoV');
+    }else{
+      await sb.from('guild_data').insert({pool:'SoV',credit_data:serializable,updated_at:new Date().toISOString()});
+    }
+  }catch(e){console.warn('saveCreditData error',e);}
+}
+
+function loadCreditDataFromSupabase(row){
+  if(!row?.credit_data)return;
+  const raw=row.credit_data;
+  creditData={};
+  for(const[char,dates] of Object.entries(raw)){
+    creditData[char]={};
+    for(const[date,arr] of Object.entries(dates)){
+      creditData[char][date]=new Set(arr);
+    }
+  }
+}
+
+// Render the Credit Check panel HTML
+function renderCreditCheckPanel(){
+  const myChars=charNames().filter(n=>n!=='__all__');
+  const noCreditData=!creditData||Object.keys(creditData).length===0;
+
+  // Build session kill rows: [{date, target}]
+  const kills=[];
+  for(const s of [...raidSessions].sort((a,b)=>(b.date||'').localeCompare(a.date||''))){
+    const killed=Object.entries(s.killState||{}).filter(([,v])=>v==='killed').map(([k])=>k);
+    for(const t of killed)kills.push({date:s.date,target:t,sessionNote:s.note||''});
+  }
+
+  if(!kills.length){
+    return`<div style="padding:2rem;text-align:center;color:var(--text-muted);font-size:.85rem">
+      No kills recorded in your session history yet.<br>Save some raid sessions first.
+    </div>`;
+  }
+
+  const uploadBtn=`<div style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;border-bottom:1px solid var(--border);background:var(--surface2);flex-wrap:wrap">
+    <button class="kt-save-btn" onclick="document.getElementById('creditCsvInput').click()" style="background:rgba(10,60,30,.15);border-color:#3a6040;color:#3a7050">
+      📥 ${noCreditData?'Upload':'Re-upload'} ODKP Details CSV
+    </button>
+    ${!noCreditData?`<span style="font-size:.75rem;color:var(--text-muted)">Loaded: ${Object.keys(creditData).map(c=>c.charAt(0).toUpperCase()+c.slice(1)).join(', ')}</span>`:''}
+    ${!noCreditData?`<button class="kt-save-btn" id="ccExportBtn" style="margin-left:auto;background:rgba(60,30,10,.15);border-color:#806030;color:#705020" onclick="exportCreditReport()">📄 Export Report</button>`:''}
+  </div>`;
+
+  if(noCreditData){
+    return uploadBtn+`<div style="padding:2rem;text-align:center;color:var(--text-muted);font-size:.85rem">
+      Upload your ODKP Details CSV to check kill credits.<br>
+      <span style="font-size:.75rem;opacity:.7">Download it from your ODKP profile → Details tab → Export CSV</span>
+    </div>`;
+  }
+
+  // Build the grid
+  let missingCount=0;
+  let rows='';
+  for(const{date,target,sessionNote} of kills){
+    const cells=myChars.map(cn=>{
+      const key=cn.toLowerCase();
+      const credited=creditData[key]?.[date]?.has(target);
+      if(credited===undefined){
+        // Char not in ODKP CSV at all
+        return`<td style="text-align:center;color:var(--text-muted);font-size:.9rem" title="${cn} not in ODKP CSV">—</td>`;
+      }
+      if(!credited){
+        missingCount++;
+        return`<td style="text-align:center;color:#c03030;font-size:.95rem;font-weight:bold" title="MISSING credit for ${cn}">✗</td>`;
+      }
+      return`<td style="text-align:center;color:#3a7a3a;font-size:.9rem">✓</td>`;
+    }).join('');
+    const hasAnyMissing=myChars.some(cn=>{
+      const key=cn.toLowerCase();
+      return creditData[key]!==undefined&&!creditData[key]?.[date]?.has(target);
+    });
+    const d=new Date(date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    rows+=`<tr style="${hasAnyMissing?'background:rgba(180,40,40,.08)':''}">
+      <td style="padding:.3rem .6rem;font-size:.78rem;color:var(--text-muted);white-space:nowrap">${d}</td>
+      <td style="padding:.3rem .6rem;font-size:.82rem;font-weight:500">${esc(target)}</td>
+      ${cells}
+    </tr>`;
+  }
+
+  const charHeaders=myChars.map(cn=>`<th style="padding:.4rem .5rem;font-size:.7rem;letter-spacing:.05em;text-align:center;white-space:nowrap">${esc(cn)}</th>`).join('');
+  const summary=missingCount>0
+    ?`<div style="padding:.5rem 1rem;background:rgba(180,40,40,.1);border-bottom:1px solid rgba(180,40,40,.25);font-size:.78rem;color:#c03030">⚠ ${missingCount} missing credit${missingCount!==1?'s':''} found across ${kills.length} kill${kills.length!==1?'s':''}</div>`
+    :`<div style="padding:.5rem 1rem;background:rgba(40,120,40,.08);border-bottom:1px solid rgba(40,120,40,.2);font-size:.78rem;color:#3a7a3a">✓ All kills accounted for — no missing credits detected</div>`;
+
+  return uploadBtn+summary+`
+    <div style="overflow-x:auto;max-height:70vh;overflow-y:auto">
+      <table style="width:100%;border-collapse:collapse;font-family:'Cinzel',serif">
+        <thead style="position:sticky;top:0;background:var(--surface2);z-index:1">
+          <tr>
+            <th style="padding:.4rem .6rem;font-size:.7rem;letter-spacing:.05em;text-align:left">Date</th>
+            <th style="padding:.4rem .6rem;font-size:.7rem;letter-spacing:.05em;text-align:left">Boss</th>
+            ${charHeaders}
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// Export missing credits as a plain-text report
+window.exportCreditReport=function(){
+  if(!creditData)return;
+  const myChars=charNames().filter(n=>n!=='__all__');
+  const kills=[];
+  for(const s of [...raidSessions].sort((a,b)=>(b.date||'').localeCompare(a.date||''))){
+    const killed=Object.entries(s.killState||{}).filter(([,v])=>v==='killed').map(([k])=>k);
+    for(const t of killed)kills.push({date:s.date,target:t});
+  }
+  const lines=['MIXELPARSE — KILL CREDIT CHECK REPORT','Generated: '+new Date().toLocaleString(),'','MISSING CREDITS:',''];
+  let found=false;
+  for(const{date,target} of kills){
+    for(const cn of myChars){
+      const key=cn.toLowerCase();
+      if(creditData[key]===undefined)continue;
+      if(!creditData[key]?.[date]?.has(target)){
+        lines.push(`${date}  ${target.padEnd(20)}  ${cn}`);
+        found=true;
+      }
+    }
+  }
+  if(!found)lines.push('None — all kill credits accounted for.');
+  const blob=new Blob([lines.join('\n')],{type:'text/plain'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='credit-check-'+new Date().toISOString().slice(0,10)+'.txt';
+  a.click();
+};
 
 
 // Classes that can self-cast SoW (don't need JBoots)
