@@ -1368,15 +1368,25 @@ function renderUpgradesPanel(){
     currentData.ac=Number(_db.ac||0)||Number(_cg.ac||0)||undefined;
     // Weapon-slot skill filter: MNK (H2H/1HB/2HB only) and ROG (1H+piercing only)
     const wepSkillFilter=CLASS_WEAPON_SKILLS[charClass];
+    const CLASS_SHIELD_OK=new Set(['Warrior','Paladin','Shadow Knight']);
     function wepSkillOk(c){
       if(dbSlot!=='PRIMARY'&&dbSlot!=='SECONDARY')return true;
       const cSlot=(c._slot||'').toUpperCase();
       const sk=(c._skill||c._itemType||'').toLowerCase();
       const isShield=cSlot==='SHIELD'||sk==='shield'||(c.ac>0&&!c.dmg&&!c.delay);
-      // Monks and Rogues DW weapons only — OH must have dmg+delay
-      if((charClass==='Monk'||charClass==='Rogue')&&dbSlot==='SECONDARY'){
-        if(isShield)return false;
-        if(!c.dmg||!c.delay)return false;
+      const isWeapon=!!(c.dmg&&c.delay);
+      if(MELEE_DPS_CLASSES.has(charClass)){
+        // PRIMARY must always be a weapon for melee classes
+        if(dbSlot==='PRIMARY'&&!isWeapon)return false;
+        // SECONDARY: WAR can use shield or weapon; PAL/SHD shield only; all others weapon only
+        if(dbSlot==='SECONDARY'){
+          if(charClass==='Paladin'||charClass==='Shadow Knight'){
+            if(!isShield)return false; // PAL/SHD OH = shield only
+          } else if(!CLASS_SHIELD_OK.has(charClass)){
+            if(!isWeapon)return false; // all other melee = weapon only
+          }
+          // WAR falls through — shield or weapon both fine
+        }
       }
       if(!sk||!c.dmg)return true;
       // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
@@ -1408,13 +1418,20 @@ function renderUpgradesPanel(){
       const emptyWepSkill=CLASS_WEAPON_SKILLS[charClass];
       function emptyWepOk(c){
         if(slot!=='PRIMARY'&&slot!=='SECONDARY')return true;
-        const cSlot2=(c._slot||'').toUpperCase();
         const sk=(c._skill||c._itemType||'').toLowerCase();
-        const isShield2=cSlot2==='SHIELD'||sk==='shield'||(c.ac>0&&!c.dmg&&!c.delay);
-        // Monks and Rogues DW weapons only — OH must have dmg+delay
-        if((charClass==='Monk'||charClass==='Rogue')&&slot==='SECONDARY'){
-          if(isShield2)return false;
-          if(!c.dmg||!c.delay)return false;
+        const isWeapon2=!!(c.dmg&&c.delay);
+        if(MELEE_DPS_CLASSES.has(charClass)){
+          if(slot==='PRIMARY'&&!isWeapon2)return false;
+          if(slot==='SECONDARY'){
+            if(charClass==='Paladin'||charClass==='Shadow Knight'){
+              const cSlot3=(c._slot||'').toUpperCase();
+              const sk3=(c._skill||c._itemType||'').toLowerCase();
+              const isShield3=cSlot3==='SHIELD'||sk3==='shield'||(c.ac>0&&!c.dmg&&!c.delay);
+              if(!isShield3)return false;
+            } else if(!CLASS_SHIELD_OK.has(charClass)){
+              if(!isWeapon2)return false;
+            }
+          }
         }
         if(!sk||!c.dmg)return true;
         // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
