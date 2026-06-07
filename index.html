@@ -2750,10 +2750,12 @@ function resolveCharKey(charName){
 
 function applyFactionUpdate(charName, updates){
   const key=resolveCharKey(charName);
+  console.log('[faction] charName='+charName+' resolvedKey='+key+' charsKeys='+JSON.stringify(Object.keys(chars))+' update='+JSON.stringify(updates.map(u=>u.displayName+':'+u.level)));
   if(!factionValues[key]) factionValues[key]={};
   for(const u of updates){
     factionValues[key][u.displayName]={value:u.value, source:u.source||'log'};
     setFaction(key, u.displayName, u.level);
+    console.log('[faction] after setFaction factionData['+key+'][CoV]='+((factionData[key]||{})['Claws of Veeshan']));
   }
   if(activeSub==='factions') renderFactionsPanel();
   renderTovBar();
