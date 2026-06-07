@@ -2310,8 +2310,9 @@ async function onSignedIn(user){
   document.getElementById('topNav').style.display='flex';
   await loadFromSupabase();
   supabaseLoaded=true;
-  // Re-request watcher state now that Supabase is loaded so faction data saves correctly
-  if(typeof requestWatcherAll === 'function') requestWatcherAll();
+  // Re-request watcher state now that Supabase is loaded — gets fresh inventory + faction snapshots
+  // Small delay to ensure Supabase render has completed first
+  setTimeout(() => { if(typeof requestWatcherAll === 'function') requestWatcherAll(); }, 500);
   // DKP and kills now loaded inside loadFromSupabase before first render
 }
 
