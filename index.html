@@ -2389,7 +2389,14 @@ async function loadFromSupabase(){
       for(const row of charRows){
         chars[row.char_name]=row.inventory||[];
         if(row.base_stats?.factions)factionData[row.char_name]=row.base_stats.factions;
-        if(row.base_stats?.factionValues)Object.assign(factionValues[row.char_name]=(factionValues[row.char_name]||{}),row.base_stats.factionValues);
+        if(row.base_stats?.factionValues){
+          const fv=row.base_stats.factionValues;
+          if(!factionValues[row.char_name])factionValues[row.char_name]={};
+          // backward compat: old format stored plain numbers, new stores {value,source}
+          for(const [k,v] of Object.entries(fv)){
+            factionValues[row.char_name][k]=typeof v==='number'?{value:v,source:'log'}:v;
+          }
+        }
         if(row.base_stats?.skyshrine)skyshrineData[row.char_name]=row.base_stats.skyshrine;
         if(row.base_stats?.questData)questData[row.char_name]=row.base_stats.questData;
         const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,...bs}=row.base_stats||{};
@@ -2723,13 +2730,14 @@ function factionColor(lvl){
   return 'yellow';
 }
 
-// factionValues[charName][displayName] = numeric value (tracked by log reader)
+// factionValues[charName][displayName] = { value, source } (tracked by log reader)
+// source: 'con' = from /con command, 'log' = from kill faction messages
 const factionValues = {};
 
 function applyFactionUpdate(charName, updates){
   if(!factionValues[charName]) factionValues[charName]={};
   for(const u of updates){
-    factionValues[charName][u.displayName]=u.value;
+    factionValues[charName][u.displayName]={value:u.value, source:u.source||'log'};
     setFaction(charName, u.displayName, u.level);
   }
   if(activeSub==='factions') renderFactionsPanel();
@@ -2739,7 +2747,7 @@ function applyFactionUpdate(charName, updates){
 function applyFactionSnapshot(charName, factions){
   if(!factionValues[charName]) factionValues[charName]={};
   for(const [,f] of Object.entries(factions)){
-    factionValues[charName][f.displayName]=f.value;
+    factionValues[charName][f.displayName]={value:f.value, source:f.source||'log'};
     setFaction(charName, f.displayName, f.level);
   }
   if(activeSub==='factions') renderFactionsPanel();
@@ -2801,16 +2809,20 @@ function renderFactionsPanel(){
     const badgeCls=color==='green'?'faction-badge-ally':color==='red'?'faction-badge-warn':color==='yellow'?'faction-badge-yellow':'faction-badge-none';
     const opts=`<option value="">— Not Set —</option>`+FACTION_LEVELS.map(l=>`<option value="${l}"${l===cur?' selected':''}>${l}</option>`).join('');
     // Numeric value from log reader, if known
-    const numVal = charFactionVals[f.name];
+    const fEntry = charFactionVals[f.name];
+    const numVal = fEntry?.value ?? (typeof fEntry === 'number' ? fEntry : undefined);
+    const isCon  = fEntry?.source === 'con';
     let valHtml='<span style="color:var(--text-muted);font-style:italic;font-size:.8rem">unknown</span>';
     if(numVal!==undefined){
       const pct = Math.round(((numVal - FACTION_MIN)/(FACTION_MAX - FACTION_MIN))*100);
       const barColor = color==='green'?'#4caf7d':color==='red'?'#c05050':'#c8962a';
+      const conTag = isCon?`<span title="Value set by /con" style="font-size:.65rem;color:var(--text-muted);font-family:'Cinzel',serif;letter-spacing:.04em;opacity:.7">con</span>`:'';
       valHtml=`<div style="display:flex;align-items:center;gap:.4rem">
         <div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;min-width:50px">
           <div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px;transition:width .3s"></div>
         </div>
         <span style="font-size:.75rem;color:var(--text-muted);min-width:32px;text-align:right">${numVal>0?'+':''}${numVal}</span>
+        ${conTag}
       </div>`;
     }
     html+=`<tr>
