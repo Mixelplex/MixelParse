@@ -2419,10 +2419,10 @@ async function loadFromSupabase(){
         };
         if(row.gear_stats)gearStats[row.char_name]=row.gear_stats;
       }
-      if(!activeTab||!chars[activeTab]){
-        // Restore last active tab from localStorage, fall back to all/first
+      // Always restore last active tab from localStorage after Supabase load
+      {
         const saved=localStorage.getItem('mp_activeTab');
-        if(saved&&chars[saved])activeTab=saved;
+        if(saved&&(saved==='__all__'||chars[saved]))activeTab=saved;
         else activeTab=Object.keys(chars).length>1?'__all__':Object.keys(chars)[0]||null;
       }
     }
