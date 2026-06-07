@@ -2763,10 +2763,13 @@ function applyFactionUpdate(charName, updates){
 
 function applyFactionSnapshot(charName, factions){
   const key=resolveCharKey(charName);
+  console.log('[snap] charName='+charName+' key='+key+' charsKeys='+JSON.stringify(Object.keys(chars)));
   if(!factionValues[key]) factionValues[key]={};
   for(const [,f] of Object.entries(factions)){
     factionValues[key][f.displayName]={value:f.value, source:f.source||'log'};
+    console.log('[snap] setFaction key='+key+' faction='+f.displayName+' level='+f.level);
     setFaction(key, f.displayName, f.level);
+    console.log('[snap] factionData[key][faction]='+((factionData[key]||{})[f.displayName]));
   }
   if(activeSub==='factions') renderFactionsPanel();
   renderTovBar();
