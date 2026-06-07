@@ -2389,6 +2389,7 @@ async function loadFromSupabase(){
       for(const row of charRows){
         chars[row.char_name]=row.inventory||[];
         if(row.base_stats?.factions)factionData[row.char_name]=row.base_stats.factions;
+        if(row.base_stats?.factionValues)Object.assign(factionValues[row.char_name]=(factionValues[row.char_name]||{}),row.base_stats.factionValues);
         if(row.base_stats?.skyshrine)skyshrineData[row.char_name]=row.base_stats.skyshrine;
         if(row.base_stats?.questData)questData[row.char_name]=row.base_stats.questData;
         const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,...bs}=row.base_stats||{};
@@ -2466,7 +2467,7 @@ async function saveToSupabase(){
       class:charMeta[cn]?.class||null,
       race:charMeta[cn]?.race||null,
       level:charMeta[cn]?.level||1,
-      base_stats:charMeta[cn]?.baseStats?{...charMeta[cn].baseStats,factions:factionData[cn]||{},nakedStats:charMeta[cn].nakedStats||null,currentStats:charMeta[cn].currentStats||null,skyshrine:skyshrineData[cn]||{},questData:questData[cn]||{},gearPlans:charMeta[cn].gearPlans||[]}:{factions:factionData[cn]||{},nakedStats:charMeta[cn]?.nakedStats||null,currentStats:charMeta[cn]?.currentStats||null,skyshrine:skyshrineData[cn]||{},questData:questData[cn]||{},gearPlans:charMeta[cn]?.gearPlans||[]},
+      base_stats:charMeta[cn]?.baseStats?{...charMeta[cn].baseStats,factions:factionData[cn]||{},factionValues:factionValues[cn]||{},nakedStats:charMeta[cn].nakedStats||null,currentStats:charMeta[cn].currentStats||null,skyshrine:skyshrineData[cn]||{},questData:questData[cn]||{},gearPlans:charMeta[cn].gearPlans||[]}:{factions:factionData[cn]||{},factionValues:factionValues[cn]||{},nakedStats:charMeta[cn]?.nakedStats||null,currentStats:charMeta[cn]?.currentStats||null,skyshrine:skyshrineData[cn]||{},questData:questData[cn]||{},gearPlans:charMeta[cn]?.gearPlans||[]},
       gear_stats:gearStats[cn]||null,
       inventory:chars[cn]||[],
       updated_at:new Date().toISOString()
@@ -2561,31 +2562,188 @@ function loadItemDB(){
 
 // ─── Factions ─────────────────────────────────────────────────────────────────
 
-const FACTION_LEVELS = ['Ally','Warmly','Kindly','Amiably','Indifferently','Apprehensively','Dubiously','Threateningly','Ready to Attack'];
+const FACTION_LEVELS = ['Ally','Warmly','Kindly','Amiable','Indifferent','Apprehensive','Dubious','Threatening','Ready to Attack'];
+
+// P1999 numeric ranges (from P1999 wiki / Uthgaard GM post)
+const FACTION_RANGES = [
+  {name:'Ally',            min:1051,  max:2000},
+  {name:'Warmly',          min:701,   max:1050},
+  {name:'Kindly',          min:451,   max:700},
+  {name:'Amiable',         min:51,    max:450},
+  {name:'Indifferent',     min:-49,   max:50},
+  {name:'Apprehensive',    min:-449,  max:-50},
+  {name:'Dubious',         min:-699,  max:-450},
+  {name:'Threatening',     min:-1049, max:-700},
+  {name:'Ready to Attack', min:-2000, max:-1050},
+];
+const FACTION_MAX = 2000;
+const FACTION_MIN = -2000;
+function levelFromFactionValue(val){
+  for(const r of FACTION_RANGES) if(val>=r.min&&val<=r.max) return r.name;
+  return val>2000?'Ally':'Ready to Attack';
+}
+
+// Map: log key (no spaces, as written in EQ log) → display name
+// Used by the watcher to translate faction updates
+const FACTION_LOG_KEY_MAP = {
+  'ClawsofVeeshan':'Claws of Veeshan',
+  'RingofScale':'Ring of Scale',
+  'Yelinak':'Yelinak',
+  'Kromzek':'Kromzek',
+  'Kromrif':'Kromrif',
+  'Coldain':'Coldain',
+  'KingTormax':'King Tormax',
+  'DainFrostreaverIV':'Dain Frostreaver IV',
+  'GuardiansofVeeshan':'Guardians of Veeshan',
+  'StormGuard':'Storm Guards',
+  'EmeraldWarriors':'Emerald Warriors',
+  'LegionofCabilis':'Legion of Cabilis',
+  'BroodofDi`Zok':"Brood of Di'Zok",
+  'SarnakCollective':'Sarnak Collective',
+  'BroodofKotiz':'Brood of Kotiz',
+  'VenrilSathir':'Venril Sathir',
+  'FirionaVie':'Firiona Vie',
+  'BurynaiLegion':'Burynai Legion',
+  'MinionsofScale':'Minions of Scale',
+  'GuardiansoftheVale':'Guardians of the Vale',
+  'FaydarksChampions':"Faydark's Champions",
+  'IndigoBrotherhood':'Indigo Brotherhood',
+  'CrushboneOrcs':'Crushbone Orcs',
+  'GuardsofQeynos':'Guards of Qeynos',
+  'KnightsofTruth':'Knights of Truth',
+  'AshenOrder':'Ashen Order',
+  'CommonsResidents':'Commons Residents',
+  'DeathfistOrcs':'Deathfist Orcs',
+  'LeagueofAntonicanBards':'League of Antonican Bards',
+  'AntoniusBayle':'Antonius Bayle',
+  'MerchantsofQeynos':'Merchants of Qeynos',
+  'CorruptQeynosGuards':'Corrupt Qeynos Guards',
+  'CircleofUnseenHands':'Circle of Unseen Hands',
+  'DenizensofFear':'Denizens of Fear',
+  'InhabitantsofHate':'Inhabitants of Hate',
+  'FrogloksofGuk':'Frogloks of Guk',
+  'UndeadFrogloksofGuk':'Undead Frogloks of Guk',
+  'AgentsofMistmoore':'Agents of Mistmoore',
+  'MayongMistmoore':'Mayong Mistmoore',
+  'TempleofSolusekRo':'Temple of Solusek Ro',
+  'GoblinsofMountainDeath':'Goblins of Mountain Death',
+  'GoblinsofCleavingTooth':'Goblins of Cleaving Tooth',
+  'PickclawGoblins':'Pickclaw Goblins',
+  'ShadowedMen':'Shadowed Men',
+  'TheForsaken':'The Forsaken',
+  'Bloodgills':'Bloodgills',
+  'Bloodsabers':'Bloodsabers',
+  'HighpassGuards':'Highpass Guards',
+  'HighGuardofErudin':'High Guard of Erudin',
+  'SplitpawClan':'Splitpaw Clan',
+  'KaranaResidents':'Karana Residents',
+  'PiratesofGunthak':'Pirates of Gunthak',
+  'KingXorbb':'King Xorbb',
+  'Vox':'Vox',
+  'Nagafen':'Nagafen',
+};
+// Reverse map: display name → log key
+const FACTION_DISPLAY_TO_KEY = Object.fromEntries(Object.entries(FACTION_LOG_KEY_MAP).map(([k,v])=>[v,k]));
 
 const FACTION_LIST = [
-  // ── Major Raid Factions ──
-  {name:'Claws of Veeshan',        section:'Raid'},
-  {name:'Ring of Scale',           section:'Raid'},
-  {name:'Yelinak',                 section:'Raid'},
-  {name:'Kromzek',                 section:'Raid'},
-  {name:'Kromrif',                 section:'Raid'},
-  {name:'Coldain',                 section:'Raid'},
-  // ── City / Neutral Factions ──
-  {name:'Kael Drakkel',            section:'City'},
-  {name:'Thurgadin',               section:'City'},
-  {name:'Skyshrine',               section:'City'},
-  {name:'Cabilis Residents',       section:'City'},
-  {name:'Emerald Warriors',        section:'City'},
-  {name:'Storm Guards',            section:'City'},
+  // ── Velious Raid ──
+  {name:'Claws of Veeshan',         section:'Raid'},
+  {name:'Ring of Scale',            section:'Raid'},
+  {name:'Yelinak',                  section:'Raid'},
+  {name:'Kromzek',                  section:'Raid'},
+  {name:'Kromrif',                  section:'Raid'},
+  {name:'Coldain',                  section:'Raid'},
+  {name:'King Tormax',              section:'Raid'},
+  {name:'Dain Frostreaver IV',      section:'Raid'},
+  {name:'Guardians of Veeshan',     section:'Raid'},
+  // ── Velious City ──
+  {name:'Storm Guards',             section:'City'},
+  {name:'Emerald Warriors',         section:'City'},
+  {name:'Kael Drakkel',             section:'City'},
+  {name:'Thurgadin',                section:'City'},
+  {name:'Skyshrine',                section:'City'},
+  // ── Kunark ──
+  {name:'Legion of Cabilis',        section:'Kunark'},
+  {name:"Brood of Di'Zok",          section:'Kunark'},
+  {name:'Sarnak Collective',        section:'Kunark'},
+  {name:'Brood of Kotiz',           section:'Kunark'},
+  {name:'Venril Sathir',            section:'Kunark'},
+  {name:'Firiona Vie',              section:'Kunark'},
+  {name:'Burynai Legion',           section:'Kunark'},
+  {name:'Minions of Scale',         section:'Kunark'},
+  // ── Antonica / Faydwer ──
+  {name:'Guardians of the Vale',    section:'World'},
+  {name:"Faydark's Champions",      section:'World'},
+  {name:'Indigo Brotherhood',       section:'World'},
+  {name:'Crushbone Orcs',           section:'World'},
+  {name:'Guards of Qeynos',         section:'World'},
+  {name:'Knights of Truth',         section:'World'},
+  {name:'Ashen Order',              section:'World'},
+  {name:'Commons Residents',        section:'World'},
+  {name:'Deathfist Orcs',           section:'World'},
+  {name:'League of Antonican Bards',section:'World'},
+  {name:'Antonius Bayle',           section:'World'},
+  {name:'Merchants of Qeynos',      section:'World'},
+  {name:'Corrupt Qeynos Guards',    section:'World'},
+  {name:'Circle of Unseen Hands',   section:'World'},
+  {name:'Highpass Guards',          section:'World'},
+  {name:'Karana Residents',         section:'World'},
+  {name:'Pickclaw Goblins',         section:'World'},
+  {name:'King Xorbb',               section:'World'},
+  {name:'Splitpaw Clan',            section:'World'},
+  // ── Fear / Hate ──
+  {name:'Denizens of Fear',         section:'Planes'},
+  {name:'Inhabitants of Hate',      section:'Planes'},
+  // ── Dragons ──
+  {name:'Vox',                      section:'Dragons'},
+  {name:'Nagafen',                  section:'Dragons'},
+  {name:'Mayong Mistmoore',         section:'Dragons'},
+  {name:'Agents of Mistmoore',      section:'Dragons'},
+  // ── Misc ──
+  {name:'Frogloks of Guk',          section:'Misc'},
+  {name:'Undead Frogloks of Guk',   section:'Misc'},
+  {name:'Temple of Solusek Ro',     section:'Misc'},
+  {name:'Goblins of Mountain Death',section:'Misc'},
+  {name:'Goblins of Cleaving Tooth',section:'Misc'},
+  {name:'Shadowed Men',             section:'Misc'},
+  {name:'The Forsaken',             section:'Misc'},
+  {name:'Bloodgills',               section:'Misc'},
+  {name:'Bloodsabers',              section:'Misc'},
+  {name:'Pirates of Gunthak',       section:'Misc'},
+  {name:'High Guard of Erudin',     section:'Misc'},
+  {name:'Burynai Legion',           section:'Misc'},
 ];
 
-const FACTION_RED = new Set(['Threateningly','Ready to Attack']);
+const FACTION_RED = new Set(['Threatening','Ready to Attack']);
+const FACTION_GREEN = new Set(['Ally','Warmly','Kindly']);
 function factionColor(lvl){
   if(!lvl)return 'none';
-  if(lvl==='Ally')return 'green';
+  if(FACTION_GREEN.has(lvl))return 'green';
   if(FACTION_RED.has(lvl))return 'red';
   return 'yellow';
+}
+
+// factionValues[charName][displayName] = numeric value (tracked by log reader)
+const factionValues = {};
+
+function applyFactionUpdate(charName, updates){
+  if(!factionValues[charName]) factionValues[charName]={};
+  for(const u of updates){
+    factionValues[charName][u.displayName]=u.value;
+    setFaction(charName, u.displayName, u.level);
+  }
+  if(activeSub==='factions') renderFactionsPanel();
+  renderTovBar();
+}
+
+function applyFactionSnapshot(charName, factions){
+  if(!factionValues[charName]) factionValues[charName]={};
+  for(const [,f] of Object.entries(factions)){
+    factionValues[charName][f.displayName]=f.value;
+    setFaction(charName, f.displayName, f.level);
+  }
+  if(activeSub==='factions') renderFactionsPanel();
+  renderTovBar();
 }
 
 // factionData[charName][factionName] = level string
@@ -2619,28 +2777,46 @@ function renderTovBar(){
   }).join('');
 }
 
+const FACTION_SECTION_LABELS = {Raid:'VELIOUS RAID',City:'VELIOUS CITY',Kunark:'KUNARK',World:'ANTONICA / FAYDWER',Planes:'PLANES',Dragons:'DRAGONS',Misc:'MISC'};
 function renderFactionsPanel(){
   const panel=document.getElementById('factionsPanel');
   if(!panel)return;
   const name=activeTab;
   if(!name||name==='__all__'){panel.innerHTML='<div class="empty-state">Select a character to manage factions.</div>';return;}
 
-  let html=`<div class="faction-panel"><table class="faction-table"><thead><tr><th>Faction</th><th>Standing</th></tr></thead><tbody>`;
+  const charFactionVals = factionValues[name]||{};
+  let html=`<div class="faction-panel"><table class="faction-table"><thead><tr><th>Faction</th><th class="faction-th-center">Standing</th><th class="faction-th-center" style="min-width:90px">Value</th></tr></thead><tbody>`;
 
+  // dedupe — FACTION_LIST has Burynai Legion twice; filter
+  const seen=new Set();
   let lastSection='';
   for(const f of FACTION_LIST){
+    if(seen.has(f.name))continue; seen.add(f.name);
     if(f.section!==lastSection){
-      const label=f.section==='ToV'?'TEMPLE OF VEESHAN':f.section==='Raid'?'RAID FACTIONS':'CITY / NEUTRAL';
-      html+=`<tr class="faction-section-divider"><td colspan="2">${label}</td></tr>`;
+      html+=`<tr class="faction-section-divider"><td colspan="3">${FACTION_SECTION_LABELS[f.section]||f.section}</td></tr>`;
       lastSection=f.section;
     }
     const cur=getFaction(name,f.name);
     const color=factionColor(cur);
     const badgeCls=color==='green'?'faction-badge-ally':color==='red'?'faction-badge-warn':color==='yellow'?'faction-badge-yellow':'faction-badge-none';
     const opts=`<option value="">— Not Set —</option>`+FACTION_LEVELS.map(l=>`<option value="${l}"${l===cur?' selected':''}>${l}</option>`).join('');
+    // Numeric value from log reader, if known
+    const numVal = charFactionVals[f.name];
+    let valHtml='<span style="color:var(--text-muted);font-style:italic;font-size:.8rem">unknown</span>';
+    if(numVal!==undefined){
+      const pct = Math.round(((numVal - FACTION_MIN)/(FACTION_MAX - FACTION_MIN))*100);
+      const barColor = color==='green'?'#4caf7d':color==='red'?'#c05050':'#c8962a';
+      valHtml=`<div style="display:flex;align-items:center;gap:.4rem">
+        <div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;min-width:50px">
+          <div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px;transition:width .3s"></div>
+        </div>
+        <span style="font-size:.75rem;color:var(--text-muted);min-width:32px;text-align:right">${numVal>0?'+':''}${numVal}</span>
+      </div>`;
+    }
     html+=`<tr>
       <td class="faction-name">${esc(f.name)}</td>
-      <td><select class="faction-select ${badgeCls}" data-faction="${esc(f.name)}" onchange="setFaction('${esc(name)}',this.dataset.faction,this.value);const c=factionColor(this.value);this.className='faction-select '+(c==='green'?'faction-badge-ally':c==='red'?'faction-badge-warn':c==='yellow'?'faction-badge-yellow':'faction-badge-none')">${opts}</select></td>
+      <td style="text-align:center"><select class="faction-select ${badgeCls}" data-faction="${esc(f.name)}" onchange="setFaction('${esc(name)}',this.dataset.faction,this.value);const c=factionColor(this.value);this.className='faction-select '+(c==='green'?'faction-badge-ally':c==='red'?'faction-badge-warn':c==='yellow'?'faction-badge-yellow':'faction-badge-none')">${opts}</select></td>
+      <td>${valHtml}</td>
     </tr>`;
   }
   html+=`</tbody></table></div>`;
@@ -3122,6 +3298,18 @@ window.applyDBToChar    = applyDBToChar;
         if(msg.type === 'hello' && msg.secret !== WS_SECRET) { ws.close(); return; }
         if(msg.type === 'inventory') handleInventory(msg.filename, msg.content);
         if(msg.type === 'ping')      ws.send(JSON.stringify({ type: 'pong' }));
+        if(msg.type === 'factionUpdate'){
+          applyFactionUpdate(msg.charName, msg.updates);
+          const n = msg.updates.length;
+          showWatcherToast(`⚔ ${msg.charName}: ${n} faction update${n===1?'':'s'}`);
+          saveState();
+        }
+        if(msg.type === 'factionSnapshot'){
+          applyFactionSnapshot(msg.charName, msg.factions);
+          const n = Object.keys(msg.factions).length;
+          if(n>0) showWatcherToast(`📜 ${msg.charName}: ${n} factions loaded from log`);
+          saveState();
+        }
       } catch{}
     };
 
