@@ -232,6 +232,11 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
     Supabase / Auth
     <span class="sb-badge skip" id="badge-supabase">—</span>
   </div>
+  <div class="sb-item" data-suite="creditcheck" onclick="showSuite('creditcheck',this)">
+    <div class="sb-dot skip" id="dot-creditcheck"></div>
+    Credit Check
+    <span class="sb-badge skip" id="badge-creditcheck">—</span>
+  </div>
   <div class="sb-item" data-suite="dropscrape" onclick="showSuite('dropscrape',this)">
     <div class="sb-dot skip" id="dot-dropscrape"></div>
     Drop Data Scrape
@@ -569,6 +574,13 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
       <div class="suite-desc">Tests Supabase client connectivity, auth state, and confirms save/load functions exist and are wired correctly.</div>
       <div class="suite-actions"><button class="btn primary" onclick="runSuite('supabase')">&#9658; Run Suite</button></div>
       <div id="results-supabase"></div>
+    </div>
+
+    <div id="suite-creditcheck" class="suite">
+      <div class="suite-title">CREDIT CHECK</div>
+      <div class="suite-desc">Validates the ODKP credit check system — alias map correctness, creditData parse integrity, Supabase column presence, and kill coverage against your session history.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('creditcheck')">&#9658; Run Suite</button></div>
+      <div id="results-creditcheck"></div>
     </div>
 
     <!-- DROP SCRAPE SUITE -->
@@ -1727,20 +1739,165 @@ window.renderQuestMatrix = function() {
   el.innerHTML = html;
 };
 
+// ── CREDIT CHECK SUITE ──
+SUITES['creditcheck'] = [
+  makeTest('normalizeOdkpLabel — alias map smoke test', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener — open via MixelParse', asserts:[] };
+    const fn = A2.normalizeOdkpLabel;
+    if (!fn) return { status:'fail', msg:'normalizeOdkpLabel not exposed on window', asserts:[ assert('normalizeOdkpLabel exists', false) ] };
+    const cases = [
+      ['AoW kill',          'Avatar of War'],
+      ['6-2 19:46 Avatar of War 3','Avatar of War'],
+      ['KT kill',           'Tormax'],
+      ['King Tormax kill',  'Tormax'],
+      ['Driishk kill',      'Druushk'],
+      ['Lord Vyemm kill',   'Vyemm'],
+      ['Vyem 2',            'Vyemm'],
+      ['Yeli 3',            'Yelinak'],
+      ['Lady N kill',       'Nevederia'],
+      ['LadyM kill',        'Mirenilla'],
+      ['Nev 4',             'Nevederia'],
+      ['Queen Bee 1 kill',  'Bazzt Zzzt'],
+      ['QueenBee kill',     'Bazzt Zzzt'],
+      ['Gore 1',            'Gorenaire'],
+      ['CT kill with bonus','Cazic Thule'],
+      ['Doze 1',            'Dozekar'],
+      ['Eash 3',            'Eashen'],
+      ['Fesh 2',            'Feshlak'],
+      ['Velk 1',            'Velketor'],
+      ['Vindi kill',        'Vindi'],
+      ['VS kill',           'VS'],
+      ['Vulak kill',        'Vulak'],
+      ['Aary 1',            'Aaryonar'],
+      ['Jorl 3',            'Jorlleag'],
+      ['Kreiz 2',           'Kreizenn'],
+      ['Klandi 1',          'Klandicar'],
+      ['Crusade 1',         null],
+      ['NTOV 1',            null],
+      ['HoT 2',             null],
+      ['RW 4',              null],
+    ];
+    const failures = [];
+    for (const [input, expected] of cases) {
+      const got = fn(input);
+      if (got !== expected) failures.push(`"${input}" → got "${got}", expected "${expected}"`);
+    }
+    const asserts = [ assert(`All ${cases.length} alias cases correct (${failures.length} failures)`, failures.length === 0) ];
+    return { status: failures.length === 0 ? 'pass' : 'fail', asserts,
+      output: failures.length ? failures.join('\n') : `All ${cases.length} normalization cases passed` };
+  }),
+
+  makeTest('parseOdkpDetailsCsv — function exists and is exposed', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const asserts = [
+      assert('parseOdkpDetailsCsv exists', typeof A2.parseOdkpDetailsCsv === 'function'),
+      assert('normalizeOdkpLabel exists', typeof A2.normalizeOdkpLabel === 'function'),
+      assert('exportCreditReport exists', typeof A2.exportCreditReport === 'function'),
+    ];
+    return { status: asserts.every(a=>a.ok)?'pass':'fail', asserts };
+  }),
+
+  makeTest('creditData — structure and integrity', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const cd = A2.creditData;
+    if (!cd) return { status:'warn', msg:'No creditData loaded — upload ODKP Details CSV in Credit Check tab first', asserts:[ assert('creditData exists', false) ] };
+    const chars = Object.keys(cd);
+    let totalDates = 0, totalKills = 0;
+    for (const c of chars) {
+      const dates = Object.keys(cd[c]);
+      totalDates += dates.length;
+      for (const d of dates) totalKills += cd[c][d].size;
+    }
+    const asserts = [
+      assert('creditData has at least one character', chars.length > 0),
+      assert('All values are Sets', chars.every(c => Object.values(cd[c]).every(v => v instanceof Set))),
+      assert('Total kill credits > 0', totalKills > 0),
+    ];
+    return { status: asserts.every(a=>a.ok)?'pass':'fail', asserts,
+      output: `Characters in CSV: ${chars.map(c=>c.charAt(0).toUpperCase()+c.slice(1)).join(', ')}\nDate buckets: ${totalDates}\nTotal kill credits indexed: ${totalKills}` };
+  }),
+
+  makeTest('Supabase credit_data column — query test', async () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const sb = A2.sb;
+    if (!sb) return { status:'fail', msg:'Supabase client not found', asserts:[ assert('sb exists', false) ] };
+    try {
+      const { data, error } = await sb.from('guild_data').select('credit_data').eq('pool','SoV').single();
+      if (error && error.code === 'PGRST116') {
+        // No row yet — column exists but empty, that's fine
+        return { status:'warn', msg:'No SoV row in guild_data yet — save a session first', asserts:[ assert('credit_data column reachable', true) ] };
+      }
+      if (error) {
+        const isMissingCol = error.message?.includes('credit_data') || error.code === '42703';
+        const asserts = [ assert('credit_data column exists in guild_data', !isMissingCol) ];
+        return { status:'fail', asserts, output: `Error: ${error.message}\n\nFix: Run in Supabase SQL editor:\nALTER TABLE guild_data ADD COLUMN IF NOT EXISTS credit_data jsonb;` };
+      }
+      const hasData = data?.credit_data != null;
+      const asserts = [ assert('credit_data column exists', true), assert('credit_data has saved data', hasData) ];
+      return { status: asserts.every(a=>a.ok)?'pass':'warn', asserts,
+        output: hasData ? `credit_data present — ${Object.keys(data.credit_data).length} character(s) stored` : 'Column exists but empty — upload CSV in Credit Check tab' };
+    } catch(e) {
+      return { status:'fail', asserts:[ assert('Query succeeded', false) ], output: String(e) };
+    }
+  }),
+
+  makeTest('Kill coverage — sessions vs creditData', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const sessions = A2.raidSessions || [];
+    const cd = A2.creditData;
+    const chars = Object.keys(A2.chars || {}).filter(n=>n!=='__all__');
+    if (!sessions.length) return { status:'warn', msg:'No raid sessions saved', asserts:[] };
+    if (!cd) return { status:'warn', msg:'No creditData loaded — upload ODKP Details CSV first', asserts:[] };
+    if (!chars.length) return { status:'warn', msg:'No characters loaded', asserts:[] };
+
+    let totalKills = 0, missing = [], covered = 0;
+    for (const s of sessions) {
+      const killed = Object.entries(s.killState||{}).filter(([,v])=>v==='killed').map(([k])=>k);
+      for (const target of killed) {
+        totalKills++;
+        for (const cn of chars) {
+          const key = cn.toLowerCase();
+          if (cd[key] === undefined) continue; // char not in CSV
+          const credited = cd[key]?.[s.date]?.has(target);
+          if (!credited) missing.push(`${s.date}  ${target.padEnd(22)}  ${cn}`);
+          else covered++;
+        }
+      }
+    }
+    const missingCount = missing.length;
+    const asserts = [
+      assert(`Sessions scanned: ${sessions.length}`, true),
+      assert(`Kill credits checked: ${totalKills * chars.length}`, true),
+      assert(`No missing credits`, missingCount === 0),
+    ];
+    const lines = [
+      `Sessions: ${sessions.length}  |  Unique kills: ${totalKills}  |  Characters: ${chars.join(', ')}`,
+      `Covered: ${covered}  |  Missing: ${missingCount}`,
+      ...(missingCount ? ['', 'MISSING CREDITS:', ...missing.slice(0,20), ...(missing.length>20?[`...and ${missing.length-20} more`]:[])] : ['', '✓ All kill credits accounted for']),
+    ];
+    return { status: missingCount===0?'pass':'warn', asserts, output: lines.join('\n') };
+  }),
+];
+
 // ── RUNNER ──
-const SUITE_IDS = ['parsing','itemdb','wikiparse','calcs','upgrades','weapondps','bridge','dkp','plat','consumes','factions','skyshrine','quests','supabase','state','utils'];
+const SUITE_IDS = ['parsing','itemdb','wikiparse','calcs','upgrades','weapondps','bridge','dkp','plat','consumes','factions','skyshrine','quests','supabase','creditcheck','state','utils'];
 const SUITE_LABELS = {
   parsing:'Inventory Parser', itemdb:'Item DB / CSV', wikiparse:'Wiki Stat Parser',
   calcs:'HP / Mana Calcs', upgrades:'Upgrade Scoring', bridge:'Price Bridge',
   dkp:'DKP Pipeline', plat:'Plat / Pigparse', consumes:'Raid Consumes',
   factions:'Factions', skyshrine:'Skyshrine Tracker', quests:'Quest Items',
-  supabase:'Supabase / Auth', state:'State Snapshot', utils:'Utilities'
+  supabase:'Supabase / Auth', creditcheck:'Credit Check', state:'State Snapshot', utils:'Utilities'
 };
 
 let allResults = {};
 
 // Suites that require window.opener (i.e. the live app)
-const REQUIRES_OPENER = new Set(['itemdb','calcs','upgrades','bridge','dkp','plat','consumes','factions','skyshrine','quests','supabase','state','parsing']);
+const REQUIRES_OPENER = new Set(['itemdb','calcs','upgrades','bridge','dkp','plat','consumes','factions','skyshrine','quests','supabase','creditcheck','state','parsing']);
 
 async function runSuite(id) {
   const tests = SUITES[id];

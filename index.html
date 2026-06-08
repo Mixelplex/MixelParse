@@ -3418,6 +3418,10 @@ window.platTypeLabel    = platTypeLabel;
 window.platTypeChip     = platTypeChip;
 window.charHasItem      = charHasItem;
 window.charHasAnyOf     = charHasAnyOf;
+window.normalizeOdkpLabel    = normalizeOdkpLabel;
+window.parseOdkpDetailsCsv  = parseOdkpDetailsCsv;
+// creditData exposed as getter so admin always sees current value
+Object.defineProperty(window,'creditData',{get:()=>creditData,configurable:true});
 window.getConsumeStatus = getConsumeStatus;
 window.getOverallStatus = getOverallStatus;
 window.getFaction       = getFaction;
