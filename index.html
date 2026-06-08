@@ -6258,21 +6258,71 @@ function wlRuleLabel(rule){
 
 function renderWlModal(){
   wlBuildCharCheckboxes();
+  const allNames=charNames().filter(n=>n!=='__all__');
   document.getElementById('wlItemList').innerHTML=watchList.length
     ?watchList.map((rule,i)=>{
       const item=typeof rule==='string'?rule:rule.item;
+      const ruleChars=typeof rule==='string'?'__all__':(rule.chars||'__all__');
       const who=wlRuleLabel(rule);
-      return`<div class="wl-item-row">
-        <span style="flex:1">${esc(item)}</span>
-        <span style="font-size:.72rem;color:var(--text-muted);margin:0 .5rem;font-family:'Cinzel',serif">${esc(who)}</span>
-        <button type="button" class="wl-item-remove" onclick="wlRemove(${i})">✕</button>
+      const checkboxes=`<div class="wl-edit-chars" id="wlEdit_${i}" style="display:none;flex-wrap:wrap;gap:.3rem .5rem;margin:.4rem 0 .2rem">
+        <label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;cursor:pointer">
+          <input type="checkbox" data-rule="${i}" data-char="__all__" ${ruleChars==='__all__'?'checked':''} style="accent-color:var(--gold-light)"> ALL
+        </label>
+        ${allNames.map(n=>`<label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;cursor:pointer">
+          <input type="checkbox" data-rule="${i}" data-char="${esc(n)}" ${ruleChars!=='__all__'&&Array.isArray(ruleChars)&&ruleChars.includes(n)?'checked':''} style="accent-color:var(--gold-light)"> ${esc(n)}
+        </label>`).join('')}
+      </div>`;
+      return`<div class="wl-item-row" style="flex-direction:column;align-items:stretch;cursor:default">
+        <div style="display:flex;align-items:center;cursor:pointer" onclick="wlToggleEdit(${i})">
+          <span style="flex:1">${esc(item)}</span>
+          <span style="font-size:.72rem;color:var(--text-muted);margin:0 .5rem;font-family:'Cinzel',serif">${esc(who)}</span>
+          <button type="button" class="wl-item-remove" onclick="event.stopPropagation();wlRemove(${i})">✕</button>
+        </div>
+        ${checkboxes}
       </div>`;
     }).join('')
     :'<div style="color:var(--text-muted);font-size:.82rem;font-style:italic">No items yet.</div>';
+  // Wire up char checkboxes in item rows
+  document.querySelectorAll('.wl-edit-chars input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change',function(){
+      const i=parseInt(this.dataset.rule);
+      const char=this.dataset.char;
+      const rule=watchList[i];
+      const item=typeof rule==='string'?rule:rule.item;
+      if(char==='__all__'){
+        // ALL clicked — set to __all__ or uncheck all
+        if(this.checked){
+          // uncheck siblings
+          document.querySelectorAll(`.wl-edit-chars input[data-rule="${i}"][data-char!="__all__"]`).forEach(c=>c.checked=false);
+          watchList[i]={item,chars:'__all__'};
+        } else {
+          watchList[i]={item,chars:[]};
+        }
+      } else {
+        // Individual char — uncheck ALL
+        document.querySelector(`.wl-edit-chars input[data-rule="${i}"][data-char="__all__"]`).checked=false;
+        const picked=[...document.querySelectorAll(`.wl-edit-chars input[data-rule="${i}"][data-char!="__all__"]:checked`)].map(c=>c.dataset.char);
+        watchList[i]={item,chars:picked.length?picked:'__all__'};
+      }
+      // Update who label
+      renderWlModal();
+      // Re-open the edit panel
+      const el=document.getElementById(`wlEdit_${i}`);
+      if(el)el.style.display='flex';
+      renderWatchlistBar();
+      saveWatchList();
+    });
+  });
   const shortcuts=[...new Set(RAID_CONSUMES.flatMap(c=>c.anyOf||[c.name||'']).filter(Boolean))];
   document.getElementById('wlShortcuts').innerHTML=shortcuts.map(name=>
     `<span class="wl-shortcut-chip" onclick="wlQuickAdd('${esc(name)}')">${esc(name)}</span>`
   ).join('');
+}
+
+function wlToggleEdit(i){
+  const el=document.getElementById(`wlEdit_${i}`);
+  if(!el)return;
+  el.style.display=el.style.display==='none'?'flex':'none';
 }
 
 document.getElementById('wlGearBtn').addEventListener('click',wlOpen);
