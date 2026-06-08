@@ -4960,6 +4960,19 @@ function normalizeOdkpLabel(raw){
   return null;
 }
 
+// Parse a CSV line respecting quoted fields
+function parseCsvLine(line){
+  const cols=[];let cur='';let inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+    else if(c===','&&!inQ){cols.push(cur);cur='';}
+    else cur+=c;
+  }
+  cols.push(cur);
+  return cols;
+}
+
 // Parse the ODKP details CSV into creditData: {charNameLower → {dateStr → Set<target>}}
 function parseOdkpDetailsCsv(text){
   const lines=text.split(/\r?\n/);
@@ -4967,8 +4980,8 @@ function parseOdkpDetailsCsv(text){
   let header=null;
   for(const line of lines){
     if(!line.trim())continue;
-    // Simple CSV split (handles no internal quotes in these fields)
-    const cols=line.split(',');
+    // Proper CSV split respecting quoted fields
+    const cols=parseCsvLine(line);
     if(!header){header=cols;continue;}
     // Columns: Date,Amount,SourceType,Source,CharacterName,...
     const date=cols[0]?.trim();
@@ -4976,10 +4989,8 @@ function parseOdkpDetailsCsv(text){
     const source=cols[3]?.trim();
     const charName=cols[4]?.trim();
     if(!charName||!date||sourceType!=='Raid')continue;
-    // Parse date → YYYY-MM-DD
-    const d=new Date(date);
-    if(isNaN(d))continue;
-    const dateStr=d.toISOString().slice(0,10);
+    // Parse date → YYYY-MM-DD (slice directly to avoid timezone shift)
+    const dateStr=date.slice(0,10);
     // Extract the specific kill from source — after last " - "
     let label=source;
     if(source.includes(' - '))label=source.split(' - ').pop().trim();
