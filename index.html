@@ -6199,15 +6199,11 @@ function wlBuildCharCheckboxes(){
   if(!el)return;
   el.innerHTML=`
     <label style="display:flex;align-items:center;gap:.3rem;font-size:.8rem;cursor:pointer">
-      <input type="checkbox" id="wlChkAll" style="accent-color:var(--gold-light)"> ALL
+      <input type="checkbox" id="wlChkAll" onchange="document.querySelectorAll('.wlChkChar').forEach(c=>c.checked=this.checked)" style="accent-color:var(--gold-light)"> ALL
     </label>
     ${names.map(n=>`<label style="display:flex;align-items:center;gap:.3rem;font-size:.8rem;cursor:pointer">
-      <input type="checkbox" class="wlChkChar" data-char="${esc(n)}" style="accent-color:var(--gold-light)"> ${esc(n)}
+      <input type="checkbox" class="wlChkChar" data-char="${esc(n)}" onchange="if(this.checked)document.getElementById('wlChkAll').checked=false" style="accent-color:var(--gold-light)"> ${esc(n)}
     </label>`).join('')}`;
-  // ALL toggles all chars
-  el.querySelector('#wlChkAll').addEventListener('change',function(){
-    el.querySelectorAll('.wlChkChar').forEach(c=>c.checked=this.checked);
-  });
 }
 
 function wlGetSelectedChars(){
