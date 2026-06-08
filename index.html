@@ -2250,7 +2250,7 @@ function loadFiles(files){const arr=[...files];if(!arr.length)return;let loaded=
 document.getElementById('fileInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
 document.getElementById('charRefreshInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const cn=extractCharName(file.name);chars[cn]=parseInventory(ev.target.result,cn);if(!charMeta[cn])charMeta[cn]={};if(activeTab!==cn)activeTab=cn;refresh();};reader.readAsText(file);e.target.value='';});
 document.getElementById('dkpCsvInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const {lookup,txCount}=parseDkpCsv(ev.target.result);dkpLookup=lookup;dkpMeta={updatedAt:new Date().toISOString(),txCount};dkpCacheKey='';saveDkpToSupabase();renderDkpPanel();applyDkpToItemDB();};reader.readAsText(file);e.target.value='';});
-document.getElementById('creditCsvInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const parsed=parseOdkpDetailsCsv(ev.target.result);console.log('[CreditCheck] Parsed chars:',Object.keys(parsed),'total dates:',Object.values(parsed).reduce((s,d)=>s+Object.keys(d).length,0));creditData=parsed;saveCreditDataToSupabase();renderKillsPanel();};reader.readAsText(file);e.target.value='';})
+document.getElementById('creditCsvInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const parsed=parseOdkpDetailsCsv(ev.target.result);console.log('[CreditCheck] Parsed chars:',Object.keys(parsed),'total dates:',Object.values(parsed).reduce((s,d)=>s+Object.keys(d).length,0));creditData=parsed;window.creditData=parsed;saveCreditDataToSupabase();renderKillsPanel();};reader.readAsText(file);e.target.value='';})
 document.getElementById('dzInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
 document.getElementById('tabAdd').addEventListener('click',()=>document.getElementById('fileInput').click());
 const dz=document.getElementById('dropzone');
@@ -3421,8 +3421,6 @@ window.charHasAnyOf     = charHasAnyOf;
 window.normalizeOdkpLabel    = normalizeOdkpLabel;
 window.parseOdkpDetailsCsv  = parseOdkpDetailsCsv;
 window.sb                    = sb;
-// creditData exposed as getter so admin always sees current value
-Object.defineProperty(window,'creditData',{get:()=>creditData,configurable:true});
 window.getConsumeStatus = getConsumeStatus;
 window.getOverallStatus = getOverallStatus;
 window.getFaction       = getFaction;
@@ -5038,6 +5036,7 @@ function loadCreditDataFromSupabase(row){
       creditData[char][date]=new Set(arr);
     }
   }
+  window.creditData=creditData;
 }
 
 // Render the Credit Check panel HTML
