@@ -640,12 +640,9 @@
     <div class="wl-modal-title">⚔ Watch List Configuration</div>
     <div class="wl-modal-input-row">
       <input type="text" class="wl-modal-input" id="wlInput" placeholder="Item name (exact match)…">
+      <button class="btn p" id="wlAddBtn">Add</button>
     </div>
-    <div style="margin:.4rem 0 .6rem;font-size:.75rem;color:var(--text-muted);font-family:'Cinzel',serif;letter-spacing:.05em">WHO SHOULD HAVE IT</div>
-    <div id="wlCharCheckboxes" style="display:flex;flex-wrap:wrap;gap:.4rem .6rem;margin-bottom:.75rem"></div>
-    <div style="display:flex;gap:.5rem;margin-bottom:.75rem">
-      <button class="btn p" id="wlAddBtn">+ Add Rule</button>
-    </div>
+    <div id="wlCharCheckboxes" style="display:flex;flex-wrap:wrap;gap:.35rem .6rem;margin:.5rem 0 .75rem"></div>
     <div class="wl-shortcut">
       <div>Quick add from Raid Consumes:</div>
       <div class="wl-shortcut-chips" id="wlShortcuts"></div>
@@ -6163,19 +6160,15 @@ function renderWatchlistBar(){
   if(!watchList.length){container.innerHTML='<div class="watchlist-empty">No items on watch list — click ⚙ to add items.</div>';return;}
   if(!allNames.length){container.innerHTML='<div class="watchlist-empty">Load characters to see watch list status.</div>';return;}
   container.innerHTML=watchList.map(rule=>{
-    // Support legacy string entries
     const item=typeof rule==='string'?rule:rule.item;
     const ruleChars=typeof rule==='string'?'__all__':rule.chars;
-    // Determine which chars this rule applies to
     const targets=ruleChars==='__all__'?allNames:Array.isArray(ruleChars)?ruleChars.filter(c=>allNames.includes(c)):allNames;
-    const missing=targets.filter(n=>!charHasItem(n,item));
-    const allGood=missing.length===0;
+    const chips=targets.map(n=>{
+      const has=charHasItem(n,item);
+      return`<span class="watchlist-chip ${has?'watchlist-chip-ok':'watchlist-chip-miss'}">${has?'✔':'✘'} ${esc(n)}</span>`;
+    }).join('');
     const wl=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.8rem">${esc(item)}</a>`;
-    const whoLabel=ruleChars==='__all__'?'ALL':Array.isArray(ruleChars)?ruleChars.join(', '):'ALL';
-    const status=allGood
-      ?`<span class="watchlist-chip watchlist-chip-ok">✔ ${esc(whoLabel)}</span>`
-      :`<span class="watchlist-chip watchlist-chip-miss">✘ Missing: ${missing.map(esc).join(', ')}</span>`;
-    return`<div class="watchlist-row"><div class="watchlist-item-name">${wl}</div>${status}</div>`;
+    return`<div class="watchlist-row"><div class="watchlist-item-name">${wl}</div>${chips}</div>`;
   }).join('');
 }
 
@@ -6271,11 +6264,11 @@ function renderWlModal(){
       const who=wlRuleLabel(rule);
       return`<div class="wl-item-row">
         <span style="flex:1">${esc(item)}</span>
-        <span style="font-size:.72rem;color:var(--text-muted);margin:0 .5rem">${esc(who)}</span>
+        <span style="font-size:.72rem;color:var(--text-muted);margin:0 .5rem;font-family:'Cinzel',serif">${esc(who)}</span>
         <button type="button" class="wl-item-remove" onclick="wlRemove(${i})">✕</button>
       </div>`;
     }).join('')
-    :'<div style="color:var(--text-muted);font-size:.82rem;font-style:italic">No rules yet.</div>';
+    :'<div style="color:var(--text-muted);font-size:.82rem;font-style:italic">No items yet.</div>';
   const shortcuts=[...new Set(RAID_CONSUMES.flatMap(c=>c.anyOf||[c.name||'']).filter(Boolean))];
   document.getElementById('wlShortcuts').innerHTML=shortcuts.map(name=>
     `<span class="wl-shortcut-chip" onclick="wlQuickAdd('${esc(name)}')">${esc(name)}</span>`
