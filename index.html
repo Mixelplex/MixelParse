@@ -5079,21 +5079,18 @@ function renderCreditCheckPanel(){
   for(const{date,target,sessionNote} of kills){
     const cells=myChars.map(cn=>{
       const key=cn.toLowerCase();
+      const inCsv=creditData[key]!==undefined;
       const credited=creditData[key]?.[date]?.has(target);
-      if(credited===undefined){
-        // Char not in ODKP CSV at all
-        return`<td style="text-align:center;color:var(--text-muted);font-size:.9rem" title="${cn} not in ODKP CSV">—</td>`;
+      if(!inCsv){
+        return`<td style="text-align:center;color:var(--text-muted);font-size:.85rem" title="${cn} not in ODKP CSV">-</td>`;
       }
-      if(!credited){
-        missingCount++;
-        return`<td style="text-align:center;color:#c03030;font-size:.95rem;font-weight:bold" title="MISSING credit for ${cn}">✗</td>`;
+      if(credited){
+        return`<td style="text-align:center;color:#3a7a3a;font-size:.9rem">✓</td>`;
       }
-      return`<td style="text-align:center;color:#3a7a3a;font-size:.9rem">✓</td>`;
+      missingCount++;
+      return`<td style="text-align:center;color:#c03030;font-size:.95rem;font-weight:bold" title="MISSING credit for ${cn}">✗</td>`;
     }).join('');
-    const hasAnyMissing=myChars.some(cn=>{
-      const key=cn.toLowerCase();
-      return creditData[key]!==undefined&&!creditData[key]?.[date]?.has(target);
-    });
+    const hasAnyMissing=myChars.some(cn=>creditData[cn.toLowerCase()]!==undefined&&!creditData[cn.toLowerCase()]?.[date]?.has(target));
     const d=new Date(date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
     rows+=`<tr style="${hasAnyMissing?'background:rgba(180,40,40,.08)':''}">
       <td style="padding:.3rem .6rem;font-size:.78rem;color:var(--text-muted);white-space:nowrap">${d}</td>
@@ -5136,7 +5133,7 @@ window.exportCreditReport=function(){
   for(const{date,target} of kills){
     for(const cn of myChars){
       const key=cn.toLowerCase();
-      if(creditData[key]===undefined)continue;
+      if(creditData[key]===undefined)continue; // not in CSV, skip
       if(!creditData[key]?.[date]?.has(target)){
         lines.push(`${date}  ${target.padEnd(20)}  ${cn}`);
         found=true;
