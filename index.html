@@ -6171,7 +6171,7 @@ function renderWatchlistBar(){
     const itemLink=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.78rem">${esc(item)}</a>`;
     const cells=allNames.map(n=>{
       const tracked=targets.includes(n);
-      if(!tracked)return`<td style="text-align:center;color:var(--text-muted);font-size:.8rem">-</td>`;
+      if(!tracked)return`<td style="text-align:center;color:var(--text-muted);font-size:1rem;font-weight:700">-</td>`;
       const has=charHasItem(n,item);
       return`<td style="text-align:center;font-size:.8rem;font-weight:600;color:${has?'#3a7a3a':'#c03030'}">${has?'✔':'✘'}</td>`;
     }).join('');
