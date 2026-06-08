@@ -6290,25 +6290,23 @@ function renderWlModal(){
       const rule=watchList[i];
       const item=typeof rule==='string'?rule:rule.item;
       if(char==='__all__'){
-        // ALL clicked — set to __all__ or uncheck all
         if(this.checked){
-          // uncheck siblings
           document.querySelectorAll(`.wl-edit-chars input[data-rule="${i}"][data-char!="__all__"]`).forEach(c=>c.checked=false);
           watchList[i]={item,chars:'__all__'};
         } else {
           watchList[i]={item,chars:[]};
         }
       } else {
-        // Individual char — uncheck ALL
         document.querySelector(`.wl-edit-chars input[data-rule="${i}"][data-char="__all__"]`).checked=false;
         const picked=[...document.querySelectorAll(`.wl-edit-chars input[data-rule="${i}"][data-char!="__all__"]:checked`)].map(c=>c.dataset.char);
         watchList[i]={item,chars:picked.length?picked:'__all__'};
       }
-      // Update who label
-      renderWlModal();
-      // Re-open the edit panel
-      const el=document.getElementById(`wlEdit_${i}`);
-      if(el)el.style.display='flex';
+      // Update just the who label without re-rendering the whole list
+      const row=document.getElementById(`wlEdit_${i}`)?.closest('.wl-item-row');
+      if(row){
+        const label=row.querySelector('span[style*="Cinzel"]');
+        if(label)label.textContent=wlRuleLabel(watchList[i]);
+      }
       renderWatchlistBar();
       saveWatchList();
     });
