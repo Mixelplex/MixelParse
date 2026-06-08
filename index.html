@@ -6266,10 +6266,10 @@ function renderWlModal(){
       const who=wlRuleLabel(rule);
       const checkboxes=`<div class="wl-edit-chars" id="wlEdit_${i}" style="display:none;flex-wrap:wrap;gap:.3rem .5rem;margin:.4rem 0 .2rem">
         <label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;cursor:pointer">
-          <input type="checkbox" data-rule="${i}" data-char="__all__" ${ruleChars==='__all__'?'checked':''} style="accent-color:var(--gold-light)"> ALL
+          <input type="checkbox" data-rule="${i}" data-char="__all__" ${ruleChars==='__all__'?'checked':''} onchange="wlCharChange(${i},'__all__',this.checked)" style="accent-color:var(--gold-light)"> ALL
         </label>
         ${allNames.map(n=>`<label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;cursor:pointer">
-          <input type="checkbox" data-rule="${i}" data-char="${esc(n)}" ${ruleChars!=='__all__'&&Array.isArray(ruleChars)&&ruleChars.includes(n)?'checked':''} style="accent-color:var(--gold-light)"> ${esc(n)}
+          <input type="checkbox" data-rule="${i}" data-char="${esc(n)}" ${ruleChars!=='__all__'&&Array.isArray(ruleChars)&&ruleChars.includes(n)?'checked':''} onchange="wlCharChange(${i},'${esc(n)}',this.checked)" style="accent-color:var(--gold-light)"> ${esc(n)}
         </label>`).join('')}
       </div>`;
       return`<div class="wl-item-row" style="flex-direction:column;align-items:stretch;cursor:default">
@@ -6282,40 +6282,39 @@ function renderWlModal(){
       </div>`;
     }).join('')
     :'<div style="color:var(--text-muted);font-size:.82rem;font-style:italic">No items yet.</div>';
-  // Wire up char checkboxes in item rows
-  document.querySelectorAll('.wl-edit-chars input[type=checkbox]').forEach(cb=>{
-    cb.addEventListener('change',function(){
-      const i=parseInt(this.dataset.rule);
-      const char=this.dataset.char;
-      const rule=watchList[i];
-      const item=typeof rule==='string'?rule:rule.item;
-      if(char==='__all__'){
-        if(this.checked){
-          document.querySelectorAll(`.wl-edit-chars input[data-rule="${i}"][data-char!="__all__"]`).forEach(c=>c.checked=false);
-          watchList[i]={item,chars:'__all__'};
-        } else {
-          watchList[i]={item,chars:[]};
-        }
-      } else {
-        document.querySelector(`.wl-edit-chars input[data-rule="${i}"][data-char="__all__"]`).checked=false;
-        const picked=[...document.querySelectorAll(`.wl-edit-chars input[data-rule="${i}"][data-char!="__all__"]:checked`)].map(c=>c.dataset.char);
-        watchList[i]={item,chars:picked.length?picked:'__all__'};
-      }
-      // Update just the who label without re-rendering the whole list
-      const row=document.getElementById(`wlEdit_${i}`)?.closest('.wl-item-row');
-      if(row){
-        const label=row.querySelector('span[style*="Cinzel"]');
-        if(label)label.textContent=wlRuleLabel(watchList[i]);
-      }
-      renderWatchlistBar();
-      saveWatchList();
-    });
-  });
   const shortcuts=[...new Set(RAID_CONSUMES.flatMap(c=>c.anyOf||[c.name||'']).filter(Boolean))];
   document.getElementById('wlShortcuts').innerHTML=shortcuts.map(name=>
     `<span class="wl-shortcut-chip" onclick="wlQuickAdd('${esc(name)}')">${esc(name)}</span>`
   ).join('');
 }
+
+window.wlCharChange=function(i,char,checked){
+  const rule=watchList[i];
+  if(!rule)return;
+  const item=typeof rule==='string'?rule:rule.item;
+  if(char==='__all__'){
+    if(checked){
+      document.querySelectorAll(`.wl-edit-chars input[data-rule="${i}"][data-char!="__all__"]`).forEach(c=>c.checked=false);
+      watchList[i]={item,chars:'__all__'};
+    } else {
+      watchList[i]={item,chars:[]};
+    }
+  } else {
+    const allChk=document.querySelector(`.wl-edit-chars input[data-rule="${i}"][data-char="__all__"]`);
+    if(allChk)allChk.checked=false;
+    const picked=[...document.querySelectorAll(`.wl-edit-chars input[data-rule="${i}"][data-char!="__all__"]:checked`)].map(c=>c.dataset.char);
+    watchList[i]={item,chars:picked.length?picked:'__all__'};
+  }
+  // Update who label in place
+  const editEl=document.getElementById(`wlEdit_${i}`);
+  const row=editEl?.closest('.wl-item-row');
+  if(row){
+    const label=row.querySelector('span[style*="Cinzel"]');
+    if(label)label.textContent=wlRuleLabel(watchList[i]);
+  }
+  renderWatchlistBar();
+  saveWatchList();
+};
 
 function wlToggleEdit(i){
   const el=document.getElementById(`wlEdit_${i}`);
