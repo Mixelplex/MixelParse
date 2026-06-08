@@ -6159,17 +6159,29 @@ function renderWatchlistBar(){
   const allNames=charNames().filter(n=>n!=='__all__');
   if(!watchList.length){container.innerHTML='<div class="watchlist-empty">No items on watch list — click ⚙ to add items.</div>';return;}
   if(!allNames.length){container.innerHTML='<div class="watchlist-empty">Load characters to see watch list status.</div>';return;}
-  container.innerHTML=watchList.map(rule=>{
+
+  // Header row: blank cell + one cell per char
+  const headerCells=allNames.map(n=>`<th style="padding:.25rem .5rem;font-size:.68rem;font-family:'Cinzel',serif;letter-spacing:.05em;color:var(--text-muted);text-align:center;white-space:nowrap">${esc(n)}</th>`).join('');
+
+  // Data rows: one per rule
+  const dataRows=watchList.map(rule=>{
     const item=typeof rule==='string'?rule:rule.item;
-    const ruleChars=typeof rule==='string'?'__all__':rule.chars;
+    const ruleChars=typeof rule==='string'?'__all__':(rule.chars||'__all__');
     const targets=ruleChars==='__all__'?allNames:Array.isArray(ruleChars)?ruleChars.filter(c=>allNames.includes(c)):allNames;
-    const chips=targets.map(n=>{
+    const itemLink=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.78rem">${esc(item)}</a>`;
+    const cells=allNames.map(n=>{
+      const tracked=targets.includes(n);
+      if(!tracked)return`<td style="text-align:center;color:var(--text-muted);font-size:.8rem">-</td>`;
       const has=charHasItem(n,item);
-      return`<span class="watchlist-chip ${has?'watchlist-chip-ok':'watchlist-chip-miss'}">${has?'✔':'✘'} ${esc(n)}</span>`;
+      return`<td style="text-align:center;font-size:.8rem;font-weight:600;color:${has?'#3a7a3a':'#c03030'}">${has?'✔':'✘'}</td>`;
     }).join('');
-    const wl=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.8rem">${esc(item)}</a>`;
-    return`<div class="watchlist-row"><div class="watchlist-item-name">${wl}</div>${chips}</div>`;
+    return`<tr><td style="padding:.2rem .5rem;white-space:nowrap">${itemLink}</td>${cells}</tr>`;
   }).join('');
+
+  container.innerHTML=`<table style="border-collapse:collapse;width:100%">
+    <thead><tr><th style="padding:.25rem .5rem"></th>${headerCells}</tr></thead>
+    <tbody>${dataRows}</tbody>
+  </table>`;
 }
 
 function renderWlModal(){
