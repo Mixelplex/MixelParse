@@ -5019,13 +5019,13 @@ async function saveCreditDataToSupabase(){
         serializable[char][date]=[...set];
       }
     }
-    const{data}=await sb.from('guild_data').select('id').eq('pool','SoV').single();
-    if(data){
-      await sb.from('guild_data').update({credit_data:serializable,updated_at:new Date().toISOString()}).eq('pool','SoV');
-    }else{
+    const{error}=await sb.from('guild_data').update({credit_data:serializable,updated_at:new Date().toISOString()}).eq('pool','SoV');
+    if(error&&error.code==='PGRST116'){
       await sb.from('guild_data').insert({pool:'SoV',credit_data:serializable,updated_at:new Date().toISOString()});
+    }else if(error){
+      console.error('[CreditData] Save error',error);
     }
-  }catch(e){console.warn('saveCreditData error',e);}
+  }catch(e){console.error('[CreditData] Save exception',e);}
 }
 
 function loadCreditDataFromSupabase(row){
