@@ -6290,7 +6290,7 @@ window.wlCharChange=function(i,char,checked){
   const item=typeof rule==='string'?rule:rule.item;
   if(char==='__all__'){
     if(checked){
-      document.querySelectorAll(`.wl-edit-chars input[data-rule="${i}"][data-char!="__all__"]`).forEach(c=>c.checked=false);
+      document.querySelectorAll(`.wl-edit-chars input[data-rule="${i}"]`).forEach(c=>{if(c.dataset.char!=='__all__')c.checked=false;});
       watchList[i]={item,chars:'__all__'};
     } else {
       watchList[i]={item,chars:[]};
@@ -6298,7 +6298,7 @@ window.wlCharChange=function(i,char,checked){
   } else {
     const allChk=document.querySelector(`.wl-edit-chars input[data-rule="${i}"][data-char="__all__"]`);
     if(allChk)allChk.checked=false;
-    const picked=[...document.querySelectorAll(`.wl-edit-chars input[data-rule="${i}"][data-char!="__all__"]:checked`)].map(c=>c.dataset.char);
+    const picked=[...document.querySelectorAll(`.wl-edit-chars input[data-rule="${i}"]`)].filter(c=>c.dataset.char!=='__all__'&&c.checked).map(c=>c.dataset.char);
     watchList[i]={item,chars:picked.length?picked:'__all__'};
   }
   // Update who label in place
