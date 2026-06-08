@@ -4983,11 +4983,11 @@ function parseOdkpDetailsCsv(text){
     // Proper CSV split respecting quoted fields
     const cols=parseCsvLine(line);
     if(!header){header=cols;continue;}
-    // Columns: Date,Amount,SourceType,Source,CharacterName,...
-    const date=cols[0]?.trim();
+    // Columns: Order,Date,SourceType,Source,SourceId,CharacterName,...
+    const date=cols[1]?.trim();
     const sourceType=cols[2]?.trim();
     const source=cols[3]?.trim();
-    const charName=cols[4]?.trim();
+    const charName=cols[5]?.trim();
     if(!charName||!date||sourceType!=='Raid')continue;
     // Parse date → YYYY-MM-DD (slice directly to avoid timezone shift)
     const dateStr=date.slice(0,10);
