@@ -3366,7 +3366,8 @@ window.applyDBToChar    = applyDBToChar;
           saveState();
         }
         if(msg.type === 'todNote'){
-          showTodModal(msg.target, msg.full, msg.noteText, msg.timestamp);
+          const t = msg;
+          todEnqueue(t.target, t.full, t.noteText, t.timestamp);
         }
       } catch{}
     };
@@ -3399,13 +3400,30 @@ window.applyDBToChar    = applyDBToChar;
   }
 })();
 // ── TOD Note Modal ────────────────────────────────────────────────────────────
-// Fired when watcher detects a boss name in notes.txt.
-// Prompts user to add kill to an existing session or start a new one,
-// with optional role checkboxes matching the kill tracker's rolesForBoss().
-function showTodModal(target, full, noteText, timestamp){
-  const existing = document.getElementById('tod-modal-overlay');
-  if(existing) existing.remove();
+// Queue-based: multiple /note commands stack up and are shown one at a time.
+// Each modal shows a counter (1 of N) when there are pending TODs.
+const _todQueue = [];
 
+function todEnqueue(target, full, noteText, timestamp){
+  _todQueue.push({ target, full, noteText, timestamp });
+  // Only show if no modal is currently open
+  if(!document.getElementById('tod-modal-overlay')) _todShowNext();
+}
+
+function _todShowNext(){
+  if(!_todQueue.length) return;
+  const { target, full, noteText, timestamp } = _todQueue[0];
+  showTodModal(target, full, noteText, timestamp);
+}
+
+function _todAdvance(){
+  _todQueue.shift();
+  const overlay = document.getElementById('tod-modal-overlay');
+  if(overlay) overlay.remove();
+  if(_todQueue.length) setTimeout(_todShowNext, 120);
+}
+
+function showTodModal(target, full, noteText, timestamp){
   const overlay = document.createElement('div');
   overlay.id = 'tod-modal-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:10000;display:flex;align-items:center;justify-content:center;font-family:"Cinzel",serif';
@@ -3429,7 +3447,7 @@ function showTodModal(target, full, noteText, timestamp){
 
   overlay.innerHTML = `
     <div style="background:#1a1510;border:2px solid #8b6914;border-radius:6px;padding:1.6rem 2rem;min-width:360px;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.8)">
-      <div style="font-size:.85rem;color:#c9a84c;letter-spacing:.1em;margin-bottom:.3rem">⚔ KILL DETECTED</div>
+      <div style="font-size:.85rem;color:#c9a84c;letter-spacing:.1em;margin-bottom:.3rem">⚔ KILL DETECTED${_todQueue.length>1?` <span style="font-size:.6rem;color:#888;font-family:monospace">1 of ${_todQueue.length}</span>`:''}</div>
       <div style="font-size:1.25rem;color:#e8d5a0;margin-bottom:.2rem">${esc(full)}</div>
       <div style="font-size:.68rem;color:#666;font-family:monospace;margin-bottom:1.2rem">${esc(noteText)} · ${esc(timestamp)}</div>
 
@@ -3451,14 +3469,14 @@ function showTodModal(target, full, noteText, timestamp){
       <div style="display:flex;gap:.6rem;margin-top:1rem">
         ${raidSessions.length ? `<button type="button" onclick="todAddToSession()" style="flex:1;background:#2a3a1a;border:1px solid #4a6a2a;color:#8fc46a;padding:.5rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Add to Session</button>` : ''}
         <button type="button" onclick="todStartNewSession()" style="flex:1;background:#1a2a3a;border:1px solid #2a4a6a;color:#6ab4c4;padding:.5rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Start New Session</button>
-        <button type="button" onclick="document.getElementById('tod-modal-overlay').remove()" style="background:#2a1a1a;border:1px solid #5a2a2a;color:#a46a6a;padding:.5rem .8rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Dismiss</button>
+        <button type="button" onclick="_todAdvance()" style="background:#2a1a1a;border:1px solid #5a2a2a;color:#a46a6a;padding:.5rem .8rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">${_todQueue.length>1?'Skip →':'Dismiss'}</button>
       </div>
     </div>`;
 
   overlay.dataset.target = target;
   overlay.dataset.roles = JSON.stringify(roles); // stash full roles array for action fns
   document.body.appendChild(overlay);
-  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
+  overlay.addEventListener('click', e => { if(e.target === overlay) _todAdvance(); });
 }
 
 function _todGetCheckedRoles(){
@@ -3490,7 +3508,7 @@ function todAddToSession(){
     session.bossRoles[target] = (session.bossRoles[target] || []).concat(checkedRoles);
   }
   saveSessionsToSupabase();
-  overlay.remove();
+  _todAdvance();
   switchTab('__kills__');
   showWatcherToast(`⚔ ${target} marked as killed`);
 }
@@ -3508,7 +3526,7 @@ function todStartNewSession(){
   raidSessions.push(session);
   activeSession = session;
   saveSessionsToSupabase();
-  overlay.remove();
+  _todAdvance();
   switchTab('__kills__');
   showWatcherToast(`⚔ New session started — ${target} killed`);
 }
