@@ -2236,7 +2236,7 @@ function RETIRED_parseWikiStats(html){const stats={};const plain=html.replace(/<
 
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');}
 function wikiUrl(n){return 'https://wiki.project1999.com/'+encodeURIComponent(n.trim().replace(/ /g,'_'));}
 function itemLink(n){return `<a href="${wikiUrl(n)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold-dim)">${esc(n)}</a>`;}
 
@@ -6192,7 +6192,7 @@ function renderWlModal(){
   // Shortcuts from raid consumes
   const shortcuts=[...new Set(RAID_CONSUMES.flatMap(c=>c.anyOf||[c.name||'']).filter(Boolean))];
   document.getElementById('wlShortcuts').innerHTML=shortcuts.map(name=>
-    `<span class="wl-shortcut-chip" onclick="wlQuickAdd('${esc(name)}')">${esc(name)}</span>`
+    `<span class="wl-shortcut-chip" data-name="${esc(name)}" onclick="wlQuickAdd(this.dataset.name)">${esc(name)}</span>`
   ).join('');
 }
 
@@ -6292,7 +6292,7 @@ function renderWlModal(){
     :'<div style="color:var(--text-muted);font-size:.82rem;font-style:italic">No items yet.</div>';
   const shortcuts=[...new Set(RAID_CONSUMES.flatMap(c=>c.anyOf||[c.name||'']).filter(Boolean))];
   document.getElementById('wlShortcuts').innerHTML=shortcuts.map(name=>
-    `<span class="wl-shortcut-chip" onclick="wlQuickAdd('${esc(name)}')">${esc(name)}</span>`
+    `<span class="wl-shortcut-chip" data-name="${esc(name)}" onclick="wlQuickAdd(this.dataset.name)">${esc(name)}</span>`
   ).join('');
 }
 
