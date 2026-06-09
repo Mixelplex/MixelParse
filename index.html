@@ -3467,9 +3467,13 @@ function showTodModal(target, full, noteText, timestamp){
       </div>` : ''}
 
       <div style="display:flex;gap:.6rem;margin-top:1rem">
-        ${raidSessions.length ? `<button type="button" onclick="todAddToSession()" style="flex:1;background:#2a3a1a;border:1px solid #4a6a2a;color:#8fc46a;padding:.5rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Add to Session</button>` : ''}
-        <button type="button" onclick="todStartNewSession()" style="flex:1;background:#1a2a3a;border:1px solid #2a4a6a;color:#6ab4c4;padding:.5rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Start New Session</button>
+        ${raidSessions.length ? `<button type="button" onclick="todAddToSession('killed')" style="flex:1;background:#2a3a1a;border:1px solid #4a6a2a;color:#8fc46a;padding:.5rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Add to Session</button>` : ''}
+        <button type="button" onclick="todStartNewSession('killed')" style="flex:1;background:#1a2a3a;border:1px solid #2a4a6a;color:#6ab4c4;padding:.5rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Start New Session</button>
         <button type="button" onclick="_todAdvance()" style="background:#2a1a1a;border:1px solid #5a2a2a;color:#a46a6a;padding:.5rem .8rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">${_todQueue.length>1?'Skip →':'Dismiss'}</button>
+      </div>
+      <div style="display:flex;gap:.6rem;margin-top:.4rem">
+        ${raidSessions.length ? `<button type="button" onclick="todAddToSession('failtick')" style="flex:1;background:#2a1a0a;border:1px solid #6a4a1a;color:#c48a3a;padding:.4rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.68rem;cursor:pointer">Failtick → Session</button>` : ''}
+        <button type="button" onclick="todStartNewSession('failtick')" style="flex:1;background:#1a1a2a;border:1px solid #3a3a6a;color:#8a8ac4;padding:.4rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.68rem;cursor:pointer">Failtick → New Session</button>
       </div>
     </div>`;
 
@@ -3492,7 +3496,8 @@ function _todGetCheckedRoles(){
   return checked;
 }
 
-function todAddToSession(){
+function todAddToSession(killState){
+  killState = killState || 'killed';
   const overlay = document.getElementById('tod-modal-overlay');
   if(!overlay) return;
   const sel = document.getElementById('tod-session-select');
@@ -3501,7 +3506,7 @@ function todAddToSession(){
   const session = raidSessions.find(s => s.id === sel.value);
   if(!session) return;
   if(!session.killState) session.killState = {};
-  session.killState[target] = 'killed';
+  session.killState[target] = killState;
   const checkedRoles = _todGetCheckedRoles();
   if(checkedRoles.length){
     if(!session.bossRoles) session.bossRoles = {};
@@ -3510,15 +3515,16 @@ function todAddToSession(){
   saveSessionsToSupabase();
   _todAdvance();
   switchTab('__kills__');
-  showWatcherToast(`⚔ ${target} marked as killed`);
+  showWatcherToast(`${killState==='failtick'?'💀':'⚔'} ${target} ${killState==='failtick'?'failtick':'marked as killed'}`);
 }
 
-function todStartNewSession(){
+function todStartNewSession(killState){
+  killState = killState || 'killed';
   const overlay = document.getElementById('tod-modal-overlay');
   if(!overlay) return;
   const target = overlay.dataset.target;
   const session = newSession();
-  session.killState[target] = 'killed';
+  session.killState[target] = killState;
   const checkedRoles = _todGetCheckedRoles();
   if(checkedRoles.length){
     session.bossRoles[target] = checkedRoles;
@@ -3528,7 +3534,7 @@ function todStartNewSession(){
   saveSessionsToSupabase();
   _todAdvance();
   switchTab('__kills__');
-  showWatcherToast(`⚔ New session started — ${target} killed`);
+  showWatcherToast(`${killState==='failtick'?'💀':'⚔'} New session — ${target} ${killState==='failtick'?'failtick':'killed'}`);
 }
 
 // expose via thin wrappers so the admin panel can call them directly
