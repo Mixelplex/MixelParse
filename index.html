@@ -4362,7 +4362,7 @@ function sessionDkpTotal(session){
     return sum;
   },0);
   const hourlyDkp=(session.hourly||[]).reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
-  const bossRoleDkp=Object.values(session.bossRoles||{}).flat().reduce((s,r)=>s+(r.value||0),0);
+  const bossRoleDkp=Object.values(session.bossRoles||{}).filter(Array.isArray).flat().reduce((s,r)=>s+(r.value||0),0);
   const bpVal=(session.buffParksNinja?0.5:0.3)*(session.buffParksQty||0);
   const rwDkp=RW_CHECKPOINTS.reduce((s,cp)=>(session.rwChecks||{})[cp.key]?s+cp.value:s,0);
   return Math.round((killDkp+extraDkp+hourlyDkp+bossRoleDkp+bpVal+rwDkp)*10)/10;
@@ -4760,12 +4760,12 @@ function renderKillsPanel(){
       const bnpDkp=Math.round((s.buffParksNinja?0.5:0.3)*bnpQty*10)/10;
       const rwChecked=Object.keys(s.rwChecks||{});
       const rwDkp=Math.round(RW_CHECKPOINTS.reduce((sum,cp)=>(s.rwChecks||{})[cp.key]?sum+cp.value:sum,0)*10)/10;
-      const bossRoleDkp=Math.round(Object.values(s.bossRoles||{}).flat().reduce((sum,r)=>sum+(r.value||0),0)*10)/10;
+      const bossRoleDkp=Math.round(Object.values(s.bossRoles||{}).filter(Array.isArray).flat().reduce((sum,r)=>sum+(r.value||0),0)*10)/10;
       const killDkp=Math.round(killed.reduce((sum,k)=>{
         const baseTarget=k.includes('__')?k.split('__')[0]:k;
         const b=BOSS_ROSTER.find(x=>x.target===baseTarget);
         const sp=(s.extraSpawns||[]).find(x=>x.key===k);
-        const roleDkp=sp?(sp.bossRoles||[]).reduce((r,x)=>r+(x.value||0),0):(s.bossRoles||{})[k]?.(s.bossRoles[k].reduce((r,x)=>r+(x.value||0),0))||0;
+        const _bossRoleVal=(s.bossRoles||{})[k];const roleDkp=sp?(sp.bossRoles||[]).reduce((r,x)=>r+(x.value||0),0):(Array.isArray(_bossRoleVal)?_bossRoleVal:[]).reduce((r,x)=>r+(x.value||0),0);
         return sum+(b?b.dkp+(b.baseDkp||0)+roleDkp:0);
       },0)*10)/10;
       const failtickDkp=Math.round(failtickTargets.reduce((sum,k)=>{const baseTarget=k.includes('__')?k.split('__')[0]:k;const b=BOSS_ROSTER.find(x=>x.target===baseTarget);return sum+(b?b.baseDkp:0);},0)*10)/10;
@@ -5036,7 +5036,7 @@ window.ktRWCheck=function(key,checked){
 };
 
 window.ktSaveSession=function(){
-  const s={...activeSession,killState:{...activeSession.killState},hourly:(activeSession.hourly||[]).map(r=>({...r})),bossRoles:Object.fromEntries(Object.entries(activeSession.bossRoles||{}).map(([k,v])=>[k,v.map(r=>({...r}))])),rwChecks:{...(activeSession.rwChecks||{})}};
+  const s={...activeSession,killState:{...activeSession.killState},hourly:(activeSession.hourly||[]).map(r=>({...r})),bossRoles:Object.fromEntries(Object.entries(activeSession.bossRoles||{}).map(([k,v])=>[k,(Array.isArray(v)?v:[]).map(r=>({...r}))])),rwChecks:{...(activeSession.rwChecks||{})}};
   const idx=raidSessions.findIndex(x=>x.id===s.id);
   if(idx>=0)raidSessions[idx]=s;else raidSessions.push(s);
   saveSessionsToSupabase();
@@ -5099,7 +5099,7 @@ window.ktClearSession=function(){activeSession=newSession();ktExpanded={};render
 window.ktLoadSession=function(id){
   const s=raidSessions.find(x=>x.id===id);
   if(!s)return;
-  activeSession={...s,killState:{...(s.killState||{})},hourly:(s.hourly||[]).map(r=>({...r})),bossRoles:Object.fromEntries(Object.entries(s.bossRoles||{}).map(([k,v])=>[k,v.map(r=>({...r}))]))};
+  activeSession={...s,killState:{...(s.killState||{})},hourly:(s.hourly||[]).map(r=>({...r})),bossRoles:Object.fromEntries(Object.entries(s.bossRoles||{}).map(([k,v])=>[k,(Array.isArray(v)?v:[]).map(r=>({...r}))]))};  
   ktExpanded={};sessionsView='new';
   renderKillsPanel();
 };
