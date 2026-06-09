@@ -270,19 +270,29 @@
   .top-nav-item.active{color:var(--gold-light);border-bottom-color:var(--gold-light)}
   /* ── Factions ── */
   .faction-panel{margin:0 1rem 2rem}
-  .faction-table{width:100%;border-collapse:collapse;font-size:.88rem}
-  .faction-table th{font-family:\'Cinzel\',serif;font-size:.68rem;letter-spacing:.07em;color:var(--gold);padding:.5rem .75rem;text-align:left;border-bottom:2px solid var(--border-glow);background:var(--surface2);white-space:nowrap}
-  .faction-table th.faction-th-center{text-align:center}
-  .faction-table td{padding:.45rem .75rem;border-bottom:1px solid rgba(74,58,26,.2);vertical-align:middle}
+  .faction-filter-bar{display:flex;flex-wrap:wrap;gap:.4rem;padding:.6rem 1rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px 4px 0 0;border-bottom:none;align-items:center}
+  .faction-filter-label{font-family:'Cinzel',serif;font-size:.63rem;letter-spacing:.08em;color:var(--text-muted);margin-right:.25rem;white-space:nowrap}
+  .faction-filter-sep{width:1px;height:18px;background:var(--border);margin:0 .35rem;flex-shrink:0}
+  .faction-char-chip{padding:.2rem .55rem;border-radius:3px;font-size:.75rem;font-family:'Cinzel',serif;letter-spacing:.04em;cursor:pointer;border:1px solid var(--border);background:rgba(120,100,60,.1);color:var(--text-muted);transition:all .15s;user-select:none}
+  .faction-char-chip.active{background:rgba(160,120,50,.25);border-color:var(--gold);color:var(--gold-light);font-weight:600}
+  .faction-sec-chip{padding:.2rem .55rem;border-radius:3px;font-size:.7rem;font-family:'Cinzel',serif;letter-spacing:.05em;cursor:pointer;border:1px solid var(--border);background:rgba(120,100,60,.08);color:var(--text-muted);transition:all .15s;user-select:none}
+  .faction-sec-chip.active{background:rgba(100,80,30,.3);border-color:var(--gold);color:var(--gold-light);font-weight:600}
+  .faction-table{width:100%;border-collapse:collapse;font-size:.85rem}
+  .faction-table th{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;color:var(--gold);padding:.45rem .6rem;text-align:center;border-bottom:2px solid var(--border-glow);background:var(--surface2);white-space:nowrap}
+  .faction-table th.faction-th-left{text-align:left}
+  .faction-table td{padding:.35rem .5rem;border-bottom:1px solid rgba(74,58,26,.2);vertical-align:middle}
   .faction-table tr:hover td{background:rgba(160,120,50,.06)}
-  .faction-section-divider td{background:var(--surface);padding:.3rem .75rem;font-family:\'Cinzel\',serif;font-size:.63rem;letter-spacing:.1em;color:var(--text-muted);border-bottom:1px solid var(--border);border-top:2px solid var(--border)}
-  .faction-name{font-weight:500;color:var(--text)}
-  .faction-select{background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.25rem .4rem;font-family:\'Crimson Pro\',serif;font-size:.85rem;outline:none;cursor:pointer;min-width:160px}
+  .faction-select{background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.18rem .3rem;font-family:'Crimson Pro',serif;font-size:.8rem;outline:none;cursor:pointer;width:100%;min-width:88px}
   .faction-select:focus{border-color:var(--gold)}
   .faction-badge-ally{color:#1a5a1a;font-weight:700}
   .faction-badge-yellow{color:#7a5000;font-weight:700}
   .faction-badge-warn{color:#a03030;font-weight:700}
   .faction-badge-none{color:var(--text-muted);font-style:italic}
+  .faction-section-divider td{background:var(--surface);padding:.3rem .75rem;font-family:'Cinzel',serif;font-size:.63rem;letter-spacing:.1em;color:var(--text-muted);border-bottom:1px solid var(--border);border-top:2px solid var(--border)}
+  .faction-name{font-weight:500;color:var(--text)}
+  .faction-val-mini{display:flex;align-items:center;gap:.25rem;white-space:nowrap}
+  .faction-val-track{width:36px;height:4px;background:rgba(255,255,255,.08);border-radius:2px;flex-shrink:0}
+  .faction-val-fill{height:100%;border-radius:2px}
   .tov-chip{display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .55rem;border-radius:3px;font-size:.75rem;font-family:\'Cinzel\',serif;letter-spacing:.04em;white-space:nowrap;font-weight:600}
   .tov-chip-ally{background:rgba(58,122,58,.2);border:1px solid #5a9a5a;color:#1a5a1a}
   .tov-chip-yellow{background:rgba(176,120,0,.12);border:1px solid #b07800;color:#7a5000}
@@ -2700,34 +2710,60 @@ const FACTION_LIST = [
   {name:'Firiona Vie',              section:'Kunark'},
   {name:'Burynai Legion',           section:'Kunark'},
   {name:'Minions of Scale',         section:'Kunark'},
-  // ── Antonica / Faydwer ──
-  {name:'Guardians of the Vale',    section:'World'},
-  {name:"Faydark's Champions",      section:'World'},
-  {name:'Indigo Brotherhood',       section:'World'},
-  {name:'Crushbone Orcs',           section:'World'},
-  {name:'Guards of Qeynos',         section:'World'},
-  {name:'Knights of Truth',         section:'World'},
-  {name:'Ashen Order',              section:'World'},
-  {name:'Commons Residents',        section:'World'},
-  {name:'Deathfist Orcs',           section:'World'},
-  {name:'League of Antonican Bards',section:'World'},
-  {name:'Antonius Bayle',           section:'World'},
-  {name:'Merchants of Qeynos',      section:'World'},
-  {name:'Corrupt Qeynos Guards',    section:'World'},
-  {name:'Circle of Unseen Hands',   section:'World'},
-  {name:'Highpass Guards',          section:'World'},
-  {name:'Karana Residents',         section:'World'},
-  {name:'Pickclaw Goblins',         section:'World'},
-  {name:'King Xorbb',               section:'World'},
-  {name:'Splitpaw Clan',            section:'World'},
-  // ── Fear / Hate ──
+  {name:'Swift Tails',              section:'Kunark'},
+  // ── Classic / Antonica ──
+  {name:'Guards of Qeynos',         section:'Classic'},
+  {name:'Knights of Truth',         section:'Classic'},
+  {name:'Antonius Bayle',           section:'Classic'},
+  {name:'Merchants of Qeynos',      section:'Classic'},
+  {name:'Corrupt Qeynos Guards',    section:'Classic'},
+  {name:'Circle of Unseen Hands',   section:'Classic'},
+  {name:'Karana Residents',         section:'Classic'},
+  {name:'Commons Residents',        section:'Classic'},
+  {name:'League of Antonican Bards',section:'Classic'},
+  {name:'Highpass Guards',          section:'Classic'},
+  {name:'Ashen Order',              section:'Classic'},
+  {name:'Deathfist Orcs',           section:'Classic'},
+  {name:'Pickclaw Goblins',         section:'Classic'},
+  {name:'King Xorbb',               section:'Classic'},
+  {name:'Splitpaw Clan',            section:'Classic'},
+  {name:'The Dead',                 section:'Classic'},
+  {name:'Heretics',                 section:'Classic'},
+  // ── Faydwer ──
+  {name:"Faydark's Champions",      section:'Faydwer'},
+  {name:'Guardians of the Vale',    section:'Faydwer'},
+  {name:'Indigo Brotherhood',       section:'Faydwer'},
+  {name:'Crushbone Orcs',           section:'Faydwer'},
+  {name:'Residents of Felwithe',    section:'Faydwer'},
+  {name:'Residents of Kelethin',    section:'Faydwer'},
+  {name:'Residents of Kaladim',     section:'Faydwer'},
+  {name:'Residents of Ak',          section:'Faydwer'},
+  {name:'Mayong Mistmoore',         section:'Faydwer'},
+  {name:'Agents of Mistmoore',      section:'Faydwer'},
+  {name:'Steamfront Gnomes',        section:'Faydwer'},
+  {name:'Dark Bargainers',          section:'Faydwer'},
+  // ── Deities ──
+  {name:'Tunare',                   section:'Deity'},
+  {name:'Quellious',                section:'Deity'},
+  {name:'Rodcet Nife',              section:'Deity'},
+  {name:'Tribunal',                 section:'Deity'},
+  {name:'Brell Serilis',            section:'Deity'},
+  {name:'Karana',                   section:'Deity'},
+  {name:'Prexus',                   section:'Deity'},
+  {name:'Cazic Thule',              section:'Deity'},
+  {name:'Rallos Zek',               section:'Deity'},
+  {name:'Innoruuk',                 section:'Deity'},
+  {name:'Bertoxxulous',             section:'Deity'},
+  {name:'Bristlebane',              section:'Deity'},
+  {name:'Erollisi Marr',            section:'Deity'},
+  {name:'Mithaniel Marr',           section:'Deity'},
+  {name:'Solusek Ro',               section:'Deity'},
+  {name:'Veeshan',                  section:'Deity'},
+  // ── Fear / Hate / Sky ──
   {name:'Denizens of Fear',         section:'Planes'},
   {name:'Inhabitants of Hate',      section:'Planes'},
-  // ── Dragons ──
-  {name:'Vox',                      section:'Dragons'},
-  {name:'Nagafen',                  section:'Dragons'},
-  {name:'Mayong Mistmoore',         section:'Dragons'},
-  {name:'Agents of Mistmoore',      section:'Dragons'},
+  {name:'Vox',                      section:'Planes'},
+  {name:'Nagafen',                  section:'Planes'},
   // ── Misc ──
   {name:'Frogloks of Guk',          section:'Misc'},
   {name:'Undead Frogloks of Guk',   section:'Misc'},
@@ -2740,7 +2776,6 @@ const FACTION_LIST = [
   {name:'Bloodsabers',              section:'Misc'},
   {name:'Pirates of Gunthak',       section:'Misc'},
   {name:'High Guard of Erudin',     section:'Misc'},
-  {name:'Burynai Legion',           section:'Misc'},
 ];
 
 const FACTION_RED = new Set(['Threatening','Ready to Attack']);
@@ -2822,56 +2857,68 @@ function renderTovBar(){
   }).join('');
 }
 
-const FACTION_SECTION_LABELS = {Raid:'VELIOUS RAID',City:'VELIOUS CITY',Kunark:'KUNARK',World:'ANTONICA / FAYDWER',Planes:'PLANES',Dragons:'DRAGONS',Misc:'MISC'};
+const FACTION_SECTION_LABELS = {Raid:'VELIOUS RAID',City:'VELIOUS CITY',Kunark:'KUNARK',Classic:'CLASSIC / ANTONICA',Faydwer:'FAYDWER / ODUS',Deity:'DEITY FACTIONS',Planes:'PLANES & DRAGONS',Misc:'MISC'};
 function renderFactionsPanel(){
   const panel=document.getElementById('factionsPanel');
   if(!panel)return;
-  const name=activeTab;
-  if(!name||name==='__all__'){panel.innerHTML='<div class="empty-state">Select a character to manage factions.</div>';return;}
+  const allNames=charNames().filter(n=>n!=='__all__');
+  if(!allNames.length){panel.innerHTML='<div class="empty-state">No characters loaded.</div>';return;}
 
-  const charFactionVals = factionValues[resolveCharKey(name)]||{};
-  let html=`<div class="faction-panel"><table class="faction-table"><thead><tr><th>Faction</th><th class="faction-th-center">Standing</th><th class="faction-th-center" style="min-width:90px">Value</th></tr></thead><tbody>`;
+  // Persist filter state across re-renders
+  if(!window._factionVisChars)window._factionVisChars=new Set(allNames);
+  if(!window._factionVisSection)window._factionVisSection='Raid';
 
-  // dedupe — FACTION_LIST has Burynai Legion twice; filter
+  // Sync char set against current char list
+  allNames.forEach(n=>{if(!window._factionVisChars.has(n)&&allNames.length<=4)window._factionVisChars.add(n);});
+  const visChars=allNames.filter(n=>window._factionVisChars.has(n));
+
+  // Sections present in filtered list
+  const sections=[...new Set(FACTION_LIST.map(f=>f.section))];
+  const secFilter=window._factionVisSection;
+
+  // Build filter bar
+  const charChips=allNames.map(n=>`<span class="faction-char-chip${window._factionVisChars.has(n)?' active':''}" onclick="window._factionVisChars.has('${esc(n)}')?window._factionVisChars.delete('${esc(n)}'):window._factionVisChars.add('${esc(n)}');renderFactionsPanel()">${esc(n)}</span>`).join('');
+  const secChips=sections.map(s=>`<span class="faction-sec-chip${s===secFilter?' active':''}" onclick="window._factionVisSection='${s}';renderFactionsPanel()">${FACTION_SECTION_LABELS[s]||s}</span>`).join('');
+  const filterBar=`<div class="faction-filter-bar">
+    <span class="faction-filter-label">CHARS</span>${charChips}
+    <div class="faction-filter-sep"></div>
+    <span class="faction-filter-label">SECTION</span>${secChips}
+  </div>`;
+
+  if(!visChars.length){panel.innerHTML=filterBar+'<div style="padding:1rem 1.5rem;color:var(--text-muted);font-style:italic;font-size:.85rem">No characters selected.</div>';return;}
+
+  // Filter factions to current section, dedupe
   const seen=new Set();
-  let lastSection='';
-  for(const f of FACTION_LIST){
-    if(seen.has(f.name))continue; seen.add(f.name);
-    if(f.section!==lastSection){
-      html+=`<tr class="faction-section-divider"><td colspan="3">${FACTION_SECTION_LABELS[f.section]||f.section}</td></tr>`;
-      lastSection=f.section;
-    }
-    const cur=getFaction(name,f.name);
-    const color=factionColor(cur);
-    const badgeCls=color==='green'?'faction-badge-ally':color==='red'?'faction-badge-warn':color==='yellow'?'faction-badge-yellow':'faction-badge-none';
-    const opts=`<option value="">— Not Set —</option>`+FACTION_LEVELS.map(l=>`<option value="${l}"${l===cur?' selected':''}>${l}</option>`).join('');
-    // Numeric value from log reader, if known
-    const fEntry = charFactionVals[f.name];
-    const numVal = fEntry?.value ?? (typeof fEntry === 'number' ? fEntry : undefined);
-    const isCon  = fEntry?.source === 'con';
-    let valHtml='<span style="color:var(--text-muted);font-style:italic;font-size:.8rem">unknown</span>';
-    if(numVal!==undefined){
-      const pct = Math.round(((numVal - FACTION_MIN)/(FACTION_MAX - FACTION_MIN))*100);
-      const barColor = color==='green'?'#4caf7d':color==='red'?'#c05050':'#c8962a';
-      const conTag = isCon?`<span title="Value set by /con" style="font-size:.65rem;color:var(--text-muted);font-family:'Cinzel',serif;letter-spacing:.04em;opacity:.7">con</span>`:'';
-      valHtml=`<div style="display:flex;align-items:center;gap:.4rem">
-        <div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;min-width:50px">
-          <div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px;transition:width .3s"></div>
-        </div>
-        <span style="font-size:.75rem;color:var(--text-muted);min-width:32px;text-align:right">${numVal>0?'+':''}${numVal}</span>
-        ${conTag}
-      </div>`;
-    }
-    html+=`<tr>
-      <td class="faction-name">${esc(f.name)}</td>
-      <td style="text-align:center"><select class="faction-select ${badgeCls}" data-faction="${esc(f.name)}" onchange="setFaction('${esc(name)}',this.dataset.faction,this.value);const c=factionColor(this.value);this.className='faction-select '+(c==='green'?'faction-badge-ally':c==='red'?'faction-badge-warn':c==='yellow'?'faction-badge-yellow':'faction-badge-none')">${opts}</select></td>
-      <td>${valHtml}</td>
-    </tr>`;
+  const factions=FACTION_LIST.filter(f=>{if(f.section!==secFilter)return false;if(seen.has(f.name))return false;seen.add(f.name);return true;});
+
+  // Table header
+  const colCount=visChars.length+1;
+  const charHeaders=visChars.map(n=>`<th style="min-width:110px;max-width:140px">${esc(n)}</th>`).join('');
+  let html=`${filterBar}<div style="overflow-x:auto"><table class="faction-table"><thead><tr><th class="faction-th-left" style="min-width:160px">Faction</th>${charHeaders}</tr></thead><tbody>`;
+
+  for(const f of factions){
+    const cells=visChars.map(n=>{
+      const cur=getFaction(n,f.name);
+      const color=factionColor(cur);
+      const badgeCls=color==='green'?'faction-badge-ally':color==='red'?'faction-badge-warn':color==='yellow'?'faction-badge-yellow':'faction-badge-none';
+      const opts=`<option value="">— Not Set —</option>`+FACTION_LEVELS.map(l=>`<option value="${l}"${l===cur?' selected':''}>${l}</option>`).join('');
+      // Numeric bar if available
+      const fEntry=(factionValues[resolveCharKey(n)]||{})[f.name];
+      const numVal=fEntry?.value??(typeof fEntry==='number'?fEntry:undefined);
+      let barHtml='';
+      if(numVal!==undefined){
+        const pct=Math.round(((numVal-FACTION_MIN)/(FACTION_MAX-FACTION_MIN))*100);
+        const barColor=color==='green'?'#4caf7d':color==='red'?'#c05050':'#c8962a';
+        const sign=numVal>0?'+':'';
+        barHtml=`<div class="faction-val-mini"><div class="faction-val-track"><div class="faction-val-fill" style="width:${pct}%;background:${barColor}"></div></div><span style="font-size:.72rem;color:var(--text-muted)">${sign}${numVal}</span></div>`;
+      }
+      return`<td><select class="faction-select ${badgeCls}" data-char="${esc(n)}" data-faction="${esc(f.name)}" onchange="setFaction(this.dataset.char,this.dataset.faction,this.value);const c=factionColor(this.value);this.className='faction-select '+(c==='green'?'faction-badge-ally':c==='red'?'faction-badge-warn':c==='yellow'?'faction-badge-yellow':'faction-badge-none')">${opts}</select>${barHtml}</td>`;
+    }).join('');
+    html+=`<tr><td class="faction-name">${esc(f.name)}</td>${cells}</tr>`;
   }
   html+=`</tbody></table></div>`;
   panel.innerHTML=html;
 }
-
 // ─── Skyshrine Armor ──────────────────────────────────────────────────────────
 
 const SS_DATA = {
