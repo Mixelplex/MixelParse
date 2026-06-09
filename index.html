@@ -3365,6 +3365,9 @@ window.applyDBToChar    = applyDBToChar;
           if(n>0) showWatcherToast(`📜 ${msg.charName}: ${n} factions loaded from log`);
           saveState();
         }
+        if(msg.type === 'todNote'){
+          showTodModal(msg.target, msg.full, msg.noteText, msg.timestamp);
+        }
       } catch{}
     };
 
@@ -3395,6 +3398,86 @@ window.applyDBToChar    = applyDBToChar;
     injectStatusBadge(); connect();
   }
 })();
+// ── TOD Note Modal ────────────────────────────────────────────────────────────
+// Fired when watcher detects a boss name in notes.txt.
+// Prompts user to add kill to an existing session or start a new one.
+function showTodModal(target, full, noteText, timestamp){
+  // Remove any existing modal
+  const existing = document.getElementById('tod-modal-overlay');
+  if(existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'tod-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:10000;display:flex;align-items:center;justify-content:center;font-family:"Cinzel",serif';
+
+  // Build session options
+  const sessionOpts = raidSessions.slice().reverse().slice(0,8).map(s => {
+    const total = sessionDkpTotal(s);
+    const kills = Object.entries(s.killState||{}).filter(([,v])=>v==='killed').length;
+    return `<option value="${esc(s.id)}">${esc(s.date)} — ${kills} kill${kills===1?'':'s'}, ${total} DKP</option>`;
+  }).join('');
+
+  overlay.innerHTML = `
+    <div style="background:#1a1510;border:2px solid #8b6914;border-radius:6px;padding:1.6rem 2rem;min-width:340px;max-width:480px;box-shadow:0 8px 32px rgba(0,0,0,.8)">
+      <div style="font-size:1rem;color:#c9a84c;letter-spacing:.1em;margin-bottom:.3rem">⚔ KILL DETECTED</div>
+      <div style="font-size:1.3rem;color:#e8d5a0;margin-bottom:.2rem">${esc(full)}</div>
+      <div style="font-size:.7rem;color:#777;font-family:monospace;margin-bottom:1.2rem">${esc(noteText)} · ${esc(timestamp)}</div>
+
+      <div style="margin-bottom:1rem">
+        <label style="font-size:.65rem;color:#999;letter-spacing:.08em;display:block;margin-bottom:.35rem">ADD TO SESSION</label>
+        ${raidSessions.length ? `
+          <select id="tod-session-select" style="width:100%;background:#111;border:1px solid #555;color:#e8d5a0;padding:.4rem .5rem;font-size:.8rem;border-radius:3px">
+            ${sessionOpts}
+          </select>
+        ` : `<div style="font-size:.8rem;color:#666;font-style:italic">No existing sessions</div>`}
+      </div>
+
+      <div style="display:flex;gap:.6rem;margin-top:1.2rem">
+        ${raidSessions.length ? `<button type="button" onclick="todAddToSession()" style="flex:1;background:#2a3a1a;border:1px solid #4a6a2a;color:#8fc46a;padding:.5rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.75rem;cursor:pointer">Add to Session</button>` : ''}
+        <button type="button" onclick="todStartNewSession('${esc(target)}')" style="flex:1;background:#1a2a3a;border:1px solid #2a4a6a;color:#6ab4c4;padding:.5rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.75rem;cursor:pointer">Start New Session</button>
+        <button type="button" onclick="document.getElementById('tod-modal-overlay').remove()" style="background:#2a1a1a;border:1px solid #5a2a2a;color:#a46a6a;padding:.5rem .8rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.75rem;cursor:pointer">Dismiss</button>
+      </div>
+    </div>`;
+
+  // Store target for the button handlers
+  overlay.dataset.target = target;
+  document.body.appendChild(overlay);
+
+  // Close on overlay click
+  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
+}
+
+function todAddToSession(){
+  const overlay = document.getElementById('tod-modal-overlay');
+  if(!overlay) return;
+  const sel = document.getElementById('tod-session-select');
+  if(!sel) return;
+  const sessionId = sel.value;
+  const target = overlay.dataset.target;
+  const session = raidSessions.find(s => s.id === sessionId);
+  if(!session) return;
+  if(!session.killState) session.killState = {};
+  session.killState[target] = 'killed';
+  saveSessionsToSupabase();
+  overlay.remove();
+  // Switch to kill tracker tab so user sees the result
+  switchTab('__kills__');
+  showWatcherToast(`⚔ ${target} marked as killed`);
+}
+
+function todStartNewSession(target){
+  const overlay = document.getElementById('tod-modal-overlay');
+  if(!overlay) return;
+  const session = newSession();
+  session.killState[target] = 'killed';
+  raidSessions.push(session);
+  activeSession = session;
+  saveSessionsToSupabase();
+  overlay.remove();
+  switchTab('__kills__');
+  showWatcherToast(`⚔ New session started — ${target} killed`);
+}
+
 // expose via thin wrappers so the admin panel can call them directly
 window.classFromFilename= function(fn){
   const FILE_CLASS_MAP={'bard':'BRD','cleric':'CLR','druid':'DRU','enchanter':'ENC','mage':'MAG','magician':'MAG','monk':'MNK','necromancer':'NEC','paladin':'PAL','ranger':'RNG','rogue':'ROG','shadowknight':'SHD','shadow_knight':'SHD','shaman':'SHM','warrior':'WAR','wizard':'WIZ'};
