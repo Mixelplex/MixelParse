@@ -2993,9 +2993,9 @@ function setFaction(charName, factionName, level){
 
 const FACTION_SECTION_LABELS = {Raid:'VELIOUS RAID',City:'VELIOUS CITY',Kunark:'KUNARK',Classic:'CLASSIC / ANTONICA',Faydwer:'FAYDWER / ODUS',Deity:'DEITY FACTIONS',Planes:'PLANES & DRAGONS',Misc:'MISC'};
 const CITY_FACTIONS={
-  thurgadin:{factions:['Coldain','Dain Frostreaver IV'],rowId:'cityRows_thurgadin',configId:'cityConfigRow_thurgadin',lsKey:'mp_cityHidden_thurgadin'},
-  kael:     {factions:['Kromzek','Kromrif'],rowId:'cityRows_kael',configId:'cityConfigRow_kael',lsKey:'mp_cityHidden_kael'},
   skyshrine:{factions:['Claws of Veeshan','Yelinak'],rowId:'cityRows_skyshrine',configId:'cityConfigRow_skyshrine',lsKey:'mp_cityHidden_skyshrine'},
+  kael:     {factions:['Kromzek','Kromrif'],rowId:'cityRows_kael',configId:'cityConfigRow_kael',lsKey:'mp_cityHidden_kael'},
+  thurgadin:{factions:['Coldain','Dain Frostreaver IV'],rowId:'cityRows_thurgadin',configId:'cityConfigRow_thurgadin',lsKey:'mp_cityHidden_thurgadin'},
 };
 function getCityHidden(key){try{return new Set(JSON.parse(localStorage.getItem(key)||'[]'));}catch{return new Set();}}
 function setCityHidden(key,s){localStorage.setItem(key,JSON.stringify([...s]));}
