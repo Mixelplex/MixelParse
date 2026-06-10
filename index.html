@@ -308,6 +308,7 @@
   .faction-badge-yellow{color:#7a5000;font-weight:700}
   .faction-badge-warn{color:#a03030;font-weight:700}
   .faction-badge-none{color:var(--text-muted);font-style:italic}
+  .faction-section-header{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.1em;color:var(--gold);padding:.55rem .6rem .3rem;text-transform:uppercase;border-bottom:1px solid var(--border-glow);margin-top:.75rem}
   .faction-section-divider td{background:var(--surface);padding:.3rem .75rem;font-family:'Cinzel',serif;font-size:.63rem;letter-spacing:.1em;color:var(--text-muted);border-bottom:1px solid var(--border);border-top:2px solid var(--border)}
   .faction-name{font-weight:500;color:var(--text)}
   .faction-val-mini{display:flex;align-items:center;gap:.25rem;white-space:nowrap}
@@ -2988,60 +2989,83 @@ function renderFactionsPanel(){
   const allNames=charNames().filter(n=>n!=='__all__');
   if(!allNames.length){panel.innerHTML='<div class="empty-state">No characters loaded.</div>';return;}
 
-  // Persist filter state across re-renders
-  if(!window._factionVisChars)window._factionVisChars=new Set(allNames);
-  if(!window._factionVisSection)window._factionVisSection='Raid';
+  const isAll=activeTab==='__all__';
 
-  // Sync char set against current char list
-  allNames.forEach(n=>{if(!window._factionVisChars.has(n)&&allNames.length<=4)window._factionVisChars.add(n);});
-  const visChars=allNames.filter(n=>window._factionVisChars.has(n));
+  if(isAll){
+    // ── All Characters view: char chips + section filter ──────────────────────
+    if(!window._factionVisChars)window._factionVisChars=new Set(allNames);
+    if(!window._factionVisSection)window._factionVisSection='Raid';
+    allNames.forEach(n=>{if(!window._factionVisChars.has(n)&&allNames.length<=4)window._factionVisChars.add(n);});
+    const visChars=allNames.filter(n=>window._factionVisChars.has(n));
+    const sections=[...new Set(FACTION_LIST.map(f=>f.section))];
+    const secFilter=window._factionVisSection;
+    const charChips=allNames.map(n=>`<span class="faction-char-chip${window._factionVisChars.has(n)?' active':''}" onclick="window._factionVisChars.has('${esc(n)}')?window._factionVisChars.delete('${esc(n)}'):window._factionVisChars.add('${esc(n)}');renderFactionsPanel()">${esc(n)}</span>`).join('');
+    const secChips=sections.map(s=>`<span class="faction-sec-chip${s===secFilter?' active':''}" onclick="window._factionVisSection='${s}';renderFactionsPanel()">${FACTION_SECTION_LABELS[s]||s}</span>`).join('');
+    const filterBar=`<div class="faction-filter-bar">
+      <span class="faction-filter-label">CHARS</span>${charChips}
+      <div class="faction-filter-sep"></div>
+      <span class="faction-filter-label">SECTION</span>${secChips}
+    </div>`;
+    if(!visChars.length){panel.innerHTML=filterBar+'<div style="padding:1rem 1.5rem;color:var(--text-muted);font-style:italic;font-size:.85rem">No characters selected.</div>';return;}
+    const seen=new Set();
+    const factions=FACTION_LIST.filter(f=>{if(f.section!==secFilter)return false;if(seen.has(f.name))return false;seen.add(f.name);return true;});
+    const charHeaders=visChars.map(n=>`<th style="min-width:110px;max-width:140px">${esc(n)}</th>`).join('');
+    let html=`${filterBar}<div style="overflow-x:auto"><table class="faction-table"><thead><tr><th class="faction-th-left" style="min-width:160px">Faction</th>${charHeaders}</tr></thead><tbody>`;
+    for(const f of factions){
+      const cells=visChars.map(n=>{
+        const cur=getFaction(n,f.name);
+        const color=factionColor(cur);
+        const badgeCls=color==='green'?'faction-badge-ally':color==='red'?'faction-badge-warn':color==='yellow'?'faction-badge-yellow':'faction-badge-none';
+        const opts=`<option value="">— Not Set —</option>`+FACTION_LEVELS.map(l=>`<option value="${l}"${l===cur?' selected':''}>${l}</option>`).join('');
+        const fEntry=(factionValues[resolveCharKey(n)]||{})[f.name];
+        const numVal=fEntry?.value??(typeof fEntry==='number'?fEntry:undefined);
+        let barHtml='';
+        if(numVal!==undefined){
+          const pct=Math.round(((numVal-FACTION_MIN)/(FACTION_MAX-FACTION_MIN))*100);
+          const barColor=color==='green'?'#4caf7d':color==='red'?'#c05050':'#c8962a';
+          const sign=numVal>0?'+':'';
+          barHtml=`<div class="faction-val-mini"><div class="faction-val-track"><div class="faction-val-fill" style="width:${pct}%;background:${barColor}"></div></div><span style="font-size:.72rem;color:var(--text-muted)">${sign}${numVal}</span></div>`;
+        }
+        return`<td><select class="faction-select ${badgeCls}" data-char="${esc(n)}" data-faction="${esc(f.name)}" onchange="setFaction(this.dataset.char,this.dataset.faction,this.value);const c=factionColor(this.value);this.className='faction-select '+(c==='green'?'faction-badge-ally':c==='red'?'faction-badge-warn':c==='yellow'?'faction-badge-yellow':'faction-badge-none')">${opts}</select>${barHtml}</td>`;
+      }).join('');
+      html+=`<tr><td class="faction-name">${esc(f.name)}</td>${cells}</tr>`;
+    }
+    html+=`</tbody></table></div>`;
+    panel.innerHTML=html;
 
-  // Sections present in filtered list
-  const sections=[...new Set(FACTION_LIST.map(f=>f.section))];
-  const secFilter=window._factionVisSection;
-
-  // Build filter bar
-  const charChips=allNames.map(n=>`<span class="faction-char-chip${window._factionVisChars.has(n)?' active':''}" onclick="window._factionVisChars.has('${esc(n)}')?window._factionVisChars.delete('${esc(n)}'):window._factionVisChars.add('${esc(n)}');renderFactionsPanel()">${esc(n)}</span>`).join('');
-  const secChips=sections.map(s=>`<span class="faction-sec-chip${s===secFilter?' active':''}" onclick="window._factionVisSection='${s}';renderFactionsPanel()">${FACTION_SECTION_LABELS[s]||s}</span>`).join('');
-  const filterBar=`<div class="faction-filter-bar">
-    <span class="faction-filter-label">CHARS</span>${charChips}
-    <div class="faction-filter-sep"></div>
-    <span class="faction-filter-label">SECTION</span>${secChips}
-  </div>`;
-
-  if(!visChars.length){panel.innerHTML=filterBar+'<div style="padding:1rem 1.5rem;color:var(--text-muted);font-style:italic;font-size:.85rem">No characters selected.</div>';return;}
-
-  // Filter factions to current section, dedupe
-  const seen=new Set();
-  const factions=FACTION_LIST.filter(f=>{if(f.section!==secFilter)return false;if(seen.has(f.name))return false;seen.add(f.name);return true;});
-
-  // Table header
-  const colCount=visChars.length+1;
-  const charHeaders=visChars.map(n=>`<th style="min-width:110px;max-width:140px">${esc(n)}</th>`).join('');
-  let html=`${filterBar}<div style="overflow-x:auto"><table class="faction-table"><thead><tr><th class="faction-th-left" style="min-width:160px">Faction</th>${charHeaders}</tr></thead><tbody>`;
-
-  for(const f of factions){
-    const cells=visChars.map(n=>{
-      const cur=getFaction(n,f.name);
-      const color=factionColor(cur);
-      const badgeCls=color==='green'?'faction-badge-ally':color==='red'?'faction-badge-warn':color==='yellow'?'faction-badge-yellow':'faction-badge-none';
-      const opts=`<option value="">— Not Set —</option>`+FACTION_LEVELS.map(l=>`<option value="${l}"${l===cur?' selected':''}>${l}</option>`).join('');
-      // Numeric bar if available
-      const fEntry=(factionValues[resolveCharKey(n)]||{})[f.name];
-      const numVal=fEntry?.value??(typeof fEntry==='number'?fEntry:undefined);
-      let barHtml='';
-      if(numVal!==undefined){
-        const pct=Math.round(((numVal-FACTION_MIN)/(FACTION_MAX-FACTION_MIN))*100);
-        const barColor=color==='green'?'#4caf7d':color==='red'?'#c05050':'#c8962a';
-        const sign=numVal>0?'+':'';
-        barHtml=`<div class="faction-val-mini"><div class="faction-val-track"><div class="faction-val-fill" style="width:${pct}%;background:${barColor}"></div></div><span style="font-size:.72rem;color:var(--text-muted)">${sign}${numVal}</span></div>`;
+  } else {
+    // ── Single character view: no filter bar, all sections ────────────────────
+    const n=activeTab;
+    const seen=new Set();
+    const factions=FACTION_LIST.filter(f=>{if(seen.has(f.name))return false;seen.add(f.name);return true;});
+    const sections=[...new Set(factions.map(f=>f.section))];
+    let html=`<div style="overflow-x:auto">`;
+    for(const sec of sections){
+      const secFactions=factions.filter(f=>f.section===sec);
+      if(!secFactions.length)continue;
+      html+=`<div class="faction-section-header">${esc(FACTION_SECTION_LABELS[sec]||sec)}</div>`;
+      html+=`<table class="faction-table" style="margin-bottom:.5rem"><tbody>`;
+      for(const f of secFactions){
+        const cur=getFaction(n,f.name);
+        const color=factionColor(cur);
+        const badgeCls=color==='green'?'faction-badge-ally':color==='red'?'faction-badge-warn':color==='yellow'?'faction-badge-yellow':'faction-badge-none';
+        const opts=`<option value="">— Not Set —</option>`+FACTION_LEVELS.map(l=>`<option value="${l}"${l===cur?' selected':''}>${l}</option>`).join('');
+        const fEntry=(factionValues[resolveCharKey(n)]||{})[f.name];
+        const numVal=fEntry?.value??(typeof fEntry==='number'?fEntry:undefined);
+        let barHtml='';
+        if(numVal!==undefined){
+          const pct=Math.round(((numVal-FACTION_MIN)/(FACTION_MAX-FACTION_MIN))*100);
+          const barColor=color==='green'?'#4caf7d':color==='red'?'#c05050':'#c8962a';
+          const sign=numVal>0?'+':'';
+          barHtml=`<div class="faction-val-mini"><div class="faction-val-track"><div class="faction-val-fill" style="width:${pct}%;background:${barColor}"></div></div><span style="font-size:.72rem;color:var(--text-muted)">${sign}${numVal}</span></div>`;
+        }
+        html+=`<tr><td class="faction-name" style="min-width:180px">${esc(f.name)}</td><td><select class="faction-select ${badgeCls}" data-char="${esc(n)}" data-faction="${esc(f.name)}" onchange="setFaction(this.dataset.char,this.dataset.faction,this.value);const c=factionColor(this.value);this.className='faction-select '+(c==='green'?'faction-badge-ally':c==='red'?'faction-badge-warn':c==='yellow'?'faction-badge-yellow':'faction-badge-none')">${opts}</select>${barHtml}</td></tr>`;
       }
-      return`<td><select class="faction-select ${badgeCls}" data-char="${esc(n)}" data-faction="${esc(f.name)}" onchange="setFaction(this.dataset.char,this.dataset.faction,this.value);const c=factionColor(this.value);this.className='faction-select '+(c==='green'?'faction-badge-ally':c==='red'?'faction-badge-warn':c==='yellow'?'faction-badge-yellow':'faction-badge-none')">${opts}</select>${barHtml}</td>`;
-    }).join('');
-    html+=`<tr><td class="faction-name">${esc(f.name)}</td>${cells}</tr>`;
+      html+=`</tbody></table>`;
+    }
+    html+=`</div>`;
+    panel.innerHTML=html;
   }
-  html+=`</tbody></table></div>`;
-  panel.innerHTML=html;
 }
 // ─── Skyshrine Armor ──────────────────────────────────────────────────────────
 
