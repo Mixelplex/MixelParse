@@ -3044,7 +3044,7 @@ function renderFactionsPanel(){
       const secFactions=factions.filter(f=>f.section===sec);
       if(!secFactions.length)continue;
       html+=`<div class="faction-section-header">${esc(FACTION_SECTION_LABELS[sec]||sec)}</div>`;
-      html+=`<table class="faction-table" style="margin-bottom:.5rem"><tbody>`;
+      html+=`<table class="faction-table" style="margin-bottom:.5rem;width:auto;min-width:420px"><tbody>`;
       for(const f of secFactions){
         const cur=getFaction(n,f.name);
         const color=factionColor(cur);
@@ -3059,7 +3059,7 @@ function renderFactionsPanel(){
           const sign=numVal>0?'+':'';
           barHtml=`<div class="faction-val-mini"><div class="faction-val-track"><div class="faction-val-fill" style="width:${pct}%;background:${barColor}"></div></div><span style="font-size:.72rem;color:var(--text-muted)">${sign}${numVal}</span></div>`;
         }
-        html+=`<tr><td class="faction-name" style="min-width:180px">${esc(f.name)}</td><td><select class="faction-select ${badgeCls}" data-char="${esc(n)}" data-faction="${esc(f.name)}" onchange="setFaction(this.dataset.char,this.dataset.faction,this.value);const c=factionColor(this.value);this.className='faction-select '+(c==='green'?'faction-badge-ally':c==='red'?'faction-badge-warn':c==='yellow'?'faction-badge-yellow':'faction-badge-none')">${opts}</select>${barHtml}</td></tr>`;
+        html+=`<tr><td class="faction-name" style="min-width:180px;width:180px">${esc(f.name)}</td><td style="width:200px"><select class="faction-select ${badgeCls}" data-char="${esc(n)}" data-faction="${esc(f.name)}" onchange="setFaction(this.dataset.char,this.dataset.faction,this.value);const c=factionColor(this.value);this.className='faction-select '+(c==='green'?'faction-badge-ally':c==='red'?'faction-badge-warn':c==='yellow'?'faction-badge-yellow':'faction-badge-none')">${opts}</select>${barHtml}</td></tr>`;
       }
       html+=`</tbody></table>`;
     }
