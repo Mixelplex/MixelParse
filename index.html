@@ -1839,7 +1839,7 @@ function renderUpgradesPanel(){
 
   // ── Biggest Upgrades section ──────────────────────────────────────────────
   function buildBiggestUpgradesHtml(){
-    // Gather best candidate per slot
+    // Gather best candidate per slot, score > 0 only
     const rows=[];
     for(const sr of slotResults){
       if(sr.is2hCard&&!is2hMode)continue;
@@ -1850,47 +1850,56 @@ function renderUpgradesPanel(){
     }
     rows.sort((a,b)=>b.gain-a.gain);
 
-    // Split into tiers by score
-    const major=rows.filter(r=>r.gain>=20).slice(0,5);
-    const medium=rows.filter(r=>r.gain>=8&&r.gain<20).slice(0,5);
-    const minor=rows.filter(r=>r.gain>0&&r.gain<8).slice(0,5);
+    // Relative tiers — split sorted rows into thirds so thresholds adapt to
+    // this class's score scale (a CLR scores 300+ per slot; a Monk scores 20).
+    // Top third = Major, middle third = Medium, bottom third = Minor, 5 each max.
+    const total=rows.length;
+    const third=Math.max(1,Math.ceil(total/3));
+    const major=rows.slice(0,third).slice(0,5);
+    const medium=rows.slice(third,third*2).slice(0,5);
+    const minor=rows.slice(third*2).slice(0,5);
+    const topGain=rows.length?rows[0].gain:1;
 
+    // whyStr: top 3 positive deltas driving the gain, using correct stat keys only
+    // Keys: ac, primary stats, resists, hpbonus, manabonus, haste — no duplicates
+    const WHY_KEYS=['ac',...STAT_KEYS_ALL,'haste'];
     function whyStr(curData,bestData){
+      const seen=new Set();
       const parts=[];
-      const allKeys=['ac',...STAT_KEYS_ALL,'haste','hpbonus'];
-      for(const k of allKeys){
+      for(const k of WHY_KEYS){
+        if(seen.has(k))continue;
+        seen.add(k);
         const delta=Number(bestData[k]||0)-Number(curData[k]||0);
-        if(delta>0){
-          const label=k==='ac'?'AC':k==='haste'?'Haste':k==='hpbonus'?'+HP':(STAT_DISPLAY[k]||k.toUpperCase());
-          const suffix=k==='haste'?'%':'';
-          parts.push({label,delta,suffix});
-        }
+        if(delta<=0)continue;
+        const label=k==='ac'?'AC':(STAT_DISPLAY[k]||k.toUpperCase());
+        const suffix=k==='haste'?'%':'';
+        parts.push({label,delta,suffix});
       }
       parts.sort((a,b)=>b.delta-a.delta);
       return parts.slice(0,3).map(p=>`${p.label} +${p.delta}${p.suffix}`).join(' · ')||'';
     }
 
-    function buildTierRows(tierRows,topGain){
-      if(!tierRows.length)return `<tr><td colspan="5" style="padding:.6rem .75rem;color:var(--text-muted);font-style:italic;font-size:.82rem">None found in this range.</td></tr>`;
+    function buildTierRows(tierRows){
+      if(!tierRows.length)return `<tr><td colspan="4" style="padding:.6rem .75rem;color:var(--text-muted);font-style:italic;font-size:.82rem">None found in this range.</td></tr>`;
       return tierRows.map(({sr,best,gain})=>{
         const slotLabel=sr.is2hCard?'2H':sr.dbSlot;
         const curName=sr.item.name==='(empty)'?'—':sr.item.name;
         const gainStr='+'+(Math.round(gain*10)/10)+' pts';
         const cost=[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' · ')||'—';
         const why=whyStr(sr.currentData,best);
-        const barPct=topGain>0?Math.min(100,Math.round((gain/topGain)*100)):0;
-        const barColor=gain>=20?'#4caf7d':gain>=8?'#c8962a':'#9a9a6a';
+        const barPct=Math.min(100,Math.round((gain/topGain)*100));
+        const tierCls=gain>=rows[third-1]?.gain?'hi':gain>=rows[Math.min(third*2-1,rows.length-1)]?.gain?'mid':'lo';
+        const barColor=tierCls==='hi'?'#4caf7d':tierCls==='mid'?'#c8962a':'#9a9a6a';
         return `<tr onclick="document.getElementById('upgcard_${esc(sr.cardId)}')?.scrollIntoView({behavior:'smooth',block:'center'})" style="cursor:pointer" title="Jump to ${esc(slotLabel)} slot card">
           <td><span class="upg-big-slot">${esc(slotLabel)}</span><div style="font-size:.72rem;color:var(--text-muted);margin-top:1px">${esc(curName)}</div></td>
           <td><div class="upg-big-name">${itemLink(best.name)}</div>${why?`<div class="upg-big-why">${esc(why)}</div>`:''}</td>
-          <td><div class="upg-big-gain ${gain>=20?'hi':gain>=8?'mid':'lo'}">${gainStr}</div><div class="upg-big-bar" style="width:${barPct}%;background:${barColor}"></div></td>
+          <td><div class="upg-big-gain ${tierCls}">${gainStr}</div><div class="upg-big-bar" style="width:${barPct}%;background:${barColor}"></div></td>
           <td class="upg-big-cost">${esc(cost)}</td>
         </tr>`;
       }).join('');
     }
 
-    function buildTierSection(title,tierRows,allRows,colorCls,icon){
-      const topGain=allRows.length?allRows[0].gain:1;
+    function buildTierSection(title,tierRows,icon){
       const id='upgTier'+title.replace(/\s/g,'');
       return `<div class="upg-section-head" style="margin-top:.75rem">
         <span class="upg-section-title">${icon} ${title}</span>
@@ -1899,19 +1908,18 @@ function renderUpgradesPanel(){
       <div class="upg-section-wrap" id="${id}">
         <table class="upg-bigtable">
           <thead><tr><th>Slot / Equipped</th><th>Best Upgrade</th><th class="upg-th-right">Gain</th><th class="upg-th-right">Cost</th></tr></thead>
-          <tbody>${buildTierRows(tierRows,topGain)}</tbody>
+          <tbody>${buildTierRows(tierRows)}</tbody>
         </table>
       </div>`;
     }
 
-    const hasTiers=major.length||medium.length||minor.length;
-    if(!hasTiers)return `<div style="padding:.75rem 0;color:var(--text-muted);font-style:italic;font-size:.85rem;text-align:center">No upgrade candidates found — load the item database to see suggestions.</div>`;
+    if(!rows.length)return `<div style="padding:.75rem 0;color:var(--text-muted);font-style:italic;font-size:.85rem;text-align:center">No upgrade candidates found — load the item database to see suggestions.</div>`;
 
     return `<div style="margin-top:.5rem">
-      <div style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;padding:.5rem 0 .35rem;border-bottom:2px solid var(--border-glow);margin-bottom:.1rem">Upgrade Recommendations — Full Item Database</div>
-      ${buildTierSection('Major Upgrades',major,rows,'hi','▲')}
-      ${buildTierSection('Medium Upgrades',medium,rows,'mid','◆')}
-      ${buildTierSection('Minor Upgrades',minor,rows,'lo','▸')}
+      <div style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;padding:.5rem 0 .35rem;border-bottom:2px solid var(--border-glow);margin-bottom:.1rem">Upgrade Recommendations — ${esc(charClass)} — Full Item Database</div>
+      ${buildTierSection('Major Upgrades',major,'▲')}
+      ${buildTierSection('Medium Upgrades',medium,'◆')}
+      ${buildTierSection('Minor Upgrades',minor,'▸')}
     </div>`;
   }
 
