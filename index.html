@@ -699,7 +699,8 @@
   </div>
 
   <div id="subInventory">
-    <div class="watchlist-bar" id="tovBar">
+    <div id="factionBarsRow" style="display:flex;gap:.75rem;align-items:flex-start;margin-bottom:.5rem">
+    <div class="watchlist-bar" id="tovBar" style="flex:1;min-width:0">
       <div class="watchlist-bar-header">
         <div class="watchlist-bar-title">🐉 Claws of Veeshan Faction</div>
         <button class="watchlist-gear-btn" id="tovGearBtn" title="Configure characters" onclick="toggleTovConfig()">⚙</button>
@@ -707,7 +708,7 @@
       <div id="tovConfigRow" style="display:none;padding:.35rem .75rem .4rem;border-bottom:1px solid var(--border);display:none"></div>
       <div id="tovRows" class="watchlist-rows"><div class="watchlist-empty">No characters loaded.</div></div>
     </div>
-    <div class="watchlist-bar" id="cityBar_thurgadin">
+    <div class="watchlist-bar" id="cityBar_thurgadin" style="flex:1;min-width:0">
       <div class="watchlist-bar-header">
         <div class="watchlist-bar-title">🏔 Thurgadin</div>
         <button class="watchlist-gear-btn" title="Configure characters" onclick="toggleCityConfig('thurgadin')">⚙</button>
@@ -715,7 +716,7 @@
       <div id="cityConfigRow_thurgadin" style="display:none;padding:.35rem .75rem .4rem;border-bottom:1px solid var(--border)"></div>
       <div id="cityRows_thurgadin" class="watchlist-rows"><div class="watchlist-empty">No characters loaded.</div></div>
     </div>
-    <div class="watchlist-bar" id="cityBar_kael">
+    <div class="watchlist-bar" id="cityBar_kael" style="flex:1;min-width:0">
       <div class="watchlist-bar-header">
         <div class="watchlist-bar-title">⚔ Kael Drakkel</div>
         <button class="watchlist-gear-btn" title="Configure characters" onclick="toggleCityConfig('kael')">⚙</button>
@@ -723,13 +724,14 @@
       <div id="cityConfigRow_kael" style="display:none;padding:.35rem .75rem .4rem;border-bottom:1px solid var(--border)"></div>
       <div id="cityRows_kael" class="watchlist-rows"><div class="watchlist-empty">No characters loaded.</div></div>
     </div>
-    <div class="watchlist-bar" id="cityBar_skyshrine">
+    <div class="watchlist-bar" id="cityBar_skyshrine" style="flex:1;min-width:0">
       <div class="watchlist-bar-header">
         <div class="watchlist-bar-title">🌀 Skyshrine</div>
         <button class="watchlist-gear-btn" title="Configure characters" onclick="toggleCityConfig('skyshrine')">⚙</button>
       </div>
       <div id="cityConfigRow_skyshrine" style="display:none;padding:.35rem .75rem .4rem;border-bottom:1px solid var(--border)"></div>
       <div id="cityRows_skyshrine" class="watchlist-rows"><div class="watchlist-empty">No characters loaded.</div></div>
+    </div>
     </div>
     <div class="watchlist-bar" id="watchlistBar">
       <div class="watchlist-bar-header">
@@ -1161,6 +1163,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     document.getElementById('tabBar').style.display=isChars?'flex':'none';
     document.getElementById('tovBar').style.display=isChars?'':'none';
     document.getElementById('watchlistBar').style.display=isChars?'':'none';
+    const fbr=document.getElementById('factionBarsRow');if(fbr)fbr.style.display=isChars?'flex':'none';
     ['thurgadin','kael','skyshrine'].forEach(id=>{const el=document.getElementById('cityBar_'+id);if(el)el.style.display=isChars?'':'none';});
     document.getElementById('dropzone').style.display='none';
     document.getElementById('mainView').style.display='none';
@@ -2369,6 +2372,7 @@ document.getElementById('gearReportsBtn').addEventListener('click',()=>{
   document.getElementById('tovBar').style.display='none';
   document.getElementById('watchlistBar').style.display='none';
   ['thurgadin','kael','skyshrine'].forEach(id=>{const el=document.getElementById('cityBar_'+id);if(el)el.style.display='none';});
+  const fbr=document.getElementById('factionBarsRow');if(fbr)fbr.style.display='none';
   document.getElementById('dropzone').style.display='none';
   document.getElementById('mainView').style.display='none';
   document.getElementById('dkpView').style.display='none';
