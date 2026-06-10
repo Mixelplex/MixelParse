@@ -308,7 +308,9 @@
   .faction-badge-yellow{color:#7a5000;font-weight:700}
   .faction-badge-warn{color:#a03030;font-weight:700}
   .faction-badge-none{color:var(--text-muted);font-style:italic}
-  .faction-section-header{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.1em;color:var(--gold);padding:.55rem .6rem .3rem;text-transform:uppercase;border-bottom:1px solid var(--border-glow);margin-top:.75rem}
+  .faction-single-table{width:100%}
+  .faction-single-table .faction-select{min-width:160px}
+  .faction-sec-row td{font-family:'Cinzel',serif;font-size:.63rem;letter-spacing:.09em;color:var(--text-muted);padding:.4rem .6rem .25rem;background:transparent;border-bottom:1px solid var(--border);text-transform:uppercase}
   .faction-section-divider td{background:var(--surface);padding:.3rem .75rem;font-family:'Cinzel',serif;font-size:.63rem;letter-spacing:.1em;color:var(--text-muted);border-bottom:1px solid var(--border);border-top:2px solid var(--border)}
   .faction-name{font-weight:500;color:var(--text)}
   .faction-val-mini{display:flex;align-items:center;gap:.25rem;white-space:nowrap}
@@ -3039,12 +3041,12 @@ function renderFactionsPanel(){
     const seen=new Set();
     const factions=FACTION_LIST.filter(f=>{if(seen.has(f.name))return false;seen.add(f.name);return true;});
     const sections=[...new Set(factions.map(f=>f.section))];
-    let html=`<div style="overflow-x:auto">`;
+    let html=`<div style="max-width:560px"><table class="faction-table faction-single-table">
+      <thead><tr><th class="faction-th-left" style="width:55%">Faction</th><th class="faction-th-left" style="width:45%">Standing</th></tr></thead><tbody>`;
     for(const sec of sections){
       const secFactions=factions.filter(f=>f.section===sec);
       if(!secFactions.length)continue;
-      html+=`<div class="faction-section-header">${esc(FACTION_SECTION_LABELS[sec]||sec)}</div>`;
-      html+=`<table class="faction-table" style="margin-bottom:.5rem;width:auto;min-width:420px"><tbody>`;
+      html+=`<tr class="faction-sec-row"><td colspan="2">${esc(FACTION_SECTION_LABELS[sec]||sec)}</td></tr>`;
       for(const f of secFactions){
         const cur=getFaction(n,f.name);
         const color=factionColor(cur);
@@ -3059,11 +3061,10 @@ function renderFactionsPanel(){
           const sign=numVal>0?'+':'';
           barHtml=`<div class="faction-val-mini"><div class="faction-val-track"><div class="faction-val-fill" style="width:${pct}%;background:${barColor}"></div></div><span style="font-size:.72rem;color:var(--text-muted)">${sign}${numVal}</span></div>`;
         }
-        html+=`<tr><td class="faction-name" style="min-width:180px;width:180px">${esc(f.name)}</td><td style="width:200px"><select class="faction-select ${badgeCls}" data-char="${esc(n)}" data-faction="${esc(f.name)}" onchange="setFaction(this.dataset.char,this.dataset.faction,this.value);const c=factionColor(this.value);this.className='faction-select '+(c==='green'?'faction-badge-ally':c==='red'?'faction-badge-warn':c==='yellow'?'faction-badge-yellow':'faction-badge-none')">${opts}</select>${barHtml}</td></tr>`;
+        html+=`<tr><td class="faction-name">${esc(f.name)}</td><td><select class="faction-select ${badgeCls}" data-char="${esc(n)}" data-faction="${esc(f.name)}" onchange="setFaction(this.dataset.char,this.dataset.faction,this.value);const c=factionColor(this.value);this.className='faction-select '+(c==='green'?'faction-badge-ally':c==='red'?'faction-badge-warn':c==='yellow'?'faction-badge-yellow':'faction-badge-none')">${opts}</select>${barHtml}</td></tr>`;
       }
-      html+=`</tbody></table>`;
     }
-    html+=`</div>`;
+    html+=`</tbody></table></div>`;
     panel.innerHTML=html;
   }
 }
