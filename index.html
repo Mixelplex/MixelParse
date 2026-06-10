@@ -1542,7 +1542,7 @@ function renderUpgradesPanel(){
       :[];
     const candidatePool=[...(bySlot[dbSlot]||[]),...ohExtra.filter(c=>!(bySlot[dbSlot]||[]).some(x=>x.name===c.name))];
     const candidates=candidatePool
-      .filter(c=>!slotEquippedNames.has(c.name)&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
+      .filter(c=>!slotEquippedNames.has(c.name)&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!SS_CUSTOM_ITEMS.has(c.name)&&!UNOBTAINABLE_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
       .sort((a,b)=>b._effGain-a._effGain);
     slotResults.push({item,dbSlot,currentData,candidates});
@@ -1587,7 +1587,7 @@ function renderUpgradesPanel(){
         :[];
       const emptyPool=[...(bySlot[slot]||[]),...ohExtraEmpty.filter(c=>!(bySlot[slot]||[]).some(x=>x.name===c.name))];
       const candidates=emptyPool
-        .filter(c=>!slotAlreadyEquipped.has(c.name)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
+        .filter(c=>!slotAlreadyEquipped.has(c.name)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!SS_CUSTOM_ITEMS.has(c.name)&&!UNOBTAINABLE_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
         .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)}))
         .sort((a,b)=>b._effGain-a._effGain);
       if(!candidates.length)continue;
@@ -1706,7 +1706,7 @@ function renderUpgradesPanel(){
   {
     const all2h=(bySlot['PRIMARY']||[]).filter(c=>{
       const itype=(c._skill||c._itemType||'').toLowerCase();
-      return (itype.includes('2h')||itype.includes('two'))&&itemUsableByChar(c)&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!SS_CUSTOM_ITEMS.has(c.name)&&!c.name.startsWith('Custom ');
+      return (itype.includes('2h')||itype.includes('two'))&&itemUsableByChar(c)&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!SS_CUSTOM_ITEMS.has(c.name)&&!UNOBTAINABLE_ITEMS.has(c.name)&&!c.name.startsWith('Custom ');
     }).map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)})).sort((a,b)=>b._effGain-a._effGain);
     if(all2h.length){
       slotResults.push({item:{name:'(none)',location:'PRIMARY'},dbSlot:'TWOHANDER',currentData:{},candidates:all2h,isEmpty:true,is2hCard:true,cardId:'2HANDER'});
@@ -3049,6 +3049,12 @@ const SS_DATA = {
   'Warrior':     {npc:"Jendavudd Fe`Dhar",  items:['Crown of the Myrmidon','Breastplate of the Myrmidon','Vambraces of the Myrmidon','Bracer of the Myrmidon','Gauntlets of the Myrmidon','Greaves of the Myrmidon','Boots of the Myrmidon']},
   'Wizard':      {npc:"Elaend Fe`Dhar",     items:['Icicle Circlet','Robe of Icicles','Icicle Sleeves','Icicle Bracelet','Icicle Gloves','Icicle Pantaloons','Icicle Boots']},
 };
+
+// Unobtainable items — GM rewards, removed drops, event-only items no longer available.
+// Add any item here that shows up in the upgrade planner but can't actually be obtained.
+const UNOBTAINABLE_ITEMS = new Set([
+  "The Prime Healer's Bulwark",   // GM reward item, no longer drops
+]);
 
 // Skyshrine custom armor — P99-server-custom items not on live EQ.
 // Cleric set (Akkirus') is intentionally KEPT — it's standard BiS for clerics.
