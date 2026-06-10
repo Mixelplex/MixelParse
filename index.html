@@ -11,7 +11,7 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--text);font-family:'Crimson Pro',Georgia,serif;font-size:16px;min-height:100vh;background-image:radial-gradient(ellipse at 20% 0%,rgba(180,140,80,.12) 0%,transparent 60%),radial-gradient(ellipse at 80% 100%,rgba(160,120,60,.08) 0%,transparent 60%)}
   header{text-align:center;padding:1.5rem 1rem 1rem;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(220,200,160,.6) 0%,transparent 100%);position:relative}
-  .header-top-bar{position:absolute;top:.75rem;left:1rem;right:1rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+  .header-top-bar{position:absolute;top:.75rem;left:1rem;right:1rem;display:flex;align-items:center;justify-content:flex-end;gap:.5rem}
   .header-util-btns{display:flex;gap:.5rem;align-items:center}
   .header-title-block{pointer-events:none}
   header h1{font-family:\'Cinzel\',serif;font-size:clamp(1.3rem,5vw,1.9rem);color:var(--gold-light);letter-spacing:.12em;text-shadow:0 0 30px rgba(201,146,42,.4)}
@@ -578,13 +578,13 @@
 <header>
   <!-- Top bar: auth left, utility buttons right -->
   <div class="header-top-bar">
-    <div class="auth-user-bar" id="userBar" style="display:none">
-      <span id="userEmail"></span>
-      <button class="auth-signout" id="signOutBtn">Sign out</button>
-    </div>
     <div class="header-util-btns">
       <button class="btn primary" id="itemDbBtn" style="font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.06em">&#128230; Item Database</button>
       <button class="btn" id="gearReportsBtn" style="font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.06em">&#128202; Gear Planner Reports</button>
+    </div>
+    <div class="auth-user-bar" id="userBar" style="display:none">
+      <span id="userEmail"></span>
+      <button class="auth-signout" id="signOutBtn">Sign out</button>
     </div>
   </div>
   <!-- Title block: hide on mobile -->
