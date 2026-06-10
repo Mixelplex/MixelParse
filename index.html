@@ -4634,7 +4634,8 @@ function sessionDkpTotal(session){
   const bossRoleDkp=Object.values(session.bossRoles||{}).filter(Array.isArray).flat().reduce((s,r)=>s+(r.value||0),0);
   const bpVal=(session.buffParksNinja?0.5:0.3)*(session.buffParksQty||0);
   const rwDkp=RW_CHECKPOINTS.reduce((s,cp)=>(session.rwChecks||{})[cp.key]?s+cp.value:s,0);
-  return Math.round((killDkp+extraDkp+hourlyDkp+bossRoleDkp+bpVal+rwDkp)*10)/10;
+  const botLootDkp=(session.botLoot||[]).reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
+  return Math.round((killDkp+extraDkp+hourlyDkp+bossRoleDkp+bpVal+rwDkp+botLootDkp)*10)/10;
 }
 
 async function loadKillsFromSupabase(){
@@ -5042,6 +5043,7 @@ function renderKillsPanel(){
       const spawnLabel=k=>{const m=k.match(/^(.+)__(\d+)$/);return m?`${m[1]} #${m[2]}`:k;};
       const hourlyTotal=(s.hourly||[]).reduce((sum,r)=>sum+(r.qty||1),0);
       const hourlyDkp=(s.hourly||[]).reduce((sum,r)=>sum+(r.value||0)*(r.qty||1),0);
+      const botLootDkp=Math.round((s.botLoot||[]).reduce((sum,r)=>sum+(r.value||0)*(r.qty||1),0)*10)/10;
       const bnpQty=s.buffParksQty||0;
       const bnpDkp=Math.round((s.buffParksNinja?0.5:0.3)*bnpQty*10)/10;
       const rwChecked=Object.keys(s.rwChecks||{});
@@ -5063,6 +5065,7 @@ function renderKillsPanel(){
       if(bossRoleDkp)lines.push(`<span class="kt-seg-label">Roles</span><span class="kt-seg-val">${Object.entries(s.bossRoles||{}).flatMap(([,rs])=>rs.map(r=>r.desc)).join(', ')}</span><span class="kt-seg-dkp">${bossRoleDkp} DKP</span>`);
       if(hourlyTotal)lines.push(`<span class="kt-seg-label">Hourly</span><span class="kt-seg-val">${(s.hourly||[]).map(r=>`${r.qty||1}× ${r.desc.replace(' (hourly)','')}`).join(', ')}</span><span class="kt-seg-dkp">${hourlyDkp} DKP</span>`);
       if(bnpQty)lines.push(`<span class="kt-seg-label">B&P</span><span class="kt-seg-val">${bnpQty} click${bnpQty!==1?'s':''}${s.buffParksNinja?' (NL)':''}</span><span class="kt-seg-dkp">${bnpDkp} DKP</span>`);
+      if(botLootDkp)lines.push(`<span class="kt-seg-label">Bot Loot</span><span class="kt-seg-val">${(s.botLoot||[]).map(r=>`${r.qty}\u00d7 ${r.value.toFixed(1)}`).join(', ')}</span><span class="kt-seg-dkp">${botLootDkp} DKP</span>`);
       if(rwChecked.length)lines.push(`<span class="kt-seg-label">Ring War</span><span class="kt-seg-val">${rwChecked.length}/4 checkpoints</span><span class="kt-seg-dkp">${rwDkp} DKP</span>`);
 
       return`<div class="kt-seg-card">
