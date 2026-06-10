@@ -700,14 +700,6 @@
 
   <div id="subInventory">
     <div id="factionBarsRow" style="display:flex;gap:.75rem;align-items:flex-start;margin-bottom:.5rem">
-    <div class="watchlist-bar" id="tovBar" style="flex:1;min-width:0">
-      <div class="watchlist-bar-header">
-        <div class="watchlist-bar-title">🐉 Claws of Veeshan Faction</div>
-        <button class="watchlist-gear-btn" id="tovGearBtn" title="Configure characters" onclick="toggleTovConfig()">⚙</button>
-      </div>
-      <div id="tovConfigRow" style="display:none;padding:.35rem .75rem .4rem;border-bottom:1px solid var(--border);display:none"></div>
-      <div id="tovRows" class="watchlist-rows"><div class="watchlist-empty">No characters loaded.</div></div>
-    </div>
     <div class="watchlist-bar" id="cityBar_thurgadin" style="flex:1;min-width:0">
       <div class="watchlist-bar-header">
         <div class="watchlist-bar-title">🏔 Thurgadin</div>
@@ -1161,7 +1153,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     const isKills=activeTopView==='kills';
     const isGearReports=activeTopView==='gearreports';
     document.getElementById('tabBar').style.display=isChars?'flex':'none';
-    document.getElementById('tovBar').style.display=isChars?'':'none';
+    
     document.getElementById('watchlistBar').style.display=isChars?'':'none';
     const fbr=document.getElementById('factionBarsRow');if(fbr)fbr.style.display=isChars?'flex':'none';
     ['thurgadin','kael','skyshrine'].forEach(id=>{const el=document.getElementById('cityBar_'+id);if(el)el.style.display=isChars?'':'none';});
@@ -1181,7 +1173,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
 document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();});});
 function refresh(){buildTabs();renderView();saveState();}
 function renderOnly(){buildTabs();renderView();}
-function renderView(){if(activeTopView&&activeTopView!=='characters')return;const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderTovBar();renderCityBars();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();}
+function renderView(){if(activeTopView&&activeTopView!=='characters')return;const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderCityBars();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();}
 
 // ─── Inventory Table ──────────────────────────────────────────────────────────
 function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.values(chars).flat():(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;return ms&&ml;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=source.reduce((s,i)=>s+i.count,0);const unique=new Set(source.map(i=>i.id)).size;const stacks=source.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span>':'');}
@@ -2369,7 +2361,7 @@ document.getElementById('gearReportsBtn').addEventListener('click',()=>{
   activeTopView='gearreports';
   document.querySelectorAll('.top-nav-item').forEach(i=>i.classList.toggle('active',false));
   document.getElementById('tabBar').style.display='none';
-  document.getElementById('tovBar').style.display='none';
+  
   document.getElementById('watchlistBar').style.display='none';
   ['thurgadin','kael','skyshrine'].forEach(id=>{const el=document.getElementById('cityBar_'+id);if(el)el.style.display='none';});
   const fbr=document.getElementById('factionBarsRow');if(fbr)fbr.style.display='none';
@@ -2969,7 +2961,7 @@ function applyFactionUpdate(charName, updates){
     console.log('[faction] after setFaction factionData['+key+'][CoV]='+((factionData[key]||{})['Claws of Veeshan']));
   }
   if(activeSub==='factions') renderFactionsPanel();
-  renderTovBar();renderCityBars();
+  renderCityBars();
 }
 
 function applyFactionSnapshot(charName, factions){
@@ -2980,7 +2972,7 @@ function applyFactionSnapshot(charName, factions){
     setFaction(key, f.displayName, f.level);
   }
   if(activeSub==='factions') renderFactionsPanel();
-  renderTovBar();renderCityBars();
+  renderCityBars();
 }
 
 // factionData[charName][factionName] = level string
@@ -2996,54 +2988,14 @@ function setFaction(charName, factionName, level){
   if(level)factionData[key][factionName]=level;
   else delete factionData[key][factionName];
   saveState();
-  renderTovBar();renderCityBars();
-}
-
-function getTovHiddenChars(){
-  try{return new Set(JSON.parse(localStorage.getItem('mp_tovHiddenChars')||'[]'));}catch{return new Set();}
-}
-function setTovHiddenChars(s){localStorage.setItem('mp_tovHiddenChars',JSON.stringify([...s]));}
-function toggleTovConfig(){
-  const row=document.getElementById('tovConfigRow');
-  if(!row)return;
-  const open=row.style.display==='flex';
-  row.style.display=open?'none':'flex';
-}
-function renderTovBar(){
-  const container=document.getElementById('tovRows');
-  if(!container)return;
-  const allNames=charNames().filter(n=>n!=='__all__');
-  if(!allNames.length){container.innerHTML='<div class="watchlist-empty">No characters loaded.</div>';return;}
-  const isAll=activeTab==='__all__';
-  const hidden=getTovHiddenChars();
-
-  // Render config row chips
-  const configRow=document.getElementById('tovConfigRow');
-  if(configRow){
-    configRow.style.flexWrap='wrap';
-    configRow.style.gap='.35rem';
-    configRow.innerHTML=allNames.map(n=>{
-      const active=!hidden.has(n);
-      return`<span class="faction-char-chip${active?' active':''}" onclick="(function(){const h=getTovHiddenChars();h.has('${esc(n)}')?h.delete('${esc(n)}'):h.add('${esc(n)}');setTovHiddenChars(h);renderTovBar();renderCityBars();})()">${esc(n)}</span>`;
-    }).join('');
-  }
-
-  const names=isAll?allNames.filter(n=>!hidden.has(n)):(activeTab?[activeTab]:allNames);
-  container.innerHTML=names.map(n=>{
-    const lvl=getFaction(n,'Claws of Veeshan');
-    const color=factionColor(lvl);
-    const cls=color==='green'?'tov-chip-ally':color==='red'?'tov-chip-warn':color==='yellow'?'tov-chip-yellow':'tov-chip-none';
-    const icon=color==='green'?'✔':color==='red'?'✘':'◐';
-    const label=isAll?esc(n):'Claws of Veeshan';
-    return `<div class="watchlist-row"><div class="watchlist-item-name" style="min-width:120px">${label}</div><span class="tov-chip ${cls}">${icon} ${esc(lvl==='Ready to Attack'?'KOS':lvl||'Not Set')}</span></div>`;
-  }).join('');
+  renderCityBars();
 }
 
 const FACTION_SECTION_LABELS = {Raid:'VELIOUS RAID',City:'VELIOUS CITY',Kunark:'KUNARK',Classic:'CLASSIC / ANTONICA',Faydwer:'FAYDWER / ODUS',Deity:'DEITY FACTIONS',Planes:'PLANES & DRAGONS',Misc:'MISC'};
 const CITY_FACTIONS={
-  thurgadin:{faction:'Thurgadin',rowId:'cityRows_thurgadin',configId:'cityConfigRow_thurgadin',lsKey:'mp_cityHidden_thurgadin'},
-  kael:     {faction:'Kael Drakkel',rowId:'cityRows_kael',configId:'cityConfigRow_kael',lsKey:'mp_cityHidden_kael'},
-  skyshrine:{faction:'Skyshrine',rowId:'cityRows_skyshrine',configId:'cityConfigRow_skyshrine',lsKey:'mp_cityHidden_skyshrine'},
+  thurgadin:{factions:['Coldain','Dain Frostreaver IV'],rowId:'cityRows_thurgadin',configId:'cityConfigRow_thurgadin',lsKey:'mp_cityHidden_thurgadin'},
+  kael:     {factions:['Kromzek','Kromrif'],rowId:'cityRows_kael',configId:'cityConfigRow_kael',lsKey:'mp_cityHidden_kael'},
+  skyshrine:{factions:['Claws of Veeshan','Yelinak'],rowId:'cityRows_skyshrine',configId:'cityConfigRow_skyshrine',lsKey:'mp_cityHidden_skyshrine'},
 };
 function getCityHidden(key){try{return new Set(JSON.parse(localStorage.getItem(key)||'[]'));}catch{return new Set();}}
 function setCityHidden(key,s){localStorage.setItem(key,JSON.stringify([...s]));}
@@ -3069,15 +3021,22 @@ function renderCityBars(){
         return`<span class="faction-char-chip${active?' active':''}" onclick="(function(){const h=getCityHidden('${cfg.lsKey}');h.has('${esc(n)}')?h.delete('${esc(n)}'):h.add('${esc(n)}');setCityHidden('${cfg.lsKey}',h);renderCityBars();})()">${esc(n)}</span>`;
       }).join('');
     }
-    const names=isAll?allNames.filter(n=>!hidden.has(n)):(activeTab?[activeTab]:allNames);
-    container.innerHTML=names.map(n=>{
-      const lvl=getFaction(n,cfg.faction);
-      const color=factionColor(lvl);
-      const cls=color==='green'?'tov-chip-ally':color==='red'?'tov-chip-warn':color==='yellow'?'tov-chip-yellow':'tov-chip-none';
-      const icon=color==='green'?'✔':color==='red'?'✘':'◐';
-      const label=isAll?esc(n):esc(cfg.faction);
-      return`<div class="watchlist-row"><div class="watchlist-item-name" style="min-width:120px">${label}</div><span class="tov-chip ${cls}">${icon} ${esc(lvl==='Ready to Attack'?'KOS':lvl||'Not Set')}</span></div>`;
+    const visNames=isAll?allNames.filter(n=>!hidden.has(n)):(activeTab?[activeTab]:allNames);
+    // Build table: char rows, faction columns side by side
+    const factionHeaders=cfg.factions.map(f=>`<th style="padding:.2rem .5rem;font-size:.68rem;font-family:'Cinzel',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left;white-space:nowrap">${esc(f)}</th>`).join('');
+    const rows=visNames.map(n=>{
+      const cells=cfg.factions.map(f=>{
+        const lvl=getFaction(n,f);
+        const color=factionColor(lvl);
+        const cls=color==='green'?'tov-chip-ally':color==='red'?'tov-chip-warn':color==='yellow'?'tov-chip-yellow':'tov-chip-none';
+        const icon=color==='green'?'✔':color==='red'?'✘':'◐';
+        return`<td style="padding:.15rem .5rem;white-space:nowrap"><span class="tov-chip ${cls}">${icon} ${esc(lvl==='Ready to Attack'?'KOS':lvl||'Not Set')}</span></td>`;
+      }).join('');
+      const nameCell=isAll?`<td class="watchlist-item-name" style="padding:.15rem .5rem;min-width:100px;white-space:nowrap">${esc(n)}</td>`:'';
+      return`<tr>${nameCell}${cells}</tr>`;
     }).join('');
+    const nameHeader=isAll?`<th style="padding:.2rem .5rem"></th>`:'';
+    container.innerHTML=`<table style="border-collapse:collapse;width:100%"><thead><tr>${nameHeader}${factionHeaders}</tr></thead><tbody>${rows}</tbody></table>`;
   });
 }
 function renderFactionsPanel(){
@@ -6771,7 +6730,7 @@ function renderWatchlistBar(){
   const isAll=activeTab==='__all__';
   const visNames=isAll?allNames:[activeTab].filter(n=>allNames.includes(n));
 
-  const headerCells=visNames.map(n=>`<th style="padding:.25rem .5rem;font-size:.68rem;font-family:'Cinzel',serif;letter-spacing:.05em;color:var(--text-muted);text-align:center;white-space:nowrap">${esc(n)}</th>`).join('');
+  const headerCells=visNames.map(n=>`<th style="padding:.25rem .5rem;font-size:.68rem;font-family:'Cinzel',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left;white-space:nowrap;width:120px">${esc(n)}</th>`).join('');
 
   const dataRows=watchList.map(rule=>{
     const item=typeof rule==='string'?rule:rule.item;
@@ -6780,14 +6739,14 @@ function renderWatchlistBar(){
     const itemLink=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.78rem">${esc(item)}</a>`;
     const cells=visNames.map(n=>{
       const tracked=targets.includes(n);
-      if(!tracked)return`<td style="text-align:center;color:var(--text-muted);font-size:1rem;font-weight:700">N/A</td>`;
+      if(!tracked)return`<td style="text-align:left;color:var(--text-muted);font-size:1rem;font-weight:700;width:120px">N/A</td>`;
       const has=charHasItem(n,item);
-      return`<td style="text-align:center;font-size:.8rem;font-weight:600;color:${has?'#3a7a3a':'#c03030'}">${has?'✔':'✘'}</td>`;
+      return`<td style="text-align:left;font-size:.8rem;font-weight:600;color:${has?'#3a7a3a':'#c03030'};width:120px">${has?'✔':'✘'}</td>`;
     }).join('');
     return`<tr><td style="padding:.2rem .5rem;white-space:nowrap">${itemLink}</td>${cells}</tr>`;
   }).join('');
 
-  container.innerHTML=`<table style="border-collapse:collapse;width:100%">
+  container.innerHTML=`<table style="border-collapse:collapse;width:${isAll?'100%':'auto'}">
     <thead><tr><th style="padding:.25rem .5rem"></th>${headerCells}</tr></thead>
     <tbody>${dataRows}</tbody>
   </table>`;
