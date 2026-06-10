@@ -1545,7 +1545,7 @@ function renderUpgradesPanel(){
       :[];
     const candidatePool=[...(bySlot[dbSlot]||[]),...ohExtra.filter(c=>!(bySlot[dbSlot]||[]).some(x=>x.name===c.name))];
     const candidates=candidatePool
-      .filter(c=>!slotEquippedNames.has(c.name)&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||(!equippedLoreDBNames.has(c.name)&&!claimedLoreNames.has(c.name)))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!SS_CUSTOM_ITEMS.has(c.name)&&!UNOBTAINABLE_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
+      .filter(c=>!slotEquippedNames.has(c.name)&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||(!equippedLoreDBNames.has(c.name)&&!claimedLoreNames.has(c.name)))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!UNOBTAINABLE_ITEMS.has(c.name)&&(c.name==='Custom Cowl of Mortality'||!c.name.startsWith('Custom ')))
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
       .sort((a,b)=>b._effGain-a._effGain);
     // If best candidate is lore, claim it so duplicate slots (ear2, wrist2, finger2) skip it
@@ -1592,7 +1592,7 @@ function renderUpgradesPanel(){
         :[];
       const emptyPool=[...(bySlot[slot]||[]),...ohExtraEmpty.filter(c=>!(bySlot[slot]||[]).some(x=>x.name===c.name))];
       const candidates=emptyPool
-        .filter(c=>!slotAlreadyEquipped.has(c.name)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||(!equippedLoreDBNames.has(c.name)&&!claimedLoreNames.has(c.name)))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!SS_CUSTOM_ITEMS.has(c.name)&&!UNOBTAINABLE_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
+        .filter(c=>!slotAlreadyEquipped.has(c.name)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||(!equippedLoreDBNames.has(c.name)&&!claimedLoreNames.has(c.name)))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!UNOBTAINABLE_ITEMS.has(c.name)&&(c.name==='Custom Cowl of Mortality'||!c.name.startsWith('Custom ')))
         .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)}))
         .sort((a,b)=>b._effGain-a._effGain);
       if(!candidates.length)continue;
@@ -1712,7 +1712,7 @@ function renderUpgradesPanel(){
   {
     const all2h=(bySlot['PRIMARY']||[]).filter(c=>{
       const itype=(c._skill||c._itemType||'').toLowerCase();
-      return (itype.includes('2h')||itype.includes('two'))&&itemUsableByChar(c)&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!SS_CUSTOM_ITEMS.has(c.name)&&!UNOBTAINABLE_ITEMS.has(c.name)&&!c.name.startsWith('Custom ');
+      return (itype.includes('2h')||itype.includes('two'))&&itemUsableByChar(c)&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!UNOBTAINABLE_ITEMS.has(c.name)&&(c.name==='Custom Cowl of Mortality'||!c.name.startsWith('Custom '));
     }).map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)})).sort((a,b)=>b._effGain-a._effGain);
     if(all2h.length){
       slotResults.push({item:{name:'(none)',location:'PRIMARY'},dbSlot:'TWOHANDER',currentData:{},candidates:all2h,isEmpty:true,is2hCard:true,cardId:'2HANDER'});
