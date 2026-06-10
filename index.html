@@ -4596,7 +4596,7 @@ function newSession(){
   // killState: {target: 'killed'|'failtick'|null}
   // extraSpawns: [{base, key, state, bossRoles}] — Big 3 additional spawns
   const now=new Date();
-  return{id:Date.now().toString(),date:now.toISOString().slice(0,10),startedAt:now.toISOString(),killState:{},hourly:[],bossRoles:{},buffParksQty:0,buffParksNinja:false,botLootQty:0,botLootVal:0.1,rwChecks:{},note:'',extraSpawns:[]};
+  return{id:Date.now().toString(),date:now.toISOString().slice(0,10),startedAt:now.toISOString(),killState:{},hourly:[],bossRoles:{},buffParksQty:0,buffParksNinja:false,botLootVal:0.1,rwChecks:{},note:'',extraSpawns:[]};
 }
 
 function sessionDkpTotal(session){
@@ -4685,20 +4685,17 @@ function buildHourlyHtml(){
     <span class="kt-role-desc">Ninjalooter</span>
     <span class="kt-role-val" style="color:${bpNinja?'var(--gold-light)':'var(--text-muted)'}">+0.2 DKP/click</span>
   </label>`;
-  const botQty=activeSession.botLootQty||0;
+  html+='</div>';
   const botVal=Math.round((activeSession.botLootVal||0.1)*10)/10;
-  html+=`<div class="kt-role-row${botQty>0?' kt-role-active':''}">
-    <span class="kt-role-desc">DKP Bot Loot Bonus</span>
+  html+='<div style="border-bottom:1px solid var(--border)">';
+  html+=`<div style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">DKP BOT LOOT BONUS — SESSION</div>`;
+  html+=`<div class="kt-role-row${botVal!==0.1?' kt-role-active':''}">
+    <span class="kt-role-desc">Bot Loot Bonus</span>
     <span class="kt-role-val">${botVal} DKP/ea</span>
-    <div class="kt-role-qty" style="margin-left:.25rem">
+    <div class="kt-role-qty">
       <button class="kt-qty-btn" onclick="ktBotLootValAdj(-1)">−</button>
-      <span class="kt-qty-num" style="color:var(--text-muted);min-width:2rem;text-align:center">${botVal}</span>
+      <span class="kt-qty-num" style="color:var(--gold-light)">${botVal}</span>
       <button class="kt-qty-btn" onclick="ktBotLootValAdj(1)">+</button>
-    </div>
-    <div class="kt-role-qty" style="margin-left:.75rem">
-      <button class="kt-qty-btn" onclick="ktBotLootAdj(-1)">−</button>
-      <span class="kt-qty-num" style="color:${botQty>0?'var(--gold-light)':'var(--text-muted)'}">${botQty}</span>
-      <button class="kt-qty-btn" onclick="ktBotLootAdj(1)">+</button>
     </div>
   </div>`;
   html+='</div>';
@@ -5297,11 +5294,6 @@ window.ktBuffParksAdj=function(delta){
 
 window.ktBuffParksNinja=function(checked){
   activeSession.buffParksNinja=!!checked;
-  renderKillsPanel();
-};
-
-window.ktBotLootAdj=function(delta){
-  activeSession.botLootQty=Math.max(0,(activeSession.botLootQty||0)+delta);
   renderKillsPanel();
 };
 
