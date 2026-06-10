@@ -2973,14 +2973,26 @@ function renderTovBar(){
   const allNames=charNames().filter(n=>n!=='__all__');
   if(!allNames.length){container.innerHTML='<div class="watchlist-empty">No characters loaded.</div>';return;}
   const isAll=activeTab==='__all__';
-  const names=isAll?allNames:(activeTab?[activeTab]:allNames);
-  container.innerHTML=names.map(n=>{
+  if(!isAll){
+    const n=activeTab;
     const lvl=getFaction(n,'Claws of Veeshan');
     const color=factionColor(lvl);
     const cls=color==='green'?'tov-chip-ally':color==='red'?'tov-chip-warn':color==='yellow'?'tov-chip-yellow':'tov-chip-none';
     const icon=color==='green'?'✔':color==='red'?'✘':'◐';
-    const label=isAll?esc(n):'Claws of Veeshan';
-    return `<div class="watchlist-row"><div class="watchlist-item-name" style="min-width:120px">${label}</div><span class="tov-chip ${cls}">${icon} ${esc(lvl==='Ready to Attack'?'KOS':lvl||'Not Set')}</span></div>`;
+    container.innerHTML=`<div class="watchlist-row"><div class="watchlist-item-name" style="min-width:120px">Claws of Veeshan</div><span class="tov-chip ${cls}">${icon} ${esc(lvl==='Ready to Attack'?'KOS':lvl||'Not Set')}</span></div>`;
+    return;
+  }
+  if(!window._tovVisChars)window._tovVisChars=new Set(allNames);
+  allNames.forEach(n=>{if(!window._tovVisChars.has(n)&&allNames.length<=4)window._tovVisChars.add(n);});
+  const visNames=allNames.filter(n=>window._tovVisChars.has(n));
+  const chips=allNames.map(n=>`<span class="faction-char-chip${window._tovVisChars.has(n)?' active':''}" onclick="window._tovVisChars.has('${esc(n)}')?window._tovVisChars.delete('${esc(n)}'):window._tovVisChars.add('${esc(n)}');renderTovBar()">${esc(n)}</span>`).join('');
+  const filterHtml=`<div style="display:flex;flex-wrap:wrap;gap:.35rem;padding:.3rem .75rem .4rem;border-bottom:1px solid var(--border)">${chips}</div>`;
+  container.innerHTML=filterHtml+visNames.map(n=>{
+    const lvl=getFaction(n,'Claws of Veeshan');
+    const color=factionColor(lvl);
+    const cls=color==='green'?'tov-chip-ally':color==='red'?'tov-chip-warn':color==='yellow'?'tov-chip-yellow':'tov-chip-none';
+    const icon=color==='green'?'✔':color==='red'?'✘':'◐';
+    return `<div class="watchlist-row"><div class="watchlist-item-name" style="min-width:120px">${esc(n)}</div><span class="tov-chip ${cls}">${icon} ${esc(lvl==='Ready to Attack'?'KOS':lvl||'Not Set')}</span></div>`;
   }).join('');
 }
 
@@ -6673,16 +6685,21 @@ function renderWatchlistBar(){
   if(!watchList.length){container.innerHTML='<div class="watchlist-empty">No items on watch list — click ⚙ to add items.</div>';return;}
   if(!allNames.length){container.innerHTML='<div class="watchlist-empty">Load characters to see watch list status.</div>';return;}
 
-  // Header row: blank cell + one cell per char
-  const headerCells=allNames.map(n=>`<th style="padding:.25rem .5rem;font-size:.68rem;font-family:'Cinzel',serif;letter-spacing:.05em;color:var(--text-muted);text-align:center;white-space:nowrap">${esc(n)}</th>`).join('');
+  if(!window._wlVisChars)window._wlVisChars=new Set(allNames);
+  allNames.forEach(n=>{if(!window._wlVisChars.has(n)&&allNames.length<=4)window._wlVisChars.add(n);});
+  const visNames=allNames.filter(n=>window._wlVisChars.has(n));
 
-  // Data rows: one per rule
+  const chips=allNames.map(n=>`<span class="faction-char-chip${window._wlVisChars.has(n)?' active':''}" onclick="window._wlVisChars.has('${esc(n)}')?window._wlVisChars.delete('${esc(n)}'):window._wlVisChars.add('${esc(n)}');renderWatchlistBar()">${esc(n)}</span>`).join('');
+  const filterHtml=`<div style="display:flex;flex-wrap:wrap;gap:.35rem;padding:.3rem .75rem .4rem;border-bottom:1px solid var(--border)">${chips}</div>`;
+
+  const headerCells=visNames.map(n=>`<th style="padding:.25rem .5rem;font-size:.68rem;font-family:'Cinzel',serif;letter-spacing:.05em;color:var(--text-muted);text-align:center;white-space:nowrap">${esc(n)}</th>`).join('');
+
   const dataRows=watchList.map(rule=>{
     const item=typeof rule==='string'?rule:rule.item;
     const ruleChars=typeof rule==='string'?'__all__':(rule.chars||'__all__');
     const targets=ruleChars==='__all__'?allNames:Array.isArray(ruleChars)?ruleChars.filter(c=>allNames.includes(c)):allNames;
     const itemLink=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.78rem">${esc(item)}</a>`;
-    const cells=allNames.map(n=>{
+    const cells=visNames.map(n=>{
       const tracked=targets.includes(n);
       if(!tracked)return`<td style="text-align:center;color:var(--text-muted);font-size:1rem;font-weight:700">N/A</td>`;
       const has=charHasItem(n,item);
@@ -6691,7 +6708,7 @@ function renderWatchlistBar(){
     return`<tr><td style="padding:.2rem .5rem;white-space:nowrap">${itemLink}</td>${cells}</tr>`;
   }).join('');
 
-  container.innerHTML=`<table style="border-collapse:collapse;width:100%">
+  container.innerHTML=filterHtml+`<table style="border-collapse:collapse;width:100%">
     <thead><tr><th style="padding:.25rem .5rem"></th>${headerCells}</tr></thead>
     <tbody>${dataRows}</tbody>
   </table>`;
