@@ -4544,6 +4544,19 @@ const HOURLY_ROLES=[
   {desc:'Ticks - Training Events (hourly)', value:3},
 ];
 
+const BOT_LOOT_ROLES=[
+  {desc:'Bot Loot - 0.1 DKP', value:0.1},
+  {desc:'Bot Loot - 0.2 DKP', value:0.2},
+  {desc:'Bot Loot - 0.3 DKP', value:0.3},
+  {desc:'Bot Loot - 0.4 DKP', value:0.4},
+  {desc:'Bot Loot - 0.5 DKP', value:0.5},
+  {desc:'Bot Loot - 0.6 DKP', value:0.6},
+  {desc:'Bot Loot - 0.7 DKP', value:0.7},
+  {desc:'Bot Loot - 0.8 DKP', value:0.8},
+  {desc:'Bot Loot - 0.9 DKP', value:0.9},
+  {desc:'Bot Loot - 1.0 DKP', value:1.0},
+];
+
 // Ring War — special event, not a kill/failtick boss.
 // DKP awarded per checkpoint attended.
 const RW_CHECKPOINTS=[
@@ -4596,7 +4609,7 @@ function newSession(){
   // killState: {target: 'killed'|'failtick'|null}
   // extraSpawns: [{base, key, state, bossRoles}] — Big 3 additional spawns
   const now=new Date();
-  return{id:Date.now().toString(),date:now.toISOString().slice(0,10),startedAt:now.toISOString(),killState:{},hourly:[],bossRoles:{},buffParksQty:0,buffParksNinja:false,botLootVal:0.1,rwChecks:{},note:'',extraSpawns:[]};
+  return{id:Date.now().toString(),date:now.toISOString().slice(0,10),startedAt:now.toISOString(),killState:{},hourly:[],bossRoles:{},buffParksQty:0,buffParksNinja:false,botLoot:[],rwChecks:{},note:'',extraSpawns:[]};
 }
 
 function sessionDkpTotal(session){
@@ -4686,18 +4699,22 @@ function buildHourlyHtml(){
     <span class="kt-role-val" style="color:${bpNinja?'var(--gold-light)':'var(--text-muted)'}">+0.2 DKP/click</span>
   </label>`;
   html+='</div>';
-  const botVal=Math.round((activeSession.botLootVal||0.1)*10)/10;
   html+='<div style="border-bottom:1px solid var(--border)">';
   html+=`<div style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">DKP BOT LOOT BONUS — SESSION</div>`;
-  html+=`<div class="kt-role-row${botVal!==0.1?' kt-role-active':''}">
-    <span class="kt-role-desc">Bot Loot Bonus</span>
-    <span class="kt-role-val">${botVal} DKP/ea</span>
-    <div class="kt-role-qty">
-      <button class="kt-qty-btn" onclick="ktBotLootValAdj(-1)">−</button>
-      <span class="kt-qty-num" style="color:var(--gold-light)">${botVal}</span>
-      <button class="kt-qty-btn" onclick="ktBotLootValAdj(1)">+</button>
-    </div>
-  </div>`;
+  for(const role of BOT_LOOT_ROLES){
+    const existing=(activeSession.botLoot||[]).find(r=>r.desc===role.desc);
+    const qty=existing?existing.qty:0;
+    html+=`<div class="kt-role-row${qty>0?' kt-role-active':''}">
+      <span class="kt-role-desc">${role.desc}</span>
+      <span class="kt-role-val">${role.value.toFixed(1)} DKP</span>
+      <div class="kt-role-qty">
+        <button class="kt-qty-btn" type="button" onclick="ktBotLootAdj('${role.desc}',${role.value},-1)">−</button>
+        <span class="kt-qty-num" style="color:${qty>0?'var(--gold-light)':'var(--text-muted)'}">${qty}</span>
+        <button class="kt-qty-btn" type="button" onclick="ktBotLootAdj('${role.desc}',${role.value},1)">+</button>
+      </div>
+    </div>`;
+  }
+  html+='</div>';
   html+='</div>';
 
   return html;
@@ -5297,9 +5314,11 @@ window.ktBuffParksNinja=function(checked){
   renderKillsPanel();
 };
 
-window.ktBotLootValAdj=function(delta){
-  const cur=Math.round((activeSession.botLootVal||0.1)*10);
-  activeSession.botLootVal=Math.min(10,Math.max(1,cur+delta))/10;
+window.ktBotLootAdj=function(desc,value,delta){
+  if(!activeSession.botLoot)activeSession.botLoot=[];
+  const existing=activeSession.botLoot.find(r=>r.desc===desc);
+  if(existing){existing.qty=Math.max(0,existing.qty+delta);if(existing.qty===0)activeSession.botLoot=activeSession.botLoot.filter(r=>r.desc!==desc);}
+  else if(delta>0){activeSession.botLoot.push({desc,value,qty:1});}
   renderKillsPanel();
 };
 
