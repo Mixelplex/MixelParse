@@ -229,7 +229,9 @@
   .auth-msg{font-size:.82rem;margin-top:.5rem;min-height:1.2rem}
   .auth-msg.err{color:#a03030}.auth-msg.ok{color:#3a7a3a}
   .auth-user-bar{font-size:.75rem;color:var(--text-muted);display:flex;align-items:center;gap:.5rem}
-  .zone-bar{position:absolute;top:.5rem;left:1rem;display:grid;grid-template-columns:1fr 1fr;gap:.2rem 1.5rem;z-index:10;max-width:42%}
+  .zone-bar{position:absolute;top:.5rem;left:1rem;z-index:10;max-width:42%;border:1px solid var(--border);border-radius:4px;padding:.4rem .6rem;background:var(--surface2)}
+  .zone-bar-title{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;margin-bottom:.3rem;border-bottom:1px solid var(--border);padding-bottom:.2rem}
+  .zone-bar-grid{display:grid;grid-template-columns:1fr 1fr;gap:.2rem 1.5rem}
   .zone-bar-row{font-size:.82rem;font-family:'Crimson Pro',serif;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .zone-bar-char{color:var(--gold-light);font-weight:700;letter-spacing:.02em}
   .zone-bar-sep{color:var(--border);margin:0 .25rem}
@@ -5630,10 +5632,11 @@ function renderZoneBar(){
   if(!el)return;
   const entries=Object.entries(charZones);
   if(!entries.length){el.innerHTML='';return;}
-  el.innerHTML=entries.map(([char,z])=>{
+  const rows=entries.map(([char,z])=>{
     const ago=timeAgo(z.timestamp);
     return `<div class="zone-bar-row"><span class="zone-bar-char">${esc(char)}</span><span class="zone-bar-sep">·</span><span class="zone-bar-zone">${esc(z.zone)}</span><span class="zone-bar-time">${ago}</span></div>`;
   }).join('');
+  el.innerHTML=`<div class="zone-bar-title">Last Zone Location</div><div class="zone-bar-grid">${rows}</div>`;
 }
 
 function timeAgo(isoStr){
