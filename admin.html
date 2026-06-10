@@ -2232,7 +2232,7 @@ function gcBuildBaseTotals(charName) {
       // Haste comes from itemDB, not gearStats
       const dbItem = itemDB2[itemName] || {};
       const hasteVal = Number(dbItem.haste || gs.haste || 0);
-      if (hasteVal) t.haste = (t.haste||0) + hasteVal;
+      if (hasteVal) t.haste = Math.max(t.haste||0, hasteVal); // single-item haste — no stacking
     }
   }
   t._level = parseInt(document.getElementById('gc-level')?.value) || 60;
@@ -2741,10 +2741,16 @@ function gcCompare() {
         }
         if (!w) return 0;
         if (k === 'haste') {
-          // Haste comes from a single item — score standalone, capped at 41
+          // EQ haste only applies from a single item — must account for char's
+          // current best haste from all OTHER slots so we don't double-count.
           const CLASS_STAT_THRESHOLDS_gc = A2?.CLASS_STAT_THRESHOLDS || {};
           const hasteThresh = (CLASS_STAT_THRESHOLDS_gc[cls] || {}).haste || 41;
-          return Math.min(v, hasteThresh) * w;
+          // baseTotals.haste = Math.max of all equipped items (single-item model).
+          // otherHaste: if THIS item IS the haste source, other slots = 0.
+          // If this item is NOT the haste source, other slots = baseTotals.haste.
+          const curBestHaste = baseTotals.haste || 0;
+          const otherHaste = (v > 0 && v >= curBestHaste) ? 0 : curBestHaste;
+          return (Math.min(otherHaste + v, hasteThresh) - Math.min(otherHaste, hasteThresh)) * w;
         }
         if (NO_CAP.has(k)) return v * w;
         const ct = baseTotals[k] || 0;

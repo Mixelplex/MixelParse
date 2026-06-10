@@ -1480,8 +1480,11 @@ function renderUpgradesPanel(){
     }
   }
 
-  // Build lore exclusion set — lore items already equipped can't be suggested again
+  // Build lore exclusion set — lore items already equipped can't be suggested again.
+  // claimedLoreNames grows as slots are processed — if a lore item is the best candidate
+  // for slot N, it's excluded from all subsequent slots (can't equip two of a lore item).
   const equippedLoreDBNames=new Set(equipped.filter(i=>(itemDBGet(i.name)||charGear[i.name]||{})._lore).map(i=>i.name));
+  const claimedLoreNames=new Set();
 
   const DW_CLASSES_OH=new Set(['Monk','Rogue','Warrior','Ranger','Bard']);
   const slotResults=[];
@@ -1542,9 +1545,11 @@ function renderUpgradesPanel(){
       :[];
     const candidatePool=[...(bySlot[dbSlot]||[]),...ohExtra.filter(c=>!(bySlot[dbSlot]||[]).some(x=>x.name===c.name))];
     const candidates=candidatePool
-      .filter(c=>!slotEquippedNames.has(c.name)&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!SS_CUSTOM_ITEMS.has(c.name)&&!UNOBTAINABLE_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
+      .filter(c=>!slotEquippedNames.has(c.name)&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||(!equippedLoreDBNames.has(c.name)&&!claimedLoreNames.has(c.name)))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!SS_CUSTOM_ITEMS.has(c.name)&&!UNOBTAINABLE_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
       .sort((a,b)=>b._effGain-a._effGain);
+    // If best candidate is lore, claim it so duplicate slots (ear2, wrist2, finger2) skip it
+    if(candidates[0]?._lore)claimedLoreNames.add(candidates[0].name);
     slotResults.push({item,dbSlot,currentData,candidates});
   }
   // Add empty slots — slots in SLOT_ORDER not covered by any equipped item
@@ -1587,10 +1592,11 @@ function renderUpgradesPanel(){
         :[];
       const emptyPool=[...(bySlot[slot]||[]),...ohExtraEmpty.filter(c=>!(bySlot[slot]||[]).some(x=>x.name===c.name))];
       const candidates=emptyPool
-        .filter(c=>!slotAlreadyEquipped.has(c.name)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!SS_CUSTOM_ITEMS.has(c.name)&&!UNOBTAINABLE_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
+        .filter(c=>!slotAlreadyEquipped.has(c.name)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||(!equippedLoreDBNames.has(c.name)&&!claimedLoreNames.has(c.name)))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._sleeperWarder&&!c._nonp99&&!c._gm&&!SS_CUSTOM_ITEMS.has(c.name)&&!UNOBTAINABLE_ITEMS.has(c.name)&&!c.name.startsWith('Custom '))
         .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)}))
         .sort((a,b)=>b._effGain-a._effGain);
       if(!candidates.length)continue;
+      if(candidates[0]?._lore)claimedLoreNames.add(candidates[0].name);
       slotResults.push({item:{name:'(empty)',location:slot},dbSlot:slot,currentData:{},candidates,isEmpty:true});
     }
   }
@@ -1860,9 +1866,10 @@ function renderUpgradesPanel(){
     const minor=rows.slice(third*2).slice(0,5);
     const topGain=rows.length?rows[0].gain:1;
 
-    // whyStr: top 3 positive deltas driving the gain, using correct stat keys only
-    // Keys: ac, primary stats, resists, hpbonus, manabonus, haste — no duplicates
+    // whyStr: top 3 stats WEIGHTED by class — shows what's actually driving the score,
+    // not just the largest raw deltas. Filters out stats with negligible weight for this class.
     const WHY_KEYS=['ac',...STAT_KEYS_ALL,'haste'];
+    const WHY_MIN_WEIGHT=0.1; // ignore stats with weight below this (mana for Monk, etc.)
     function whyStr(curData,bestData){
       const seen=new Set();
       const parts=[];
@@ -1871,11 +1878,15 @@ function renderUpgradesPanel(){
         seen.add(k);
         const delta=Number(bestData[k]||0)-Number(curData[k]||0);
         if(delta<=0)continue;
+        // Skip stats with negligible weight for this class
+        const w=k==='ac'?(weights.ac||0):(weights[k]||0);
+        if(w<WHY_MIN_WEIGHT)continue;
         const label=k==='ac'?'AC':(STAT_DISPLAY[k]||k.toUpperCase());
         const suffix=k==='haste'?'%':'';
-        parts.push({label,delta,suffix});
+        // Use weighted contribution so sort reflects actual score impact
+        parts.push({label,delta,suffix,contrib:delta*w});
       }
-      parts.sort((a,b)=>b.delta-a.delta);
+      parts.sort((a,b)=>b.contrib-a.contrib);
       return parts.slice(0,3).map(p=>`${p.label} +${p.delta}${p.suffix}`).join(' · ')||'';
     }
 
