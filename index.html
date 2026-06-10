@@ -98,7 +98,27 @@
   .upg-layout{display:grid;grid-template-columns:1fr 190px;gap:.85rem;margin:0 1rem 2rem;align-items:start}
   /* ── Stacked panes (left) ── */
   .upg-slots-panel{display:flex;flex-direction:column;gap:.55rem}
-  .upg-slot-card{border:1px solid var(--border);border-radius:5px;overflow:hidden}
+  .upg-bigtable{width:100%;border-collapse:collapse;font-size:.85rem;margin-bottom:.1rem}
+  .upg-bigtable th{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.08em;color:var(--gold);padding:.4rem .65rem;text-align:left;border-bottom:2px solid var(--border-glow);background:var(--surface2);white-space:nowrap}
+  .upg-bigtable th.upg-th-right{text-align:right}
+  .upg-bigtable td{padding:.4rem .65rem;border-bottom:1px solid rgba(74,58,26,.15);vertical-align:middle}
+  .upg-bigtable tr:hover td{background:rgba(160,120,50,.06);cursor:pointer}
+  .upg-bigtable tr.upg-big-empty td{color:var(--text-muted);font-style:italic}
+  .upg-big-slot{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.06em;color:var(--text-muted);text-transform:uppercase;white-space:nowrap}
+  .upg-big-cur{color:var(--text-muted);font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+  .upg-big-arrow{color:var(--text-muted);font-size:.85rem;padding:0 .1rem}
+  .upg-big-name{font-weight:600;color:var(--text);font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+  .upg-big-why{font-size:.75rem;color:var(--text-muted);line-height:1.4}
+  .upg-big-gain{font-family:'Cinzel',serif;font-size:.75rem;font-weight:700;text-align:right;white-space:nowrap}
+  .upg-big-gain.hi{color:#1a5a1a}.upg-big-gain.mid{color:#6a5000}.upg-big-gain.lo{color:var(--text-muted)}
+  .upg-big-cost{font-size:.72rem;color:var(--text-muted);text-align:right;white-space:nowrap}
+  .upg-section-head{display:flex;align-items:center;gap:.65rem;padding:.45rem .75rem;background:var(--surface2);border:1px solid var(--border);border-radius:5px 5px 0 0;border-bottom:none}
+  .upg-section-title{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.1em;color:var(--gold);text-transform:uppercase}
+  .upg-section-sub{font-size:.75rem;color:var(--text-muted);margin-left:auto}
+  .upg-section-wrap{border:1px solid var(--border);border-radius:0 0 5px 5px;overflow:hidden;margin-bottom:.75rem}
+  .upg-section-toggle{background:none;border:none;color:var(--text-muted);font-size:.75rem;cursor:pointer;padding:0;margin-left:auto;font-family:'Cinzel',serif;letter-spacing:.05em}
+  .upg-big-bar{height:4px;border-radius:2px;margin-top:3px}
+    .upg-slot-card{border:1px solid var(--border);border-radius:5px;overflow:hidden}
   .upg-slot-head{display:flex;align-items:center;gap:.6rem;padding:.35rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border)}
   .upg-slot-label{font-family:\'Cinzel\',serif;font-size:.6rem;letter-spacing:.09em;color:var(--text-muted);text-transform:uppercase}
   .upg-score-pill{font-family:\'Cinzel\',serif;font-size:.62rem;letter-spacing:.03em;font-weight:600;padding:.1rem .45rem;border-radius:20px;margin-left:auto;border:1px solid transparent;white-space:nowrap}
@@ -1738,7 +1758,7 @@ function renderUpgradesPanel(){
     const cost=hasBest?[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' · '):'';
     const equippedDpsVal=(isWepSlotCard&&(currentData.dmg||currentData.delay))?weaponDpsScore(currentData,dbSlot,charClass,charLevel,baselineTotals):0;
     const equippedDpsHtml=equippedDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0;text-align:right">${Math.round(equippedDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)">dps</span></div>`:'';
-    cardsHtml+=`<div class="upg-slot-card${isWepDisabled?' upg-wep-disabled':''}">
+    cardsHtml+=`<div class="upg-slot-card${isWepDisabled?' upg-wep-disabled':''}" id="upgcard_${cardId}">
       <div class="upg-slot-head">
         <span class="upg-slot-label${slotLabelExtra}">${slotLabelText}</span>
         <span class="upg-score-pill ${sc}" id="upgscore_${cardId}">${scoreStr}</span>
@@ -1817,7 +1837,78 @@ function renderUpgradesPanel(){
     }
   }
 
-  panel.innerHTML=saveBar+weightBannerHtml+`<div class="upg-layout">
+  // ── Biggest Upgrades section ──────────────────────────────────────────────
+  function buildBiggestUpgradesHtml(){
+    // Gather best candidate per slot, skip 2H card when not in 2H mode and vice-versa
+    const rows=[];
+    for(const sr of slotResults){
+      if(sr.is2hCard&&!is2hMode)continue;
+      if((sr.dbSlot==='PRIMARY'||sr.dbSlot==='SECONDARY')&&is2hMode)continue;
+      const best=sr.candidates[0];
+      if(!best)continue;
+      const gain=best._effGain||0;
+      rows.push({sr,best,gain});
+    }
+    rows.sort((a,b)=>b.gain-a.gain);
+    const top=rows.slice(0,10);
+
+    // Build "why" string — top 2 positive stat deltas driving the gain
+    function whyStr(curData,bestData){
+      const parts=[];
+      const allKeys=['ac',...STAT_KEYS_ALL,'haste','hpbonus'];
+      for(const k of allKeys){
+        const delta=Number(bestData[k]||0)-Number(curData[k]||0);
+        if(delta>0){
+          const label=k==='ac'?'AC':k==='haste'?'Haste':k==='hpbonus'?'+HP':(STAT_DISPLAY[k]||k.toUpperCase());
+          const suffix=k==='haste'?'%':'';
+          parts.push({label,delta,suffix});
+        }
+      }
+      parts.sort((a,b)=>b.delta-a.delta);
+      return parts.slice(0,3).map(p=>`${p.label} +${p.delta}${p.suffix}`).join(' · ')||'—';
+    }
+
+    let rows_html='';
+    for(const {sr,best,gain} of top){
+      const slotLabel=sr.is2hCard?'2H':sr.dbSlot;
+      const curName=sr.item.name==='(empty)'?'(empty)':sr.item.name;
+      const gainCls=gain>=20?'hi':gain>=8?'mid':'lo';
+      const gainStr=(gain>=0?'+':'')+gain+' pts';
+      const cost=[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' · ')||'—';
+      const why=whyStr(sr.currentData,best);
+      const barPct=Math.min(100,Math.round((gain/Math.max(1,top[0].gain))*100));
+      const barColor=gain>=20?'#4caf7d':gain>=8?'#c8962a':'#888';
+      rows_html+=`<tr onclick="document.getElementById('upgcard_${esc(sr.cardId)}')?.scrollIntoView({behavior:'smooth',block:'center'})" title="Jump to ${esc(slotLabel)} slot">
+        <td><span class="upg-big-slot">${esc(slotLabel)}</span></td>
+        <td><div class="upg-big-cur">${esc(curName)}</div></td>
+        <td><span class="upg-big-arrow">→</span></td>
+        <td><div class="upg-big-name">${esc(best.name)}</div><div class="upg-big-why">${esc(why)}</div></td>
+        <td><div class="upg-big-gain ${gainCls}">${gainStr}</div><div class="upg-big-bar" style="width:${barPct}%;background:${barColor}"></div></td>
+        <td class="upg-big-cost">${esc(cost)}</td>
+      </tr>`;
+    }
+    if(!rows_html)rows_html=`<tr class="upg-big-empty"><td colspan="6" style="padding:.75rem;text-align:center">No upgrade candidates found — item DB may not be loaded.</td></tr>`;
+
+    const totalGain=top.reduce((s,r)=>s+Math.max(0,r.gain),0);
+    const totalGainStr=totalGain>0?`+${Math.round(totalGain)} pts potential`:'';
+
+    return `<div class="upg-section-head">
+      <span class="upg-section-title">&#9650; Biggest Upgrades</span>
+      <span class="upg-section-sub">${totalGainStr}</span>
+      <button type="button" class="upg-section-toggle" onclick="const w=document.getElementById('upgBigWrap');w.style.display=w.style.display==='none'?'':'none';this.textContent=w.style.display==='none'?'▼ Show':'▲ Hide'">▲ Hide</button>
+    </div>
+    <div class="upg-section-wrap" id="upgBigWrap">
+      <table class="upg-bigtable">
+        <thead><tr>
+          <th>Slot</th><th>Equipped</th><th></th><th>Best Upgrade</th>
+          <th class="upg-th-right">Gain</th><th class="upg-th-right">Cost</th>
+        </tr></thead>
+        <tbody>${rows_html}</tbody>
+      </table>
+    </div>`;
+  }
+
+  panel.innerHTML=saveBar+weightBannerHtml+buildBiggestUpgradesHtml()+`<div class="upg-layout">
     <div class="upg-slots-panel">${cardsHtml||'<div class="upg-none">No equipped items found.</div>'}</div>
     <div class="upg-stat-panel">
       <div class="upg-stat-head">Stat sheet</div>
