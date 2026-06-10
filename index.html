@@ -1094,7 +1094,7 @@ function calcMana(intWis,lvl){
 
 // ─── Item Database ────────────────────────────────────────────────────────────
 // MERGER_INJECT_START
-var BAKED_ITEM_DB = {};
+var BAKED_ITEM_DB = {"White Lotus Chest Wraps":{"ac":18,"str":14,"dex":13,"sta":5,"agi":13,"hpbonus":60,"svfire":4,"svdisease":4,"svcold":4,"svmagic":4,"svpoison":4,"_slot":"CHEST","_from":"","_classes":"MNK","_races":"HUM IKS","_wikiUrl":"https://wiki.project1999.com/White_Lotus_Chest_Wraps","_era":"Velious Era","_nodrop":true,"_magic":true,"_effect":"Invigorate","_effectType":"Must Equip, Casting Time: 15.0","_wt":0.5}};
 // MERGER_INJECT_END
 let itemDB = Object.assign({}, BAKED_ITEM_DB);
 let itemDBSources = Object.keys(itemDB).length > 0 ? ['baked'] : [];
