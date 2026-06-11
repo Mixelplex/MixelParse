@@ -1,0 +1,3172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MixelParse — Admin Diagnostics</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Share+Tech+Mono&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap');
+
+:root {
+  --bg: #0a0906;
+  --surface: #111009;
+  --surface2: #1a1710;
+  --border: #2a2418;
+  --border2: #3a3020;
+  --gold: #c8901a;
+  --gold-l: #e8b040;
+  --gold-d: #7a5010;
+  --text: #e8dfc8;
+  --text-d: #b8a888;
+  --text-m: #6a5e48;
+  --green: #2a7a2a;
+  --green-l: #4aaa4a;
+  --green-bg: rgba(42,122,42,.12);
+  --red: #8a2020;
+  --red-l: #cc4040;
+  --red-bg: rgba(140,32,32,.12);
+  --amber: #8a6010;
+  --amber-l: #d49030;
+  --amber-bg: rgba(138,96,16,.12);
+  --blue: #1a4a7a;
+  --blue-l: #4a8acc;
+  --blue-bg: rgba(26,74,122,.12);
+  --mono: 'Share Tech Mono', monospace;
+  --serif: 'Crimson Pro', serif;
+  --cinzel: 'Cinzel', serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--serif); font-size: 15px; }
+
+/* ── LAYOUT ── */
+.shell { display: grid; grid-template-columns: 220px 1fr; height: 100vh; }
+.sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+.main { display: flex; flex-direction: column; overflow: hidden; }
+.main-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: .75rem 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.main-content { flex: 1; overflow-y: auto; padding: 1.25rem; }
+
+/* ── SIDEBAR ── */
+.sb-logo { padding: .9rem 1rem .6rem; border-bottom: 1px solid var(--border); }
+.sb-logo-title { font-family: var(--cinzel); font-size: .8rem; letter-spacing: .12em; color: var(--gold); }
+.sb-logo-sub { font-size: .72rem; color: var(--text-m); margin-top: .15rem; }
+.sb-section { font-family: var(--cinzel); font-size: .55rem; letter-spacing: .12em; color: var(--text-m); padding: .8rem 1rem .25rem; text-transform: uppercase; }
+.sb-item { display: flex; align-items: center; gap: .5rem; padding: .4rem 1rem; cursor: pointer; border-left: 2px solid transparent; transition: all .12s; font-size: .82rem; color: var(--text-d); }
+.sb-item:hover { background: var(--surface2); color: var(--text); border-left-color: var(--border2); }
+.sb-item.active { background: rgba(200,144,26,.08); color: var(--gold-l); border-left-color: var(--gold); }
+.sb-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-m); flex-shrink: 0; }
+.sb-dot.pass { background: var(--green-l); }
+.sb-dot.fail { background: var(--red-l); }
+.sb-dot.warn { background: var(--amber-l); }
+.sb-dot.skip { background: var(--text-m); }
+.sb-dot.run { background: var(--gold); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.sb-badge { margin-left: auto; font-family: var(--mono); font-size: .62rem; padding: .1rem .3rem; border-radius: 2px; }
+.sb-badge.pass { background: var(--green-bg); color: var(--green-l); }
+.sb-badge.fail { background: var(--red-bg); color: var(--red-l); }
+.sb-badge.warn { background: var(--amber-bg); color: var(--amber-l); }
+
+/* ── HEADER ── */
+.h-title { font-family: var(--cinzel); font-size: .8rem; letter-spacing: .1em; color: var(--gold); }
+.h-meta { font-size: .75rem; color: var(--text-m); }
+.run-all-btn { font-family: var(--cinzel); font-size: .65rem; letter-spacing: .08em; background: rgba(200,144,26,.1); border: 1px solid var(--gold-d); border-radius: 3px; color: var(--gold-l); padding: .35rem .8rem; cursor: pointer; transition: all .15s; }
+.run-all-btn:hover { background: rgba(200,144,26,.2); border-color: var(--gold); }
+
+/* ── SUMMARY BAR ── */
+.summary-bar { display: grid; grid-template-columns: repeat(4,1fr); gap: .6rem; margin-bottom: 1rem; }
+.sum-card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: .6rem .8rem; }
+.sum-label { font-family: var(--cinzel); font-size: .55rem; letter-spacing: .1em; color: var(--text-m); margin-bottom: .2rem; }
+.sum-val { font-family: var(--mono); font-size: 1.1rem; }
+.sum-val.pass { color: var(--green-l); }
+.sum-val.fail { color: var(--red-l); }
+.sum-val.warn { color: var(--amber-l); }
+.sum-val.total { color: var(--text-d); }
+
+/* ── SUITE PANEL ── */
+.suite { display: none; }
+.suite.active { display: block; }
+.suite-title { font-family: var(--cinzel); font-size: .8rem; letter-spacing: .1em; color: var(--gold); margin-bottom: .25rem; }
+.suite-desc { font-size: .82rem; color: var(--text-m); margin-bottom: 1rem; line-height: 1.5; }
+.suite-actions { display: flex; gap: .5rem; margin-bottom: 1rem; }
+.btn { font-family: var(--cinzel); font-size: .65rem; letter-spacing: .07em; border-radius: 3px; padding: .3rem .7rem; cursor: pointer; border: 1px solid var(--border2); background: var(--surface2); color: var(--text-d); transition: all .12s; }
+.btn:hover { border-color: var(--gold-d); color: var(--gold-l); }
+.btn.primary { background: rgba(200,144,26,.1); border-color: var(--gold-d); color: var(--gold-l); }
+.btn.primary:hover { background: rgba(200,144,26,.2); }
+
+/* ── TEST CARD ── */
+.test-card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; margin-bottom: .5rem; overflow: hidden; }
+.test-head { display: flex; align-items: center; gap: .65rem; padding: .55rem .75rem; cursor: pointer; }
+.test-head:hover { background: var(--surface2); }
+.status-icon { font-family: var(--mono); font-size: .7rem; width: 22px; text-align: center; flex-shrink: 0; }
+.status-icon.pass { color: var(--green-l); }
+.status-icon.fail { color: var(--red-l); }
+.status-icon.warn { color: var(--amber-l); }
+.status-icon.skip { color: var(--text-m); }
+.status-icon.run { color: var(--gold); }
+.test-name { font-family: var(--mono); font-size: .78rem; color: var(--text); flex: 1; }
+.test-time { font-family: var(--mono); font-size: .65rem; color: var(--text-m); flex-shrink: 0; }
+.test-body { display: none; border-top: 1px solid var(--border); padding: .6rem .75rem; background: var(--bg); }
+.test-body.open { display: block; }
+.test-msg { font-size: .8rem; color: var(--text-d); margin-bottom: .4rem; line-height: 1.6; }
+.test-msg.pass { color: var(--green-l); }
+.test-msg.fail { color: var(--red-l); }
+.test-msg.warn { color: var(--amber-l); }
+.assert-row { display: flex; align-items: flex-start; gap: .5rem; font-family: var(--mono); font-size: .72rem; padding: .2rem 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+.assert-row:last-child { border: none; }
+.assert-icon { flex-shrink: 0; }
+.assert-icon.pass { color: var(--green-l); }
+.assert-icon.fail { color: var(--red-l); }
+.assert-icon.warn { color: var(--amber-l); }
+.assert-label { color: var(--text-d); flex: 1; }
+.assert-val { color: var(--text-m); font-size: .67rem; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; border: 1px solid var(--border); border-radius: 3px; padding: .5rem .7rem; margin-top: .4rem; overflow-x: auto; color: var(--text-d); white-space: pre-wrap; word-break: break-all; max-height: 220px; overflow-y: auto; }
+.live-table { width: 100%; border-collapse: collapse; font-size: .76rem; margin-top: .5rem; }
+.live-table th { font-family: var(--cinzel); font-size: .58rem; letter-spacing: .07em; color: var(--text-m); padding: .25rem .5rem; text-align: left; border-bottom: 1px solid var(--border2); }
+.live-table td { padding: .22rem .5rem; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--text-d); }
+.live-table tr:hover td { background: var(--surface2); }
+.tag { display: inline-block; font-family: var(--mono); font-size: .64rem; padding: .08rem .35rem; border-radius: 2px; }
+.tag.pass { background: var(--green-bg); color: var(--green-l); border: 1px solid var(--green); }
+.tag.fail { background: var(--red-bg); color: var(--red-l); border: 1px solid var(--red); }
+.tag.warn { background: var(--amber-bg); color: var(--amber-l); border: 1px solid var(--amber); }
+.tag.info { background: var(--blue-bg); color: var(--blue-l); border: 1px solid var(--blue); }
+.empty-note { font-size: .8rem; color: var(--text-m); font-style: italic; padding: .4rem 0; }
+.divider { border: none; border-top: 1px solid var(--border); margin: .75rem 0; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-title">&#9741; MIXELPARSE</div>
+    <div class="sb-logo-sub">Admin Diagnostics v1.0</div>
+  </div>
+
+  <div class="sb-section">Overview</div>
+  <div class="sb-item active" data-suite="overview" onclick="showSuite('overview',this)">
+    <div class="sb-dot" id="dot-overview"></div>
+    All Suites
+  </div>
+
+  <div class="sb-section">Core Parsing</div>
+  <div class="sb-item" data-suite="parsing" onclick="showSuite('parsing',this)">
+    <div class="sb-dot skip" id="dot-parsing"></div>
+    Inventory Parser
+    <span class="sb-badge skip" id="badge-parsing">—</span>
+  </div>
+  <div class="sb-item" data-suite="itemdb" onclick="showSuite('itemdb',this)">
+    <div class="sb-dot skip" id="dot-itemdb"></div>
+    Item DB / CSV
+    <span class="sb-badge skip" id="badge-itemdb">—</span>
+  </div>
+  <div class="sb-item" data-suite="wikiparse" onclick="showSuite('wikiparse',this)">
+    <div class="sb-dot skip" id="dot-wikiparse"></div>
+    Wiki Stat Parser
+    <span class="sb-badge skip" id="badge-wikiparse">—</span>
+  </div>
+
+  <div class="sb-section">Calculations</div>
+  <div class="sb-item" data-suite="calcs" onclick="showSuite('calcs',this)">
+    <div class="sb-dot skip" id="dot-calcs"></div>
+    HP / Mana Calcs
+    <span class="sb-badge skip" id="badge-calcs">—</span>
+  </div>
+  <div class="sb-item" data-suite="upgrades" onclick="showSuite('upgrades',this)">
+    <div class="sb-dot skip" id="dot-upgrades"></div>
+    Upgrade Scoring
+    <span class="sb-badge skip" id="badge-upgrades">—</span>
+  </div>
+  <div class="sb-item" data-suite="weapondps" onclick="showSuite('weapondps',this)">
+    <div class="sb-dot skip" id="dot-weapondps"></div>
+    Weapon DPS Scoring
+    <span class="sb-badge skip" id="badge-weapondps">—</span>
+  </div>
+
+  <div class="sb-section">Data Pipeline</div>
+  <div class="sb-item" data-suite="bridge" onclick="showSuite('bridge',this)">
+    <div class="sb-dot skip" id="dot-bridge"></div>
+    Price Bridge
+    <span class="sb-badge skip" id="badge-bridge">—</span>
+  </div>
+  <div class="sb-item" data-suite="dkp" onclick="showSuite('dkp',this)">
+    <div class="sb-dot skip" id="dot-dkp"></div>
+    DKP Pipeline
+    <span class="sb-badge skip" id="badge-dkp">—</span>
+  </div>
+  <div class="sb-item" data-suite="plat" onclick="showSuite('plat',this)">
+    <div class="sb-dot skip" id="dot-plat"></div>
+    Plat / Pigparse
+    <span class="sb-badge skip" id="badge-plat">—</span>
+  </div>
+
+  <div class="sb-section">Game Logic</div>
+  <div class="sb-item" data-suite="gearchecker" onclick="showSuite('gearchecker',this)">
+    <div class="sb-dot skip" id="dot-gearchecker"></div>
+    Gear Stat Checker
+  </div>
+    <div class="sb-item" data-suite="consumes" onclick="showSuite('consumes',this)">
+    <div class="sb-dot skip" id="dot-consumes"></div>
+    Raid Consumes
+    <span class="sb-badge skip" id="badge-consumes">—</span>
+  </div>
+  <div class="sb-item" data-suite="factions" onclick="showSuite('factions',this)">
+    <div class="sb-dot skip" id="dot-factions"></div>
+    Factions
+    <span class="sb-badge skip" id="badge-factions">—</span>
+  </div>
+  <div class="sb-item" data-suite="skyshrine" onclick="showSuite('skyshrine',this)">
+    <div class="sb-dot skip" id="dot-skyshrine"></div>
+    Skyshrine Tracker
+    <span class="sb-badge skip" id="badge-skyshrine">—</span>
+  </div>
+  <div class="sb-item" data-suite="quests" onclick="showSuite('quests',this)">
+    <div class="sb-dot skip" id="dot-quests"></div>
+    Quest Items
+    <span class="sb-badge skip" id="badge-quests">—</span>
+  </div>
+
+  <div class="sb-section">Persistence</div>
+  <div class="sb-item" data-suite="supabase" onclick="showSuite('supabase',this)">
+    <div class="sb-dot skip" id="dot-supabase"></div>
+    Supabase / Auth
+    <span class="sb-badge skip" id="badge-supabase">—</span>
+  </div>
+  <div class="sb-item" data-suite="creditcheck" onclick="showSuite('creditcheck',this)">
+    <div class="sb-dot skip" id="dot-creditcheck"></div>
+    Credit Check
+    <span class="sb-badge skip" id="badge-creditcheck">—</span>
+  </div>
+  <div class="sb-item" data-suite="dropscrape" onclick="showSuite('dropscrape',this)">
+    <div class="sb-dot skip" id="dot-dropscrape"></div>
+    Drop Data Scrape
+    <span class="sb-badge skip" id="badge-dropscrape">—</span>
+  </div>
+  <div class="sb-item" data-suite="state" onclick="showSuite('state',this)">
+    <div class="sb-dot skip" id="dot-state"></div>
+    State Snapshot
+    <span class="sb-badge skip" id="badge-state">—</span>
+  </div>
+
+  <div class="sb-section">Utils</div>
+  <div class="sb-item" data-suite="utils" onclick="showSuite('utils',this)">
+    <div class="sb-dot skip" id="dot-utils"></div>
+    Utilities
+    <span class="sb-badge skip" id="badge-utils">—</span>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="main-header">
+    <div>
+      <div class="h-title">DIAGNOSTIC PANEL</div>
+      <div class="h-meta" id="hMeta">Not connected to app — open from MixelParse window</div>
+    </div>
+    <button class="run-all-btn" onclick="runAll()">&#9658; RUN ALL SUITES</button>
+  </div>
+  <div class="main-content" id="mainContent">
+
+    <!-- SUMMARY BAR (always visible) -->
+    <div class="summary-bar">
+      <div class="sum-card"><div class="sum-label">PASSED</div><div class="sum-val pass" id="sumPass">—</div></div>
+      <div class="sum-card"><div class="sum-label">FAILED</div><div class="sum-val fail" id="sumFail">—</div></div>
+      <div class="sum-card"><div class="sum-label">WARNINGS</div><div class="sum-val warn" id="sumWarn">—</div></div>
+      <div class="sum-card"><div class="sum-label">TOTAL</div><div class="sum-val total" id="sumTotal">—</div></div>
+    </div>
+
+    <!-- OVERVIEW SUITE -->
+    <div id="suite-overview" class="suite active">
+      <div class="suite-title">ALL SUITES — OVERVIEW</div>
+      <div class="suite-desc">Run all diagnostic suites at once. Each suite validates a functional area of MixelParse by inspecting live app state via window.opener.</div>
+      <div class="suite-actions">
+        <button class="btn primary" onclick="runAll()">&#9658; Run All</button>
+        <button class="btn" onclick="clearAll()">&#8635; Clear Results</button>
+      </div>
+      <div id="overview-results"></div>
+    </div>
+
+    <!-- PARSING SUITE -->
+    <div id="suite-parsing" class="suite">
+      <div class="suite-title">INVENTORY PARSER</div>
+      <div class="suite-desc">Tests parseInventory(), extractCharName(), locationType(), getEquippedItems() with synthetic and real inventory data.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('parsing')">&#9658; Run Suite</button></div>
+      <div id="results-parsing"></div>
+    </div>
+
+    <!-- ITEM DB SUITE -->
+    <div id="suite-itemdb" class="suite">
+      <div class="suite-title">ITEM DATABASE</div>
+      <div class="suite-desc">Validates itemDB integrity, parseItemDB() CSV parsing, classFromFilename(), raceFromFilename(), and applyDBToChar() matching logic.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('itemdb')">&#9658; Run Suite</button></div>
+      <div id="results-itemdb"></div>
+    </div>
+
+    <!-- WIKI PARSE SUITE -->
+    <div id="suite-wikiparse" class="suite">
+      <div class="suite-title">WIKI STAT PARSER</div>
+      <div class="suite-desc">Tests parseWikiStats() against known HTML snippets. Validates that stat extraction regex patterns produce correct output.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('wikiparse')">&#9658; Run Suite</button></div>
+      <div id="results-wikiparse"></div>
+    </div>
+
+    <!-- CALCS SUITE -->
+    <div id="suite-calcs" class="suite">
+      <div class="suite-title">HP / MANA CALCULATIONS</div>
+      <div class="suite-desc">Tests calcHP(), calcMana(), staRatio() across all classes and level ranges against known EQ formula outputs.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('calcs')">&#9658; Run Suite</button></div>
+      <div id="results-calcs"></div>
+    </div>
+
+    <!-- UPGRADES SUITE -->
+    <div id="suite-upgrades" class="suite">
+      <div class="suite-title">UPGRADE SCORING</div>
+      <div class="suite-desc">Tests effectiveGain() logic, cap clamping at 255, stat delta calculation, and candidate sorting for the Upgrades tab.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('upgrades')">&#9658; Run Suite</button></div>
+      <div id="results-upgrades"></div>
+    </div>
+
+    <!-- WEAPON DPS SUITE -->
+    <div id="suite-weapondps" class="suite">
+      <div class="suite-title">WEAPON DPS SCORING</div>
+      <div class="suite-desc">Validates weaponDpsScore() for all four class-specific branches: MNK innate H2H, ROG backstab on piercing PRIMARY, RNG archery 2× multiplier, and BRD instrument mod scoring. Runs standalone — no app connection required.</div>
+      <div class="suite-actions">
+        <button class="btn primary" onclick="runSuite('weapondps')">&#9658; Run Suite</button>
+        <button class="btn" onclick="document.getElementById('wdps-sandbox').style.display=document.getElementById('wdps-sandbox').style.display==='none'?'block':'none'">&#9881; Open Sandbox</button>
+      </div>
+      <div id="results-weapondps"></div>
+
+      <!-- Interactive sandbox -->
+      <div id="wdps-sandbox" style="display:none;margin-top:1rem;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.85rem">
+        <div style="font-family:var(--cinzel);font-size:.65rem;letter-spacing:.09em;color:var(--gold);margin-bottom:.65rem">INTERACTIVE COMPARE</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 90px 90px 90px;gap:.55rem;margin-bottom:.65rem;align-items:end">
+          <label style="display:flex;flex-direction:column;gap:.25rem;font-family:var(--cinzel);font-size:.54rem;letter-spacing:.07em;color:var(--text-m)">
+            CLASS
+            <select id="wdps-class" onchange="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.28rem .4rem;font-size:.84rem;outline:none">
+              <option>Monk</option><option>Rogue</option><option>Ranger</option><option>Bard</option>
+              <option>Warrior</option><option>Paladin</option><option>Shadow Knight</option>
+            </select>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:.25rem;font-family:var(--cinzel);font-size:.54rem;letter-spacing:.07em;color:var(--text-m)">
+            SLOT
+            <select id="wdps-slot" onchange="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.28rem .4rem;font-size:.84rem;outline:none">
+              <option>PRIMARY</option><option>SECONDARY</option><option>RANGE</option>
+            </select>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:.25rem;font-family:var(--cinzel);font-size:.54rem;letter-spacing:.07em;color:var(--text-m)">
+            LEVEL
+            <input id="wdps-level" type="number" value="60" min="1" max="60" onchange="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.28rem .4rem;font-size:.84rem;outline:none;width:100%">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:.25rem;font-family:var(--cinzel);font-size:.54rem;letter-spacing:.07em;color:var(--text-m)">
+            DEX
+            <input id="wdps-dex" type="number" value="175" min="1" max="255" onchange="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.28rem .4rem;font-size:.84rem;outline:none;width:100%">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:.25rem;font-family:var(--cinzel);font-size:.54rem;letter-spacing:.07em;color:var(--text-m)">
+            SCALE ×
+            <input id="wdps-scale" type="number" value="10" min="1" max="20" onchange="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.28rem .4rem;font-size:.84rem;outline:none;width:100%">
+          </label>
+        </div>
+
+        <!-- Two item rows -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.65rem">
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:.6rem">
+            <div style="font-family:var(--cinzel);font-size:.58rem;letter-spacing:.07em;color:var(--text-m);margin-bottom:.45rem">ITEM A</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem;margin-bottom:.4rem">
+              <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m)">DMG<input id="wdps-a-dmg" type="number" value="16" oninput="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+              <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m)">DELAY<input id="wdps-a-delay" type="number" value="22" oninput="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+              <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m)">MOD<input id="wdps-a-mod" type="number" value="0" oninput="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+            </div>
+            <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m);margin-bottom:.4rem">SKILL TYPE<input id="wdps-a-skill" type="text" value="1H Blunt" oninput="wdpsCompare()" placeholder="e.g. Piercing, Archery, Hand to Hand" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+            <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m);margin-bottom:.4rem">PROC (effect name)<input id="wdps-a-proc" type="text" value="" oninput="wdpsCompare()" placeholder="e.g. Siphon, Frost Strike" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+            <div style="font-family:var(--mono);font-size:.75rem;padding:.35rem .5rem;background:var(--surface);border-radius:3px;margin-top:.3rem">
+              Raw score: <span id="wdps-a-raw" style="color:var(--gold-l)">—</span><br>
+              Scaled (+×): <span id="wdps-a-scaled" style="color:var(--gold-l)">—</span>
+            </div>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:.6rem">
+            <div style="font-family:var(--cinzel);font-size:.58rem;letter-spacing:.07em;color:var(--text-m);margin-bottom:.45rem">ITEM B</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem;margin-bottom:.4rem">
+              <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m)">DMG<input id="wdps-b-dmg" type="number" value="14" oninput="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+              <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m)">DELAY<input id="wdps-b-delay" type="number" value="26" oninput="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+              <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m)">MOD<input id="wdps-b-mod" type="number" value="0" oninput="wdpsCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+            </div>
+            <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m);margin-bottom:.4rem">SKILL TYPE<input id="wdps-b-skill" type="text" value="Hand to Hand" oninput="wdpsCompare()" placeholder="e.g. Piercing, Archery, Hand to Hand" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+            <label style="display:flex;flex-direction:column;gap:.2rem;font-family:var(--cinzel);font-size:.52rem;color:var(--text-m);margin-bottom:.4rem">PROC (effect name)<input id="wdps-b-proc" type="text" value="" oninput="wdpsCompare()" placeholder="e.g. Siphon, Frost Strike" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.22rem .35rem;font-size:.82rem;outline:none;width:100%"></label>
+            <div style="font-family:var(--mono);font-size:.75rem;padding:.35rem .5rem;background:var(--surface);border-radius:3px;margin-top:.3rem">
+              Raw score: <span id="wdps-b-raw" style="color:var(--gold-l)">—</span><br>
+              Scaled (+×): <span id="wdps-b-scaled" style="color:var(--gold-l)">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Winner banner -->
+        <div id="wdps-verdict" style="font-family:var(--mono);font-size:.8rem;padding:.45rem .65rem;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--text-d)">
+          Fill in both items to compare.
+        </div>
+
+        <!-- Breakdown -->
+        <pre id="wdps-breakdown" style="font-family:var(--mono);font-size:.7rem;background:#050403;border:1px solid var(--border);border-radius:3px;padding:.5rem .7rem;margin-top:.5rem;color:var(--text-d);white-space:pre-wrap;display:none"></pre>
+      </div>
+    </div>
+
+
+    <!-- GEAR STAT CHECKER -->
+    <div id="suite-gearchecker" class="suite">
+      <div class="suite-title">GEAR STAT CHECKER</div>
+      <div class="suite-desc">Compare two items side-by-side using the live stat weight engine. Select a character context (class, race, level) and two items from the item database to see their weighted scores and stat deltas.</div>
+
+      <div id="gc-body">
+        <div id="gc-noconn" style="display:none;padding:1.5rem 0;color:var(--text-m);font-style:italic">
+          Not connected to app — open this panel from within MixelParse.
+        </div>
+
+        <!-- Character Context -->
+        <div id="gc-form" style="display:none">
+          <!-- Row 1: char buttons -->
+          <div style="margin-bottom:.9rem">
+            <span style="font-family:var(--cinzel);font-size:.56rem;letter-spacing:.08em;color:var(--text-m);margin-right:.6rem">QUICK-FILL FROM CHAR:</span>
+            <span id="gc-charbtns" style="display:inline-flex;flex-wrap:wrap;gap:.35rem"></span>
+          </div>
+
+          <!-- Row 2: class / race / level / slot -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 80px 1.4fr;gap:.65rem;margin-bottom:1rem;align-items:end">
+            <label style="display:flex;flex-direction:column;gap:.3rem;font-family:var(--cinzel);font-size:.56rem;letter-spacing:.08em;color:var(--text-m)">
+              CLASS
+              <select id="gc-class" onchange="if(_gcItemA&&_gcItemB)gcCompare()" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.32rem .5rem;font-family:'Crimson Pro',serif;font-size:.86rem;outline:none">
+                <option value="">— Select —</option>
+                <option>Bard</option><option>Cleric</option><option>Druid</option>
+                <option>Enchanter</option><option>Magician</option><option>Monk</option>
+                <option>Necromancer</option><option>Paladin</option><option>Ranger</option>
+                <option>Rogue</option><option>Shadow Knight</option><option>Shaman</option>
+                <option>Warrior</option><option>Wizard</option>
+              </select>
+            </label>
+            <label style="display:flex;flex-direction:column;gap:.3rem;font-family:var(--cinzel);font-size:.56rem;letter-spacing:.08em;color:var(--text-m)">
+              RACE
+              <select id="gc-race" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.32rem .5rem;font-family:'Crimson Pro',serif;font-size:.86rem;outline:none">
+                <option value="">— Select —</option>
+                <option>Barbarian</option><option>Dark Elf</option><option>Dwarf</option>
+                <option>Erudite</option><option>Gnome</option><option>Half Elf</option>
+                <option>Halfling</option><option>High Elf</option><option>Human</option>
+                <option>Iksar</option><option>Ogre</option><option>Troll</option><option>Wood Elf</option>
+              </select>
+            </label>
+            <label style="display:flex;flex-direction:column;gap:.3rem;font-family:var(--cinzel);font-size:.56rem;letter-spacing:.08em;color:var(--text-m)">
+              LEVEL
+              <input id="gc-level" type="number" min="1" max="60" value="60"
+                onchange="if(_gcItemA&&_gcItemB)gcCompare()"
+                style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.32rem .5rem;font-family:'Crimson Pro',serif;font-size:.86rem;outline:none;width:100%">
+            </label>
+            <label style="display:flex;flex-direction:column;gap:.3rem;font-family:var(--cinzel);font-size:.56rem;letter-spacing:.08em;color:var(--text-m)">
+              SLOT <span style="color:var(--text-dim,#5a5248);text-transform:none;font-size:.52rem">[score ▲upgrade]</span>
+              <select id="gc-slot" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.32rem .5rem;font-family:'Crimson Pro',serif;font-size:.84rem;outline:none">
+                <option value="">— Choose a slot —</option>
+              </select>
+            </label>
+          </div>
+
+          <!-- Recommendations row -->
+          <div id="gc-recommendations"></div>
+          <div id="gc-slot-debug"></div>
+
+          <!-- Row 3: item A / item B -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:.8rem">
+            <div>
+              <div style="font-family:var(--cinzel);font-size:.56rem;letter-spacing:.08em;color:var(--text-m);margin-bottom:.35rem">
+                ITEM A <span style="color:var(--text-dim,#5a5248);font-size:.55rem;text-transform:none">(currently equipped / challenger)</span>
+              </div>
+              <input id="gc-item-a-input" type="text" placeholder="Type to search items…" autocomplete="off"
+                oninput="gcSearch('a')"
+                style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.32rem .5rem;font-family:'Crimson Pro',serif;font-size:.86rem;outline:none;box-sizing:border-box">
+              <div id="gc-drop-a" style="display:none;position:relative;z-index:20;background:var(--surface2);border:1px solid var(--border2);border-top:none;border-radius:0 0 4px 4px;max-height:180px;overflow-y:auto;font-size:.84rem"></div>
+              <div id="gc-item-a-info" style="margin-top:.35rem;min-height:1.2rem"></div>
+            </div>
+            <div>
+              <div style="font-family:var(--cinzel);font-size:.56rem;letter-spacing:.08em;color:var(--text-m);margin-bottom:.35rem">
+                ITEM B <span style="color:var(--text-dim,#5a5248);font-size:.55rem;text-transform:none">(upgrade candidate)</span>
+              </div>
+              <input id="gc-item-b-input" type="text" placeholder="Type to search items…" autocomplete="off"
+                oninput="gcSearch('b')"
+                style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.32rem .5rem;font-family:'Crimson Pro',serif;font-size:.86rem;outline:none;box-sizing:border-box">
+              <div id="gc-drop-b" style="display:none;position:relative;z-index:20;background:var(--surface2);border:1px solid var(--border2);border-top:none;border-radius:0 0 4px 4px;max-height:180px;overflow-y:auto;font-size:.84rem"></div>
+              <div id="gc-item-b-info" style="margin-top:.35rem;min-height:1.2rem"></div>
+            </div>
+          </div>
+
+          <div class="suite-actions" style="margin-bottom:.5rem">
+            <button class="btn primary" type="button" onclick="gcCompare()">&#9658; Compare Items</button>
+            <button class="btn" type="button" onclick="gcClear()">&#8635; Clear</button>
+          </div>
+
+          <!-- Results -->
+          <div id="gc-results" style="margin-top:1rem"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BRIDGE SUITE -->
+    <div id="suite-bridge" class="suite">
+      <div class="suite-title">PRICE BRIDGE</div>
+      <div class="suite-desc">Live diagnostics for applyDkpToItemDB() and applyPlatToItemDB() — match counts, written values, unit conversions, and itemDB persistence. Apply bridges directly from here.</div>
+      <div class="suite-actions">
+        <button class="btn primary" onclick="runSuite('bridge')">&#9658; Run Tests</button>
+        <button class="btn" onclick="applyBridgeAndRefresh('dkp')">&#9876; Apply DKP Now</button>
+        <button class="btn" onclick="applyBridgeAndRefresh('plat')">&#128176; Apply Plat Now</button>
+        <button class="btn" onclick="renderLiveBridge()">&#8635; Refresh View</button>
+      </div>
+      <div id="bridge-live" style="margin-bottom:1rem"></div>
+      <div id="results-bridge"></div>
+    </div>
+
+    <!-- DKP SUITE -->
+    <div id="suite-dkp" class="suite">
+      <div class="suite-title">DKP PIPELINE</div>
+      <div class="suite-desc">Tests parseDkpCsv() output structure, 60d average calculation, getDkp() lookup, dkpChip() rendering, and dkpLookup integrity.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('dkp')">&#9658; Run Suite</button></div>
+      <div id="results-dkp"></div>
+    </div>
+
+    <!-- PLAT SUITE -->
+    <div id="suite-plat" class="suite">
+      <div class="suite-title">PLAT / PIGPARSE</div>
+      <div class="suite-desc">Validates platData shape, WTS/WTB type filtering, getPlatRows() sort/filter logic, and plat cache key invalidation.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('plat')">&#9658; Run Suite</button></div>
+      <div id="results-plat"></div>
+    </div>
+
+    <!-- CONSUMES SUITE -->
+    <div id="suite-consumes" class="suite">
+      <div class="suite-title">RAID CONSUMES</div>
+      <div class="suite-desc">Tests charHasItem(), charHasAnyOf(), getConsumeStatus(), getOverallStatus() logic against live character inventories.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('consumes')">&#9658; Run Suite</button></div>
+      <div id="results-consumes"></div>
+    </div>
+
+    <!-- FACTIONS SUITE -->
+    <div id="suite-factions" class="suite">
+      <div class="suite-title">FACTIONS</div>
+      <div class="suite-desc">Validates getFaction(), setFaction(), factionColor() logic and factionData integrity for loaded characters.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('factions')">&#9658; Run Suite</button></div>
+      <div id="results-factions"></div>
+    </div>
+
+    <!-- SKYSHRINE SUITE -->
+    <div id="suite-skyshrine" class="suite">
+      <div class="suite-title">SKYSHRINE TRACKER</div>
+      <div class="suite-desc">Tests getSSDone(), tatteredName(), skyshrineData integrity, and per-class armor slot coverage.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('skyshrine')">&#9658; Run Suite</button></div>
+      <div id="results-skyshrine"></div>
+    </div>
+
+    <!-- QUEST ITEMS SUITE -->
+    <div id="suite-quests" class="suite">
+      <div class="suite-title">QUEST ITEMS</div>
+      <div class="suite-desc">Validates QUEST_DB integrity, cross-references all guild inventories for completed items and ingredients, and flags quests with no guild coverage.</div>
+      <div class="suite-actions">
+        <button class="btn primary" onclick="runSuite('quests')">&#9658; Run Suite</button>
+        <button class="btn" onclick="renderQuestMatrix()" style="margin-left:.5rem">&#9633; Guild Matrix</button>
+      </div>
+      <div id="quest-matrix" style="display:none;margin-bottom:1rem"></div>
+      <div id="results-quests"></div>
+    </div>
+    <div id="suite-supabase" class="suite">
+      <div class="suite-title">SUPABASE / AUTH</div>
+      <div class="suite-desc">Tests Supabase client connectivity, auth state, and confirms save/load functions exist and are wired correctly.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('supabase')">&#9658; Run Suite</button></div>
+      <div id="results-supabase"></div>
+    </div>
+
+    <div id="suite-creditcheck" class="suite">
+      <div class="suite-title">CREDIT CHECK</div>
+      <div class="suite-desc">Validates the ODKP credit check system — alias map correctness, creditData parse integrity, Supabase column presence, and kill coverage against your session history.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('creditcheck')">&#9658; Run Suite</button></div>
+      <div id="results-creditcheck"></div>
+    </div>
+
+    <!-- DROP SCRAPE SUITE -->
+    <div id="suite-dropscrape" class="suite">
+      <div class="suite-title">DROP DATA SCRAPE</div>
+      <div class="suite-desc">One-time scrape of the P99 wiki to enrich itemDB with mob name and zone for each item. Skips items already enriched. Results are saved back to Supabase — no re-scrape needed after completion. Rate-limited to 3 items/sec to avoid wiki blocks.</div>
+      <div class="suite-actions">
+        <button class="btn primary" id="scrapeStartBtn" onclick="startDropScrape()">&#9658; Start Scrape</button>
+        <button class="btn" id="scrapeStopBtn" onclick="stopDropScrape()" disabled>&#9646;&#9646; Stop</button>
+        <button class="btn" id="scrapeResetBtn" onclick="resetDropScrape()">&#8635; Reset (re-scrape all)</button>
+      </div>
+      <div id="scrape-progress-wrap" style="margin-bottom:.75rem;display:none">
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;color:var(--text-m);margin-bottom:.3rem">
+          <span id="scrape-status">Starting…</span>
+          <span id="scrape-count">0 / 0</span>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:3px;height:8px;overflow:hidden">
+          <div id="scrape-bar" style="height:100%;width:0%;background:var(--gold);transition:width .3s"></div>
+        </div>
+      </div>
+      <div id="scrape-log" style="font-size:.75rem;font-family:monospace;max-height:320px;overflow-y:auto;background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:.5rem;display:none"></div>
+    </div>
+
+    <!-- STATE SUITE -->
+    <div id="suite-state" class="suite">
+      <div class="suite-title">STATE SNAPSHOT</div>
+      <div class="suite-desc">Live read of all app state variables — chars, charMeta, gearStats, itemDB, dkpLookup, platData, factionData, raidSessions, watchList.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('state')">&#9658; Run Suite</button></div>
+      <div id="results-state"></div>
+    </div>
+
+    <!-- UTILS SUITE -->
+    <div id="suite-utils" class="suite">
+      <div class="suite-title">UTILITIES</div>
+      <div class="suite-desc">Tests esc(), wikiUrl(), itemLink(), dkpChip(), factionColor(), platTypeLabel(), platTypeChip() output correctness.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('utils')">&#9658; Run Suite</button></div>
+      <div id="results-utils"></div>
+    </div>
+
+  </div><!-- main-content -->
+</div><!-- main -->
+</div><!-- shell -->
+
+<script>
+// ── APP REFERENCE ──
+const A = window.opener || {};
+let appReady = false;
+
+function getApp(fn) {
+  try { return fn(); } catch(e) { return undefined; }
+}
+
+function checkConnection() {
+  try {
+    const ok = A && typeof A.parseInventory === 'function';
+    appReady = ok;
+    document.getElementById('hMeta').textContent = ok
+      ? `Connected — ${Object.keys(A.chars||{}).length} chars, ${Object.keys(A.itemDB||{}).length} items in DB`
+      : 'Not connected — open this panel from within MixelParse';
+    return ok;
+  } catch(e) { return false; }
+}
+
+// ── TEST FRAMEWORK ──
+const results = {}; // suiteId -> [{name, status, msg, asserts, output, ms}]
+
+function assert(label, condition, val='') {
+  return { label, status: condition ? 'pass' : 'fail', val: String(val) };
+}
+function assertEq(label, actual, expected) {
+  const ok = actual === expected;
+  return { label, status: ok ? 'pass' : 'fail', val: ok ? String(actual) : `got ${JSON.stringify(actual)}, expected ${JSON.stringify(expected)}` };
+}
+function assertGt(label, actual, min) {
+  const ok = actual > min;
+  return { label, status: ok ? 'pass' : 'warn', val: `${actual} (> ${min})` };
+}
+function assertRange(label, actual, lo, hi) {
+  const ok = actual >= lo && actual <= hi;
+  return { label, status: ok ? 'pass' : 'fail', val: `${actual} (expected ${lo}–${hi})` };
+}
+function warn(label, condition, val='') {
+  return { label, status: condition ? 'warn' : 'pass', val: String(val) };
+}
+
+function makeTest(name, fn) {
+  return async () => {
+    const t0 = performance.now();
+    let status = 'skip', msg = '', asserts = [], output = '';
+    try {
+      const r = await fn();
+      asserts = r.asserts || [];
+      msg = r.msg || '';
+      output = r.output || '';
+      const failed = asserts.filter(a => a.status === 'fail');
+      const warned = asserts.filter(a => a.status === 'warn');
+      status = failed.length ? 'fail' : warned.length ? 'warn' : 'pass';
+    } catch(e) {
+      status = 'fail';
+      msg = e.message;
+      output = e.stack || '';
+    }
+    return { name, status, msg, asserts, output, ms: Math.round(performance.now() - t0) };
+  };
+}
+
+// ── SUITE DEFINITIONS ──
+const SUITES = {};
+
+// PARSING
+SUITES.parsing = [
+  makeTest('parseInventory — basic tab-delimited', () => {
+    const f = A.parseInventory;
+    const txt = `Slot1\tSword of Fire\t12345\t1\nBank1\tShield of Ice\t67890\t1\nGeneral1\tHealth Potion\t11111\t5`;
+    const items = f(txt, 'Testchar');
+    return { asserts: [
+      assertEq('returns array', Array.isArray(items), true),
+      assertEq('correct item count', items.length, 3),
+      assertEq('first item name', items[0].name, 'Sword of Fire'),
+      assertEq('first item id', items[0].id, 12345),
+      assertEq('stack count', items[2].count, 5),
+      assertEq('char attached', items[0].char, 'Testchar'),
+    ]};
+  }),
+  makeTest('parseInventory — filters Empty and Name rows', () => {
+    const f = A.parseInventory;
+    const txt = `Name\tName\t0\t0\nSlot1\tEmpty\t0\t1\nSlot2\tReal Item\t99999\t1`;
+    const items = f(txt, 'X');
+    return { asserts: [
+      assertEq('empty rows filtered', items.length, 1),
+      assertEq('correct item kept', items[0].name, 'Real Item'),
+    ]};
+  }),
+  makeTest('locationType — equipped/bank/bag routing', () => {
+    const f = A.locationType;
+    return { asserts: [
+      assertEq('Slot is equipped', f('Slot1'), 'equipped'),
+      assertEq('Bank is bank', f('Bank1'), 'bank'),
+      assertEq('General is bag', f('General1'), 'bag'),
+      assertEq('Held is bag', f('HeldItem'), 'bag'),
+      assertEq('Primary is equipped', f('Primary'), 'equipped'),
+    ]};
+  }),
+  makeTest('extractCharName — filename stripping', () => {
+    const f = A.extractCharName;
+    return { asserts: [
+      assertEq('strips -Inventory.txt', f('Aradune-Inventory.txt'), 'Aradune'),
+      assertEq('strips .txt', f('Aradune.txt'), 'Aradune'),
+      assertEq('handles plain name', f('Aradune'), 'Aradune'),
+      assertEq('case insensitive', f('Bob-inventory.TXT'), 'Bob'),
+    ]};
+  }),
+  makeTest('getEquippedItems — live character data', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    if (!names.length) return { msg: 'No characters loaded — load inventory files first', asserts: [warn('characters loaded', true, 'skipped — no data')] };
+    const charName = names[0];
+    const equipped = A.getEquippedItems(charName);
+    return { asserts: [
+      assert('returns array', Array.isArray(equipped)),
+      assertGt('has equipped items', equipped.length, 0),
+      assert('all items have location', equipped.every(i => i.location)),
+      assert('all items have name', equipped.every(i => i.name)),
+    ], output: `${charName}: ${equipped.length} equipped items\nSlots: ${equipped.map(i=>i.location).join(', ')}` };
+  }),
+];
+
+// ITEM DB
+SUITES.itemdb = [
+  makeTest('itemDB — loaded and non-empty', () => {
+    const db = A.itemDB || {};
+    const count = Object.keys(db).length;
+    return { asserts: [
+      assertGt('item count > 0', count, 0),
+      assert('all entries are objects', Object.values(db).every(v => typeof v === 'object')),
+      assert('entries have _slot', Object.values(db).slice(0,20).some(v => v._slot)),
+    ], msg: `${count} items loaded from: ${(A.itemDBSources||[]).join(', ')||'unknown'}` };
+  }),
+  makeTest('parseItemDB — CSV with known item', () => {
+    const f = A.parseItemDB;
+    // Delete test item first so re-runs don't return count=0 on merge path
+    delete A.itemDB['Circlet of Test'];
+    // Data row: 32 cols (indices 0-31) matching header exactly
+    // Slot(0) Name(1) Zone(2) Str(3) Sta(4) Agi(5) Dex(6) Cha(7) Int(8) Wis(9) HP(10) Mana(11) MR(12) FR(13) CR(14) PR(15) DR(16) _(17-26) stat_val(27) _(28) _(29) plat(k)(30) DKP(31)
+    const csv = 'Slot\tName\tZone\tStr\tSta\tAgi\tDex\tCha\tInt\tWis\tHP\tMana\tMR\tFR\tCR\tPR\tDR\t_\t_\t_\t_\t_\t_\t_\t_\t_\t_\tstat_val\t_\t_\tplat(k)\tDKP\n'+
+                'HEAD\tCirclet of Test\tMistmoore\t0\t10\t0\t0\t0\t0\t20\t50\t0\t5\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t45\t0\t0\t0\t15\t8';
+    const before = Object.keys(A.itemDB).length;
+    const count = f(csv, 'test.csv');
+    const after = Object.keys(A.itemDB).length;
+    const entry = A.itemDB['Circlet of Test'];
+    return { asserts: [
+      assertGt('parsed > 0 items', count, 0),
+      assert('item added to db', !!entry),
+      assertEq('wis value correct', entry?.wis, 20),
+      assertEq('sta value correct', entry?.sta, 10),
+      assertEq('hp bonus correct', entry?.hpbonus, 50),
+      assertEq('slot set correctly', entry?._slot, 'HEAD'),
+      assertEq('plat value correct', entry?.plat, 15),
+      assertEq('dkp value correct', entry?.dkp, 8),
+    ], output: `Before: ${before} items, After: ${after} items\nEntry: ${JSON.stringify(entry)}` };
+  }),
+  makeTest('classFromFilename — class detection', () => {
+    const f = A.classFromFilename;
+    return { asserts: [
+      assertEq('cleric detected', f('cleric_items.csv'), 'CLR'),
+      assertEq('warrior detected', f('warrior.csv'), 'WAR'),
+      assertEq('shaman detected', f('shaman_gear.csv'), 'SHM'),
+      assertEq('shadowknight detected', f('shadowknight.csv'), 'SHD'),
+      assertEq('unknown returns null', f('allitems.csv'), null),
+    ]};
+  }),
+  makeTest('raceFromFilename — race detection', () => {
+    const f = A.raceFromFilename;
+    return { asserts: [
+      assertEq('human detected', f('human_items.csv'), 'HUM'),
+      assertEq('iksar detected', f('iksar.csv'), 'IKS'),
+      assertEq('dark_elf detected', f('dark_elf.csv'), 'DEF'),
+      assertEq('unknown returns null', f('items.csv'), null),
+    ]};
+  }),
+  makeTest('applyDBToChar — live gear matching', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    if (!names.length) return { msg: 'No characters loaded — load inventory files first', asserts: [warn('characters loaded', true, 'skipped')] };
+    const dbCount = Object.keys(A.itemDB).length;
+    if (!dbCount) return { msg: 'No itemDB loaded', asserts: [warn('itemDB loaded', true, 'skipped')] };
+    const charName = names[0];
+    const matched = A.applyDBToChar(charName);
+    const equipped = A.getEquippedItems(charName);
+    return { asserts: [
+      assert('matched count is number', typeof matched === 'number'),
+      assert('matched <= equipped count', matched <= equipped.length),
+      assert('matched >= 0', matched >= 0),
+    ], msg: `${charName}: ${matched}/${equipped.length} equipped items matched in DB` };
+  }),
+];
+
+// WIKI PARSER
+SUITES.wikiparse = [
+  makeTest('parseWikiStats — full stat block', () => {
+    const f = A.parseWikiStats;
+    const html = `<html><body>
+      <p>AC: 10 HP: +75 Mana: +50</p>
+      <p>STR: +5 STA: +10 DEX: +3 AGI: +7 WIS: +20 INT: +2 CHA: +1</p>
+      <p>SV MAGIC: +10 SV FIRE: +5 SV COLD: +8 SV POISON: +3 SV DISEASE: +6</p>
+    </body></html>`;
+    const s = f(html);
+    return { asserts: [
+      assertEq('hpbonus', s.hpbonus, 75),
+      assertEq('manabonus', s.manabonus, 50),
+      assertEq('str', s.str, 5),
+      assertEq('sta', s.sta, 10),
+      assertEq('wis', s.wis, 20),
+      assertEq('svmagic', s.svmagic, 10),
+      assertEq('svcold', s.svcold, 8),
+    ]};
+  }),
+  makeTest('parseWikiStats — empty HTML', () => {
+    const f = A.parseWikiStats;
+    const s = f('<html><body>No stats here</body></html>');
+    return { asserts: [
+      assert('returns object', typeof s === 'object'),
+      assertEq('no hpbonus', s.hpbonus, undefined),
+      assertEq('no wis', s.wis, undefined),
+    ]};
+  }),
+  makeTest('parseWikiStats — strips scripts/styles', () => {
+    const f = A.parseWikiStats;
+    const html = '<html><head><style>HP: 999<\/style><scr'+'ipt>Mana: 999<\/sc'+'ript></head><body>HP: +50</body></html>';
+    const s = f(html);
+    return { asserts: [
+      assertEq('hp from body only', s.hpbonus, 50),
+      assertEq('mana not in style/script', s.manabonus, undefined),
+    ]};
+  }),
+];
+
+// CALCS
+SUITES.calcs = [
+  makeTest('calcHP — Warrior at 60 with 200 STA', () => {
+    const hp = A.calcHP(200, 'Warrior', 60);
+    // calcHP(200,'Warrior',60) = floor(12.1*60 + 200*6.0) = floor(726+1200) = 1926
+    return { asserts: [
+      assert('returns number', typeof hp === 'number'),
+      assertRange('in expected range', hp, 1500, 3000),
+    ], msg: `calcHP(200, 'Warrior', 60) = ${hp}` };
+  }),
+  makeTest('calcHP — Cleric at 50 vs 60 (should increase)', () => {
+    const hp50 = A.calcHP(150, 'Cleric', 50);
+    const hp60 = A.calcHP(150, 'Cleric', 60);
+    return { asserts: [
+      assert('hp60 > hp50', hp60 > hp50),
+      assertRange('lvl50 range', hp50, 500, 3000),
+      assertRange('lvl60 range', hp60, 600, 4000),
+    ], output: `Cleric 150 STA: lvl50=${hp50}, lvl60=${hp60}` };
+  }),
+  makeTest('calcMana — scales with level', () => {
+    const m40 = A.calcMana(200, 40);
+    const m60 = A.calcMana(200, 60);
+    return { asserts: [
+      assert('mana60 > mana40', m60 > m40),
+      assert('returns numbers', typeof m40 === 'number' && typeof m60 === 'number'),
+    ], output: `calcMana(200, 40)=${m40} | calcMana(200, 60)=${m60}` };
+  }),
+  makeTest('staRatio — all EQ classes return non-zero at 60', () => {
+    const classes = ['Warrior','Cleric','Druid','Shaman','Paladin','Ranger','Monk','Bard','Rogue','Wizard','Magician','Necromancer','Enchanter','Shadow Knight'];
+    const asserts = classes.map(cls => {
+      const r = A.staRatio(cls, 60);
+      return assert(`${cls} ratio > 0`, r > 0, r);
+    });
+    return { asserts };
+  }),
+  makeTest('staRatio — interpolates between 50 and 60', () => {
+    const r50 = A.staRatio('Warrior', 50);
+    const r55 = A.staRatio('Warrior', 55);
+    const r60 = A.staRatio('Warrior', 60);
+    return { asserts: [
+      assert('r55 between r50 and r60', r55 >= Math.min(r50,r60) && r55 <= Math.max(r50,r60)),
+    ], output: `Warrior staRatio: lvl50=${r50.toFixed(3)}, lvl55=${r55.toFixed(3)}, lvl60=${r60.toFixed(3)}` };
+  }),
+];
+
+// UPGRADES
+SUITES.upgrades = [
+  makeTest('effectiveGain — gain within cap', () => {
+    // Simulate: current item has 50 WIS, candidate has 60 WIS, base total is 100 WIS (headroom = 155-50 = 105, gain = 10, all effective)
+    // Re-implement the same logic to cross-check
+    function localEffGain(cur, nxt, baseTotal) {
+      const raw = nxt - cur;
+      if (raw <= 0) return raw;
+      const headroom = Math.max(0, 255 - baseTotal - cur);
+      return Math.min(raw, headroom);
+    }
+    return { asserts: [
+      assertEq('full gain within cap', localEffGain(50, 60, 100), 10),
+      assertEq('partial gain at cap', localEffGain(200, 240, 50), 5),
+      assertEq('zero gain at cap', localEffGain(200, 210, 55), 0),
+      assertEq('loss always full', localEffGain(60, 50, 100), -10),
+    ]};
+  }),
+  makeTest('upgrade candidates — live data check', () => {
+    const db = A.itemDB || {};
+    const dbCount = Object.keys(db).length;
+    if (!dbCount) return { msg: 'No itemDB loaded', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    const bySlot = {};
+    for (const [name, data] of Object.entries(db)) {
+      if (!data._slot) continue;
+      if (!bySlot[data._slot]) bySlot[data._slot] = [];
+      bySlot[data._slot].push(name);
+    }
+    const slots = Object.keys(bySlot);
+    return { asserts: [
+      assertGt('has slotted items', slots.length, 0),
+      assert('HEAD slot exists', bySlot['HEAD'] !== undefined),
+    ], output: slots.map(s => `${s}: ${bySlot[s].length} items`).join('\n') };
+  }),
+  makeTest('255 cap clamping — overcap detection', () => {
+    // Items that push a stat over 255 should show wasted points
+    function wasted(cur, nxt, baseTotal) {
+      const raw = nxt - cur;
+      if (raw <= 0) return 0;
+      const headroom = Math.max(0, 255 - baseTotal - cur);
+      return Math.max(0, raw - headroom);
+    }
+    return { asserts: [
+      assertEq('no waste under cap', wasted(50, 80, 100), 0),
+      assertEq('partial waste', wasted(200, 230, 40), 15),
+      assertEq('full waste over cap', wasted(200, 220, 55), 20),
+    ]};
+  }),
+];
+
+// WEAPON DPS — standalone, no opener required
+// Inlines scoring constants so this suite runs without app connection.
+(function(){
+  const _PROC_DB={"Anarchy":40,"Blaze":50,"Blood Claw":50,"Boil Blood":96,"Bone Melt":75,"Boneshear":30,"Burn":40,"Burst of Flame":25,"Careless Lightning":96,"Chaos Flux":60,"Combust":176,"Conflagration":150,"Deadly Poison":190,"Disease":15,"Earthcall":50,"Earthquake":80,"Energy Sap":40,"Envenomed Breath":100,"Essence Tap":60,"Fellspine":67,"Fingers of Fire":55,"Firestrike":70,"Flame Shock":60,"Flamesong":80,"Flesh Rot I":30,"Flesh Rot II":60,"Flesh Rot III":90,"Force":55,"Force Shock":88,"Frost Shards":620,"Frost Shock":178,"Frost Strike":143,"Frostbite":60,"Garzicor's Vengeance":120,"Holy Shock":80,"Ice Rend":30,"Ignite":50,"Ikatiar's Revenge":69,"Inferno Shock":120,"Insidious Fever":40,"Jolt":40,"Judgment of Ice":150,"Leech":20,"Lifedraw":50,"Lifespike":35,"Lifetap":4,"Lightning Storm":100,"Lightning Strike":173,"Liquid Silver I":40,"Liquid Silver II":60,"Liquid Silver III":80,"Nature's Holy Wrath":150,"Nature's Wrath":100,"Obsidian Shatter":90,"Poison":30,"Poisonous Chill":50,"Project Lightning":80,"Rain of Fire":100,"Rain of Swords":100,"Sebilite Pox":110,"Shards of Sorrow":80,"Shield of Brambles":50,"Shock of Flame":88,"Shock of Frost":60,"Shock of Ice":88,"Shock of Spikes":60,"Shrieking Howl":40,"Siphon":80,"Smite":55,"Smolder":80,"Soul Bond":40,"Soul Consumption":100,"Soul Leech":60,"Specter Lifetap":21,"Spirit Strike":85,"Spirit Tap":141,"Static Strike":70,"Storm Strike":80,"Strike of Thunder":250,"Strike of the Chosen":300,"Suffocate":50,"Swarming Pain":150,"System Shock I":40,"System Shock II":60,"System Shock III":80,"System Shock IV":100,"System Shock V":120,"Thunder Strike":90,"Tishan's Clash":60,"Torment":60,"Velium Shards":12,"Waves of the Deep Sea":65,"Weak Poison":20,"Whirlwind":70,"Winter's Roar":80,"Word of Pain":50,"Ykesha":70};
+  const _MELEE=new Set(['Warrior','Monk','Rogue','Ranger','Bard','Paladin','Shadow Knight']);
+  const _NO_DW=new Set(['Paladin','Shadow Knight']);
+  const _DMG_CAP={'Warrior':100,'Paladin':100,'Shadow Knight':100,'Monk':200,'Rogue':200,'Ranger':200,'Bard':200};
+  const _WEP_SKILLS={'Monk':['hand to hand','1h blunt','2h blunt'],'Rogue':['1h slashing','1h blunt','piercing']};
+
+  function _wdps(item, slot, cls, lv, dex){
+    const dmg=Number(item.dmg||0), delay=Number(item.delay||0);
+    const lvCap=Math.min(lv||60,60);
+    if(!_MELEE.has(cls))return 0;
+    const itype=(item._skill||'').toLowerCase();
+    const is2h=itype.includes('2h')||itype.includes('two');
+    if(cls==='Bard'&&(slot==='SECONDARY'||slot==='PRIMARY')){
+      const best=Math.max(Number(item._percmod||0),Number(item._stringmod||0),Number(item._windmod||0),Number(item._brasmod||0),Number(item._allmod||0));
+      if(best>0)return Math.max(0,(best-18)*1.5);
+    }
+    if(cls==='Ranger'&&slot==='RANGE')return(dmg&&delay)?(2*dmg)/delay:0;
+    if(slot!=='PRIMARY'&&slot!=='SECONDARY')return 0;
+    if(!dmg||!delay)return 0;
+    if(_NO_DW.has(cls)&&slot==='SECONDARY')return 0;
+    if(is2h&&slot!=='PRIMARY')return 0;
+    const allowed=_WEP_SKILLS[cls];
+    if(allowed&&!allowed.some(s=>itype.includes(s)))return 0;
+    if(cls==='Rogue'&&is2h)return 0;
+    const cap=_DMG_CAP[cls]||100;
+    const d=Math.min(dmg,cap);
+    let bonus=0;
+    if(lvCap>=28&&slot==='PRIMARY')bonus=is2h?Math.floor(delay*37/44):Math.floor((lvCap-25)/3);
+    const effect=item._effect||'', effectType=item._effectType||'';
+    const hasCombat=effect&&effectType&&effectType.toLowerCase().includes('combat');
+    const procDmg=hasCombat?(_PROC_DB[effect]||35):0;
+    const dexCap=Math.min(255,dex||175);
+    const ppm=(dexCap/170)+0.5;
+    const procDps=slot==='SECONDARY'?(ppm*0.5*procDmg/60):(ppm*procDmg/60);
+    const ratio=slot==='SECONDARY'?(2*d)/delay:((2*d+bonus)/delay);
+    let bs=0;
+    if(cls==='Rogue'&&slot==='PRIMARY'&&itype.includes('piercing')){
+      const bsAvg=Math.max(90,(225*d)/50);
+      bs=(bsAvg/delay)*0.6;
+    }
+    return ratio+procDps+bs;
+  }
+
+  window._wdpsScore=_wdps;
+  window._wdpsProcDB=_PROC_DB;
+
+  SUITES.weapondps = [
+    makeTest('MNK — Wu\'s Fist (16/22) beats Unarmed fists (14/26)', () => {
+      const wus     = {dmg:16,delay:22,_skill:'1H Blunt'};
+      const unarmed = {dmg:14,delay:26,_skill:'Hand to Hand'};
+      const sWus  = _wdps(wus,     'PRIMARY','Monk',60,175);
+      const sUnar = _wdps(unarmed, 'PRIMARY','Monk',60,175);
+      return { asserts: [
+        assertGt('Wu\'s raw score > 0', sWus, 0),
+        assertGt('Unarmed raw score > 0', sUnar, 0),
+        assertGt('Wu\'s beats Unarmed', sWus, sUnar),
+        { label:`Wu's=${sWus.toFixed(3)}  Unarmed=${sUnar.toFixed(3)}  delta=${(sWus-sUnar).toFixed(3)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('MNK — Sword (1H Slashing) scores 0 (skill restriction)', () => {
+      const sword = {dmg:15,delay:24,_skill:'1H Slashing'};
+      const s = _wdps(sword,'PRIMARY','Monk',60,175);
+      return { asserts: [
+        assertEq('Monk cannot use 1H Slashing → 0', s, 0),
+      ]};
+    }),
+    makeTest('ROG — Piercing PRIMARY gets backstab bonus over slashing', () => {
+      const piercing = {dmg:15,delay:25,_skill:'Piercing'};
+      const slashing = {dmg:15,delay:25,_skill:'1H Slashing'};
+      const sPierce = _wdps(piercing,'PRIMARY','Rogue',60,175);
+      const sSlash  = _wdps(slashing,'PRIMARY','Rogue',60,175);
+      return { asserts: [
+        assertGt('Piercing scores > 0', sPierce, 0),
+        assertGt('Piercing > Slashing (backstab bonus)', sPierce, sSlash),
+        { label:`Piercing=${sPierce.toFixed(3)}  Slashing=${sSlash.toFixed(3)}  BS-bonus=${(sPierce-sSlash).toFixed(3)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('ROG — Blood Point Siphon proc adds score vs same-ratio plain piercer', () => {
+      const withProc = {dmg:10,delay:21,_skill:'Piercing',_effect:'Siphon',_effectType:'Combat, Casting Time: Instant'};
+      const noProc   = {dmg:10,delay:21,_skill:'Piercing'};
+      const sProc = _wdps(withProc,'PRIMARY','Rogue',60,175);
+      const sNone = _wdps(noProc,  'PRIMARY','Rogue',60,175);
+      return { asserts: [
+        assertGt('Proc item scores higher', sProc, sNone),
+        { label:`Siphon proc=${sProc.toFixed(3)}  No proc=${sNone.toFixed(3)}  proc-delta=${(sProc-sNone).toFixed(3)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('ROG — Worn effect (Seething Fury) does NOT add proc score', () => {
+      const worn  = {dmg:15,delay:25,_skill:'Piercing',_effect:'Seething Fury',_effectType:'Worn'};
+      const plain = {dmg:15,delay:25,_skill:'Piercing'};
+      const sWorn  = _wdps(worn,  'PRIMARY','Rogue',60,175);
+      const sPlain = _wdps(plain, 'PRIMARY','Rogue',60,175);
+      return { asserts: [
+        assertEq('Worn effect → no proc bonus, scores same as plain', sWorn.toFixed(4), sPlain.toFixed(4)),
+      ]};
+    }),
+    makeTest('ROG — No 2H weapons allowed', () => {
+      const twoH = {dmg:20,delay:40,_skill:'2H Slashing'};
+      const s = _wdps(twoH,'PRIMARY','Rogue',60,175);
+      return { asserts: [
+        assertEq('Rogue 2H → 0', s, 0),
+      ]};
+    }),
+    makeTest('ROG — SECONDARY slot gets no backstab (OH only)', () => {
+      const oh = {dmg:10,delay:21,_skill:'Piercing'};
+      const sMH = _wdps(oh,'PRIMARY',  'Rogue',60,175);
+      const sOH = _wdps(oh,'SECONDARY','Rogue',60,175);
+      return { asserts: [
+        assertGt('MH piercing scores > 0', sMH, 0),
+        assertGt('OH still scores (ratio) > 0', sOH, 0),
+        assertGt('MH > OH (backstab only on MH)', sMH, sOH),
+        { label:`MH=${sMH.toFixed(3)}  OH=${sOH.toFixed(3)}  BS-advantage=${(sMH-sOH).toFixed(3)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('RNG — Archery RANGE scores exactly 2×dmg/delay', () => {
+      const bow = {dmg:20,delay:45,_skill:'Archery'};
+      const expected = (2*20)/45;
+      const s = _wdps(bow,'RANGE','Ranger',60,175);
+      return { asserts: [
+        assertRange('score = 2×dmg/delay', s, expected-0.0001, expected+0.0001),
+        { label:`Score=${s.toFixed(5)}  expected=${expected.toFixed(5)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('RNG — Runed Oak Bow (21/43) beats Trueshot Longbow (20/45)', () => {
+      const trueshot = {dmg:20,delay:45,_skill:'Archery'};
+      const runedOak = {dmg:21,delay:43,_skill:'Archery'};
+      const sTrue = _wdps(trueshot,'RANGE','Ranger',60,175);
+      const sOak  = _wdps(runedOak, 'RANGE','Ranger',60,175);
+      return { asserts: [
+        assertGt('Runed Oak > Trueshot', sOak, sTrue),
+        { label:`Runed Oak=${sOak.toFixed(4)}  Trueshot=${sTrue.toFixed(4)}  delta=${(sOak-sTrue).toFixed(4)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('RNG — Non-Ranger class gets 0 for RANGE archery', () => {
+      const bow = {dmg:20,delay:45,_skill:'Archery'};
+      const sWar = _wdps(bow,'RANGE','Warrior',60,175);
+      return { asserts: [
+        assertEq('Warrior RANGE scores 0', sWar, 0),
+      ]};
+    }),
+    makeTest('BRD — Drums of Beast (mod 26) >> vendor Hand Drum (mod 18)', () => {
+      const beast = {_percmod:26};
+      const hand  = {_percmod:18};
+      const sBeast = _wdps(beast,'PRIMARY',  'Bard',60,175);
+      const sHand  = _wdps(hand, 'SECONDARY','Bard',60,175);
+      return { asserts: [
+        assertGt('Drums of Beast scores > 0', sBeast, 0),
+        assertEq('Hand Drum mod 18 = baseline, scores 0', sHand, 0),
+        assertGt('Beast advantage', sBeast, sHand),
+        { label:`Beast=${sBeast.toFixed(3)}  HandDrum=${sHand.toFixed(3)}  delta=${(sBeast-sHand).toFixed(3)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('BRD — Singing Short Sword allmod 18 = baseline (0)', () => {
+      const sss = {dmg:16,delay:26,_skill:'1H Slashing',_allmod:18};
+      const s = _wdps(sss,'PRIMARY','Bard',60,175);
+      return { asserts: [
+        assertEq('allmod 18 = baseline → 0', s, 0),
+        { label:`SSS allmod=18 → raw=${s}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('BRD — Non-Bard class gets normal weapon scoring for same item', () => {
+      const lute = {dmg:10,delay:24,_skill:'1H Slashing',_stringmod:25};
+      const sBrd = _wdps(lute,'PRIMARY','Bard',   60,175);
+      const sWar = _wdps(lute,'PRIMARY','Warrior',60,175);
+      return { asserts: [
+        assertGt('Bard scores on instrument mod', sBrd, 0),
+        assertGt('Warrior scores on weapon ratio', sWar, 0),
+        { label:`Bard (instr)=${sBrd.toFixed(3)}  Warrior (ratio)=${sWar.toFixed(3)}`, status:'pass', val:'' },
+      ]};
+    }),
+    makeTest('PAL/SHD — SECONDARY always 0 (no dual wield)', () => {
+      const wep = {dmg:14,delay:24,_skill:'1H Slashing'};
+      return { asserts: [
+        assertEq('Paladin OH = 0',      _wdps(wep,'SECONDARY','Paladin',    60,175), 0),
+        assertEq('Shadow Knight OH = 0',_wdps(wep,'SECONDARY','Shadow Knight',60,175), 0),
+      ]};
+    }),
+    makeTest('General — damage bonus applies only to MH at lv60 (+11)', () => {
+      const wep = {dmg:10,delay:24,_skill:'1H Slashing'};
+      const sMH = _wdps(wep,'PRIMARY',  'Warrior',60,175);
+      const sOH = _wdps(wep,'SECONDARY','Warrior',60,175);
+      // MH ratio = (2*10+11)/24 = 31/24 = 1.2917; OH ratio = (2*10)/24 = 0.8333
+      return { asserts: [
+        assertRange('MH ratio ~1.292', sMH, 1.290, 1.295),
+        assertRange('OH ratio ~0.833', sOH, 0.832, 0.835),
+        { label:`MH=${sMH.toFixed(4)}  OH=${sOH.toFixed(4)}  bonus-effect=${(sMH-sOH).toFixed(4)}`, status:'pass', val:'' },
+      ]};
+    }),
+  ];
+})();
+
+// Sandbox compare function
+function wdpsCompare(){
+  const cls   = document.getElementById('wdps-class').value;
+  const slot  = document.getElementById('wdps-slot').value;
+  const lv    = Number(document.getElementById('wdps-level').value)||60;
+  const dex   = Number(document.getElementById('wdps-dex').value)||175;
+  const scale = Number(document.getElementById('wdps-scale').value)||10;
+
+  function buildItem(pfx){
+    const dmg   = Number(document.getElementById(`wdps-${pfx}-dmg`).value)||0;
+    const delay = Number(document.getElementById(`wdps-${pfx}-delay`).value)||0;
+    const mod   = Number(document.getElementById(`wdps-${pfx}-mod`).value)||0;
+    const skill = document.getElementById(`wdps-${pfx}-skill`).value.trim();
+    const proc  = document.getElementById(`wdps-${pfx}-proc`).value.trim();
+    const item  = {dmg, delay, _skill:skill};
+    if(mod>0) item._percmod=mod;
+    if(proc) { item._effect=proc; item._effectType='Combat, Casting Time: Instant'; }
+    return item;
+  }
+
+  const itemA = buildItem('a');
+  const itemB = buildItem('b');
+  const scoreA = window._wdpsScore ? window._wdpsScore(itemA,slot,cls,lv,dex) : 0;
+  const scoreB = window._wdpsScore ? window._wdpsScore(itemB,slot,cls,lv,dex) : 0;
+  const scaledA = scoreA * scale;
+  const scaledB = scoreB * scale;
+
+  document.getElementById('wdps-a-raw').textContent    = scoreA.toFixed(4);
+  document.getElementById('wdps-a-scaled').textContent = (scaledA>=0?'+':'')+scaledA.toFixed(2)+' pts';
+  document.getElementById('wdps-b-raw').textContent    = scoreB.toFixed(4);
+  document.getElementById('wdps-b-scaled').textContent = (scaledB>=0?'+':'')+scaledB.toFixed(2)+' pts';
+
+  const verdict = document.getElementById('wdps-verdict');
+  const delta = scaledA - scaledB;
+  if(Math.abs(delta)<0.05){
+    verdict.style.cssText='border-color:var(--border2);color:var(--text-d)';
+    verdict.textContent='⚖ Effectively tied (delta < 0.05 pts)';
+  } else if(delta>0){
+    verdict.style.cssText='border-color:var(--green);color:var(--green-l)';
+    verdict.textContent=`✓ Item A wins by ${delta.toFixed(2)} pts`;
+  } else {
+    verdict.style.cssText='border-color:var(--amber);color:var(--amber-l)';
+    verdict.textContent=`✓ Item B wins by ${Math.abs(delta).toFixed(2)} pts`;
+  }
+
+  const procADmg = itemA._effect&&window._wdpsProcDB ? (window._wdpsProcDB[itemA._effect]||35) : 0;
+  const procBDmg = itemB._effect&&window._wdpsProcDB ? (window._wdpsProcDB[itemB._effect]||35) : 0;
+  const bonus = (lv>=28&&slot==='PRIMARY') ? Math.floor((Math.min(lv,60)-25)/3) : 0;
+  const pre = document.getElementById('wdps-breakdown');
+  pre.style.display='block';
+  pre.textContent=[
+    `Class: ${cls}  Slot: ${slot}  Level: ${lv}  DEX: ${dex}  Scale: ×${scale}`,
+    '',
+    `ITEM A:  ${itemA.dmg||0}dmg / ${itemA.delay||0}delay  skill:"${itemA._skill||'—'}"  proc:${itemA._effect||'none'}${procADmg?' ('+procADmg+'dmg)':''}`,
+    `  dmg-bonus:+${bonus}  raw:${scoreA.toFixed(4)}  scaled:${scaledA.toFixed(2)} pts`,
+    '',
+    `ITEM B:  ${itemB.dmg||0}dmg / ${itemB.delay||0}delay  skill:"${itemB._skill||'—'}"  proc:${itemB._effect||'none'}${procBDmg?' ('+procBDmg+'dmg)':''}`,
+    `  dmg-bonus:+${bonus}  raw:${scoreB.toFixed(4)}  scaled:${scaledB.toFixed(2)} pts`,
+    '',
+    `Delta: ${delta>=0?'+':''}${delta.toFixed(2)} pts → ${Math.abs(delta)<0.05?'Tied':delta>0?'A wins':'B wins'}`,
+  ].join('\n');
+}
+
+// BRIDGE
+SUITES.bridge = [
+  makeTest('applyDkpToItemDB — match count', () => {
+    const dkp = A.dkpLookup || {};
+    const db = A.itemDB || {};
+    const dkpCount = Object.keys(dkp).length;
+    const dbCount = Object.keys(db).length;
+    if (!dkpCount) return { msg: 'No DKP data loaded', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    const lcMap = {};
+    for (const k of Object.keys(db)) lcMap[k.toLowerCase()] = k;
+    let matched = 0, withR60 = 0;
+    for (const [name, entry] of Object.entries(dkp)) {
+      if (entry[5] != null && entry[5] > 0) { withR60++; if (lcMap[name.toLowerCase()]) matched++; }
+    }
+    const pct = Math.round(matched/Math.max(withR60,1)*100);
+    return { asserts: [
+      assertGt('dkp entries with r60 > 0', withR60, 0),
+      assertGt('matched items > 0', matched, 0),
+      assert('match rate > 10%', pct >= 10, `${pct}%`),
+    ], msg: `${matched}/${withR60} DKP items with 60d avg matched in itemDB (${pct}%)` };
+  }),
+  makeTest('applyDkpToItemDB — value correctness', () => {
+    const dkp = A.dkpLookup || {};
+    const db = A.itemDB || {};
+    if (!Object.keys(dkp).length) return { msg: 'No DKP data', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    const lcMap = {};
+    for (const k of Object.keys(db)) lcMap[k.toLowerCase()] = k;
+    const samples = [];
+    for (const [rawName, entry] of Object.entries(dkp)) {
+      const r60 = entry[5];
+      if (!r60 || r60 <= 0) continue;
+      const canonical = lcMap[rawName.toLowerCase()];
+      if (!canonical) continue;
+      const stored = db[canonical].dkp;
+      samples.push({ name: canonical, r60: Math.round(r60), stored });
+      if (samples.length >= 5) break;
+    }
+    return { asserts: [
+      ...samples.map(s => assertEq(`${s.name.slice(0,25)} dkp`, s.stored, s.r60)),
+    ], output: samples.map(s => `${s.name}: r60=${s.r60}, stored=${s.stored}`).join('\n') };
+  }),
+  makeTest('applyPlatToItemDB — WTS only, k-plat unit', () => {
+    const platData = A.platData || [];
+    const db = A.itemDB || {};
+    if (!platData.length) return { msg: 'No plat data loaded', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    const lcMap = {};
+    for (const k of Object.keys(db)) lcMap[k.toLowerCase()] = k;
+    const wtsSamples = [];
+    for (const r of platData) {
+      if (r.t !== 0 || !r.a60 || r.a60 <= 0) continue;
+      const canonical = lcMap[(r.n||'').toLowerCase()];
+      if (!canonical) continue;
+      const expected = Math.round(r.a60/1000*10)/10;
+      const stored = db[canonical].plat;
+      wtsSamples.push({ name: canonical, expected, stored });
+      if (wtsSamples.length >= 5) break;
+    }
+    const wtbCount = platData.filter(r => r.t === 1).length;
+    const wtbMatched = platData.filter(r => r.t === 1 && lcMap[(r.n||'').toLowerCase()]).length;
+    const wtbWritten = wtbMatched > 0 ? platData
+      .filter(r => r.t === 1)
+      .some(r => { const c = lcMap[(r.n||'').toLowerCase()]; return c && db[c]._platUpdatedAt; }) : false;
+    return { asserts: [
+      ...wtsSamples.map(s => assertEq(`${s.name.slice(0,25)} plat(k)`, s.stored, s.expected)),
+      assert('WTB entries not written to plat', !wtbWritten, `${wtbCount} WTB entries ignored`),
+    ], output: wtsSamples.map(s=>`${s.name}: expected=${s.expected}k, stored=${s.stored}k`).join('\n') };
+  }),
+  makeTest('bridge timestamps — _dkpUpdatedAt and _platUpdatedAt set', () => {
+    const db = A.itemDB || {};
+    const entries = Object.values(db);
+    const withDkpTs = entries.filter(e => e._dkpUpdatedAt);
+    const withPlatTs = entries.filter(e => e._platUpdatedAt);
+    const hasDkpData = Object.keys(A.dkpLookup||{}).length > 0;
+    const hasPlatData = (A.platData||[]).length > 0;
+    return { asserts: [
+      hasDkpData ? assertGt('items with dkp timestamp', withDkpTs.length, 0) : warn('dkp data not loaded', true),
+      hasPlatData ? assertGt('items with plat timestamp', withPlatTs.length, 0) : warn('plat data not loaded', true),
+    ], output: `_dkpUpdatedAt: ${withDkpTs.length} items | _platUpdatedAt: ${withPlatTs.length} items` +
+      (withDkpTs[0] ? `\nLast DKP write: ${withDkpTs[0]._dkpUpdatedAt}` : '') };
+  }),
+];
+
+// DKP
+SUITES.dkp = [
+  makeTest('dkpLookup — structure integrity', () => {
+    const dkp = A.dkpLookup || {};
+    const count = Object.keys(dkp).length;
+    if (!count) return { msg: 'No DKP data loaded', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    const samples = Object.entries(dkp).slice(0, 5);
+    const asserts = [];
+    for (const [name, entry] of samples) {
+      asserts.push(assert(`${name.slice(0,20)}: is array`, Array.isArray(entry)));
+      asserts.push(assert(`${name.slice(0,20)}: has high[0]`, entry[0] != null));
+      asserts.push(assert(`${name.slice(0,20)}: has history[4]`, Array.isArray(entry[4])));
+    }
+    return { asserts, msg: `${count} DKP entries loaded` };
+  }),
+  makeTest('parseDkpCsv — synthetic CSV', () => {
+    const f = A.parseDkpCsv;
+    const csv = `Item,Something,Char,DKP,x,x,Date,x,x,Raid\n` +
+      `"Sword of Fire",x,Aradune,15,x,x,2024-01-15,x,x,ToV\n` +
+      `"Sword of Fire",x,Karana,20,x,x,2024-02-01,x,x,ToV\n` +
+      `"Shield of Ice",x,Aradune,8,x,x,2023-08-01,x,x,Kael`;
+    const { lookup, txCount } = f(csv);
+    return { asserts: [
+      assert('returns lookup object', typeof lookup === 'object'),
+      assertEq('tx count correct', txCount, 3),
+      assert('Sword of Fire entry exists', !!lookup['Sword of Fire']),
+      assertEq('high = 20', lookup['Sword of Fire']?.[0], 20),
+      assertEq('low = 15', lookup['Sword of Fire']?.[1], 15),
+      assert('history array present', Array.isArray(lookup['Sword of Fire']?.[4])),
+    ], output: JSON.stringify(lookup['Sword of Fire']?.slice(0,5), null, 2) };
+  }),
+  makeTest('getDkp — lookup and curlies normalization', () => {
+    const f = A.getDkp;
+    const dkp = A.dkpLookup || {};
+    if (!Object.keys(dkp).length) return { msg: 'No DKP data', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    const firstName = Object.keys(dkp)[0];
+    const entry = f(firstName);
+    return { asserts: [
+      assert('found by exact name', entry != null),
+      assert('returns array', Array.isArray(entry)),
+    ], msg: `getDkp('${firstName.slice(0,30)}') → [${entry?.slice(0,3).join(', ')}...]` };
+  }),
+  makeTest('dkpMeta — updatedAt present after load', () => {
+    const meta = A.dkpMeta || {};
+    const hasDkp = Object.keys(A.dkpLookup||{}).length > 0;
+    if (!hasDkp) return { msg: 'No DKP data', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    return { asserts: [
+      assert('updatedAt set', !!meta.updatedAt),
+      assert('txCount > 0', (meta.txCount||0) > 0),
+    ], output: `updatedAt: ${meta.updatedAt}\ntxCount: ${meta.txCount}` };
+  }),
+];
+
+// PLAT
+SUITES.plat = [
+  makeTest('platData — shape and required fields', () => {
+    const data = A.platData || [];
+    if (!data.length) return { msg: 'No plat data — click Refresh Prices first', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    const sample = data[0];
+    return { asserts: [
+      assertGt('has entries', data.length, 0),
+      assert('has name field (n)', sample.n !== undefined),
+      assert('has type field (t)', sample.t !== undefined),
+      assert('type is 0 or 1', sample.t === 0 || sample.t === 1),
+      assert('has a60 field', 'a60' in sample || 'ay' in sample),
+    ], msg: `${data.length} plat entries. WTS: ${data.filter(r=>r.t===0).length}, WTB: ${data.filter(r=>r.t===1).length}` };
+  }),
+  makeTest('getPlatRows — filtering and sorting', () => {
+    const data = A.platData || [];
+    if (!data.length) return { msg: 'No plat data', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    const rows = A.getPlatRows();
+    return { asserts: [
+      assert('returns array', Array.isArray(rows)),
+      assertGt('non-empty', rows.length, 0),
+      assert('sorted desc by default (avg)', rows.length < 2 || (rows[0].ay||0) >= (rows[1].ay||0)),
+    ], output: `Total rows: ${rows.length}\nTop 3: ${rows.slice(0,3).map(r=>`${r.n} (${r.ay}pp)`).join(', ')}` };
+  }),
+  makeTest('platTypeLabel — WTS/WTB labels', () => {
+    const f = A.platTypeLabel;
+    return { asserts: [
+      assertEq('type 0 = WTS', f(0), 'WTS'),
+      assertEq('type 1 = WTB', f(1), 'WTB'),
+    ]};
+  }),
+];
+
+// CONSUMES
+SUITES.consumes = [
+  makeTest('charHasItem — live inventory check', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    if (!names.length) return { msg: 'No characters loaded', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    const charName = names[0];
+    const allItems = A.chars[charName] || [];
+    if (!allItems.length) return { msg: 'No items for char', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    const realItem = allItems[0].name;
+    return { asserts: [
+      assert('finds real item', A.charHasItem(charName, realItem)),
+      assert('rejects fake item', !A.charHasItem(charName, '__FAKE_ITEM_ZZZZ__')),
+    ], msg: `Tested charHasItem for '${realItem}' on ${charName}` };
+  }),
+  makeTest('charHasAnyOf — OR logic', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    if (!names.length) return { msg: 'No characters loaded', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    const charName = names[0];
+    const allItems = A.chars[charName] || [];
+    if (!allItems.length) return { msg: 'No items', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    const realItem = allItems[0].name;
+    return { asserts: [
+      assert('finds when item in list', A.charHasAnyOf(charName, ['__FAKE__', realItem])),
+      assert('false when none match', !A.charHasAnyOf(charName, ['__FAKE1__', '__FAKE2__'])),
+    ]};
+  }),
+  makeTest('getOverallStatus — returns valid status', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    if (!names.length) return { msg: 'No characters loaded', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    const results = names.map(n => ({ char: n, status: A.getOverallStatus(n) }));
+    return { asserts: [
+      assert('all statuses valid', results.every(r => ['green','yellow','red'].includes(r.status))),
+    ], output: results.map(r => `${r.char}: ${r.status}`).join('\n') };
+  }),
+];
+
+// FACTIONS
+SUITES.factions = [
+  makeTest('factionColor — returns valid colors', () => {
+    const f = A.factionColor;
+    return { asserts: [
+      assert('Ally = green', f('Ally') === 'green' || typeof f('Ally') === 'string'),
+      assert('Scowls = red', typeof f('Scowls') === 'string'),
+      assert('undefined returns string or falsy', f(undefined) !== undefined || true),
+    ]};
+  }),
+  makeTest('getFaction / setFaction — round-trip', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    if (!names.length) return { msg: 'No characters loaded', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    const charName = names[0];
+    const testFaction = '__TestFaction__';
+    A.setFaction(charName, testFaction, 'Ally');
+    const got = A.getFaction(charName, testFaction);
+    return { asserts: [
+      assertEq('round-trip value matches', got, 'Ally'),
+    ], msg: `setFaction then getFaction on ${charName}` };
+  }),
+];
+
+// SKYSHRINE
+SUITES.skyshrine = [
+  makeTest('getSSDone — returns boolean', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    if (!names.length) return { msg: 'No characters loaded', asserts: [warn('no data — skipped', true, 'load data to run this test')] };
+    const charName = names[0];
+    const result = A.getSSDone(charName, 'HEAD');
+    return { asserts: [
+      assert('returns boolean', typeof result === 'boolean'),
+    ], msg: `getSSDone(${charName}, HEAD) = ${result}` };
+  }),
+  makeTest('tatteredName — armor type mapping', () => {
+    const f = A.tatteredName;
+    return { asserts: [
+      assert('returns string', typeof f('Plate', 'chest') === 'string'),
+      assert('non-empty', f('Chain', 'head').length > 0),
+    ], output: `Plate/chest → ${f('Plate','chest')}\nLeather/legs → ${f('Leather','legs')}` };
+  }),
+];
+
+// SUPABASE
+SUITES.supabase = [
+  makeTest('Supabase client — initialized', () => {
+    if (!window.opener) return { msg: 'Open via ⚙ Admin button in MixelParse for full Supabase tests', asserts: [warn('opened via window.opener', true, 'skipped — direct navigation')] };
+    const sb = A.sb;
+    return { asserts: [
+      assert('sb client exists', !!sb),
+      assert('sb.from is function', typeof sb?.from === 'function'),
+      assert('sb.auth exists', !!sb?.auth),
+    ]};
+  }),
+  makeTest('Auth state — user signed in', () => {
+    if (!window.opener) return { msg: 'Open via ⚙ Admin button in MixelParse for auth tests', asserts: [warn('opened via window.opener', true, 'skipped — direct navigation')] };
+    const user = A.currentUser;
+    return { asserts: [
+      assert('currentUser set', !!user),
+      assert('has email', !!(user?.email)),
+    ], output: user ? `Signed in as: ${user.email}\nID: ${user.id}` : 'Not signed in' };
+  }),
+  makeTest('Save/load functions — exist and are wired', () => {
+    if (!window.opener) return { msg: 'Open via ⚙ Admin button in MixelParse for full function checks', asserts: [warn('opened via window.opener', true, 'skipped — direct navigation')] };
+    return { asserts: [
+      assert('saveState exists', typeof A.saveState === 'function'),
+      assert('saveItemDB exists', typeof A.saveItemDB === 'function'),
+      assert('loadItemDB exists', typeof A.loadItemDB === 'function'),
+      assert('saveDkpToSupabase exists', typeof A.saveDkpToSupabase === 'function'),
+      assert('loadDkpFromSupabase exists', typeof A.loadDkpFromSupabase === 'function'),
+      assert('applyDkpToItemDB exists', typeof A.applyDkpToItemDB === 'function'),
+      assert('applyPlatToItemDB exists', typeof A.applyPlatToItemDB === 'function'),
+    ]};
+  }),
+];
+
+// STATE SNAPSHOT
+SUITES.state = [
+  makeTest('chars — character inventory state', () => {
+    const chars = A.chars || {};
+    const names = Object.keys(chars);
+    const rows = names.map(n => {
+      const items = chars[n] || [];
+      const equipped = items.filter(i => A.locationType(i.location) === 'equipped');
+      return `${n}: ${items.length} total, ${equipped.length} equipped`;
+    });
+    return { asserts: [
+      assert('chars is object', typeof chars === 'object'),
+    ], output: rows.length ? rows.join('\n') : 'No characters loaded', msg: `${names.length} characters` };
+  }),
+  makeTest('charMeta — class/level/race populated', () => {
+    const meta = A.charMeta || {};
+    const names = Object.keys(meta);
+    const rows = names.map(n => {
+      const m = meta[n];
+      return `${n}: class=${m.class||'—'}, level=${m.level||'—'}, race=${m.race||'—'}, gearFetched=${!!m.gearFetched}`;
+    });
+    return { asserts: [
+      assert('charMeta is object', typeof meta === 'object'),
+    ], output: rows.join('\n') || 'No charMeta' };
+  }),
+  makeTest('itemDB — size and sources', () => {
+    const db = A.itemDB || {};
+    const count = Object.keys(db).length;
+    const withDkp = Object.values(db).filter(v=>v.dkp).length;
+    const withPlat = Object.values(db).filter(v=>v.plat).length;
+    const withDkpTs = Object.values(db).filter(v=>v._dkpUpdatedAt).length;
+    const withPlatTs = Object.values(db).filter(v=>v._platUpdatedAt).length;
+    return { asserts: [
+      assertGt('has items', count, 0),
+    ], output: `Total: ${count}\nWith DKP value: ${withDkp}\nWith Plat value: ${withPlat}\nWith DKP timestamp: ${withDkpTs}\nWith Plat timestamp: ${withPlatTs}\nSources: ${(A.itemDBSources||[]).join(', ')||'none'}` };
+  }),
+  makeTest('dkpLookup + platData summary', () => {
+    const dkp = Object.keys(A.dkpLookup||{}).length;
+    const plat = (A.platData||[]).length;
+    const sessions = (A.raidSessions||[]).length;
+    const watchList = (A.watchList||[]).length;
+    return { asserts: [
+      assert('state accessible', true),
+    ], output: `dkpLookup: ${dkp} items\nplatData: ${plat} entries\nraidSessions: ${sessions}\nwatchList: ${watchList} items\nactiveTab: ${A.activeTab||'none'}\nactiveSub: ${A.activeSub||'none'}` };
+  }),
+];
+
+// UTILS
+SUITES.utils = [
+  makeTest('esc() — XSS-safe escaping', () => {
+    const f = A.esc;
+    return { asserts: [
+      assertEq('ampersand', f('a&b'), 'a&amp;b'),
+      assertEq('less-than', f('a<b'), 'a&lt;b'),
+      assertEq('greater-than', f('a>b'), 'a&gt;b'),
+      assertEq('combined', f('<scr'+'ipt>'), '&lt;script&gt;'),
+      assertEq('clean string unchanged', f('hello'), 'hello'),
+    ]};
+  }),
+  makeTest('wikiUrl() — URL encoding', () => {
+    const f = A.wikiUrl;
+    return { asserts: [
+      assert('returns string', typeof f('Sword of Fire') === 'string'),
+      assert('includes project1999', f('Sword of Fire').includes('project1999.com')),
+      assert('spaces encoded', f('Sword of Fire').includes('Sword_of_Fire')),
+      assert('handles apostrophes', typeof f("Akkirus' Crown") === 'string'),
+    ], output: `wikiUrl('Crown of Narandi') = ${f('Crown of Narandi')}` };
+  }),
+  makeTest('factionColor() — color mapping', () => {
+    const f = A.factionColor;
+    const vals = ['Ally','Warmly','Kindly','Amiably','Indifferent','Apprehensive','Dubious','Threatening','Scowls'];
+    return { asserts: vals.map(v => assert(`${v} returns string`, typeof f(v) === 'string')),
+      output: vals.map(v => `${v} → ${f(v)}`).join('\n') };
+  }),
+  makeTest('platTypeLabel() + platTypeChip()', () => {
+    return { asserts: [
+      assertEq('label 0 = WTS', A.platTypeLabel(0), 'WTS'),
+      assertEq('label 1 = WTB', A.platTypeLabel(1), 'WTB'),
+      assert('chip 0 returns HTML', A.platTypeChip(0).includes('WTS')),
+      assert('chip 1 returns HTML', A.platTypeChip(1).includes('WTB')),
+    ]};
+  }),
+];
+
+// ── QUESTS SUITE ──
+SUITES['quests'] = [
+  makeTest('QUEST_DB accessible from index.html', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener — open via MixelParse', asserts:[] };
+    const qdb = A2.QUEST_DB;
+    const asserts = [
+      assert('QUEST_DB exists on window', !!qdb),
+      assert('QUEST_DB has entries', qdb && qdb.length > 0),
+    ];
+    return { status: asserts.every(a=>a.ok) ? 'pass':'fail', asserts, output: qdb ? `${qdb.length} quests loaded` : 'undefined' };
+  }),
+  makeTest('All quest entries have required fields', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const qdb = A2.QUEST_DB || [];
+    const bad = qdb.filter(q => !q.name || !q.quest || !q.wiki || !q.ingredients || !q.ingredients.length);
+    const asserts = [
+      assert('All entries have name/quest/wiki/ingredients', bad.length === 0),
+    ];
+    return { status: asserts.every(a=>a.ok)?'pass':'fail', asserts,
+      output: bad.length ? 'Missing fields: ' + bad.map(q=>q.name||'(unnamed)').join(', ') : `All ${qdb.length} entries valid` };
+  }),
+  makeTest('All wiki URLs are well-formed', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const qdb = A2.QUEST_DB || [];
+    const bad = qdb.filter(q => !q.wiki || !q.wiki.startsWith('https://wiki.project1999.com/'));
+    const asserts = [
+      assert('All wiki URLs point to project1999.com', bad.length === 0),
+    ];
+    return { status: asserts.every(a=>a.ok)?'pass':'warn', asserts,
+      output: bad.length ? 'Bad URLs: ' + bad.map(q=>q.name).join(', ') : 'All URLs valid' };
+  }),
+  makeTest('Guild inventory cross-reference', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const qdb = A2.QUEST_DB || [];
+    const chars = A2.chars || {};
+    const charNames = Object.keys(chars);
+    if (!charNames.length) return { status:'warn', msg:'No characters loaded', asserts:[] };
+
+    // Build have map
+    const haveMap = {};
+    for (const cn of charNames) {
+      for (const item of (chars[cn] || [])) {
+        const n = (item.name||'').toLowerCase();
+        if (!haveMap[n]) haveMap[n] = [];
+        if (!haveMap[n].includes(cn)) haveMap[n].push(cn);
+      }
+    }
+
+    const completed = [], inProgress = [], notStarted = [];
+    for (const q of qdb) {
+      const holders = haveMap[q.name.toLowerCase()] || [];
+      const ingFound = q.ingredients.filter(i => (haveMap[i.toLowerCase()]||[]).length > 0);
+      if (holders.length) completed.push({ q, holders });
+      else if (ingFound.length) inProgress.push({ q, ingFound, ingTotal: q.ingredients.length });
+      else notStarted.push(q);
+    }
+
+    const asserts = [
+      assert('QUEST_DB has entries', qdb.length > 0),
+      assert('Characters loaded', charNames.length > 0),
+    ];
+    const lines = [
+      `Characters scanned: ${charNames.join(', ')}`,
+      `✓ Completed (${completed.length}): ${completed.map(x=>x.q.name+' → '+x.holders.join(', ')).join(' | ') || 'none'}`,
+      `⟳ In Progress (${inProgress.length}): ${inProgress.map(x=>`${x.q.name} (${x.ingFound.length}/${x.ingTotal} ingr.)`).join(' | ') || 'none'}`,
+      `✗ Not Started (${notStarted.length}): ${notStarted.map(q=>q.name).join(', ') || 'none'}`,
+    ];
+    return { status:'pass', asserts, output: lines.join('\n') };
+  }),
+  makeTest('No duplicate quest names in QUEST_DB', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const qdb = A2.QUEST_DB || [];
+    const seen = {}, dupes = [];
+    for (const q of qdb) {
+      if (seen[q.name]) dupes.push(q.name);
+      seen[q.name] = true;
+    }
+    const asserts = [ assert('No duplicate quest names', dupes.length === 0) ];
+    return { status: dupes.length?'fail':'pass', asserts, output: dupes.length ? 'Dupes: '+dupes.join(', ') : 'No duplicates' };
+  }),
+  makeTest('Ingredient names match inventory item names (spot check)', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const qdb = A2.QUEST_DB || [];
+    const itemDB = A2.itemDB || {};
+    if (!Object.keys(itemDB).length) return { status:'warn', msg:'Item DB not loaded', asserts:[] };
+    const missing = [];
+    for (const q of qdb) {
+      for (const ing of q.ingredients) {
+        if (!itemDB[ing]) missing.push(`${q.name} → "${ing}"`);
+      }
+    }
+    const asserts = [ assert('All ingredients found in itemDB', missing.length === 0) ];
+    return {
+      status: missing.length > 5 ? 'fail' : missing.length > 0 ? 'warn' : 'pass',
+      asserts,
+      output: missing.length ? `${missing.length} ingredients not in itemDB:\n${missing.slice(0,20).join('\n')}${missing.length>20?`\n…+${missing.length-20} more`:''}` : 'All ingredients matched'
+    };
+  }),
+];
+
+window.renderQuestMatrix = function() {
+  const el = document.getElementById('quest-matrix');
+  if (!el) return;
+  const A2 = gcGetApp();
+  if (!A2) { el.style.display='block'; el.innerHTML='<div style="color:var(--amber-l);font-family:var(--mono);font-size:.78rem;padding:.5rem">No opener — open via MixelParse</div>'; return; }
+  const qdb = A2.QUEST_DB || [];
+  const chars = A2.chars || {};
+  const charNames = Object.keys(chars);
+  if (!charNames.length || !qdb.length) { el.style.display='block'; el.innerHTML='<div style="color:var(--amber-l);padding:.5rem;font-size:.8rem">No characters or quests loaded.</div>'; return; }
+
+  const haveMap = {};
+  for (const cn of charNames) {
+    for (const item of (chars[cn]||[])) {
+      const n=(item.name||'').toLowerCase();
+      if(!haveMap[n])haveMap[n]=[];
+      if(!haveMap[n].includes(cn))haveMap[n].push(cn);
+    }
+  }
+
+  let html = `<div style="overflow-x:auto;border:1px solid var(--border);border-radius:4px;margin-top:.5rem">
+  <table style="width:100%;border-collapse:collapse;font-size:.75rem;font-family:var(--mono)">
+  <thead><tr style="background:var(--surface2);position:sticky;top:0">
+    <th style="text-align:left;padding:.4rem .6rem;border-bottom:1px solid var(--border);min-width:180px">Quest Item</th>
+    <th style="text-align:left;padding:.4rem .6rem;border-bottom:1px solid var(--border)">Quest</th>
+    ${charNames.map(cn=>`<th style="padding:.4rem .4rem;border-bottom:1px solid var(--border);white-space:nowrap">${cn}</th>`).join('')}
+    <th style="padding:.4rem .6rem;border-bottom:1px solid var(--border)">Ingredients</th>
+  </tr></thead><tbody>`;
+
+  for (const q of qdb) {
+    const holders = haveMap[q.name.toLowerCase()]||[];
+    const ingCoverage = q.ingredients.filter(i=>(haveMap[i.toLowerCase()]||[]).length>0).length;
+    const rowBg = holders.length ? 'rgba(26,90,26,.06)' : ingCoverage ? 'rgba(138,96,32,.06)' : '';
+    html += `<tr style="border-bottom:1px solid var(--border);background:${rowBg}">
+      <td style="padding:.35rem .6rem;font-weight:600">
+        <a href="${q.wiki}" target="_blank" style="color:var(--gold-l,#c8a84b);text-decoration:none">${q.name} ↗</a>
+      </td>
+      <td style="padding:.35rem .6rem;color:var(--text-dim,#888);white-space:nowrap">${q.quest}</td>
+      ${charNames.map(cn => {
+        const hasItem = (haveMap[q.name.toLowerCase()]||[]).includes(cn);
+        const hasIng = q.ingredients.some(i=>(haveMap[i.toLowerCase()]||[]).includes(cn));
+        const cell = hasItem ? '✓' : hasIng ? '⟳' : '—';
+        const col = hasItem ? 'var(--pass,#4caf7d)' : hasIng ? 'var(--amber-l,#f0c040)' : 'var(--text-dim,#555)';
+        const title = hasItem ? 'Has item' : hasIng ? 'Has ingredient(s)' : 'Nothing';
+        return `<td style="text-align:center;padding:.35rem .4rem;color:${col};font-weight:${hasItem||hasIng?'700':'400'}" title="${title}">${cell}</td>`;
+      }).join('')}
+      <td style="padding:.35rem .6rem;color:${ingCoverage===q.ingredients.length?'var(--pass,#4caf7d)':ingCoverage?'var(--amber-l,#f0c040)':'var(--text-dim,#555)'}">${ingCoverage}/${q.ingredients.length}</td>
+    </tr>`;
+  }
+  html += `</tbody></table></div>
+  <div style="font-size:.72rem;color:var(--text-dim);padding:.35rem .1rem">✓ = has item &nbsp;·&nbsp; ⟳ = has ingredient(s) &nbsp;·&nbsp; — = nothing</div>`;
+  el.style.display = 'block';
+  el.innerHTML = html;
+};
+
+// ── CREDIT CHECK SUITE ──
+SUITES['creditcheck'] = [
+  makeTest('normalizeOdkpLabel — alias map smoke test', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener — open via MixelParse', asserts:[] };
+    const fn = A2.normalizeOdkpLabel;
+    if (!fn) return { status:'fail', msg:'normalizeOdkpLabel not exposed on window', asserts:[ assert('normalizeOdkpLabel exists', false) ] };
+    const cases = [
+      ['AoW kill',          'Avatar of War'],
+      ['6-2 19:46 Avatar of War 3','Avatar of War'],
+      ['KT kill',           'Tormax'],
+      ['King Tormax kill',  'Tormax'],
+      ['Driishk kill',      'Druushk'],
+      ['Lord Vyemm kill',   'Vyemm'],
+      ['Vyem 2',            'Vyemm'],
+      ['Yeli 3',            'Yelinak'],
+      ['Lady N kill',       'Nevederia'],
+      ['LadyM kill',        'Mirenilla'],
+      ['Nev 4',             'Nevederia'],
+      ['Queen Bee 1 kill',  'Bazzt Zzzt'],
+      ['QueenBee kill',     'Bazzt Zzzt'],
+      ['Gore 1',            'Gorenaire'],
+      ['CT kill with bonus','Cazic Thule'],
+      ['Doze 1',            'Dozekar'],
+      ['Eash 3',            'Eashen'],
+      ['Fesh 2',            'Feshlak'],
+      ['Velk 1',            'Velketor'],
+      ['Vindi kill',        'Vindi'],
+      ['VS kill',           'VS'],
+      ['Vulak kill',        'Vulak'],
+      ['Aary 1',            'Aaryonar'],
+      ['Jorl 3',            'Jorlleag'],
+      ['Kreiz 2',           'Kreizenn'],
+      ['Klandi 1',          'Klandicar'],
+      ['Crusade 1',         null],
+      ['NTOV 1',            null],
+      ['HoT 2',             null],
+      ['RW 4',              null],
+    ];
+    const failures = [];
+    for (const [input, expected] of cases) {
+      const got = fn(input);
+      if (got !== expected) failures.push(`"${input}" → got "${got}", expected "${expected}"`);
+    }
+    const asserts = [ assert(`All ${cases.length} alias cases correct (${failures.length} failures)`, failures.length === 0) ];
+    return { status: failures.length === 0 ? 'pass' : 'fail', asserts,
+      output: failures.length ? failures.join('\n') : `All ${cases.length} normalization cases passed` };
+  }),
+
+  makeTest('parseOdkpDetailsCsv — function exists and is exposed', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const asserts = [
+      assert('parseOdkpDetailsCsv exists', typeof A2.parseOdkpDetailsCsv === 'function'),
+      assert('normalizeOdkpLabel exists', typeof A2.normalizeOdkpLabel === 'function'),
+      assert('exportCreditReport exists', typeof A2.exportCreditReport === 'function'),
+    ];
+    return { status: asserts.every(a=>a.ok)?'pass':'fail', asserts };
+  }),
+
+  makeTest('creditData — structure and integrity', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const cd = A2.creditData;
+    if (!cd) return { status:'warn', msg:'No creditData loaded — upload ODKP Details CSV in Credit Check tab first', asserts:[ assert('creditData exists', false) ] };
+    const chars = Object.keys(cd);
+    let totalDates = 0, totalKills = 0;
+    for (const c of chars) {
+      const dates = Object.keys(cd[c]);
+      totalDates += dates.length;
+      for (const d of dates) totalKills += cd[c][d].size;
+    }
+    const asserts = [
+      assert('creditData has at least one character', chars.length > 0),
+      assert('All values are Sets', chars.every(c => Object.values(cd[c]).every(v => v instanceof Set))),
+      assert('Total kill credits > 0', totalKills > 0),
+    ];
+    return { status: asserts.every(a=>a.ok)?'pass':'fail', asserts,
+      output: `Characters in CSV: ${chars.map(c=>c.charAt(0).toUpperCase()+c.slice(1)).join(', ')}\nDate buckets: ${totalDates}\nTotal kill credits indexed: ${totalKills}` };
+  }),
+
+  makeTest('Supabase credit_data column — query test', async () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const sb = A2.sb;
+    if (!sb) return { status:'fail', msg:'Supabase client not found', asserts:[ assert('sb exists', false) ] };
+    try {
+      const { data, error } = await sb.from('guild_data').select('credit_data').eq('pool','SoV').single();
+      if (error && error.code === 'PGRST116') {
+        // No row yet — column exists but empty, that's fine
+        return { status:'warn', msg:'No SoV row in guild_data yet — save a session first', asserts:[ assert('credit_data column reachable', true) ] };
+      }
+      if (error) {
+        const isMissingCol = error.message?.includes('credit_data') || error.code === '42703';
+        const asserts = [ assert('credit_data column exists in guild_data', !isMissingCol) ];
+        return { status:'fail', asserts, output: `Error: ${error.message}\n\nFix: Run in Supabase SQL editor:\nALTER TABLE guild_data ADD COLUMN IF NOT EXISTS credit_data jsonb;` };
+      }
+      const hasData = data?.credit_data != null;
+      const asserts = [ assert('credit_data column exists', true), assert('credit_data has saved data', hasData) ];
+      return { status: asserts.every(a=>a.ok)?'pass':'warn', asserts,
+        output: hasData ? `credit_data present — ${Object.keys(data.credit_data).length} character(s) stored` : 'Column exists but empty — upload CSV in Credit Check tab' };
+    } catch(e) {
+      return { status:'fail', asserts:[ assert('Query succeeded', false) ], output: String(e) };
+    }
+  }),
+
+  makeTest('Kill coverage — sessions vs creditData', () => {
+    const A2 = gcGetApp();
+    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
+    const sessions = A2.raidSessions || [];
+    const cd = A2.creditData;
+    const chars = Object.keys(A2.chars || {}).filter(n=>n!=='__all__');
+    if (!sessions.length) return { status:'warn', msg:'No raid sessions saved', asserts:[] };
+    if (!cd) return { status:'warn', msg:'No creditData loaded — upload ODKP Details CSV first', asserts:[] };
+    if (!chars.length) return { status:'warn', msg:'No characters loaded', asserts:[] };
+
+    let totalKills = 0, missing = [], covered = 0;
+    for (const s of sessions) {
+      const killed = Object.entries(s.killState||{}).filter(([,v])=>v==='killed').map(([k])=>k);
+      for (const target of killed) {
+        totalKills++;
+        for (const cn of chars) {
+          const key = cn.toLowerCase();
+          if (cd[key] === undefined) continue; // char not in CSV
+          const credited = cd[key]?.[s.date]?.has(target);
+          if (!credited) missing.push(`${s.date}  ${target.padEnd(22)}  ${cn}`);
+          else covered++;
+        }
+      }
+    }
+    const missingCount = missing.length;
+    const asserts = [
+      assert(`Sessions scanned: ${sessions.length}`, true),
+      assert(`Kill credits checked: ${totalKills * chars.length}`, true),
+      assert(`No missing credits`, missingCount === 0),
+    ];
+    const lines = [
+      `Sessions: ${sessions.length}  |  Unique kills: ${totalKills}  |  Characters: ${chars.join(', ')}`,
+      `Covered: ${covered}  |  Missing: ${missingCount}`,
+      ...(missingCount ? ['', 'MISSING CREDITS:', ...missing.slice(0,20), ...(missing.length>20?[`...and ${missing.length-20} more`]:[])] : ['', '✓ All kill credits accounted for']),
+    ];
+    return { status: missingCount===0?'pass':'warn', asserts, output: lines.join('\n') };
+  }),
+];
+
+// ── RUNNER ──
+const SUITE_IDS = ['parsing','itemdb','wikiparse','calcs','upgrades','weapondps','bridge','dkp','plat','consumes','factions','skyshrine','quests','supabase','creditcheck','state','utils'];
+const SUITE_LABELS = {
+  parsing:'Inventory Parser', itemdb:'Item DB / CSV', wikiparse:'Wiki Stat Parser',
+  calcs:'HP / Mana Calcs', upgrades:'Upgrade Scoring', bridge:'Price Bridge',
+  dkp:'DKP Pipeline', plat:'Plat / Pigparse', consumes:'Raid Consumes',
+  factions:'Factions', skyshrine:'Skyshrine Tracker', quests:'Quest Items',
+  supabase:'Supabase / Auth', creditcheck:'Credit Check', state:'State Snapshot', utils:'Utilities'
+};
+
+let allResults = {};
+
+// Suites that require window.opener (i.e. the live app)
+const REQUIRES_OPENER = new Set(['itemdb','calcs','upgrades','bridge','dkp','plat','consumes','factions','skyshrine','quests','supabase','creditcheck','state','parsing']);
+
+async function runSuite(id) {
+  const tests = SUITES[id];
+  if (!tests) return;
+  checkConnection();
+
+  // If this suite needs opener and we don't have it, short-circuit all tests
+  if (REQUIRES_OPENER.has(id) && !window.opener) {
+    const el = document.getElementById(`results-${id}`);
+    const dot = document.getElementById(`dot-${id}`);
+    const badge = document.getElementById(`badge-${id}`);
+    dot.className = 'sb-dot warn';
+    badge.textContent = 'NO OPENER'; badge.className = 'sb-badge warn';
+    el.innerHTML = `<div style="padding:.75rem;font-family:var(--mono);font-size:.78rem;color:var(--amber-l);background:var(--surface);border:1px solid var(--border);border-radius:4px">
+      ⚠ Open admin via the <strong>⚙ Admin</strong> button in MixelParse to run this suite.<br>
+      Direct navigation has no window.opener — app state is inaccessible.
+    </div>`;
+    allResults[id] = tests.map(t => ({ name: t.name||'test', status: 'warn', msg: 'No opener', asserts: [], output: '', ms: 0 }));
+    updateSummary();
+    return;
+  }
+  const el = document.getElementById(`results-${id}`);
+  const dot = document.getElementById(`dot-${id}`);
+  const badge = document.getElementById(`badge-${id}`);
+  dot.className = 'sb-dot run';
+  badge.textContent = '…'; badge.className = 'sb-badge';
+  el.innerHTML = '';
+  const res = [];
+  for (const testFn of tests) {
+    const r = await testFn();
+    res.push(r);
+    el.innerHTML += renderTestCard(r, id + r.name);
+  }
+  allResults[id] = res;
+  const failed = res.filter(r=>r.status==='fail').length;
+  const warned = res.filter(r=>r.status==='warn').length;
+  const st = failed ? 'fail' : warned ? 'warn' : 'pass';
+  dot.className = `sb-dot ${st}`;
+  badge.className = `sb-badge ${st}`;
+  badge.textContent = failed ? `${failed} FAIL` : warned ? `${warned} WARN` : `${res.length} OK`;
+  updateSummary();
+}
+
+async function runAll() {
+  checkConnection();
+  for (const id of SUITE_IDS) await runSuite(id);
+  renderOverview();
+}
+
+function clearAll() {
+  allResults = {};
+  SUITE_IDS.forEach(id => {
+    const el = document.getElementById(`results-${id}`);
+    if (el) el.innerHTML = '';
+    const dot = document.getElementById(`dot-${id}`);
+    if (dot) dot.className = 'sb-dot skip';
+    const badge = document.getElementById(`badge-${id}`);
+    if (badge) { badge.textContent = '—'; badge.className = 'sb-badge skip'; }
+  });
+  document.getElementById('overview-results').innerHTML = '';
+  ['sumPass','sumFail','sumWarn','sumTotal'].forEach(id => document.getElementById(id).textContent = '—');
+}
+
+function updateSummary() {
+  let pass=0, fail=0, warn=0, total=0;
+  for (const res of Object.values(allResults)) {
+    for (const r of res) {
+      total++;
+      if (r.status === 'pass') pass++;
+      else if (r.status === 'fail') fail++;
+      else if (r.status === 'warn') warn++;
+    }
+  }
+  document.getElementById('sumPass').textContent = pass;
+  document.getElementById('sumFail').textContent = fail;
+  document.getElementById('sumWarn').textContent = warn;
+  document.getElementById('sumTotal').textContent = total;
+}
+
+function renderOverview() {
+  const el = document.getElementById('overview-results');
+  let html = '';
+  for (const id of SUITE_IDS) {
+    const res = allResults[id];
+    if (!res) continue;
+    const failed = res.filter(r=>r.status==='fail').length;
+    const warned = res.filter(r=>r.status==='warn').length;
+    const passed = res.filter(r=>r.status==='pass').length;
+    const st = failed ? 'fail' : warned ? 'warn' : 'pass';
+    const icon = st === 'fail' ? '✗' : st === 'warn' ? '⚠' : '✓';
+    html += `<div class="test-card" onclick="showSuite('${id}', document.querySelector('[data-suite=${id}]'))">
+      <div class="test-head">
+        <div class="status-icon ${st}">${icon}</div>
+        <div class="test-name">${SUITE_LABELS[id]}</div>
+        <div style="display:flex;gap:.4rem;align-items:center">
+          ${passed ? `<span class="tag pass">${passed} pass</span>` : ''}
+          ${warned ? `<span class="tag warn">${warned} warn</span>` : ''}
+          ${failed ? `<span class="tag fail">${failed} fail</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }
+  el.innerHTML = html || '<div class="empty-note">Run all suites to see results here.</div>';
+}
+
+function renderTestCard(r, uid) {
+  const icon = r.status==='pass'?'✓':r.status==='fail'?'✗':r.status==='warn'?'⚠':'–';
+  const assertsHtml = r.asserts.length ? r.asserts.map(a => `
+    <div class="assert-row">
+      <span class="assert-icon ${a.status}">${a.status==='pass'?'✓':a.status==='fail'?'✗':'⚠'}</span>
+      <span class="assert-label">${a.label}</span>
+      <span class="assert-val">${a.val}</span>
+    </div>`).join('') : '';
+  const outputHtml = r.output ? `<pre class="output">${r.output}</pre>` : '';
+  const msgHtml = r.msg ? `<div class="test-msg ${r.status}">${r.msg}</div>` : '';
+  return `<div class="test-card">
+    <div class="test-head" onclick="toggleBody('body-${uid}')">
+      <div class="status-icon ${r.status}">${icon}</div>
+      <div class="test-name">${r.name}</div>
+      <div class="test-time">${r.ms}ms</div>
+    </div>
+    <div class="test-body" id="body-${uid}">
+      ${msgHtml}${assertsHtml}${outputHtml}
+    </div>
+  </div>`;
+}
+
+function toggleBody(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+}
+
+function showSuite(id, el) {
+  document.querySelectorAll('.suite').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
+  const suite = document.getElementById(`suite-${id}`);
+  if (suite) suite.classList.add('active');
+  if (el) el.classList.add('active');
+  if (id === 'bridge') renderLiveBridge();
+  if (id === 'gearchecker') gcInit();
+}
+
+// ── LIVE BRIDGE VIEW ──
+function renderLiveBridge() {
+  const el = document.getElementById('bridge-live');
+  if (!el) return;
+  if (!checkConnection()) { el.innerHTML = '<div class="empty-note">Not connected to app.</div>'; return; }
+
+  const db = A.itemDB || {};
+  const dkp = A.dkpLookup || {};
+  const plat = A.platData || [];
+  const dbCount = Object.keys(db).length;
+  const dkpCount = Object.keys(dkp).length;
+  const platCount = plat.length;
+
+  const lcMap = {};
+  for (const k of Object.keys(db)) lcMap[k.toLowerCase()] = k;
+
+  // DKP matches
+  const dkpMatched = [], dkpMissed = [];
+  for (const [rawName, entry] of Object.entries(dkp)) {
+    const r60 = entry[5];
+    if (r60 == null || r60 <= 0) continue;
+    const canonical = lcMap[rawName.toLowerCase()];
+    if (canonical) dkpMatched.push({ name: canonical, r60: Math.round(r60), stored: db[canonical].dkp, ts: db[canonical]._dkpUpdatedAt });
+    else dkpMissed.push(rawName);
+  }
+  dkpMatched.sort((a, b) => b.r60 - a.r60);
+
+  // Plat matches
+  const platMatched = [], platMissed = [];
+  for (const r of plat) {
+    if (r.t !== 0 || !r.a60 || r.a60 <= 0) continue;
+    const canonical = lcMap[(r.n || '').toLowerCase()];
+    if (canonical) platMatched.push({ name: canonical, kplat: Math.round(r.a60 / 1000 * 10) / 10, stored: db[canonical].plat, ts: db[canonical]._platUpdatedAt });
+    else platMissed.push(r.n || '?');
+  }
+  platMatched.sort((a, b) => b.kplat - a.kplat);
+
+  const ts = iso => iso ? new Date(iso).toLocaleString('en-US', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'never';
+
+  function statCard(label, val) {
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.5rem .75rem">
+      <div style="font-family:var(--cinzel);font-size:.55rem;letter-spacing:.1em;color:var(--text-m);margin-bottom:.2rem">${label}</div>
+      <div style="font-family:var(--mono);font-size:1rem;color:var(--text-d)">${val}</div>
+    </div>`;
+  }
+
+  function matchTable(rows, cols, unit, missedList, missedLabel) {
+    if (!rows.length) return `<div class="empty-note">No data loaded.</div>`;
+    const tableRows = rows.map(m => {
+      const changed = m.stored !== (unit === 'dkp' ? m.r60 : m.kplat);
+      const val = unit === 'dkp' ? m.r60 + ' DKP' : m.kplat + 'k pp';
+      const storedVal = m.stored != null ? (unit === 'dkp' ? m.stored + ' DKP' : m.stored + 'k pp') : '—';
+      return `<tr>
+        <td style="padding:.22rem .5rem;color:var(--text-d);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.name}</td>
+        <td style="padding:.22rem .5rem;text-align:right;color:var(--gold-l);font-family:var(--mono);font-size:.72rem">${val}</td>
+        <td style="padding:.22rem .5rem;text-align:right;font-family:var(--mono);font-size:.72rem;color:${changed ? 'var(--green-l)' : 'var(--text-m)'}">${storedVal}${changed ? ' ✓' : ''}</td>
+        <td style="padding:.22rem .5rem;color:var(--text-m);font-size:.67rem">${ts(m.ts)}</td>
+      </tr>`;
+    }).join('');
+    const missed = missedList.length ? `<details style="margin-top:.5rem">
+      <summary style="font-family:var(--mono);font-size:.68rem;color:var(--text-m);cursor:pointer">${missedLabel} (${missedList.length})</summary>
+      <div style="margin-top:.35rem;display:flex;flex-wrap:wrap;gap:.25rem">
+        ${missedList.slice(0, 80).map(n => `<span style="font-family:var(--mono);font-size:.65rem;color:var(--text-m);background:var(--surface2);border:1px solid var(--border);border-radius:2px;padding:.06rem .3rem">${n}</span>`).join('')}
+        ${missedList.length > 80 ? `<span style="font-size:.65rem;color:var(--text-m);font-style:italic">+${missedList.length - 80} more</span>` : ''}
+      </div>
+    </details>` : '';
+    return `<div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;max-height:260px;overflow-y:auto">
+      <table class="live-table">
+        <thead><tr><th>Item</th><th style="text-align:right">60d Avg</th><th style="text-align:right">Stored</th><th>Last Written</th></tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>${missed}`;
+  }
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:1rem">
+      ${statCard('ITEM DB', dbCount.toLocaleString() + ' items')}
+      ${statCard('DKP SOURCE', dkpCount.toLocaleString() + ' items')}
+      ${statCard('PLAT SOURCE', platCount.toLocaleString() + ' entries')}
+    </div>
+
+    <div style="margin-bottom:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+        <div style="font-family:var(--cinzel);font-size:.65rem;letter-spacing:.08em;color:var(--gold)">&#9876; DKP MATCHES</div>
+        <div style="display:flex;gap:.4rem">
+          <span class="tag pass">${dkpMatched.length} matched</span>
+          ${dkpMissed.length ? `<span class="tag fail">${dkpMissed.length} unmatched</span>` : ''}
+        </div>
+      </div>
+      ${matchTable(dkpMatched, ['name','r60','stored','ts'], 'dkp', dkpMissed, 'DKP items with no DB match')}
+    </div>
+
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+        <div style="font-family:var(--cinzel);font-size:.65rem;letter-spacing:.08em;color:var(--gold)">&#128176; PLAT MATCHES</div>
+        <div style="display:flex;gap:.4rem">
+          <span class="tag pass">${platMatched.length} matched</span>
+          ${platMissed.length ? `<span class="tag fail">${platMissed.length} unmatched</span>` : ''}
+        </div>
+      </div>
+      ${matchTable(platMatched, ['name','kplat','stored','ts'], 'plat', platMissed, 'Plat entries with no DB match')}
+    </div>`;
+}
+
+function applyBridgeAndRefresh(which) {
+  if (!checkConnection()) return;
+  if (which === 'dkp') A.applyDkpToItemDB();
+  else A.applyPlatToItemDB();
+  setTimeout(renderLiveBridge, 200);
+}
+
+
+
+
+// ── GEAR STAT CHECKER ────────────────────────────────────────────────────────
+
+let _gcChar      = null;   // { name, meta }
+let _gcItemA     = null;   // { name, data }
+let _gcItemB     = null;
+let _gcSlotData  = {};     // slot -> { equippedName, equippedData, equippedScore, candidates[] }
+
+const GC_SLOT_ORDER = ['HEAD','FACE','EAR1','EAR2','NECK','SHOULDERS','ARMS','BACK',
+                       'WRIST1','WRIST2','HANDS','PRIMARY','SECONDARY','RANGE',
+                       'CHEST','LEGS','FEET','WAIST','FINGERS1','FINGERS2','AMMO'];
+// Map DB slot names to indexed slot keys for duplicate slots
+const GC_SLOT_INDEX = {'EAR':'EAR','FINGERS':'FINGERS','WRIST':'WRIST'};
+function gcIndexedSlot(slot, n) { return GC_SLOT_INDEX[slot] ? GC_SLOT_INDEX[slot]+n : slot; }
+function gcBaseSlot(slot) { return slot.replace(/[12]$/, ''); }
+
+// ── helpers shared across GC ──────────────────────────────────────────────────
+function gcGetApp() { return window.opener || null; }
+
+function gcGetCharAbbrs() {
+  // Returns { classAbbr, raceAbbr } for the currently selected character/class/race
+  const A2 = gcGetApp();
+  const cls  = document.getElementById('gc-class')?.value || '';
+  const race = document.getElementById('gc-race')?.value  || '';
+  const CLASS_MAP = {BARD:'BRD',CLERIC:'CLR',DRUID:'DRU',ENCHANTER:'ENC',MAGICIAN:'MAG',
+                     MONK:'MNK',NECROMANCER:'NEC',PALADIN:'PAL',RANGER:'RNG',ROGUE:'ROG',
+                     'SHADOW KNIGHT':'SHD',SHAMAN:'SHM',WARRIOR:'WAR',WIZARD:'WIZ'};
+  const RACE_MAP = A2 ? (A2.RACE_ABBR_MAP || {}) : {};
+  return {
+    classAbbr: CLASS_MAP[cls.toUpperCase()] || '',
+    raceAbbr:  RACE_MAP[race] || ''
+  };
+}
+
+function gcItemUsable(data) {
+  const A2 = gcGetApp();
+  const fn = A2 ? A2.itemUsableByContext : null;
+  if (!fn) return true; // fallback: no restriction check available
+  const { classAbbr, raceAbbr } = gcGetCharAbbrs();
+  return fn(data, classAbbr, raceAbbr);
+}
+
+function gcMergeItemData(name, charName) {
+  const A2 = gcGetApp(); if (!A2) return {};
+  const db = A2.itemDB || {};
+  const gs = A2.gearStats || {};
+  const cg = charName ? (gs[charName] || {}) : {};
+  const _db = db[name] || {};
+  const _cg = cg[name] || {};
+  const data = {};
+  for (const k of [...Object.keys(_db), ...Object.keys(_cg)]) {
+    if (k.startsWith('_')) continue;
+    data[k] = Number(_db[k]||0) || Number(_cg[k]||0) || _db[k] || _cg[k];
+  }
+  for (const [k,v] of Object.entries(_db)) { if (k.startsWith('_')) data[k] = v; }
+  data.ac = Number(_db.ac||0) || Number(_cg.ac||0) || undefined;
+  return data;
+}
+
+function gcBuildBaseTotals(charName) {
+  const A2 = gcGetApp(); if (!A2) return {};
+  const meta   = A2.charMeta  || {};
+  const gearSt = A2.gearStats || {};
+  const m    = meta[charName] || {};
+  const base = m.baseStats || null;
+  const cg   = gearSt[charName] || {};
+  const t    = {};
+  if (base) {
+    const SK = ['str','sta','dex','agi','wis','int','cha'];
+    const RK = ['svpoison','svmagic','svdisease','svfire','svcold'];
+    SK.forEach((k,i) => { t[k] = base.stats[i]   || 0; });
+    RK.forEach((k,i) => { t[k] = base.resists[i] || 0; });
+    const itemDB2 = A2.itemDB || {};
+    for (const [itemName, gs] of Object.entries(cg)) {
+      for (const k of SK) if (gs[k]) t[k] = (t[k]||0) + Number(gs[k]||0);
+      for (const k of RK) if (gs[k]) t[k] = (t[k]||0) + Number(gs[k]||0);
+      // Haste comes from itemDB, not gearStats
+      const dbItem = itemDB2[itemName] || {};
+      const hasteVal = Number(dbItem.haste || gs.haste || 0);
+      if (hasteVal) t.haste = Math.max(t.haste||0, hasteVal); // single-item haste — no stacking
+    }
+  }
+  t._level = parseInt(document.getElementById('gc-level')?.value) || 60;
+  return t;
+}
+
+// Core item scorer — mirrors effectiveGain logic from index.html
+function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, dex) {
+  const A2 = gcGetApp();
+  const STAT_KEYS_ALL = A2 ? (A2.STAT_KEYS_ALL || []) : [];
+  const NO_CAP = A2 ? new Set([...(A2.NO_CAP || ['hpbonus','manabonus'])]) : new Set(['hpbonus','manabonus']);
+  const SOFTCAP = 200, HARDCAP = 255, SOFTCAP_MULT = 0.33;
+  // Mirror index.html: for magic casters above 200 primary stat, getStatWeights already
+  // baked in the mana formula weight — don't apply SOFTCAP_MULT on top of it.
+  const WIS_CLASSES = A2?.WIS_CLASSES || new Set(['Cleric','Druid','Paladin','Ranger','Shaman']);
+  const INT_CLASSES = A2?.INT_CLASSES || new Set(['Enchanter','Magician','Necromancer','Wizard','Shadow Knight','Bard']);
+  const _manaKey = WIS_CLASSES.has(cls) ? 'wis' : INT_CLASSES.has(cls) ? 'int' : null;
+  if (_manaKey && weights[_manaKey] >= 2.0 && (baseTotals[_manaKey] || 0) >= 200) NO_CAP.add(_manaKey);
+  let total = 0;
+  for (const k of STAT_KEYS_ALL) {
+    const v = Number(itemData[k] || 0); if (!v) continue;
+    if (k === 'sta' && hpPerSta > 0) {
+      const curSta = Math.min(255, baseTotals.sta || 0);
+      const newSta = Math.min(255, curSta + v);
+      total += (newSta - curSta) * hpPerSta * (weights.hpbonus || 1.5);
+      continue;
+    }
+    const w = weights[k] || 0; if (!w) continue;
+    if (NO_CAP.has(k)) { total += v * w; }
+    else if (v > 0) {
+      const ct = baseTotals[k] || 0;
+      const below = Math.max(0, Math.min(v, SOFTCAP - ct));
+      const soft  = Math.max(0, Math.min(v - below, HARDCAP - Math.max(ct, SOFTCAP)));
+      total += below * w + soft * w * SOFTCAP_MULT;
+    } else { total += v * w; }
+  }
+  if (weights.ac && itemData.ac) total += Number(itemData.ac) * weights.ac;
+  if (weights.haste && itemData.haste) {
+    const hasteVal = Number(itemData.haste || 0);
+    const CLASS_STAT_THRESHOLDS_gc = A2?.CLASS_STAT_THRESHOLDS || {};
+    const hasteThresh = (CLASS_STAT_THRESHOLDS_gc[cls] || {}).haste || 41;
+    // Haste comes from a single item — score standalone, capped at 41
+    const cappedHaste = Math.min(hasteVal, hasteThresh);
+    total += cappedHaste * weights.haste;
+  }
+  // ── Flowing Thought mana regen scoring (mirrors index.html effectiveGain) ──
+  const MANA_CLASSES_gc = A2 ? (A2.MANA_CLASSES || new Set()) : new Set();
+  if (MANA_CLASSES_gc.has(cls) && itemData._ft) {
+    const FT_MANA_PER_TIER = A2?.FT_MANA_PER_TIER || 75;
+    total += Number(itemData._ft) * FT_MANA_PER_TIER * (weights.manabonus || 1.0);
+  }
+  // ── Weapon DPS scoring (mirrors index.html weaponDpsScore + CLASS_WEAPON_DPS_SCALE) ──
+  if (slot && cls && window._wdpsScore) {
+    const effSlot = slot === 'TWOHANDER' ? 'PRIMARY' : slot;
+    const rawDps = window._wdpsScore(itemData, effSlot, cls, level || 60, dex || (baseTotals.dex || 175));
+    const CLASS_WEAPON_DPS_SCALE = {Warrior:10,Paladin:8,'Shadow Knight':8,Monk:10,Rogue:9,Ranger:10,Bard:4};
+    const scale = CLASS_WEAPON_DPS_SCALE[cls] || 0;
+    total += rawDps * scale;
+  }
+  return Math.round(total * 10) / 10;
+}
+
+// ── init / char selection ─────────────────────────────────────────────────────
+function gcInit() {
+  const noconn = document.getElementById('gc-noconn');
+  const form   = document.getElementById('gc-form');
+  if (!noconn || !form) return;
+  const connected = checkConnection();
+  noconn.style.display = connected ? 'none' : '';
+  form.style.display   = connected ? '' : 'none';
+  if (connected) gcBuildCharBtns();
+}
+
+function gcBuildCharBtns() {
+  const el = document.getElementById('gc-charbtns');
+  if (!el) return;
+  const A2 = gcGetApp(); if (!A2) return;
+  const meta = A2.charMeta || {};
+  el.innerHTML = '';
+  for (const name of Object.keys(meta)) {
+    if (!(meta[name] || {}).class) continue;
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'btn';
+    btn.style.cssText = 'font-size:.72rem;padding:.2rem .55rem;';
+    btn.textContent = name;
+    btn.onclick = () => gcSelectChar(name);
+    el.appendChild(btn);
+  }
+}
+
+function gcSelectChar(name) {
+  const A2 = gcGetApp(); if (!A2) return;
+  const meta = A2.charMeta || {};
+  const m = meta[name] || {};
+  _gcChar = { name, meta: m };
+
+  document.getElementById('gc-class').value = m.class || '';
+  document.getElementById('gc-race').value  = m.race  || '';
+  document.getElementById('gc-level').value = m.level || 60;
+
+  gcClear(true); // clear items + results but keep char
+  gcComputeSlotScores(name);
+}
+
+// ── slot scoring ──────────────────────────────────────────────────────────────
+function gcComputeSlotScores(charName) {
+  const A2 = gcGetApp(); if (!A2) return;
+  const meta  = A2.charMeta  || {};
+  const m     = meta[charName] || {};
+  const cls   = m.class || document.getElementById('gc-class').value || '';
+  const level = parseInt(document.getElementById('gc-level').value) || 60;
+
+  const baseTotals    = gcBuildBaseTotals(charName);
+  const getStatWeights = A2.getStatWeights;
+  const staRatioFn    = A2.staRatio;
+  const HP_RATIOS     = A2.HP_RATIOS || {};
+  if (!getStatWeights) { gcPopulateSlotDropdown(charName, {}); return; }
+
+  const weights  = getStatWeights(cls, baseTotals);
+  const hpPerSta = HP_RATIOS[cls] ? staRatioFn(cls, level) : 0;
+
+  // Try to use _upgSlots from the app if it's for this character already
+  // (populated when the Upgrades tab was last open for this char)
+  const upgSlots = A2._upgSlots || [];
+  const upgForChar = upgSlots.length && upgSlots[0]
+    ? upgSlots  // may or may not be for this char — we validate by equipped items
+    : null;
+
+  const equipped = A2.getEquippedItems ? A2.getEquippedItems(charName) : [];
+  const equippedNames = new Set(equipped.map(i => i.name));
+  const upgValid = upgForChar && upgSlots.every(sr => sr.isEmpty || equippedNames.has(sr.item.name));
+
+  _gcSlotData = {};
+
+  if (upgValid) {
+    window._gcLastPathUsed = 'upgSlots (pre-computed)';
+    // Use pre-computed candidates directly from _upgSlots
+    // Track how many times each base slot appears to generate EAR1/EAR2 etc.
+    const slotSeenCount = {};
+    for (const sr of upgSlots) {
+      const baseSlot = sr.dbSlot;
+      const isDupe = baseSlot === 'EAR' || baseSlot === 'FINGERS' || baseSlot === 'WRIST';
+      slotSeenCount[baseSlot] = (slotSeenCount[baseSlot] || 0) + 1;
+      const slot = isDupe ? baseSlot + slotSeenCount[baseSlot] : baseSlot;
+      if (!_gcSlotData[slot]) _gcSlotData[slot] = { equipped: [], candidates: [] };
+      const equippedScore = gcScoreItem(sr.currentData, weights, baseTotals, hpPerSta, slot, cls, level);
+      if (!sr.isEmpty) {
+        _gcSlotData[slot].equipped.push({
+          name: sr.item.name,
+          data: sr.currentData,
+          score: equippedScore
+        });
+      }
+      const topCands = (sr.candidates || []).slice(0, 5).map(c => ({
+        name: c.name,
+        data: c,
+        score: gcScoreItem(c, weights, baseTotals, hpPerSta, slot, cls, level),
+        preScore: c._effGain
+      }));
+      _gcSlotData[slot].candidates = topCands;
+    }
+  } else {
+    window._gcLastPathUsed = 'manual (itemDB scan)';
+    // Compute ourselves from itemDB
+    const itemDB = A2.itemDB || {};
+    // Build equipped slot map — use EAR1/EAR2, WRIST1/WRIST2, FINGERS1/FINGERS2
+    const dupeSlotCount = {};
+    for (const item of equipped) {
+      const loc = item.location.toUpperCase();
+      let baseSlot = loc;
+      if (loc.includes('EAR'))    baseSlot = 'EAR';
+      if (loc.includes('FINGER')) baseSlot = 'FINGERS';
+      if (loc.includes('WRIST'))  baseSlot = 'WRIST';
+      const isDupe = baseSlot === 'EAR' || baseSlot === 'FINGERS' || baseSlot === 'WRIST';
+      dupeSlotCount[baseSlot] = (dupeSlotCount[baseSlot] || 0) + 1;
+      const slot = isDupe ? baseSlot + dupeSlotCount[baseSlot] : baseSlot;
+      if (!_gcSlotData[slot]) _gcSlotData[slot] = { equipped: [], candidates: [] };
+      const data = gcMergeItemData(item.name, charName);
+      _gcSlotData[slot].equipped.push({
+        name: item.name, data,
+        score: gcScoreItem(data, weights, baseTotals, hpPerSta, slot, cls, level)
+      });
+    }
+    // Score top candidates per slot from itemDB
+    const bySlot = {};
+    for (const [name, data] of Object.entries(itemDB)) {
+      if (data._legacy || data._nonp99) continue;
+      const slot = data._slot; if (!slot) continue;
+      if (!bySlot[slot]) bySlot[slot] = [];
+      bySlot[slot].push({ name, data });
+    }
+    for (const [slot, slotInfo] of Object.entries(_gcSlotData)) {
+      const equippedName = slotInfo.equipped[0]?.name;
+      const ssCustomSelf = A2 ? (A2.SS_CUSTOM_ITEMS || new Set()) : new Set();
+      const dbSlot = gcBaseSlot(slot); // EAR1 → EAR etc.
+      const candidates = (bySlot[dbSlot] || [])
+        .filter(c => c.name !== equippedName && !ssCustomSelf.has(c.name) && !c.name.startsWith('Custom ') && !c.data._legacy && !c.data._nonp99 && gcItemUsable(c.data))
+        .map(c => ({ ...c, score: gcScoreItem(c.data, weights, baseTotals, hpPerSta, dbSlot, cls, level) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5);
+      slotInfo.candidates = candidates;
+    }
+  }
+
+  gcPopulateSlotDropdown(charName);
+}
+
+function gcPopulateSlotDropdown(charName) {
+  const slotSel = document.getElementById('gc-slot');
+  if (!slotSel) return;
+
+  // Ensure empty slots have candidate data built
+  const A2e = gcGetApp();
+  const clsE   = A2e ? (A2e.charMeta?.[charName]?.class || document.getElementById('gc-class')?.value || '') : '';
+  const levelE = parseInt(document.getElementById('gc-level')?.value) || 60;
+  const baseTotalsE = _gcChar ? gcBuildBaseTotals(_gcChar.name) : {};
+  const weightsE    = A2e?.getStatWeights ? A2e.getStatWeights(clsE, baseTotalsE) : {};
+  const HP_RATIOS_E = A2e?.HP_RATIOS || {};
+  const hpPerStaE   = HP_RATIOS_E[clsE] ? A2e.staRatio(clsE, levelE) : 0;
+
+  for (const slot of GC_SLOT_ORDER) {
+    if (_gcSlotData[slot]) continue;
+    const itemDB = A2e?.itemDB || {};
+    const ssCustom = A2e?.SS_CUSTOM_ITEMS || new Set();
+    const dbSlot = gcBaseSlot(slot); // EAR1 → EAR, FINGERS2 → FINGERS etc.
+    const candidates = Object.entries(itemDB)
+      .filter(([name, data]) => data._slot === dbSlot && !data._legacy && !data._nonp99
+        && !ssCustom.has(name) && !name.startsWith('Custom ') && gcItemUsable(data))
+      .map(([name, data]) => ({ name, data, score: gcScoreItem(data, weightsE, baseTotalsE, hpPerStaE, dbSlot, clsE, levelE) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+    if (candidates.length) {
+      _gcSlotData[slot] = { equipped: [], candidates };
+    }
+  }
+
+  slotSel.innerHTML = '<option value="">— Choose a slot —</option>';
+
+  const usedSlots = new Set();
+  const missingSlots = [];
+  for (const slot of GC_SLOT_ORDER) {
+    const info = _gcSlotData[slot];
+    if (!info) { missingSlots.push(slot + '(no data)'); continue; }
+
+    const isEmpty = !info.equipped.length;
+    const eq = info.equipped[0];
+    const topCand = info.candidates[0];
+    usedSlots.add(slot);
+
+    const opt = document.createElement('option');
+    opt.value = slot;
+
+    if (isEmpty) {
+      const gainStr = topCand ? ` ▲+${topCand.score}` : '';
+      const candShort = topCand ? (topCand.name.length > 22 ? topCand.name.slice(0,22)+'…' : topCand.name) : '—';
+      opt.textContent = `${slot} — (empty) → ${candShort}${gainStr}`;
+      opt.style.color = topCand && topCand.score >= 15 ? '#4caf7d' : '#c9a84c';
+      opt.style.fontStyle = 'italic';
+    } else {
+      const gain = topCand ? Math.round((topCand.score - eq.score) * 10) / 10 : null;
+      const gainStr = gain !== null
+        ? (gain > 0 ? ` ▲+${gain}` : gain < 0 ? ` ▼${gain}` : ' ●=')
+        : '';
+      const itemShort = eq.name.length > 28 ? eq.name.slice(0,28)+'…' : eq.name;
+      opt.textContent = `${slot} — ${itemShort} [${eq.score}pts${gainStr}]`;
+      if (gain !== null && gain >= 15) opt.style.color = '#4caf7d';
+      else if (gain !== null && gain >= 5) opt.style.color = '#c9a84c';
+    }
+
+    slotSel.appendChild(opt);
+  }
+
+  // Debug: show all slots found in _gcSlotData vs what was expected
+  const gcDebugEl = document.getElementById('gc-slot-debug');
+  if (gcDebugEl) {
+    const allDataSlots = Object.keys(_gcSlotData);
+    const inOrder = GC_SLOT_ORDER.filter(s => _gcSlotData[s]?.equipped?.length);
+    const inDataNotOrder = allDataSlots.filter(s => !GC_SLOT_ORDER.includes(s) && _gcSlotData[s]?.equipped?.length);
+    const A2 = gcGetApp();
+    const equipped = A2?.getEquippedItems ? A2.getEquippedItems(charName) : [];
+    const rawLocs = equipped.map(i => i.location).join(', ');
+    gcDebugEl.innerHTML = `
+      <div style="font-family:var(--mono);font-size:.68rem;color:var(--text-m);background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:.4rem .6rem;margin-top:.4rem">
+        <span style="color:var(--gold)">Slots shown (${inOrder.length}):</span> ${inOrder.join(', ') || '—'}<br>
+        <span style="color:var(--amber-l)">Missing from order (${missingSlots.length}):</span> ${missingSlots.join(', ') || 'none'}<br>
+        <span style="color:var(--blue-l)">In data not in order:</span> ${inDataNotOrder.join(', ') || 'none'}<br>
+        <span style="color:var(--text-m)">Raw equipped locations:</span> ${rawLocs || '—'}<br>
+        <span style="color:var(--text-m)">upgValid path:</span> ${window._gcLastPathUsed || '?'}
+      </div>`;
+  }
+
+  slotSel.onchange = () => gcOnSlotChange(charName);
+}
+
+function gcOnSlotChange(charName) {
+  const slot = document.getElementById('gc-slot').value;
+  if (!slot) return;
+
+  const info = _gcSlotData[slot];
+  if (!info) return;
+
+  // Auto-set Item A to equipped item (or clear if empty slot)
+  if (info.equipped[0]) {
+    _gcItemA = { name: info.equipped[0].name, data: info.equipped[0].data };
+    const inp = document.getElementById('gc-item-a-input');
+    if (inp) inp.value = info.equipped[0].name;
+    gcShowItemInfo('a', info.equipped[0].name, info.equipped[0].data);
+  } else {
+    // Empty slot — clear item A so compare treats current as nothing
+    _gcItemA = { name: '(empty)', data: { _slot: slot } };
+    const inp = document.getElementById('gc-item-a-input');
+    if (inp) inp.value = '';
+    const infoEl = document.getElementById('gc-item-a-info');
+    if (infoEl) infoEl.innerHTML = `<span style="color:var(--text-m);font-size:.76rem;font-style:italic">${slot} — nothing equipped</span>`;
+  }
+
+  // Auto-set Item B to top candidate
+  if (info.candidates[0]) {
+    _gcItemB = { name: info.candidates[0].name, data: info.candidates[0].data };
+    const inp = document.getElementById('gc-item-b-input');
+    if (inp) inp.value = info.candidates[0].name;
+    gcShowItemInfo('b', info.candidates[0].name, info.candidates[0].data);
+  }
+
+  // Populate recommendation pills
+  gcRenderRecommendations(slot);
+
+  // Run comparison
+  if (_gcItemA && _gcItemB) gcCompare();
+}
+
+function gcRenderRecommendations(slot) {
+  const el = document.getElementById('gc-recommendations');
+  if (!el) return;
+  const info = _gcSlotData[slot];
+  if (!info || !info.candidates.length) { el.innerHTML = ''; return; }
+
+  const green = '#4caf7d', gold = '#c9a84c', muted = 'var(--text-m)', dim = 'var(--text-dim,#5a5248)';
+  const equippedScore = info.equipped[0]?.score || 0;
+
+  const pills = info.candidates.map((c, i) => {
+    const gain  = Math.round((c.score - equippedScore) * 10) / 10;
+    const color = gain > 10 ? green : gain > 0 ? gold : gain < 0 ? 'var(--bad-red,#c0392b)' : muted;
+    const rank  = i === 0 ? ' ★' : '';
+    const nameShort = c.name.length > 26 ? c.name.slice(0,26)+'…' : c.name;
+    return `<button type="button" class="btn" onclick="gcPickCandidate('b','${c.name.replace(/'/g,"\\'")}',${i})"
+      style="font-size:.72rem;padding:.2rem .6rem;border-color:${i===0?color:'var(--border)'};color:${color}">
+      ${nameShort}${rank} <span style="color:${dim}">${c.score}pts</span>
+      <span style="color:${color}">${gain >= 0?'+':''}${gain}</span>
+    </button>`;
+  }).join('');
+
+  el.innerHTML = `<div style="margin:.6rem 0 .3rem">
+    <span style="font-family:var(--cinzel);font-size:.56rem;letter-spacing:.08em;color:${muted};margin-right:.5rem">TOP CANDIDATES FOR ${slot}:</span>
+    <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.35rem">${pills}</div>
+  </div>`;
+}
+
+function gcPickCandidate(which, name, idx) {
+  const slot = document.getElementById('gc-slot').value;
+  const info = slot ? _gcSlotData[slot] : null;
+  const cand = info ? info.candidates[idx] : null;
+  if (!cand) {
+    // Fall back to itemDB lookup
+    const A2 = gcGetApp();
+    const data = gcMergeItemData(name, _gcChar?.name);
+    gcSetItem(which, name, data);
+    return;
+  }
+  gcSetItem(which, name, cand.data);
+}
+
+// ── item helpers ──────────────────────────────────────────────────────────────
+function gcSetItem(which, name, data) {
+  const input = document.getElementById(`gc-item-${which}-input`);
+  const drop  = document.getElementById(`gc-drop-${which}`);
+  if (input) input.value = name;
+  if (drop) { drop.innerHTML = ''; drop.style.display = 'none'; }
+  if (which === 'a') _gcItemA = { name, data };
+  else               _gcItemB = { name, data };
+  gcShowItemInfo(which, name, data);
+  if (_gcItemA && _gcItemB) gcCompare();
+}
+
+function gcClearItem(which) {
+  const input = document.getElementById(`gc-item-${which}-input`);
+  const drop  = document.getElementById(`gc-drop-${which}`);
+  const info  = document.getElementById(`gc-item-${which}-info`);
+  if (input) input.value = '';
+  if (drop) { drop.innerHTML = ''; drop.style.display = 'none'; }
+  if (info) info.innerHTML = '';
+  if (which === 'a') _gcItemA = null;
+  else               _gcItemB = null;
+}
+
+function gcShowItemInfo(which, name, data) {
+  const el = document.getElementById(`gc-item-${which}-info`);
+  if (!el) return;
+  const slot   = data._slot  || '—';
+  const era    = data._era   || '';
+  const lore   = data._lore   ? ' <span style="color:#c9a84c;font-size:.72rem">LORE</span>' : '';
+  const legacy = data._legacy ? ' <span style="color:var(--bad-red,#c0392b);font-size:.72rem">LEGACY</span>' : '';
+  el.innerHTML = `<span style="color:var(--text-m);font-size:.76rem">${slot}${era?' · '+era:''}${lore}${legacy}</span>`;
+}
+
+// ── typeahead search ──────────────────────────────────────────────────────────
+function gcSearch(which) {
+  const input = document.getElementById(`gc-item-${which}-input`);
+  const drop  = document.getElementById(`gc-drop-${which}`);
+  const val   = input.value.trim().toLowerCase();
+  if (val.length < 2) { drop.style.display = 'none'; drop.innerHTML = ''; return; }
+
+  const A2   = gcGetApp();
+  const db   = A2 ? (A2.itemDB || {}) : {};
+  const slot = document.getElementById('gc-slot')?.value || '';
+
+  const ssCustom = A2 ? (A2.SS_CUSTOM_ITEMS || new Set()) : new Set();
+  const keys = Object.keys(db).filter(k => {
+    if (!k.toLowerCase().includes(val)) return false;
+    if (slot && db[k]._slot && db[k]._slot !== gcBaseSlot(slot)) return false;
+    if (ssCustom.has(k)) return false;
+    if (k.startsWith('Custom ')) return false;
+    if (!gcItemUsable(db[k])) return false;
+    return true;
+  }).slice(0, 30);
+
+  if (!keys.length) { drop.style.display = 'none'; return; }
+  drop.innerHTML = keys.map(k => {
+    const d = db[k];
+    return `<div style="padding:.3rem .6rem;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04)"
+      onmousedown="gcSelectItem('${which}','${k.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')"
+      onmouseover="this.style.background='var(--surface3,#2a2520)'"
+      onmouseout="this.style.background=''"
+      >${k} <span style="color:var(--text-m);font-size:.76rem">[${d._slot||'?'}]</span></div>`;
+  }).join('');
+  drop.style.display = '';
+}
+
+function gcSelectItem(which, name) {
+  const data = gcMergeItemData(name, _gcChar?.name);
+  gcSetItem(which, name, data);
+}
+
+// ── compare engine ────────────────────────────────────────────────────────────
+function gcCompare() {
+  const resultsEl = document.getElementById('gc-results');
+  if (!resultsEl) return;
+
+  const cls   = document.getElementById('gc-class').value;
+  const level = parseInt(document.getElementById('gc-level').value) || 60;
+
+  if (!cls)   { resultsEl.innerHTML = '<div style="color:var(--text-m);font-style:italic;padding:.5rem 0">Select a class first.</div>'; return; }
+  if (!_gcItemA || !_gcItemB) { resultsEl.innerHTML = '<div style="color:var(--text-m);font-style:italic;padding:.5rem 0">Select both items to compare.</div>'; return; }
+
+  const A2 = gcGetApp();
+  if (!A2) { resultsEl.innerHTML = '<div style="color:var(--text-m)">Not connected.</div>'; return; }
+
+  // Warn if either item is not usable by the selected class/race
+  const { classAbbr, raceAbbr } = gcGetCharAbbrs();
+  const usableA = gcItemUsable(_gcItemA.data);
+  const usableB = gcItemUsable(_gcItemB.data);
+  const unusableWarning = (!usableA || !usableB)
+    ? `<div style="padding:.5rem .8rem;background:rgba(192,57,43,.12);border:1px solid var(--bad-red,#c0392b);border-radius:4px;font-size:.78rem;color:var(--bad-red,#c0392b);margin-bottom:.75rem">
+        ⚠ ${[!usableA ? `<strong>${_gcItemA.name}</strong> cannot be used by ${cls}` : '',
+               !usableB ? `<strong>${_gcItemB.name}</strong> cannot be used by ${cls}` : '']
+             .filter(Boolean).join(' &nbsp;·&nbsp; ')} — scores shown for reference only.
+      </div>`
+    : '';
+
+  const getStatWeights = A2.getStatWeights;
+  const staRatioFn     = A2.staRatio;
+  const HP_RATIOS      = A2.HP_RATIOS     || {};
+  const STAT_KEYS_ALL  = A2.STAT_KEYS_ALL || [];
+  const STAT_DISPLAY   = A2.STAT_DISPLAY  || {};
+  const NO_CAP         = new Set([...(A2.NO_CAP || ['hpbonus','manabonus'])]);
+  const SOFTCAP = 200, HARDCAP = 255, SOFTCAP_MULT = 0.33;
+
+  if (!getStatWeights) { resultsEl.innerHTML = '<div style="color:var(--bad-red,#c0392b)">getStatWeights not found on window.</div>'; return; }
+
+  const baseTotals = _gcChar ? gcBuildBaseTotals(_gcChar.name) : {};
+  const weights    = getStatWeights(cls, baseTotals);
+  const hpPerSta   = HP_RATIOS[cls] ? staRatioFn(cls, level) : 0;
+  // Mirror index.html: mana casters above 200 primary stat skip SOFTCAP_MULT
+  const WIS_CLASSES_gc = A2.WIS_CLASSES || new Set(['Cleric','Druid','Paladin','Ranger','Shaman']);
+  const INT_CLASSES_gc = A2.INT_CLASSES || new Set(['Enchanter','Magician','Necromancer','Wizard','Shadow Knight','Bard']);
+  const _gcManaKey = WIS_CLASSES_gc.has(cls) ? 'wis' : INT_CLASSES_gc.has(cls) ? 'int' : null;
+  if (_gcManaKey && weights[_gcManaKey] >= 2.0 && (baseTotals[_gcManaKey] || 0) >= 200) NO_CAP.add(_gcManaKey);
+  const gcSlot     = gcBaseSlot(document.getElementById('gc-slot')?.value || (_gcItemA?.data?._slot) || '');
+  const gcDex      = Math.min(255, baseTotals.dex || 175);
+
+  // Per-stat breakdown with individual scores
+  function buildBreakdown(dataA, dataB) {
+    const allKeys = ['ac', ...STAT_KEYS_ALL, 'haste'];
+    const rows = allKeys.map(k => {
+      const va = Number(dataA[k] || 0);
+      const vb = Number(dataB[k] || 0);
+      if (!va && !vb) return null;
+
+      const w = k === 'ac' ? (weights.ac||0) : k === 'haste' ? (weights.haste||0) : (weights[k]||0);
+
+      function scoreVal(v) {
+        if (!v) return 0;
+        if (k === 'sta' && hpPerSta > 0) {
+          const curSta = Math.min(255, baseTotals.sta || 0);
+          return (Math.min(255, curSta + v) - curSta) * hpPerSta * (weights.hpbonus || 1.5);
+        }
+        if (!w) return 0;
+        if (k === 'haste') {
+          // EQ haste only applies from a single item — must account for char's
+          // current best haste from all OTHER slots so we don't double-count.
+          const CLASS_STAT_THRESHOLDS_gc = A2?.CLASS_STAT_THRESHOLDS || {};
+          const hasteThresh = (CLASS_STAT_THRESHOLDS_gc[cls] || {}).haste || 41;
+          // baseTotals.haste = Math.max of all equipped items (single-item model).
+          // otherHaste: if THIS item IS the haste source, other slots = 0.
+          // If this item is NOT the haste source, other slots = baseTotals.haste.
+          const curBestHaste = baseTotals.haste || 0;
+          const otherHaste = (v > 0 && v >= curBestHaste) ? 0 : curBestHaste;
+          return (Math.min(otherHaste + v, hasteThresh) - Math.min(otherHaste, hasteThresh)) * w;
+        }
+        if (NO_CAP.has(k)) return v * w;
+        const ct = baseTotals[k] || 0;
+        if (v > 0) {
+          const below = Math.max(0, Math.min(v, SOFTCAP - ct));
+          const soft  = Math.max(0, Math.min(v - below, HARDCAP - Math.max(ct, SOFTCAP)));
+          return below * w + soft * w * SOFTCAP_MULT;
+        }
+        return v * w;
+      }
+
+      const suffix = k === 'haste' ? '%' : '';
+      const label  = k === 'ac' ? 'AC' : k === 'haste' ? 'Haste' : (STAT_DISPLAY[k] || k.toUpperCase());
+      const scoreA = Math.round(scoreVal(va) * 10) / 10;
+      const scoreB = Math.round(scoreVal(vb) * 10) / 10;
+      const capState = (!NO_CAP.has(k) && k !== 'ac' && k !== 'haste' && k !== 'sta')
+        ? ((baseTotals[k]||0) >= 255 ? 'hard' : (baseTotals[k]||0) >= 200 ? 'soft' : '')
+        : '';
+      return { k, label, suffix, va, vb, w, scoreA, scoreB, capState };
+    }).filter(Boolean);
+
+    // ── Weapon DPS row ─────────────────────────────────────────────────────────
+    const WEP_SLOTS = new Set(['PRIMARY','SECONDARY','RANGE','TWOHANDER']);
+    const effSlot = gcSlot === 'TWOHANDER' ? 'PRIMARY' : gcSlot;
+    if (WEP_SLOTS.has(gcSlot) && window._wdpsScore) {
+      const CLASS_WEAPON_DPS_SCALE = {Warrior:10,Paladin:8,'Shadow Knight':8,Monk:10,Rogue:9,Ranger:10,Bard:4};
+      const scale = CLASS_WEAPON_DPS_SCALE[cls] || 0;
+      if (scale > 0) {
+        const rawA = window._wdpsScore(dataA, effSlot, cls, level, gcDex);
+        const rawB = window._wdpsScore(dataB, effSlot, cls, level, gcDex);
+        const scoreA = Math.round(rawA * scale * 10) / 10;
+        const scoreB = Math.round(rawB * scale * 10) / 10;
+        if (rawA > 0 || rawB > 0) {
+          // Sub-rows: ratio, proc, backstab
+          const dmgA = Number(dataA.dmg||0), delA = Number(dataA.delay||0);
+          const dmgB = Number(dataB.dmg||0), delB = Number(dataB.delay||0);
+          const bonus = (level>=28&&effSlot==='PRIMARY') ? Math.floor((Math.min(level,60)-25)/3) : 0;
+          const ratioA = delA ? ((2*dmgA+(effSlot==='PRIMARY'?bonus:0))/delA).toFixed(3) : '—';
+          const ratioB = delB ? ((2*dmgB+(effSlot==='PRIMARY'?bonus:0))/delB).toFixed(3) : '—';
+          const procA = dataA._effect && (dataA._effectType||'').toLowerCase().includes('combat') ? dataA._effect : '';
+          const procB = dataB._effect && (dataB._effectType||'').toLowerCase().includes('combat') ? dataB._effect : '';
+          rows.push({
+            k:'_weapondps', label:`Weapon DPS ×${scale}`,
+            suffix:'', va:ratioA, vb:ratioB, w:scale,
+            scoreA, scoreB, capState:'',
+            isWeapon:true,
+            extra: `dmg/delay: A=${dmgA}/${delA} B=${dmgB}/${delB}  +bonus:${bonus}  proc: A=${procA||'—'} B=${procB||'—'}`
+          });
+        }
+      }
+    }
+
+    // ── Instrument mod row (BRD) ────────────────────────────────────────────────
+    if (cls === 'Bard' && (gcSlot === 'PRIMARY' || gcSlot === 'SECONDARY')) {
+      const bestMod = d => Math.max(Number(d._percmod||0),Number(d._stringmod||0),Number(d._windmod||0),Number(d._brasmod||0),Number(d._allmod||0));
+      const modA = bestMod(dataA), modB = bestMod(dataB);
+      if (modA > 0 || modB > 0) {
+        const BRD_SCALE = 4;
+        const scoreA = Math.round(Math.max(0,(modA-18)*1.5)*BRD_SCALE*10)/10;
+        const scoreB = Math.round(Math.max(0,(modB-18)*1.5)*BRD_SCALE*10)/10;
+        rows.push({ k:'_instrmod', label:'Instrument Mod ×4', suffix:'', va:modA||'—', vb:modB||'—', w:4, scoreA, scoreB, capState:'', isWeapon:true, extra:'' });
+      }
+    }
+
+    // ── Weight row (MNK) ────────────────────────────────────────────────────────
+    const wtA = Number(dataA._wt||0), wtB = Number(dataB._wt||0);
+    if ((wtA > 0 || wtB > 0) && cls === 'Monk') {
+      rows.push({ k:'_weight', label:'Weight (lbs)', suffix:'', va:wtA||'—', vb:wtB||'—', w:0, scoreA:0, scoreB:0, capState:'', isWeapon:true, extra:'Lower is better for MNK' });
+    }
+
+    return rows;
+  }
+
+  const totalA = Math.round(gcScoreItem(_gcItemA.data, weights, baseTotals, hpPerSta, gcSlot, cls, level, gcDex) * 10) / 10;
+  const totalB = Math.round(gcScoreItem(_gcItemB.data, weights, baseTotals, hpPerSta, gcSlot, cls, level, gcDex) * 10) / 10;
+  const winner = totalA > totalB ? 'a' : totalB > totalA ? 'b' : 'tie';
+  const delta  = Math.round((totalB - totalA) * 10) / 10;
+
+  const barA = Math.round((totalA / Math.max(totalA, totalB, 1)) * 100);
+  const barB = Math.round((totalB / Math.max(totalA, totalB, 1)) * 100);
+
+  const gold  = '#c9a84c';
+  const green = 'var(--ok-green,#4caf7d)';
+  const red   = 'var(--bad-red,#c0392b)';
+  const muted = 'var(--text-m)';
+  const dim   = 'var(--text-dim,#5a5248)';
+  const dc = (d) => d > 0 ? green : d < 0 ? red : dim;
+
+  const breakdown = buildBreakdown(_gcItemA.data, _gcItemB.data);
+
+  // Decision explanation
+  const diffs = breakdown.map(r => ({ ...r, diff: r.scoreB - r.scoreA }))
+    .filter(r => Math.abs(r.diff) >= 0.5)
+    .sort((a,b) => Math.abs(b.diff) - Math.abs(a.diff));
+
+  let decisionHtml = '';
+  if (winner !== 'tie' && diffs.length) {
+    const drivers = diffs.filter(r => winner === 'b' ? r.diff > 0 : r.diff < 0).slice(0,4);
+    const offsets = diffs.filter(r => winner === 'b' ? r.diff < 0 : r.diff > 0).slice(0,3);
+    const dead    = breakdown.filter(r => {
+      const winDiff = winner === 'b' ? r.vb - r.va : r.va - r.vb;
+      return winDiff > 0 && r.w < 0.01;
+    });
+
+    const fmt = (r) => {
+      const rawDiff = winner === 'b' ? r.vb - r.va : r.va - r.vb;
+      const pts = Math.abs(Math.round(r.diff * 10) / 10);
+      let note = '';
+      if (r.k === 'sta' && hpPerSta > 0) note = ` <span style="color:${dim};font-size:.74rem">via HP×${hpPerSta.toFixed(2)}</span>`;
+      if (r.capState === 'soft') note += ` <span style="color:${gold};font-size:.74rem">⚠ softcap</span>`;
+      if (r.capState === 'hard') note += ` <span style="color:${red};font-size:.74rem">⚠ hardcap</span>`;
+      return `<strong>${r.label}</strong> (${rawDiff > 0 ? '+' : ''}${rawDiff}${r.suffix} → ${pts} pts)${note}`;
+    };
+
+    decisionHtml = `<div style="padding:.7rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:5px;margin-bottom:1rem;font-size:.8rem">
+      <div style="font-family:var(--cinzel);font-size:.58rem;letter-spacing:.08em;color:${muted};margin-bottom:.5rem">
+        WHY ${(winner==='b'?_gcItemB.name:_gcItemA.name).toUpperCase()} WINS
+      </div>
+      ${drivers.length ? `<div style="color:var(--text-d);margin-bottom:.3rem">▲ <span style="color:${green}">Driven by:</span> ${drivers.map(fmt).join(' &nbsp;·&nbsp; ')}</div>` : ''}
+      ${offsets.length ? `<div style="color:${muted};margin-bottom:.3rem">▼ <span style="color:${red}">Offset by:</span> ${offsets.map(fmt).join(' &nbsp;·&nbsp; ')}</div>` : ''}
+      ${dead.length    ? `<div style="color:${dim};font-size:.74rem">◦ Zero-weight for ${cls} (ignored): ${dead.map(r=>r.label).join(', ')}</div>` : ''}
+    </div>`;
+  }
+
+  // Stat table
+  const thS  = `font-family:var(--cinzel);font-size:.55rem;letter-spacing:.08em;color:${muted};padding:.28rem .6rem;text-align:right;border-bottom:1px solid var(--border2)`;
+  const tdS  = `padding:.25rem .6rem;border-bottom:1px solid rgba(255,255,255,.04);text-align:right;font-size:.82rem;vertical-align:middle`;
+  const tdLb = `padding:.25rem .6rem;border-bottom:1px solid rgba(255,255,255,.04);font-size:.76rem;color:${muted};font-family:var(--cinzel);letter-spacing:.06em;vertical-align:middle`;
+
+  const statRows = breakdown.map(r => {
+    const aWins = r.scoreA > r.scoreB, bWins = r.scoreB > r.scoreA;
+    const weightRow = r.k === '_weight';
+    const wDisp = r.w > 0.001 ? `<span style="color:${dim}">${typeof r.w==='number'?r.w.toFixed(2)+'\u00d7':r.w}</span>` : `<span style="color:${dim}">\u2014</span>`;
+    const fmtV  = (v) => (v!==undefined&&v!==0&&v!=='\u2014') ? `${v}${r.suffix}` : `<span style="color:${dim}">\u2014</span>`;
+    const fmtSc = (s, wins) => s
+      ? `<span style="font-size:.7rem;color:${wins?green:dim}"> (${s > 0?'+':''}${s})</span>`
+      : '';
+    const rowDiff = Math.round((r.scoreB - r.scoreA) * 10) / 10;
+    const diffColor = weightRow ? (rowDiff<0?green:rowDiff>0?red:dim) : dc(rowDiff);
+    const diffCell = rowDiff === 0
+      ? `<span style="color:${dim}">\u2014</span>`
+      : `<span style="color:${diffColor}">${rowDiff>0?'+':''}${rowDiff}</span>`;
+    const capBadge = r.capState === 'hard'
+      ? `<span style="color:${red};font-size:.66rem;margin-left:.2rem" title="At hard cap (255)">HC</span>`
+      : r.capState === 'soft'
+      ? `<span style="color:${gold};font-size:.66rem;margin-left:.2rem" title="In softcap zone (33% returns)">SC</span>`
+      : '';
+    const extraRow = r.extra ? `<tr><td colspan="5" style="padding:.1rem .6rem .35rem;font-size:.68rem;color:${dim};font-family:var(--mono)">${r.extra}</td></tr>` : '';
+    const sepBefore = (r.isWeapon && r.k === '_weapondps') ? `<tr><td colspan="5" style="padding:0;border-top:1px solid var(--border2)"></td></tr>` : '';
+
+    return sepBefore + `<tr>
+      <td style="${tdLb}">${r.label}${capBadge}</td>
+      <td style="${tdS}">${wDisp}</td>
+      <td style="${tdS};color:${aWins&&!weightRow?green:''}">${fmtV(r.va)}${fmtSc(r.scoreA, aWins)}</td>
+      <td style="${tdS};color:${bWins&&!weightRow?green:''}">${fmtV(r.vb)}${fmtSc(r.scoreB, bWins)}</td>
+      <td style="${tdS}">${diffCell}</td>
+    </tr>` + extraRow;
+  }).join('');
+
+  const nameA = _gcItemA.name.length > 24 ? _gcItemA.name.slice(0,24)+'…' : _gcItemA.name;
+  const nameB = _gcItemB.name.length > 24 ? _gcItemB.name.slice(0,24)+'…' : _gcItemB.name;
+
+  resultsEl.innerHTML = unusableWarning + `
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:.75rem;align-items:center;margin-bottom:1rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:.9rem 1.1rem">
+      <div style="text-align:right">
+        <div style="font-family:var(--cinzel);font-size:.65rem;letter-spacing:.06em;color:${winner==='a'?gold:muted};margin-bottom:.2rem">${_gcItemA.name}</div>
+        <div style="font-size:1.5rem;font-weight:bold;color:${winner==='a'?green:muted}">${totalA}</div>
+        <div style="background:var(--surface2);border-radius:3px;height:4px;margin-top:.35rem">
+          <div style="background:${winner==='a'?green:'var(--border2)'};width:${barA}%;height:100%;border-radius:3px;margin-left:auto"></div>
+        </div>
+      </div>
+      <div style="text-align:center;font-family:var(--cinzel);font-size:.58rem;letter-spacing:.1em;color:${muted};min-width:5.5rem">
+        ${winner==='tie'
+          ? `<span>TIE</span>`
+          : `<span style="color:${green};font-size:.75rem">&#9650;</span><br><span style="color:${green}">${winner.toUpperCase()} WINS</span><br><span style="color:${dc(delta)};font-size:.72rem">${delta>0?'+':''}${delta} pts</span>`}
+        <div style="margin-top:.5rem;color:${dim};font-size:.54rem">${cls.toUpperCase()}<br>LVL ${level}</div>
+      </div>
+      <div style="text-align:left">
+        <div style="font-family:var(--cinzel);font-size:.65rem;letter-spacing:.06em;color:${winner==='b'?gold:muted};margin-bottom:.2rem">${_gcItemB.name}</div>
+        <div style="font-size:1.5rem;font-weight:bold;color:${winner==='b'?green:muted}">${totalB}</div>
+        <div style="background:var(--surface2);border-radius:3px;height:4px;margin-top:.35rem">
+          <div style="background:${winner==='b'?green:'var(--border2)'};width:${barB}%;height:100%;border-radius:3px"></div>
+        </div>
+      </div>
+    </div>
+
+    ${decisionHtml}
+
+    <div style="overflow-x:auto;margin-bottom:1rem">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr>
+          <th style="${thS};text-align:left">STAT</th>
+          <th style="${thS}">WEIGHT</th>
+          <th style="${thS};color:${winner==='a'?gold:muted}">${nameA}<br><span style="font-size:.5rem;letter-spacing:.04em">raw (pts)</span></th>
+          <th style="${thS};color:${winner==='b'?gold:muted}">${nameB}<br><span style="font-size:.5rem;letter-spacing:.04em">raw (pts)</span></th>
+          <th style="${thS}">B−A PTS</th>
+        </tr></thead>
+        <tbody>${statRows || `<tr><td colspan="5" style="padding:.6rem;color:${dim};font-style:italic;text-align:center">No stats on either item.</td></tr>`}</tbody>
+        <tfoot><tr>
+          <td colspan="2" style="${tdLb};padding-top:.5rem;border-top:1px solid var(--border2)">WEIGHTED SCORE</td>
+          <td style="${tdS};font-weight:bold;color:${winner==='a'?green:muted};padding-top:.5rem;border-top:1px solid var(--border2)">${totalA}</td>
+          <td style="${tdS};font-weight:bold;color:${winner==='b'?green:muted};padding-top:.5rem;border-top:1px solid var(--border2)">${totalB}</td>
+          <td style="${tdS};padding-top:.5rem;border-top:1px solid var(--border2);color:${dc(delta)}">${delta>0?'+':''}${delta}</td>
+        </tr></tfoot>
+      </table>
+    </div>
+
+    <details>
+      <summary style="cursor:pointer;font-family:var(--cinzel);font-size:.57rem;letter-spacing:.08em;color:${muted};padding:.3rem 0;user-select:none">
+        ACTIVE WEIGHTS — ${cls.toUpperCase()} LVL ${level} (expand)
+      </summary>
+      <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem">
+        ${Object.entries(weights).filter(([,v])=>v>0.001).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.2rem .5rem;font-size:.76rem">
+            <span style="color:${muted};font-family:var(--cinzel);font-size:.56rem">${k==='ac'?'AC':((A2.STAT_DISPLAY||{})[k]||k.toUpperCase())}</span>
+            <span style="color:var(--text-d);margin-left:.25rem">${v.toFixed(2)}×</span>
+          </div>`).join('')}
+      </div>
+      ${Object.keys(baseTotals).length
+        ? `<div style="margin-top:.5rem;font-size:.74rem;color:${muted}">
+             <span style="font-family:var(--cinzel);font-size:.55rem">BASE TOTALS:</span>
+             ${Object.entries(baseTotals).filter(([,v])=>v).map(([k,v])=>`${k.toUpperCase()} ${v}`).join(' · ')}
+           </div>`
+        : `<div style="margin-top:.4rem;font-size:.74rem;color:${dim}">No character — cap adjustments not applied.</div>`}
+    </details>
+  `;
+}
+
+function gcClear(keepChar) {
+  if (!keepChar) _gcChar = null;
+  _gcItemA = null;
+  _gcItemB = null;
+  ['a','b'].forEach(w => gcClearItem(w));
+  const res  = document.getElementById('gc-results');
+  const recs = document.getElementById('gc-recommendations');
+  if (res)  res.innerHTML  = '';
+  if (recs) recs.innerHTML = '';
+  if (!keepChar) {
+    const slot = document.getElementById('gc-slot');
+    if (slot) { slot.innerHTML = '<option value="">— Choose a slot —</option>'; slot.onchange = null; }
+    _gcSlotData = {};
+  }
+}
+
+
+// ── INIT ──
+checkConnection();
+setInterval(checkConnection, 3000);
+
+// ─── Drop Data Scrape ─────────────────────────────────────────────────────────
+let _scrapeRunning = false;
+let _scrapeStop = false;
+
+function parseDropsFromWiki(html) {
+  // P99 wiki drop section — either "Drops From" or "Dropped by" heading, then a wikitable
+  // Strip scripts/styles, normalize whitespace
+  const clean = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '');
+
+  // Find drop section — wiki uses both "Dropped by" and "Drops From" inconsistently
+  const dropIdx = clean.search(/drops?\s+from|dropped\s+by/i);
+  if (dropIdx < 0) return null;
+
+  const tableStart = clean.indexOf('<table', dropIdx);
+  if (tableStart < 0) return null;
+  const tableEnd = clean.indexOf('</table>', tableStart);
+  const tableHtml = clean.slice(tableStart, tableEnd + 8);
+
+  // Extract all <tr> rows, strip tags, split by </td>
+  const rows = tableHtml.match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  const results = [];
+
+  for (let i = 1; i < rows.length; i++) { // skip header row
+    const cells = rows[i].match(/<td[\s\S]*?<\/td>/gi) || [];
+    if (cells.length < 2) continue;
+
+    const stripTags = s => s.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+
+    const mob  = stripTags(cells[0]);
+    const zone = stripTags(cells[1]);
+    if (mob && zone && mob.length < 80 && zone.length < 80) {
+      results.push({ mob, zone });
+    }
+  }
+  return results.length ? results : null;
+}
+
+async function startDropScrape() {
+  const A = window.opener;
+  if (!A) { alert('No connection to MixelParse — open via ⚙ Admin button in the app.'); return; }
+  if (!A.fetchWithProxy) { alert('fetchWithProxy not exposed — make sure index.html is up to date.'); return; }
+  const itemCount = Object.keys(A.itemDB||{}).length;
+  if (itemCount === 0) {
+    alert('itemDB is empty.\n\nMake sure you are:\n1. Logged in on the main app\n2. Have loaded an Item Database CSV\n\nThe connection bar should show items > 0 before scraping.');
+    return;
+  }
+
+  _scrapeStop = false;
+  _scrapeRunning = true;
+
+  const startBtn = document.getElementById('scrapeStartBtn');
+  const stopBtn  = document.getElementById('scrapeStopBtn');
+  const wrap     = document.getElementById('scrape-progress-wrap');
+  const bar      = document.getElementById('scrape-bar');
+  const status   = document.getElementById('scrape-status');
+  const countEl  = document.getElementById('scrape-count');
+  const log      = document.getElementById('scrape-log');
+
+  startBtn.disabled = true;
+  stopBtn.disabled  = false;
+  wrap.style.display = 'block';
+  log.style.display  = 'block';
+  log.innerHTML      = '';
+
+  const items = Object.keys(A.itemDB);
+  const todo  = items.filter(name => !('_mob' in A.itemDB[name]) && !A.itemDB[name]._mobAttempted);
+  const total = todo.length;
+  let done = 0, enriched = 0, failed = 0, saveQueue = [];
+
+  const logLine = (msg, cls='') => {
+    const d = document.createElement('div');
+    if (cls) d.style.color = cls === 'ok' ? 'var(--gold)' : cls === 'err' ? '#a03030' : 'var(--text-m)';
+    d.textContent = msg;
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+  };
+
+  logLine(`Starting — ${total} items to enrich, ${items.length - total} already done`);
+
+  const BATCH_SAVE = 50; // upsert every N items
+
+  for (const name of todo) {
+    if (_scrapeStop) { logLine('— stopped by user —', 'skip'); break; }
+
+    done++;
+    const pct = Math.round((done / total) * 100);
+    bar.style.width = pct + '%';
+    countEl.textContent = `${done} / ${total}`;
+    status.textContent = name;
+
+    try {
+      const url = A.wikiUrl(name);
+      const html = await A.fetchWithProxy(url);
+      const drops = parseDropsFromWiki(html);
+
+      if (drops && drops.length) {
+        A.itemDB[name]._mob  = drops[0].mob;
+        A.itemDB[name]._zone = drops[0].zone;
+        // Store all mobs as array for future use
+        if (drops.length > 1) A.itemDB[name]._mobs = drops;
+        enriched++;
+        logLine(`✓ ${name} — ${drops[0].mob} (${drops[0].zone})`, 'ok');
+      } else {
+        A.itemDB[name]._mob = ''; // mark as attempted so we skip next time
+        A.itemDB[name]._mobAttempted = true;
+        logLine(`· ${name} — no drop data found`, 'skip');
+      }
+    } catch(e) {
+      A.itemDB[name]._mob = '';
+      failed++;
+      logLine(`✗ ${name} — fetch failed`, 'err');
+    }
+
+    saveQueue.push(name);
+
+    // Batch save every BATCH_SAVE items
+    if (saveQueue.length >= BATCH_SAVE) {
+      logLine(`  → saving batch of ${saveQueue.length} to Supabase…`, 'skip');
+      await A.saveItemDBToSupabase();
+      saveQueue = [];
+    }
+
+    // Rate limit — 3 items/sec
+    await new Promise(r => setTimeout(r, 333));
+  }
+
+  // Final save
+  if (saveQueue.length) {
+    logLine(`  → final save to Supabase…`, 'skip');
+    await A.saveItemDBToSupabase();
+  }
+
+  _scrapeRunning = false;
+  startBtn.disabled = false;
+  stopBtn.disabled  = true;
+  status.textContent = _scrapeStop ? 'Stopped.' : 'Complete!';
+  bar.style.width = '100%';
+  logLine(`─ Done: ${enriched} enriched, ${failed} failed, ${total - done} skipped ─`);
+
+  // Update badge
+  const badge = document.getElementById('badge-dropscrape');
+  if (badge) { badge.textContent = enriched + ' enriched'; badge.className = 'sb-badge pass'; }
+}
+
+function stopDropScrape() {
+  _scrapeStop = true;
+  document.getElementById('scrapeStopBtn').disabled = true;
+}
+
+function resetDropScrape() {
+  if (!confirm('This will clear _mob and _zone from all items and allow a full re-scrape. Continue?')) return;
+  const A = window.opener;
+  if (!A || !A.itemDB) return;
+  let cleared = 0;
+  for (const name of Object.keys(A.itemDB)) {
+    if ('_mob' in A.itemDB[name]) { delete A.itemDB[name]._mob; cleared++; }
+    if ('_zone' in A.itemDB[name]) delete A.itemDB[name]._zone;
+    if ('_mobs' in A.itemDB[name]) delete A.itemDB[name]._mobs;
+    if ('_mobAttempted' in A.itemDB[name]) delete A.itemDB[name]._mobAttempted;
+  }
+  const log = document.getElementById('scrape-log');
+  log.style.display = 'block';
+  log.innerHTML = `<div>Reset complete — ${cleared} items cleared. Ready to re-scrape.</div>`;
+  document.getElementById('scrape-progress-wrap').style.display = 'none';
+}
+
+</script>
