@@ -6853,7 +6853,7 @@ function renderWatchlistBar(){
       const ruleChars=typeof rule==='string'?'__all__':(rule.chars||'__all__');
       const targets=ruleChars==='__all__'?allNames:Array.isArray(ruleChars)?ruleChars.filter(c=>allNames.includes(c)):allNames;
       const tracked=targets.includes(charName);
-      const itemLink=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="min-width:0;color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item)}</a>`;
+      const itemLink=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="min-width:0;color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.82rem;font-weight:600">${esc(item)}</a>`;
       const badgeBase=`display:inline-flex;align-items:center;flex-shrink:0;font-size:.72rem;font-family:'Cinzel',serif;font-weight:700;letter-spacing:.04em;padding:.15rem .5rem;border-radius:3px;white-space:nowrap;line-height:1`;
       let badge;
       if(!tracked){
@@ -6864,7 +6864,7 @@ function renderWatchlistBar(){
           ?`<span style="${badgeBase};color:#3a7a3a;border:1px solid #5a9a5a;background:rgba(58,122,58,.15)">✔ Have</span>`
           :`<span style="${badgeBase};color:#c03030;border:1px solid #c03030;background:rgba(160,48,48,.12)">✘ Need</span>`;
       }
-      return`<div style="display:flex;align-items:center;gap:.6rem;padding:.22rem .1rem;border-bottom:1px solid var(--border)">${itemLink}${badge}</div>`;
+      return`<div style="display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.22rem .1rem;border-bottom:1px solid var(--border)">${itemLink}${badge}</div>`;
     }).join('');
     container.innerHTML=`<div style="display:flex;flex-direction:column;gap:0;padding:.1rem 0">${rows}</div>`;
   }
