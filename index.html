@@ -6853,11 +6853,11 @@ function renderWatchlistBar(){
       const ruleChars=typeof rule==='string'?'__all__':(rule.chars||'__all__');
       const targets=ruleChars==='__all__'?allNames:Array.isArray(ruleChars)?ruleChars.filter(c=>allNames.includes(c)):allNames;
       const tracked=targets.includes(charName);
-      const itemLink=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.82rem;font-weight:600">${esc(item)}</a>`;
-      const badgeBase=`display:inline-flex;align-items:center;font-size:.72rem;font-family:'Cinzel',serif;font-weight:700;letter-spacing:.04em;padding:.15rem .5rem;border-radius:3px;white-space:nowrap;line-height:1`;
+      const itemLink=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="min-width:0;color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item)}</a>`;
+      const badgeBase=`display:inline-flex;align-items:center;flex-shrink:0;font-size:.72rem;font-family:'Cinzel',serif;font-weight:700;letter-spacing:.04em;padding:.15rem .5rem;border-radius:3px;white-space:nowrap;line-height:1`;
       let badge;
       if(!tracked){
-        badge=`<span style="${badgeBase};color:var(--text-muted);border:1px solid var(--border);background:var(--surface2)">N/A</span>`;
+        badge=`<span style="${badgeBase};color:#888;border:1px solid #999;background:rgba(128,128,128,.1)">N/A</span>`;
       } else {
         const has=charHasItem(charName,item);
         badge=has
