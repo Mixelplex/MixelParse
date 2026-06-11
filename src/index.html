@@ -3537,6 +3537,10 @@ function applyPlatToItemDB(){
 // ─── Admin Panel ──────────────────────────────────────────────────────────────
 
 function openAdminPanel(){
+  if(window.MixelParseApp && window.MixelParseApp.isElectron){
+    window.MixelParseApp.openAdmin();
+    return;
+  }
   const w = window.open('admin.html','mixelparse_admin','width=1200,height=800,menubar=no,toolbar=no');
   if(!w) alert('Pop-up blocked — please allow pop-ups for this page.');
 }
@@ -3552,14 +3556,85 @@ window.parseItemDB      = parseItemDB;
 window.applyDBToChar    = applyDBToChar;
 // classFromFilename and raceFromFilename are scoped inside parseItemDB;
 
-// ── Inventory Watcher WebSocket listener ──────────────────────────────────────
-// Connects to the local mixelparse-watcher.exe on ws://127.0.0.1:27182
-// Receives inventory file payloads and loads them automatically.
+// ── Inventory Watcher listener (WebSocket OR Electron IPC) ────────────────────
+// Web mode:      connects to ws://127.0.0.1:27182 (mixelparse-watcher.exe)
+// Electron mode: uses window.MixelParseApp.onWatcherEvent() IPC bridge instead
 (function initWatcherSocket(){
   const WS_PORT   = 27182;
   const WS_SECRET = 'mixelparse-inv-v1';
   const RECONNECT_MS = 5000;
   let ws = null, retryTimer = null, watcherConnected = false;
+
+  // ── Minimal boss list for /note fuzzy matching (IPC notesUpdate path) ──────
+  // Mirrors NOTES_BOSS_LIST in mixelparse-watcher.js — keep in sync.
+  const _NOTES_BOSS_LIST = [
+    { target:'Dozekar',         full:'Dozekar the Cursed',          aliases:['dozekar','doze'] },
+    { target:'Avatar of War',   full:'Avatar of War',               aliases:['avatar','aow','avt'] },
+    { target:'Dain',            full:'Dain Frostreaver IV',         aliases:['dain'] },
+    { target:'Statue',          full:'Statue of Rallos Zek',        aliases:['statue','srz','stat'] },
+    { target:'Takish',          full:'Guardian of Takish',          aliases:['takish','tak'] },
+    { target:'Tormax',          full:'King Tormax',                 aliases:['tormax','torm'] },
+    { target:'Tunare',          full:'Tunare',                      aliases:['tunare','tuna'] },
+    { target:'Cazic Thule',     full:'Cazic Thule',                 aliases:['cazic','caz','ct'] },
+    { target:'Eashen',          full:'Eashen of the Sky',           aliases:['eashen','eas'] },
+    { target:'MOTG',            full:'Master of the Guard',         aliases:['motg','master of the guard'] },
+    { target:'Phara Dar',       full:'Phara Dar',                   aliases:['phara','phar','pd'] },
+    { target:'Prog',            full:'The Progenitor',              aliases:['prog','progenitor'] },
+    { target:'TFA',             full:'The Final Arbiter',           aliases:['tfa','arbiter'] },
+    { target:'Vyemm',           full:'Lord Vyemm',                  aliases:['vyemm','vyem'] },
+    { target:'Yelinak',         full:'Lord Yelinak',                aliases:['yelinak','yeli','yel'] },
+    { target:'Aaryonar',        full:'Aaryonar',                    aliases:['aaryonar','aary'] },
+    { target:'Dagarn',          full:'Dagarn the Destroyer',        aliases:['dagarn','dag'] },
+    { target:'Dracoliche',      full:'Dracoliche',                  aliases:['dracoliche','draco','drac'] },
+    { target:'Druushk',         full:'Druushk',                     aliases:['druushk','druu'] },
+    { target:'Feshlak',         full:'Lord Feshlak',                aliases:['feshlak','fesh'] },
+    { target:'Hoshkar',         full:'Hoshkar',                     aliases:['hoshkar','hosh'] },
+    { target:'Jorlleag',        full:'Jorlleag',                    aliases:['jorlleag','jorl'] },
+    { target:'Klandicar',       full:'Klandicar',                   aliases:['klandicar','klan'] },
+    { target:'Koi',             full:"Lord Koi'Doken",              aliases:['koi'] },
+    { target:'Kreizenn',        full:'Lord Kreizenn',               aliases:['kreizenn','krei'] },
+    { target:'LTK',             full:'Lendiniara the Keeper',       aliases:['ltk'] },
+    { target:"Magi P'Tasa",     full:"Magi P'Tasa",                 aliases:['magi','ptasa','mpt'] },
+    { target:'Mirenilla',       full:'Lady Mirenilla',              aliases:['mirenilla','mire','mir','ladym'] },
+    { target:'Nevederia',       full:'Lady Nevederia',              aliases:['nevederia','neve','nev'] },
+    { target:'Sontalak',        full:'Sontalak',                    aliases:['sontalak','sont','son'] },
+    { target:'Vulak',           full:"Vulak'Aerr",                  aliases:['vulak','vul'] },
+    { target:'Zlandicar',       full:'Zlandicar',                   aliases:['zlandicar','zlan'] },
+    { target:'Ashenbone Broodmaster',full:'Ashenbone Broodmaster',  aliases:['ashenbone','broodmaster','ashbone'] },
+    { target:'Cekenar',         full:'Cekenar',                     aliases:['cekenar','cek'] },
+    { target:'Essedera',        full:'Essedera',                    aliases:['essedera','esse'] },
+    { target:'Gorenaire',       full:'Gorenaire',                   aliases:['gorenaire','gore','gor'] },
+    { target:'Talendor',        full:'Talendor',                    aliases:['talendor','tal'] },
+    { target:'Severilous',      full:'Severilous',                  aliases:['severilous','sev'] },
+    { target:'Lord of Ire',     full:'Lord of Ire',                 aliases:['lord of ire','ire','loi'] },
+    { target:"Magi P'Tasa",     full:"Magi P'Tasa",                 aliases:['magi ptasa'] },
+    { target:'Derakor',         full:'Derakor the Vindicator',      aliases:['derakor','derk'] },
+    { target:'Wuoshi',          full:'Wuoshi',                      aliases:['wuoshi','wuo'] },
+    { target:'Ring War',        full:'Ring War',                    aliases:['ring war','rw','ring'] },
+    { target:'Yelinak',         full:'Lord Yelinak',                aliases:['yelinak'] },
+  ];
+
+  // Process a raw notes.txt update (IPC path) — fuzzy match → todEnqueue
+  function _handleNotesUpdate(text, timestamp){
+    if(!text) return;
+    const lower = text.toLowerCase();
+    // Deduplicate: scan each line in the file looking for the newest boss entry
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const seen = new Set();
+    for(const line of lines){
+      const ll = line.toLowerCase();
+      for(const boss of _NOTES_BOSS_LIST){
+        if(seen.has(boss.target)) continue;
+        const hit = boss.aliases.some(a => ll.includes(a)) ||
+                    ll.includes(boss.target.toLowerCase()) ||
+                    ll.includes(boss.full.toLowerCase());
+        if(hit){
+          seen.add(boss.target);
+          todEnqueue(boss.target, boss.full, line, timestamp);
+        }
+      }
+    }
+  }
 
   function setWatcherStatus(connected){
     watcherConnected = connected;
@@ -3666,10 +3741,67 @@ window.applyDBToChar    = applyDBToChar;
     toolbar.appendChild(badge);
   }
 
+  // ── Electron IPC path ────────────────────────────────────────────────────────
+  function initElectronBridge(){
+    injectStatusBadge();
+    setWatcherStatus(true); // IPC watcher starts with main process — always connected
+
+    window.MixelParseApp.onWatcherEvent(msg => {
+      try {
+        if(msg.type === 'inventory')      handleInventory(msg.filename, msg.content);
+        if(msg.type === 'factionUpdate'){
+          applyFactionUpdate(msg.charName, msg.updates);
+          const n = msg.updates.length;
+          showWatcherToast('\u2694 ' + msg.charName + ': ' + n + ' faction update' + (n===1?'':'s'));
+          saveState();
+        }
+        if(msg.type === 'factionSnapshot'){
+          applyFactionSnapshot(msg.charName, msg.factions);
+          const n = Object.keys(msg.factions).length;
+          if(n>0) showWatcherToast('\uD83D\uDCDC ' + msg.charName + ': ' + n + ' factions loaded from log');
+          saveState();
+        }
+        if(msg.type === 'todNote'){
+          // IPC watcher may send pre-processed todNote (future-proofing)
+          todEnqueue(msg.target, msg.full, msg.noteText, msg.timestamp);
+        }
+        if(msg.type === 'notesUpdate'){
+          // IPC watcher sends raw notes text — process with local fuzzy match
+          _handleNotesUpdate(msg.text, msg.timestamp);
+        }
+        if(msg.type === 'zoneUpdate'){
+          charZones[msg.charName] = { zone: msg.zone, timestamp: msg.timestamp };
+          saveZonesToSupabase();
+          renderZoneBar();
+        }
+      } catch(err){ console.warn('[IPC] watcher-event error', err); }
+    });
+
+    // Wire requestAll to IPC command
+    window.requestWatcherAll = () => {
+      window.MixelParseApp.watcherCommand('requestAll');
+    };
+    // Request all cached inventory/faction on load
+    window.requestWatcherAll();
+  }
+
+  // ── WebSocket path (web / standalone watcher) ────────────────────────────────
   if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', () => { injectStatusBadge(); connect(); });
+    document.addEventListener('DOMContentLoaded', () => {
+      injectStatusBadge();
+      if(window.MixelParseApp && window.MixelParseApp.isElectron){
+        initElectronBridge();
+      } else {
+        connect();
+      }
+    });
   } else {
-    injectStatusBadge(); connect();
+    injectStatusBadge();
+    if(window.MixelParseApp && window.MixelParseApp.isElectron){
+      initElectronBridge();
+    } else {
+      connect();
+    }
   }
 })();
 // ── TOD Note Modal ────────────────────────────────────────────────────────────
