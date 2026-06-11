@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MixelParse — Setup</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap');
+
+  :root {
+    --bg:         #0e0c0a;
+    --surface:    #1a1510;
+    --surface2:   #221c15;
+    --border:     #3a2e1e;
+    --gold:       #c8922a;
+    --gold-light: #e8b84b;
+    --text:       #e8dcc8;
+    --text-dim:   #c4b090;
+    --text-muted: #8a7a60;
+    --red:        #c03030;
+    --green:      #3a7a3a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 15px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background-image:
+      radial-gradient(ellipse at 50% 0%, rgba(200,146,42,.07) 0%, transparent 60%);
+  }
+
+  .logo {
+    text-align: center;
+    margin-bottom: 1.75rem;
+  }
+
+  .logo-title {
+    font-family: 'Cinzel', serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: .15em;
+    color: var(--gold-light);
+    text-shadow: 0 0 20px rgba(200,146,42,.4);
+  }
+
+  .logo-sub {
+    font-family: 'Cinzel', serif;
+    font-size: .7rem;
+    letter-spacing: .2em;
+    color: var(--text-muted);
+    margin-top: .2rem;
+    text-transform: uppercase;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.75rem 2rem;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  }
+
+  .card-title {
+    font-family: 'Cinzel', serif;
+    font-size: .8rem;
+    letter-spacing: .15em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: .6rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .field {
+    margin-bottom: 1.1rem;
+  }
+
+  .field label {
+    display: block;
+    font-family: 'Cinzel', serif;
+    font-size: .72rem;
+    letter-spacing: .1em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: .35rem;
+  }
+
+  .field-row {
+    display: flex;
+    gap: .5rem;
+  }
+
+  .field input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-dim);
+    font-family: 'Crimson Pro', serif;
+    font-size: .88rem;
+    padding: .45rem .65rem;
+    outline: none;
+    transition: border-color .15s;
+  }
+
+  .field input:focus {
+    border-color: var(--gold);
+    color: var(--text);
+  }
+
+  .browse-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-family: 'Cinzel', serif;
+    font-size: .68rem;
+    letter-spacing: .08em;
+    padding: .45rem .75rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .15s;
+  }
+
+  .browse-btn:hover {
+    border-color: var(--gold);
+    color: var(--gold-light);
+    background: rgba(200,146,42,.08);
+  }
+
+  .field-hint {
+    font-size: .78rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: .25rem;
+  }
+
+  .detect-row {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .detect-btn {
+    background: rgba(200,146,42,.1);
+    border: 1px solid var(--gold);
+    border-radius: 4px;
+    color: var(--gold-light);
+    font-family: 'Cinzel', serif;
+    font-size: .72rem;
+    letter-spacing: .1em;
+    padding: .5rem 1rem;
+    cursor: pointer;
+    transition: all .15s;
+    text-transform: uppercase;
+  }
+
+  .detect-btn:hover {
+    background: rgba(200,146,42,.2);
+  }
+
+  .detect-status {
+    font-size: .82rem;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .detect-status.ok   { color: var(--green); }
+  .detect-status.miss { color: var(--red); }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.25rem 0;
+  }
+
+  .save-btn {
+    width: 100%;
+    background: linear-gradient(135deg, rgba(200,146,42,.25), rgba(200,146,42,.15));
+    border: 1px solid var(--gold);
+    border-radius: 5px;
+    color: var(--gold-light);
+    font-family: 'Cinzel', serif;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .15em;
+    padding: .7rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all .15s;
+    margin-top: .5rem;
+  }
+
+  .save-btn:hover {
+    background: linear-gradient(135deg, rgba(200,146,42,.4), rgba(200,146,42,.25));
+    box-shadow: 0 0 12px rgba(200,146,42,.2);
+  }
+
+  .save-btn:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+  }
+
+  .error-msg {
+    color: var(--red);
+    font-size: .82rem;
+    margin-top: .5rem;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="logo">
+  <div class="logo-title">MixelParse</div>
+  <div class="logo-sub">EQ P99 — Guild Management Tool</div>
+</div>
+
+<div class="card">
+  <div class="card-title">First-Time Setup</div>
+
+  <div class="detect-row">
+    <button class="detect-btn" type="button" id="detectBtn">⚡ Auto-Detect EQ</button>
+    <span class="detect-status" id="detectStatus">Click to auto-detect your EverQuest installation.</span>
+  </div>
+
+  <div class="field">
+    <label>EverQuest Directory</label>
+    <div class="field-row">
+      <input type="text" id="eqDir" placeholder="C:\Program Files (x86)\Sony\EverQuest">
+      <button class="browse-btn" type="button" id="browseEqDir">Browse</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Log Directory</label>
+    <div class="field-row">
+      <input type="text" id="logDir" placeholder="C:\Program Files (x86)\Sony\EverQuest\Logs">
+      <button class="browse-btn" type="button" id="browseLogDir">Browse</button>
+    </div>
+    <div class="field-hint">Usually EverQuest\Logs — auto-filled from EQ directory.</div>
+  </div>
+
+  <div class="field">
+    <label>Notes File</label>
+    <div class="field-row">
+      <input type="text" id="notesFile" placeholder="C:\Program Files (x86)\Sony\EverQuest\notes.txt">
+      <button class="browse-btn" type="button" id="browseNotesFile">Browse</button>
+    </div>
+    <div class="field-hint">The notes.txt file written by EQ's /note command.</div>
+  </div>
+
+  <hr class="divider">
+
+  <button class="save-btn" type="button" id="saveBtn">Launch MixelParse</button>
+  <div class="error-msg" id="errorMsg"></div>
+</div>
+
+<script>
+const app = window.MixelParseApp;
+
+// ── Auto-detect ──────────────────────────────────────────────────────────────
+document.getElementById('detectBtn').addEventListener('click', async () => {
+  const status = document.getElementById('detectStatus');
+  status.className = 'detect-status';
+  status.textContent = 'Searching…';
+  const paths = await app.detectPaths();
+  if (paths.eqDir) {
+    document.getElementById('eqDir').value = paths.eqDir;
+    document.getElementById('logDir').value = paths.logDir;
+    document.getElementById('notesFile').value = paths.notesFile;
+    status.className = 'detect-status ok';
+    status.textContent = '✔ EverQuest installation found.';
+  } else {
+    status.className = 'detect-status miss';
+    status.textContent = '✘ Not found — please browse manually.';
+  }
+});
+
+// ── Browse buttons ───────────────────────────────────────────────────────────
+document.getElementById('browseEqDir').addEventListener('click', async () => {
+  const p = await app.browseDir(document.getElementById('eqDir').value);
+  if (p) {
+    document.getElementById('eqDir').value = p;
+    // Auto-fill derived paths if empty
+    if (!document.getElementById('logDir').value)
+      document.getElementById('logDir').value = p + '\\Logs';
+    if (!document.getElementById('notesFile').value)
+      document.getElementById('notesFile').value = p + '\\notes.txt';
+  }
+});
+
+document.getElementById('browseLogDir').addEventListener('click', async () => {
+  const p = await app.browseDir(document.getElementById('logDir').value);
+  if (p) document.getElementById('logDir').value = p;
+});
+
+document.getElementById('browseNotesFile').addEventListener('click', async () => {
+  const p = await app.browseFile(document.getElementById('notesFile').value);
+  if (p) document.getElementById('notesFile').value = p;
+});
+
+// ── Save ─────────────────────────────────────────────────────────────────────
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  const eqDir    = document.getElementById('eqDir').value.trim();
+  const logDir   = document.getElementById('logDir').value.trim();
+  const notesFile = document.getElementById('notesFile').value.trim();
+  const errEl    = document.getElementById('errorMsg');
+  const saveBtn  = document.getElementById('saveBtn');
+
+  errEl.style.display = 'none';
+
+  if (!eqDir || !logDir || !notesFile) {
+    errEl.textContent = 'All three paths are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+
+  const ok = await app.saveSetup({ eqDir, logDir, notesFile, setupComplete: true });
+  if (!ok) {
+    errEl.textContent = 'Failed to save configuration. Check permissions.';
+    errEl.style.display = 'block';
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Launch MixelParse';
+  }
+  // On success main.js closes this window and opens mainWindow
+});
+</script>
+</body>
+</html>

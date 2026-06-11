@@ -1,0 +1,60 @@
+{
+  "name": "mixelparse",
+  "version": "1.0.0",
+  "description": "EverQuest P99 Guild Management Tool",
+  "main": "main.js",
+  "author": "mixelplex",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "build:ci": "electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "chokidar": "^3.6.0",
+    "electron-updater": "^6.1.7",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "electron": "^29.4.6",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.mixelplex.mixelparse",
+    "productName": "MixelParse",
+    "icon": "assets/icon.ico",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signingHashAlgorithms": [
+        "sha256"
+      ],
+      "sign": "./sign.js"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MixelParse"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "mixelplex",
+      "repo": "MixelParse"
+    },
+    "files": [
+      "main.js",
+      "ipc/**/*",
+      "src/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": []
+  }
+}
