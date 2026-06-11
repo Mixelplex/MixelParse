@@ -6863,7 +6863,7 @@ function renderWatchlistBar(){
           ?`<span style="font-size:.75rem;font-family:'Cinzel',serif;font-weight:700;color:#3a7a3a;padding:.1rem .45rem;border-radius:3px;border:1px solid #5a9a5a;background:rgba(58,122,58,.15)">✔ Have</span>`
           :`<span style="font-size:.75rem;font-family:'Cinzel',serif;font-weight:700;color:#c03030;padding:.1rem .45rem;border-radius:3px;border:1px solid #c03030;background:rgba(160,48,48,.12)">✘ Need</span>`;
       }
-      return`<div style="display:flex;align-items:center;justify-content:space-between;padding:.22rem .1rem;border-bottom:1px solid var(--border)">${itemLink}${badge}</div>`;
+      return`<div style="display:flex;align-items:center;gap:.6rem;padding:.22rem .1rem;border-bottom:1px solid var(--border)">${itemLink}${badge}</div>`;
     }).join('');
     container.innerHTML=`<div style="display:flex;flex-direction:column;gap:0;padding:.1rem 0">${rows}</div>`;
   }
