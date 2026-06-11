@@ -6823,28 +6823,50 @@ function renderWatchlistBar(){
   if(!allNames.length){container.innerHTML='<div class="watchlist-empty">Load characters to see watch list status.</div>';return;}
 
   const isAll=activeTab==='__all__';
-  const visNames=isAll?allNames:[activeTab].filter(n=>allNames.includes(n));
 
-  const headerCells=visNames.map(n=>`<th style="padding:.25rem .5rem;font-size:.68rem;font-family:'Cinzel',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left;white-space:nowrap;width:120px">${esc(n)}</th>`).join('');
-
-  const dataRows=watchList.map(rule=>{
-    const item=typeof rule==='string'?rule:rule.item;
-    const ruleChars=typeof rule==='string'?'__all__':(rule.chars||'__all__');
-    const targets=ruleChars==='__all__'?allNames:Array.isArray(ruleChars)?ruleChars.filter(c=>allNames.includes(c)):allNames;
-    const itemLink=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.78rem">${esc(item)}</a>`;
-    const cells=visNames.map(n=>{
-      const tracked=targets.includes(n);
-      if(!tracked)return`<td style="text-align:left;color:var(--text-muted);font-size:1rem;font-weight:700;width:120px">N/A</td>`;
-      const has=charHasItem(n,item);
-      return`<td style="text-align:left;font-size:.8rem;font-weight:600;color:${has?'#3a7a3a':'#c03030'};width:120px">${has?'✔':'✘'}</td>`;
+  if(isAll){
+    // All Characters: full table with one column per char
+    const visNames=allNames;
+    const headerCells=visNames.map(n=>`<th style="padding:.25rem .5rem;font-size:.68rem;font-family:'Cinzel',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left;white-space:nowrap;width:120px">${esc(n)}</th>`).join('');
+    const dataRows=watchList.map(rule=>{
+      const item=typeof rule==='string'?rule:rule.item;
+      const ruleChars=typeof rule==='string'?'__all__':(rule.chars||'__all__');
+      const targets=ruleChars==='__all__'?allNames:Array.isArray(ruleChars)?ruleChars.filter(c=>allNames.includes(c)):allNames;
+      const itemLink=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.78rem">${esc(item)}</a>`;
+      const cells=visNames.map(n=>{
+        const tracked=targets.includes(n);
+        if(!tracked)return`<td style="text-align:left;color:var(--text-muted);font-size:1rem;font-weight:700;width:120px">N/A</td>`;
+        const has=charHasItem(n,item);
+        return`<td style="text-align:left;font-size:.8rem;font-weight:600;color:${has?'#3a7a3a':'#c03030'};width:120px">${has?'✔':'✘'}</td>`;
+      }).join('');
+      return`<tr><td style="padding:.2rem .5rem;white-space:nowrap">${itemLink}</td>${cells}</tr>`;
     }).join('');
-    return`<tr><td style="padding:.2rem .5rem;white-space:nowrap">${itemLink}</td>${cells}</tr>`;
-  }).join('');
-
-  container.innerHTML=`<table style="border-collapse:collapse;width:${isAll?'100%':'auto'}">
-    <thead><tr><th style="padding:.25rem .5rem"></th>${headerCells}</tr></thead>
-    <tbody>${dataRows}</tbody>
-  </table>`;
+    container.innerHTML=`<table style="border-collapse:collapse;width:100%">
+      <thead><tr><th style="padding:.25rem .5rem"></th>${headerCells}</tr></thead>
+      <tbody>${dataRows}</tbody>
+    </table>`;
+  } else {
+    // Single character: condensed chip list
+    const charName=activeTab;
+    const rows=watchList.map(rule=>{
+      const item=typeof rule==='string'?rule:rule.item;
+      const ruleChars=typeof rule==='string'?'__all__':(rule.chars||'__all__');
+      const targets=ruleChars==='__all__'?allNames:Array.isArray(ruleChars)?ruleChars.filter(c=>allNames.includes(c)):allNames;
+      const tracked=targets.includes(charName);
+      const itemLink=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.82rem;font-weight:600">${esc(item)}</a>`;
+      let badge;
+      if(!tracked){
+        badge=`<span style="font-size:.72rem;font-family:'Cinzel',serif;color:var(--text-muted);letter-spacing:.04em;padding:.1rem .45rem;border-radius:3px;border:1px solid var(--border);background:var(--surface2)">N/A</span>`;
+      } else {
+        const has=charHasItem(charName,item);
+        badge=has
+          ?`<span style="font-size:.75rem;font-family:'Cinzel',serif;font-weight:700;color:#3a7a3a;padding:.1rem .45rem;border-radius:3px;border:1px solid #5a9a5a;background:rgba(58,122,58,.15)">✔ Have</span>`
+          :`<span style="font-size:.75rem;font-family:'Cinzel',serif;font-weight:700;color:#c03030;padding:.1rem .45rem;border-radius:3px;border:1px solid #c03030;background:rgba(160,48,48,.12)">✘ Need</span>`;
+      }
+      return`<div style="display:flex;align-items:center;justify-content:space-between;padding:.22rem .1rem;border-bottom:1px solid var(--border)">${itemLink}${badge}</div>`;
+    }).join('');
+    container.innerHTML=`<div style="display:flex;flex-direction:column;gap:0;padding:.1rem 0">${rows}</div>`;
+  }
 }
 
 function renderWlModal(){
