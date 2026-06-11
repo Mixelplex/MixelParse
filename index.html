@@ -6864,7 +6864,7 @@ function renderWatchlistBar(){
           ?`<span style="${badgeBase};color:#3a7a3a;border:1px solid #5a9a5a;background:rgba(58,122,58,.15)">✔ Have</span>`
           :`<span style="${badgeBase};color:#c03030;border:1px solid #c03030;background:rgba(160,48,48,.12)">✘ Need</span>`;
       }
-      return`<div style="display:grid;grid-template-columns:220px auto;align-items:center;padding:.22rem .1rem;border-bottom:1px solid var(--border)">${itemLink}${badge}</div>`;
+      return`<div style="display:grid;grid-template-columns:220px 1fr;align-items:center;padding:.22rem .5rem;border-bottom:1px solid var(--border)">${itemLink}${badge}</div>`;
     }).join('');
     container.innerHTML=`<div style="display:flex;flex-direction:column;gap:0;padding:.1rem 0">${rows}</div>`;
   }
