@@ -1774,18 +1774,6 @@ function renderUpgradesPanel(){
     sr.cardId=slotCount[sr.dbSlot]>1?sr.dbSlot+slotSeen[sr.dbSlot]:sr.dbSlot;
   });
 
-  // Auto-detect 2H mode: if character currently has a 2H weapon in PRIMARY, enable 2H mode automatically
-  // (only on first render — don't override a manual toggle-off)
-  if(window['_upgTwoHander_'+name]===undefined){
-    const primaryItem=slotResults.find(sr=>sr.dbSlot==='PRIMARY'&&!sr.isEmpty&&!sr.is2hCard);
-    if(primaryItem){
-      const sk=(primaryItem.currentData._skill||primaryItem.currentData._itemType||'').toLowerCase();
-      if(sk.includes('2h')||sk.includes('two hand')){
-        window['_upgTwoHander_'+name]=true;
-      }
-    }
-  }
-
   const is2hMode=!!(window['_upgTwoHander_'+name]);
 
   // (2H card already built above — removed from here)
@@ -3631,20 +3619,10 @@ window.applyDBToChar    = applyDBToChar;
 
   // Process a raw notes.txt update (IPC path) — fuzzy match → todEnqueue
   // Only processes NEW lines since last call to avoid re-firing old entries.
-  // On the very first call, treat the full file as baseline (already-seen) so
-  // pre-existing TOD entries don't pop up as new detections on watcher connect.
   let _lastNotesLineCount = 0;
-  let _notesBaselineSet = false;
   function _handleNotesUpdate(text, timestamp){
     if(!text) return;
     const allLines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    if(!_notesBaselineSet){
-      // First call: record current line count as already-seen, fire nothing
-      _lastNotesLineCount = allLines.length;
-      _notesBaselineSet = true;
-      console.log('[NOTES] Baseline set — ' + allLines.length + ' existing line(s) skipped');
-      return;
-    }
     // Only look at lines added since last call
     const newLines = allLines.slice(_lastNotesLineCount);
     _lastNotesLineCount = allLines.length;
@@ -6997,9 +6975,9 @@ function renderWatchlistBar(){
       const itemLink=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.78rem">${esc(item)}</a>`;
       const cells=visNames.map(n=>{
         const tracked=targets.includes(n);
-        if(!tracked)return`<td class="rc-check" style="width:120px"><span class="rc-check-na">N/A</span></td>`;
+        if(!tracked)return`<td style="text-align:left;color:var(--text-muted);font-size:1rem;font-weight:700;width:120px">N/A</td>`;
         const has=charHasItem(n,item);
-        return`<td class="rc-check" style="width:120px"><span class="${has?'rc-check-green':'rc-check-red'}" style="font-size:1.1rem">${has?'✔':'✘'}</span></td>`;
+        return`<td style="text-align:left;font-size:.8rem;font-weight:600;color:${has?'#3a7a3a':'#c03030'};width:120px">${has?'✔':'✘'}</td>`;
       }).join('');
       return`<tr><td style="padding:.2rem .5rem;white-space:nowrap">${itemLink}</td>${cells}</tr>`;
     }).join('');
@@ -7016,14 +6994,15 @@ function renderWatchlistBar(){
       const targets=ruleChars==='__all__'?allNames:Array.isArray(ruleChars)?ruleChars.filter(c=>allNames.includes(c)):allNames;
       const tracked=targets.includes(charName);
       const itemLink=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="min-width:0;color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.82rem;font-weight:600">${esc(item)}</a>`;
+      const badgeBase=`display:inline-flex;align-items:center;flex-shrink:0;font-size:.72rem;font-family:'Cinzel',serif;font-weight:700;letter-spacing:.04em;padding:.15rem .5rem;border-radius:3px;white-space:nowrap;line-height:1`;
       let badge;
       if(!tracked){
-        badge=`<span class="rc-check-na" style="flex-shrink:0;font-size:.8rem">N/A</span>`;
+        badge=`<span style="${badgeBase};color:#888;border:1px solid #999;background:rgba(128,128,128,.1)">N/A</span>`;
       } else {
         const has=charHasItem(charName,item);
         badge=has
-          ?`<span class="rc-check-green" style="flex-shrink:0;font-size:1.05rem;font-weight:700">✔</span>`
-          :`<span class="rc-check-red" style="flex-shrink:0;font-size:1.05rem;font-weight:700">✘</span>`;
+          ?`<span style="${badgeBase};color:#3a7a3a;border:1px solid #5a9a5a;background:rgba(58,122,58,.15)">✔ Have</span>`
+          :`<span style="${badgeBase};color:#c03030;border:1px solid #c03030;background:rgba(160,48,48,.12)">✘ Need</span>`;
       }
       return`<div style="display:grid;grid-template-columns:220px auto;align-items:center;padding:.22rem .5rem;border-bottom:1px solid var(--border)">${itemLink}${badge}</div>`;
     }).join('');
