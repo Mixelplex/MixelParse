@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MixelParse — TOD Alias Tester</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#12100d;color:#c8b890;font-family:'Segoe UI',sans-serif;padding:1.5rem;min-height:100vh}
+  h1{font-size:1.1rem;color:#c9a84c;letter-spacing:.1em;margin-bottom:1.2rem;font-family:Georgia,serif}
+  .layout{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+  .panel{background:#1a1510;border:1px solid #3a2e1a;border-radius:6px;padding:1.2rem}
+  .panel h2{font-size:.7rem;color:#8b6914;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.8rem;border-bottom:1px solid #2a2010;padding-bottom:.4rem}
+  .input-row{display:flex;gap:.5rem;margin-bottom:.8rem}
+  input[type=text]{flex:1;background:#0e0c09;border:1px solid #3a2e1a;color:#e8d5a0;padding:.5rem .7rem;border-radius:3px;font-size:.85rem;outline:none}
+  input[type=text]:focus{border-color:#8b6914}
+  button{background:#2a1e0a;border:1px solid #6a4e1a;color:#c9a84c;padding:.5rem .9rem;border-radius:3px;font-size:.8rem;cursor:pointer;white-space:nowrap}
+  button:hover{background:#3a2e1a}
+  button.danger{background:#2a1010;border-color:#6a2a2a;color:#c46a6a}
+  button.danger:hover{background:#3a1a1a}
+  button.success{background:#1a2a0a;border-color:#4a6a2a;color:#8fc46a}
+  .result-box{background:#0e0c09;border:1px solid #2a2010;border-radius:4px;padding:.7rem;min-height:48px;font-size:.85rem;margin-bottom:.6rem}
+  .result-box.match{border-color:#4a6a2a;color:#8fc46a}
+  .result-box.nomatch{border-color:#6a2a2a;color:#c46a6a}
+  .result-label{font-size:.6rem;color:#666;letter-spacing:.08em;margin-bottom:.3rem}
+  table{width:100%;border-collapse:collapse;font-size:.78rem}
+  th{text-align:left;color:#8b6914;font-size:.62rem;letter-spacing:.1em;padding:.4rem .5rem;border-bottom:1px solid #2a2010}
+  td{padding:.35rem .5rem;border-bottom:1px solid #1a1510;vertical-align:top}
+  tr:hover td{background:#1e1a10}
+  .boss-name{color:#e8d5a0}
+  .full-name{color:#8b6914;font-size:.72rem}
+  .aliases{color:#666;font-size:.72rem;font-family:monospace}
+  .alias-tag{display:inline-block;background:#1a1510;border:1px solid #2a2010;border-radius:2px;padding:.1rem .3rem;margin:.1rem .1rem 0 0;cursor:pointer;transition:border-color .15s}
+  .alias-tag:hover{border-color:#8b6914;color:#c9a84c}
+  .hit{border-color:#4a6a2a!important;color:#8fc46a!important;background:#0a1a0a!important}
+  .bulk-results{margin-top:.6rem;max-height:300px;overflow-y:auto}
+  .bulk-row{display:flex;justify-content:space-between;padding:.25rem .4rem;border-radius:3px;font-size:.75rem;font-family:monospace}
+  .bulk-row.ok{background:#0a1a0a;color:#8fc46a}
+  .bulk-row.fail{background:#1a0a0a;color:#c46a6a}
+  .summary{font-size:.75rem;margin-top:.5rem;color:#c9a84c}
+</style>
+</head>
+<body>
+<h1>⚔ MixelParse — TOD Alias Tester</h1>
+<div class="layout">
+  <div>
+    <div class="panel" style="margin-bottom:1rem">
+      <h2>Test a /note command</h2>
+      <div class="input-row">
+        <input type="text" id="noteInput" placeholder="e.g. kt, aow, lord bob, gorenaire..." autofocus>
+        <button onclick="testNote()">Test</button>
+      </div>
+      <div class="result-label">RESULT</div>
+      <div class="result-box" id="resultBox">Enter an alias above and click Test</div>
+    </div>
+
+    <div class="panel">
+      <h2>Bulk test — all aliases</h2>
+      <div class="input-row">
+        <button class="success" onclick="runBulkTest()" style="flex:1">Run All Aliases</button>
+        <button class="danger" onclick="clearBulk()">Clear</button>
+      </div>
+      <div class="summary" id="bulkSummary"></div>
+      <div class="bulk-results" id="bulkResults"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Boss list — click any alias to test it</h2>
+    <table>
+      <thead><tr><th>Boss</th><th>Aliases</th></tr></thead>
+      <tbody id="bossTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const BOSS_LIST = [
+  { target: 'Dozekar',         full: 'Dozekar the Cursed',          aliases: ['dozekar', 'doze'] },
+  { target: 'Avatar of War',   full: 'Avatar of War',               aliases: ['avatar', 'aow', 'avt'] },
+  { target: 'Dain',            full: 'Dain Frostreaver IV',         aliases: ['dain'] },
+  { target: 'Statue',          full: 'Statue of Rallos Zek',        aliases: ['statue', 'srz', 'stat'] },
+  { target: 'Takish',          full: 'Guardian of Takish',          aliases: ['takish', 'tak'] },
+  { target: 'Tormax',          full: 'King Tormax',                 aliases: ['tormax', 'torm', 'kt'] },
+  { target: 'Tunare',          full: 'Tunare',                      aliases: ['tunare', 'tuna'] },
+  { target: 'Cazic Thule',     full: 'Cazic Thule',                 aliases: ['cazic', 'caz', 'ct'] },
+  { target: 'Eashen',          full: 'Eashen of the Sky',           aliases: ['eashen', 'eas'] },
+  { target: 'MOTG',            full: 'Master of the Guard',         aliases: ['motg', 'master of the guard'] },
+  { target: 'Phara Dar',       full: 'Phara Dar',                   aliases: ['phara', 'phar', 'pd'] },
+  { target: 'Prog',            full: 'The Progenitor',              aliases: ['prog', 'progenitor'] },
+  { target: 'TFA',             full: 'The Final Arbiter',           aliases: ['tfa', 'arbiter'] },
+  { target: 'Vyemm',           full: 'Lord Vyemm',                  aliases: ['vyemm', 'vyem'] },
+  { target: 'Yelinak',         full: 'Lord Yelinak',                aliases: ['yelinak', 'yeli', 'yel'] },
+  { target: 'Aaryonar',        full: 'Aaryonar',                    aliases: ['aaryonar', 'aary'] },
+  { target: 'Dagarn',          full: 'Dagarn the Destroyer',        aliases: ['dagarn', 'dag'] },
+  { target: 'Dracoliche',      full: 'Dracoliche',                  aliases: ['dracoliche', 'draco', 'drac'] },
+  { target: 'Druushk',         full: 'Druushk',                     aliases: ['druushk', 'druu'] },
+  { target: 'Feshlak',         full: 'Lord Feshlak',                aliases: ['feshlak', 'fesh'] },
+  { target: 'Hoshkar',         full: 'Hoshkar',                     aliases: ['hoshkar', 'hosh'] },
+  { target: 'Jorlleag',        full: 'Jorlleag',                    aliases: ['jorlleag', 'jorl'] },
+  { target: 'Klandicar',       full: 'Klandicar',                   aliases: ['klandicar', 'klan', 'klandi'] },
+  { target: 'Koi',             full: "Lord Koi'Doken",              aliases: ['koi'] },
+  { target: 'Kreizenn',        full: 'Lord Kreizenn',               aliases: ['kreizenn', 'krei', 'kreiz'] },
+  { target: 'LTK',             full: 'Lendiniara the Keeper',       aliases: ['ltk'] },
+  { target: "Magi P'Tasa",     full: "Magi P'Tasa",                 aliases: ['magi', 'ptasa', 'mpt'] },
+  { target: 'Mirenilla',       full: 'Lady Mirenilla',              aliases: ['mirenilla', 'mire', 'mir', 'ladym'] },
+  { target: 'Nevederia',       full: 'Lady Nevederia',              aliases: ['nevederia', 'neve', 'nev'] },
+  { target: 'Sontalak',        full: 'Sontalak',                    aliases: ['sontalak', 'sont', 'son'] },
+  { target: 'Vulak',           full: "Vulak'Aerr",                  aliases: ['vulak', 'vul'] },
+  { target: 'Zlandicar',       full: 'Zlandicar',                   aliases: ['zlandicar', 'zlan', 'zlandi'] },
+  { target: 'Ashenbone Broodmaster', full: 'Ashenbone Broodmaster', aliases: ['ashen', 'brod'] },
+  { target: 'Bazzt Zzzt',      full: 'Bazzt Zzzt',                  aliases: ['bazzt', 'bazz'] },
+  { target: 'Cekenar',         full: 'Cekenar',                     aliases: ['cekenar', 'cek'] },
+  { target: 'Essedera',        full: 'Essedera',                    aliases: ['essedera', 'esse', 'ess'] },
+  { target: 'Gorenaire',       full: 'Gorenaire',                   aliases: ['gorenaire', 'gore', 'goren'] },
+  { target: 'Gozzrem',         full: 'Gozzrem',                     aliases: ['gozzrem', 'gozz'] },
+  { target: 'Ikatiar',         full: 'Ikatiar the Venom',           aliases: ['ikatiar', 'ikat', 'ikky'] },
+  { target: 'Kelorek Dar',     full: 'Kelorek Dar',                 aliases: ['kelorek', 'kelo'] },
+  { target: 'Kozzalym',        full: 'Kozzalym',                    aliases: ['kozzalym', 'kozz'] },
+  { target: 'Lepethida',       full: 'Lepethida',                   aliases: ['lepethida', 'lep'] },
+  { target: 'Lord of Ire',     full: 'Lord of Ire',                 aliases: ['ire'] },
+  { target: 'Nexona',          full: 'Nexona',                      aliases: ['nexona', 'nex'] },
+  { target: 'Sevalak',         full: 'Sevalak',                     aliases: ['sevalak', 'seva', 'sev'] },
+  { target: 'Severilous',      full: 'Severilous',                  aliases: ['severilous', 'sevr'] },
+  { target: 'Silverwing',      full: 'Silverwing',                  aliases: ['silverwing', 'silv', 'sw'] },
+  { target: 'Trakanon',        full: 'Trakanon',                    aliases: ['trakanon', 'trak'] },
+  { target: 'VS',              full: 'Venril Sathir',               aliases: ['vs', 'venril'] },
+  { target: 'Vaniki',          full: 'Vaniki',                      aliases: ['vaniki', 'van'] },
+  { target: 'Vox',             full: 'Lady Vox',                    aliases: ['vox'] },
+  { target: 'Xygoz',           full: 'Xygoz',                       aliases: ['xygoz', 'xyg'] },
+  { target: 'Zlexak',          full: 'Zlexak',                      aliases: ['zlexak', 'zlex'] },
+  { target: 'Dread',           full: 'Dread',                       aliases: ['dread'] },
+  { target: 'Fright',          full: 'Fright',                      aliases: ['fright'] },
+  { target: 'Naggy',           full: 'Lord Nagafen',                aliases: ['naggy', 'nagafen'] },
+  { target: 'Talendor',        full: 'Talendor',                    aliases: ['talendor', 'tal'] },
+  { target: 'Telk',            full: 'Telkorenar',                  aliases: ['telk', 'telkorenar'] },
+  { target: 'Terror',          full: 'Terror',                      aliases: ['terror', 'terr'] },
+  { target: 'Velketor',        full: 'Velketor the Sorcerer',       aliases: ['velketor', 'velk'] },
+  { target: 'Garzicor',        full: 'Garzicor',                    aliases: ['garzicor', 'garz'] },
+  { target: 'Inny',            full: 'Innoruuk',                    aliases: ['inny', 'innoruuk'] },
+  { target: 'KDT',             full: "Keldor Dek'Torek",            aliases: ['kdt', 'keldor'] },
+  { target: 'Vindi',           full: 'Derakor the Vindicator',      aliases: ['vindi', 'derakor'] },
+  { target: 'Wuoshi',          full: 'Wuoshi',                      aliases: ['wuoshi', 'wuo'] },
+  { target: 'Yael',            full: 'Yael',                        aliases: ['yael'] },
+  { target: 'Lord Bob',        full: 'Lord Doljonijiarnimorinar',    aliases: ['lord bob', 'bob'] },
+  { target: 'Vilefang',        full: 'Vilefang',                    aliases: ['vilefang', 'vile'] },
+];
+
+function fuzzyMatch(text) {
+  const t = text.toLowerCase().trim();
+  for (const boss of BOSS_LIST) {
+    if (t.includes(boss.full.toLowerCase())) return boss;
+    for (const alias of boss.aliases) {
+      const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp('(^|\\s)' + escaped + '(\\s|$)', 'i');
+      if (re.test(t)) return boss;
+    }
+  }
+  return null;
+}
+
+function testNote(val) {
+  const input = document.getElementById('noteInput');
+  const text = val !== undefined ? val : input.value.trim();
+  if (val !== undefined) input.value = val;
+  const box = document.getElementById('resultBox');
+  if (!text) { box.className = 'result-box'; box.textContent = 'Enter an alias above and click Test'; return; }
+  const match = fuzzyMatch(text);
+  if (match) {
+    box.className = 'result-box match';
+    box.innerHTML = `✔ MATCH &nbsp;→&nbsp; <strong>${match.full}</strong> <span style="color:#666;font-size:.75rem">(target: ${match.target})</span>`;
+  } else {
+    box.className = 'result-box nomatch';
+    box.textContent = `✘ NO MATCH for "${text}"`;
+  }
+  // Highlight matching row
+  document.querySelectorAll('.alias-tag').forEach(el => el.classList.remove('hit'));
+  if (match) {
+    document.querySelectorAll(`.alias-tag[data-boss="${match.target}"]`).forEach(el => el.classList.add('hit'));
+  }
+}
+
+function runBulkTest() {
+  const results = [];
+  let pass = 0, fail = 0;
+  for (const boss of BOSS_LIST) {
+    // Test each alias
+    for (const alias of boss.aliases) {
+      const match = fuzzyMatch(alias);
+      const ok = match && match.target === boss.target;
+      results.push({ alias, expected: boss.target, got: match ? match.target : 'NO MATCH', ok });
+      if (ok) pass++; else fail++;
+    }
+    // Test full name
+    const matchFull = fuzzyMatch(boss.full);
+    const okFull = matchFull && matchFull.target === boss.target;
+    results.push({ alias: boss.full, expected: boss.target, got: matchFull ? matchFull.target : 'NO MATCH', ok: okFull });
+    if (okFull) pass++; else fail++;
+  }
+  const container = document.getElementById('bulkResults');
+  container.innerHTML = results.map(r =>
+    `<div class="bulk-row ${r.ok ? 'ok' : 'fail'}">
+      <span>${r.ok ? '✔' : '✘'} <strong>${r.alias}</strong></span>
+      <span>${r.ok ? r.got : `expected ${r.expected}, got ${r.got}`}</span>
+    </div>`
+  ).join('');
+  document.getElementById('bulkSummary').textContent = `${pass} passed / ${fail} failed`;
+}
+
+function clearBulk() {
+  document.getElementById('bulkResults').innerHTML = '';
+  document.getElementById('bulkSummary').textContent = '';
+}
+
+// Build boss table
+const tbody = document.getElementById('bossTable');
+for (const boss of BOSS_LIST) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><div class="boss-name">${boss.target}</div><div class="full-name">${boss.full}</div></td>
+    <td class="aliases">${boss.aliases.map(a =>
+      `<span class="alias-tag" data-boss="${boss.target}" onclick="testNote('${a.replace(/'/g,"\\'")}')">/${a}</span>`
+    ).join('')}</td>`;
+  tbody.appendChild(tr);
+}
+
+// Enter key support
+document.getElementById('noteInput').addEventListener('keydown', e => { if(e.key === 'Enter') testNote(); });
+</script>
+</body>
+</html>

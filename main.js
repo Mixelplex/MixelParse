@@ -5,8 +5,8 @@ const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 
-// ─── Root path (repo root, one level up from electron/) ───────────────────────
-const ROOT = path.join(__dirname, '..');
+// ─── Root path (repo root) ────────────────────────────────────────────────────
+const ROOT = app.getAppPath();
 
 // ─── Paths ────────────────────────────────────────────────────────────────────
 const CONFIG_PATH  = path.join(app.getPath('userData'), 'config.json');
@@ -107,6 +107,13 @@ function createMainWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+  });
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    // Re-broadcast full watcher state after renderer loads — startup events may have fired before it was ready
+    if (watcherModule && watcherModule.sendFullSnapshot) {
+      setTimeout(() => watcherModule.sendFullSnapshot(), 500);
+    }
   });
 
   mainWindow.on('minimize', (e) => {

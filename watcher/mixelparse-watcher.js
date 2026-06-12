@@ -1130,7 +1130,7 @@ const NOTES_BOSS_LIST = [
   { target: 'Dain',            full: 'Dain Frostreaver IV',         aliases: ['dain'] },
   { target: 'Statue',          full: 'Statue of Rallos Zek',        aliases: ['statue', 'srz', 'stat'] },
   { target: 'Takish',          full: 'Guardian of Takish',          aliases: ['takish', 'tak'] },
-  { target: 'Tormax',          full: 'King Tormax',                 aliases: ['tormax', 'torm'] },
+  { target: 'Tormax',          full: 'King Tormax',                 aliases: ['tormax', 'torm', 'kt'] },
   { target: 'Tunare',          full: 'Tunare',                      aliases: ['tunare', 'tuna'] },
   { target: 'Cazic Thule',     full: 'Cazic Thule',                 aliases: ['cazic', 'caz', 'ct'] },
   { target: 'Eashen',          full: 'Eashen of the Sky',           aliases: ['eashen', 'eas'] },
@@ -1147,16 +1147,16 @@ const NOTES_BOSS_LIST = [
   { target: 'Feshlak',         full: 'Lord Feshlak',                aliases: ['feshlak', 'fesh'] },
   { target: 'Hoshkar',         full: 'Hoshkar',                     aliases: ['hoshkar', 'hosh'] },
   { target: 'Jorlleag',        full: 'Jorlleag',                    aliases: ['jorlleag', 'jorl'] },
-  { target: 'Klandicar',       full: 'Klandicar',                   aliases: ['klandicar', 'klan'] },
+  { target: 'Klandicar',       full: 'Klandicar',                   aliases: ['klandicar', 'klan', 'klandi'] },
   { target: 'Koi',             full: "Lord Koi'Doken",              aliases: ['koi'] },
-  { target: 'Kreizenn',        full: 'Lord Kreizenn',               aliases: ['kreizenn', 'krei'] },
+  { target: 'Kreizenn',        full: 'Lord Kreizenn',               aliases: ['kreizenn', 'krei', 'kreiz'] },
   { target: 'LTK',             full: 'Lendiniara the Keeper',       aliases: ['ltk'] },
   { target: "Magi P'Tasa",     full: "Magi P'Tasa",                 aliases: ['magi', 'ptasa', 'mpt'] },
   { target: 'Mirenilla',       full: 'Lady Mirenilla',              aliases: ['mirenilla', 'mire', 'mir', 'ladym'] },
   { target: 'Nevederia',       full: 'Lady Nevederia',              aliases: ['nevederia', 'neve', 'nev'] },
   { target: 'Sontalak',        full: 'Sontalak',                    aliases: ['sontalak', 'sont', 'son'] },
   { target: 'Vulak',           full: "Vulak'Aerr",                  aliases: ['vulak', 'vul'] },
-  { target: 'Zlandicar',       full: 'Zlandicar',                   aliases: ['zlandicar', 'zlan'] },
+  { target: 'Zlandicar',       full: 'Zlandicar',                   aliases: ['zlandicar', 'zlan', 'zlandi'] },
   { target: 'Ashenbone Broodmaster', full: 'Ashenbone Broodmaster', aliases: ['ashen', 'brod'] },
   { target: 'Bazzt Zzzt',      full: 'Bazzt Zzzt',                  aliases: ['bazzt', 'bazz'] },
   { target: 'Cekenar',         full: 'Cekenar',                     aliases: ['cekenar', 'cek'] },
@@ -1195,30 +1195,16 @@ const NOTES_BOSS_LIST = [
   { target: 'Vilefang',        full: 'Vilefang',                    aliases: ['vilefang', 'vile'] },
 ];
 
-// Dedup key = full trimmed line content (timestamp + text)
-const _notesSeenFile = path.join(__dirname, 'mixelparse-notesseen.json');
-let notesSeen = new Set();
-try {
-  const raw = fs.readFileSync(_notesSeenFile, 'utf8');
-  const arr = JSON.parse(raw);
-  notesSeen = new Set(arr);
-  console.log(`[NOTES] Loaded ${notesSeen.size} seen note(s) from disk`);
-} catch (e) {
-  console.log('[NOTES] No seen-notes file found, starting fresh');
-}
-function saveNotesSeen() {
-  try { fs.writeFileSync(_notesSeenFile, JSON.stringify([...notesSeen])); } catch (e) {}
-}
-
 // RE: [Day Mon DD HH:MM:SS YYYY ] text
 const RE_NOTE_LINE = /^\[(\w+ \w+ +\d+ [\d:]+ \d+) \] (.+)$/;
+
+// Track file position so we only process lines written after watcher started
+let _notesPos = 0;
 
 function fuzzyMatchBoss(text) {
   const t = text.toLowerCase().trim();
   for (const boss of NOTES_BOSS_LIST) {
-    // Check full name
     if (t.includes(boss.full.toLowerCase())) return boss;
-    // Check aliases — must appear as a whole token
     for (const alias of boss.aliases) {
       const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const re = new RegExp('(^|\\s)' + escaped + '(\\s|$)', 'i');
@@ -1228,35 +1214,46 @@ function fuzzyMatchBoss(text) {
   return null;
 }
 
-function processNotesFile(filepath) {
-  try {
-    const content = fs.readFileSync(filepath, 'utf8');
-    const lines = content.split('\n');
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      if (notesSeen.has(trimmed)) continue; // already processed
-      notesSeen.add(trimmed);
-      const m = trimmed.match(RE_NOTE_LINE);
-      if (!m) continue;
-      const timestamp = m[1];
-      const text = m[2];
-      const boss = fuzzyMatchBoss(text);
-      if (boss) {
-        console.log(`[NOTES] TOD detected: "${text}" → ${boss.target} (${boss.full})`);
-        broadcast({ type: 'todNote', target: boss.target, full: boss.full, noteText: text, timestamp });
-      }
+function processNotesLines(lines) {
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const m = trimmed.match(RE_NOTE_LINE);
+    if (!m) continue;
+    const timestamp = m[1];
+    const text = m[2];
+    const boss = fuzzyMatchBoss(text);
+    if (boss) {
+      console.log(`[NOTES] TOD detected: "${text}" → ${boss.target} (${boss.full})`);
+      broadcast({ type: 'todNote', target: boss.target, full: boss.full, noteText: text, timestamp });
     }
-    saveNotesSeen();
+  }
+}
+
+function tailNotesFile(filepath) {
+  try {
+    const stat = fs.statSync(filepath);
+    if (stat.size <= _notesPos) return; // no new content
+    const fd = fs.openSync(filepath, 'r');
+    const buf = Buffer.alloc(stat.size - _notesPos);
+    const read = fs.readSync(fd, buf, 0, buf.length, _notesPos);
+    fs.closeSync(fd);
+    _notesPos += read;
+    const lines = buf.slice(0, read).toString('utf8').split('\n');
+    processNotesLines(lines);
   } catch (e) {
     console.error(`[NOTES] Error reading notes file: ${e.message}`);
   }
 }
 
-// Initial read of notes file
+// On startup, seek to end of file — only process new notes written after watcher starts
 if (fs.existsSync(CONFIG.NOTES_FILE)) {
-  console.log(`[NOTES] Reading existing notes from ${CONFIG.NOTES_FILE}`);
-  processNotesFile(CONFIG.NOTES_FILE);
+  try {
+    _notesPos = fs.statSync(CONFIG.NOTES_FILE).size;
+    console.log(`[NOTES] notes.txt found — seeked to end (${_notesPos} bytes), watching for new entries`);
+  } catch (e) {
+    console.log(`[NOTES] Could not stat notes file: ${e.message}`);
+  }
 } else {
   console.log(`[NOTES] notes.txt not found at ${CONFIG.NOTES_FILE} — will watch for creation`);
 }
@@ -1269,11 +1266,49 @@ const notesWatcher = chokidar.watch(CONFIG.NOTES_FILE, {
   awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
   disableGlobbing: true,
 });
-notesWatcher.on('add',    fp => { console.log('[NOTES] notes.txt appeared'); processNotesFile(fp); });
-notesWatcher.on('change', fp => processNotesFile(fp));
+notesWatcher.on('add',    fp => { _notesPos = 0; tailNotesFile(fp); });
+notesWatcher.on('change', fp => tailNotesFile(fp));
 notesWatcher.on('error',  e  => console.error('[NOTES] Watcher error:', e));
 
 initialLogScan();
+
+// Startup: scan existing log files to populate zone state immediately
+try {
+  const myChars = getMyChars();
+  const files = fs.readdirSync(CONFIG.LOG_DIR);
+  for (const f of files) {
+    if (!/^eqlog_.+_P1999Green\.txt$/i.test(f)) continue;
+    const m = f.match(/^eqlog_([^_]+)_/i);
+    if (!m || !myChars.has(m[1].toLowerCase())) continue;
+    const charName = m[1];
+    const fp = path.join(CONFIG.LOG_DIR, f);
+    // Scan last 50KB for most recent zone line
+    try {
+      const stat = fs.statSync(fp);
+      const readSize = Math.min(50 * 1024, stat.size);
+      const buf = Buffer.alloc(readSize);
+      const fd = fs.openSync(fp, 'r');
+      fs.readSync(fd, buf, 0, readSize, stat.size - readSize);
+      fs.closeSync(fd);
+      const lines = buf.toString('utf8').split('\n').reverse();
+      for (const line of lines) {
+        const zm = line.match(/You have entered (.+)\./);
+        if (zm) {
+          const zone = zm[1].trim();
+          zoneState[charName] = { zone, timestamp: new Date().toISOString() };
+          console.log(`[ZONE] ${charName} startup zone → ${zone}`);
+          break;
+        }
+      }
+    } catch (e) {
+      console.error(`[ZONE] Startup scan error for ${charName}: ${e.message}`);
+    }
+  }
+  // Save and broadcast all found zones
+  saveZoneState();
+} catch (e) {
+  console.error('[ZONE] Startup scan failed:', e.message);
+}
 
 // Watch for changes — only tail files for our chars
 const logWatcher = chokidar.watch(CONFIG.LOG_DIR, {

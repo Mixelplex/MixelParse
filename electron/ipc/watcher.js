@@ -198,6 +198,8 @@ function startLogWatcher() {
     // Seek to end on first add (don't replay history)
     try { logPositions[key] = fs.statSync(fp).size; } catch {}
     saveLogPositions();
+    // Scan tail of log for last zone visited and broadcast immediately
+    scanLastZoneFromLog(fp, charName);
   });
 
   watcher.on('change', (fp) => {
@@ -210,6 +212,31 @@ function startLogWatcher() {
   watcher.on('error', e => err('Log watcher error:', e.message));
   _watchers.push(watcher);
   log('Log watcher started for chars:', myChars.join(', '));
+}
+
+function scanLastZoneFromLog(fp, charName) {
+  // Read last 50KB of log, scan backwards for most recent "You have entered X." line
+  try {
+    const stat = fs.statSync(fp);
+    const readSize = Math.min(50 * 1024, stat.size);
+    const buf = Buffer.alloc(readSize);
+    const fd = fs.openSync(fp, 'r');
+    fs.readSync(fd, buf, 0, readSize, stat.size - readSize);
+    fs.closeSync(fd);
+    const lines = buf.toString('utf8').split('\n').reverse();
+    for (const line of lines) {
+      const m = line.match(/You have entered (.+)\./);
+      if (m) {
+        const zone = m[1].trim();
+        zoneState[charName] = { zone, timestamp: new Date().toISOString() };
+        broadcast({ type: 'zoneUpdate', charName, zone, timestamp: new Date().toISOString() });
+        log(`[ZONE] ${charName} startup zone → ${zone}`);
+        return;
+      }
+    }
+  } catch (e) {
+    err(`[ZONE] scanLastZoneFromLog error for ${charName}:`, e.message);
+  }
 }
 
 function extractCharFromLog(fp) {
