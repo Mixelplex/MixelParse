@@ -1782,6 +1782,15 @@ function renderUpgradesPanel(){
       const sk=(primaryItem.currentData._skill||primaryItem.currentData._itemType||'').toLowerCase();
       if(sk.includes('2h')||sk.includes('two hand')){
         window['_upgTwoHander_'+name]=true;
+      } else {
+        // currentData may lack _skill if item isn't in local baked DB (Supabase-only items).
+        // Fall back: check if the equipped PRIMARY item name appears in the all2h candidates list.
+        const equippedName=primaryItem.item.name;
+        const all2hCard=slotResults.find(sr=>sr.is2hCard);
+        const all2hCandidates=all2hCard?all2hCard.candidates:all2h;
+        if(all2hCandidates&&all2hCandidates.some(c=>c.name===equippedName)){
+          window['_upgTwoHander_'+name]=true;
+        }
       }
     }
   }
@@ -3758,14 +3767,15 @@ window.applyDBToChar    = applyDBToChar;
 
   // Inject status indicator into the toolbar when DOM is ready
   function injectStatusBadge(){
-    const toolbar = document.querySelector('.header-top-bar') || document.querySelector('header') || document.body;
     if(document.getElementById('watcher-status')) return;
-    const badge = document.createElement('span');
+    const badge = document.createElement('div');
     badge.id = 'watcher-status';
-    badge.style.cssText = 'font-size:.7rem;cursor:default;margin-left:.6rem;color:#666;font-family:monospace;user-select:none';
+    badge.style.cssText = 'font-size:.7rem;cursor:default;color:#666;font-family:monospace;user-select:none;margin-top:.25rem;text-align:center';
     badge.textContent = '◯ Watcher';
     badge.title = 'Inventory Watcher not running — launch mixelparse-watcher.exe to auto-load inventory files';
-    toolbar.appendChild(badge);
+    const titleBlock = document.querySelector('.header-title-block');
+    if(titleBlock) titleBlock.appendChild(badge);
+    else (document.querySelector('.header-top-bar') || document.body).appendChild(badge);
   }
 
   // ── Electron IPC path ────────────────────────────────────────────────────────
