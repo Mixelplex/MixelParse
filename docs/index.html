@@ -61,7 +61,7 @@
   td{padding:.42rem .75rem;color:var(--text);vertical-align:middle}
   .td-name{font-weight:500}.td-char{font-size:.78rem;color:var(--text-muted);font-style:italic}
   .td-location{font-size:.78rem;color:var(--text-dim);white-space:nowrap}
-  .td-count{text-align:right;color:var(--text-dim);font-variant-numeric:tabular-nums}
+  .td-count{text-align:center;color:var(--text-dim);font-variant-numeric:tabular-nums}
   .td-count.stack{color:var(--gold-light);font-weight:500}
   td.td-id{font-size:.78rem;color:var(--text-muted);font-variant-numeric:tabular-nums}
   .badge{display:inline-block;padding:.08rem .38rem;border-radius:2px;font-size:.7rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;white-space:nowrap}
@@ -761,7 +761,7 @@
           <th data-col="name">Name <span class="sort-arrow">&#8597;</span></th>
           <th data-col="char" id="th-char">Character <span class="sort-arrow">&#8597;</span></th>
           <th data-col="location">Location <span class="sort-arrow">&#8597;</span></th>
-          <th data-col="count">Qty <span class="sort-arrow">&#8597;</span></th>
+          <th data-col="count" style="text-align:center">Qty <span class="sort-arrow">&#8597;</span></th>
           <th data-col="id" class="th-id">ID <span class="sort-arrow">&#8597;</span></th>
         </tr></thead>
         <tbody id="invBody"></tbody>
@@ -846,6 +846,8 @@ const MELEE_DPS_CLASSES=new Set(['Warrior','Monk','Rogue','Ranger','Bard','Palad
 // Classes that get ONE weapon (MH only) — no dual-wield, so SECONDARY is shields/offhands only.
 // weaponDpsScore returns 0 for these classes in the SECONDARY slot.
 const CLASS_NO_DW=new Set(['Paladin','Shadow Knight']);
+// Classes that can equip shields in SECONDARY slot (WAR: shield or weapon; PAL/SHD: shield only).
+const CLASS_SHIELD_OK=new Set(['Warrior','Paladin','Shadow Knight']);
 
 // Damage cap per class. WAR/PAL/SHD are plate tanks — cap 100. Lighter melee — cap 200.
 const CLASS_DMG_CAP={'Warrior':100,'Paladin':100,'Shadow Knight':100,'Monk':200,'Rogue':200,'Ranger':200,'Bard':200};
@@ -1549,7 +1551,6 @@ function renderUpgradesPanel(){
     currentData.ac=Number(_db.ac||0)||Number(_cg.ac||0)||undefined;
     // Weapon-slot skill filter: MNK (H2H/1HB/2HB only) and ROG (1H+piercing only)
     const wepSkillFilter=CLASS_WEAPON_SKILLS[charClass];
-    const CLASS_SHIELD_OK=new Set(['Warrior','Paladin','Shadow Knight']);
     function wepSkillOk(c){
       if(dbSlot!=='PRIMARY'&&dbSlot!=='SECONDARY')return true;
       const cSlot=(c._slot||'').toUpperCase();
@@ -1571,7 +1572,7 @@ function renderUpgradesPanel(){
       }
       if(!sk||!c.dmg)return true;
       // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
-      if(!window._upgTwoHander&&(sk.includes('2h')||sk.includes('two hand')))return false;
+      if(!window['_upgTwoHander_'+name]&&(sk.includes('2h')||sk.includes('two hand')))return false;
       if(!wepSkillFilter)return true;
       return wepSkillFilter.some(s=>sk.includes(s));
     }
@@ -1618,7 +1619,7 @@ function renderUpgradesPanel(){
         }
         if(!sk||!c.dmg)return true;
         // Exclude 2H weapons from MH/OH for ALL classes when 2H mode is off
-        if(!window._upgTwoHander&&(sk.includes('2h')||sk.includes('two hand')))return false;
+        if(!window['_upgTwoHander_'+name]&&(sk.includes('2h')||sk.includes('two hand')))return false;
         if(!emptyWepSkill)return true;
         return emptyWepSkill.some(s=>sk.includes(s));
       }
@@ -1773,7 +1774,19 @@ function renderUpgradesPanel(){
     sr.cardId=slotCount[sr.dbSlot]>1?sr.dbSlot+slotSeen[sr.dbSlot]:sr.dbSlot;
   });
 
-  const is2hMode=!!(window._upgTwoHander);
+  // Auto-detect 2H mode: if character currently has a 2H weapon in PRIMARY, enable 2H mode automatically
+  // (only on first render — don't override a manual toggle-off)
+  if(window['_upgTwoHander_'+name]===undefined){
+    const primaryItem=slotResults.find(sr=>sr.dbSlot==='PRIMARY'&&!sr.isEmpty&&!sr.is2hCard);
+    if(primaryItem){
+      const sk=(primaryItem.currentData._skill||primaryItem.currentData._itemType||'').toLowerCase();
+      if(sk.includes('2h')||sk.includes('two hand')){
+        window['_upgTwoHander_'+name]=true;
+      }
+    }
+  }
+
+  const is2hMode=!!(window['_upgTwoHander_'+name]);
 
   // (2H card already built above — removed from here)
 
@@ -1793,7 +1806,8 @@ function renderUpgradesPanel(){
     const scoreStr=hasBest?(best._effGain>=0?'+':'')+best._effGain+' pts':'—';
     const isWepSlotCard=dbSlot==='PRIMARY'||dbSlot==='SECONDARY'||dbSlot==='TWOHANDER';
     const opts=candidates.length?`<option value="">— Select —</option>`+candidates.map((c,i)=>{
-      let label=esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
+      const prefix=c._effGain>0?'▲ ':c._effGain<0?'▼ ':'';
+      let label=prefix+esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
       if(isWepSlotCard&&(c.dmg||c.delay)){const dps=weaponDpsScore(c,dbSlot,charClass,charLevel,baselineTotals);if(dps>0)label+=` [${Math.round(dps*100)/10} dps]`;}
       return `<option value="${i}">${label}</option>`;
     }).join(''):'';
@@ -1856,7 +1870,7 @@ function renderUpgradesPanel(){
   const saveBar=`<div class="upg-save-bar">
     <span class="upg-save-label">Gear planner \u2014 ${esc(name)}</span>
     <label class="upg-2h-toggle" title="Score 2H weapons; disables MH and OH slots">
-      <input type="checkbox" id="upg2hCheck" ${is2hMode?'checked':''} onchange="window._upgTwoHander=this.checked;renderUpgradesPanel()">
+      <input type="checkbox" id="upg2hCheck" ${is2hMode?'checked':''} onchange="window['_upgTwoHander_'+'${name}']=this.checked;renderUpgradesPanel()">
       <span class="upg-2h-track"><span class="upg-2h-thumb"></span></span>
       <span class="upg-2h-label">2H Mode</span>
     </label>
@@ -2082,7 +2096,8 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
   if(altRowEl){
     const isWepSlotAlt=sr.dbSlot==='PRIMARY'||sr.dbSlot==='SECONDARY'||sr.dbSlot==='TWOHANDER';
     const opts=`<option value="">— Select —</option>`+sr.candidates.map((c,i)=>{
-      let label=esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
+      const prefix=c._effGain>0?'▲ ':c._effGain<0?'▼ ':'';
+      let label=prefix+esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
       if(isWepSlotAlt&&(c.dmg||c.delay)){const dps=weaponDpsScore(c,sr.dbSlot,meta.class||'',meta.level||60,null);if(dps>0)label+=` [${Math.round(dps*100)/10} dps]`;}
       return `<option value="${i}"${i===selIdx?' selected':''}>${label}</option>`;
     }).join('');
@@ -2121,7 +2136,7 @@ window.upgRefreshStatSheet=function(){
   }
   // Projected: apply current alt-select choices; also tally costs
   const proj=Object.assign({},cur);
-  const is2hModeSheet=!!(window._upgTwoHander);
+  const is2hModeSheet=!!(window['_upgTwoHander_'+name]);
   let totalDkp=0,totalPlat=0;
   if(window._upgSlots){
     for(const sr of window._upgSlots){
@@ -3556,7 +3571,7 @@ window.parseItemDB      = parseItemDB;
 window.applyDBToChar    = applyDBToChar;
 // classFromFilename and raceFromFilename are scoped inside parseItemDB;
 
-// ── Inventory Watcher listener (WebSocket OR Electron IPC) ────────────────────
+// ── Inventory Watcher listener (WebSocket OR Electron IPC) ── v30 ─────────────
 // Web mode:      connects to ws://127.0.0.1:27182 (mixelparse-watcher.exe)
 // Electron mode: uses window.MixelParseApp.onWatcherEvent() IPC bridge instead
 (function initWatcherSocket(){
@@ -3615,22 +3630,34 @@ window.applyDBToChar    = applyDBToChar;
   ];
 
   // Process a raw notes.txt update (IPC path) — fuzzy match → todEnqueue
+  // Only processes NEW lines since last call to avoid re-firing old entries.
+  // On the very first call, treat the full file as baseline (already-seen) so
+  // pre-existing TOD entries don't pop up as new detections on watcher connect.
+  let _lastNotesLineCount = 0;
+  let _notesBaselineSet = false;
   function _handleNotesUpdate(text, timestamp){
     if(!text) return;
-    const lower = text.toLowerCase();
-    // Deduplicate: scan each line in the file looking for the newest boss entry
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    const seen = new Set();
-    for(const line of lines){
+    const allLines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    if(!_notesBaselineSet){
+      // First call: record current line count as already-seen, fire nothing
+      _lastNotesLineCount = allLines.length;
+      _notesBaselineSet = true;
+      console.log('[NOTES] Baseline set — ' + allLines.length + ' existing line(s) skipped');
+      return;
+    }
+    // Only look at lines added since last call
+    const newLines = allLines.slice(_lastNotesLineCount);
+    _lastNotesLineCount = allLines.length;
+    if(!newLines.length) return;
+    for(const line of newLines){
       const ll = line.toLowerCase();
       for(const boss of _NOTES_BOSS_LIST){
-        if(seen.has(boss.target)) continue;
         const hit = boss.aliases.some(a => ll.includes(a)) ||
                     ll.includes(boss.target.toLowerCase()) ||
                     ll.includes(boss.full.toLowerCase());
         if(hit){
-          seen.add(boss.target);
           todEnqueue(boss.target, boss.full, line, timestamp);
+          break; // one boss match per line is enough
         }
       }
     }
@@ -3731,7 +3758,7 @@ window.applyDBToChar    = applyDBToChar;
 
   // Inject status indicator into the toolbar when DOM is ready
   function injectStatusBadge(){
-    const toolbar = document.querySelector('.top-bar') || document.querySelector('header') || document.body;
+    const toolbar = document.querySelector('.header-top-bar') || document.querySelector('header') || document.body;
     if(document.getElementById('watcher-status')) return;
     const badge = document.createElement('span');
     badge.id = 'watcher-status';
@@ -3808,21 +3835,23 @@ window.applyDBToChar    = applyDBToChar;
 // Queue-based: multiple /note commands stack up and are shown one at a time.
 // Each modal shows a counter (1 of N) when there are pending TODs.
 const _todQueue = [];
+let _todModalOpen = false; // flag to prevent race-condition stacking
 
 function todEnqueue(target, full, noteText, timestamp){
   _todQueue.push({ target, full, noteText, timestamp });
-  // Only show if no modal is currently open
-  if(!document.getElementById('tod-modal-overlay')) _todShowNext();
+  if(!_todModalOpen) _todShowNext();
 }
 
 function _todShowNext(){
-  if(!_todQueue.length) return;
+  if(!_todQueue.length || _todModalOpen) return;
+  _todModalOpen = true;
   const { target, full, noteText, timestamp } = _todQueue[0];
   showTodModal(target, full, noteText, timestamp);
 }
 
 function _todAdvance(){
   _todQueue.shift();
+  _todModalOpen = false;
   const overlay = document.getElementById('tod-modal-overlay');
   if(overlay) overlay.remove();
   if(_todQueue.length) setTimeout(_todShowNext, 120);
@@ -5763,7 +5792,8 @@ function renderZoneBar(){
   const el=document.getElementById('zoneBar');
   if(!el)return;
   const entries=Object.entries(charZones);
-  if(!entries.length){el.innerHTML='';return;}
+  if(!entries.length){el.innerHTML='';el.style.display='none';return;}
+  el.style.display='';
   const rows=entries.map(([char,z])=>{
     const ago=timeAgo(z.timestamp);
     return `<div class="zone-bar-row"><span class="zone-bar-char">${esc(char)}</span><span class="zone-bar-sep">·</span><span class="zone-bar-zone">${esc(z.zone)}</span><span class="zone-bar-time">${ago}</span></div>`;
@@ -6967,9 +6997,9 @@ function renderWatchlistBar(){
       const itemLink=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.78rem">${esc(item)}</a>`;
       const cells=visNames.map(n=>{
         const tracked=targets.includes(n);
-        if(!tracked)return`<td style="text-align:left;color:var(--text-muted);font-size:1rem;font-weight:700;width:120px">N/A</td>`;
+        if(!tracked)return`<td class="rc-check" style="width:120px"><span class="rc-check-na">N/A</span></td>`;
         const has=charHasItem(n,item);
-        return`<td style="text-align:left;font-size:.8rem;font-weight:600;color:${has?'#3a7a3a':'#c03030'};width:120px">${has?'✔':'✘'}</td>`;
+        return`<td class="rc-check" style="width:120px"><span class="${has?'rc-check-green':'rc-check-red'}" style="font-size:1.1rem">${has?'✔':'✘'}</span></td>`;
       }).join('');
       return`<tr><td style="padding:.2rem .5rem;white-space:nowrap">${itemLink}</td>${cells}</tr>`;
     }).join('');
@@ -6986,17 +7016,16 @@ function renderWatchlistBar(){
       const targets=ruleChars==='__all__'?allNames:Array.isArray(ruleChars)?ruleChars.filter(c=>allNames.includes(c)):allNames;
       const tracked=targets.includes(charName);
       const itemLink=`<a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="min-width:0;color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold);font-size:.82rem;font-weight:600">${esc(item)}</a>`;
-      const badgeBase=`display:inline-flex;align-items:center;flex-shrink:0;font-size:.72rem;font-family:'Cinzel',serif;font-weight:700;letter-spacing:.04em;padding:.15rem .5rem;border-radius:3px;white-space:nowrap;line-height:1`;
       let badge;
       if(!tracked){
-        badge=`<span style="${badgeBase};color:#888;border:1px solid #999;background:rgba(128,128,128,.1)">N/A</span>`;
+        badge=`<span class="rc-check-na" style="flex-shrink:0;font-size:.8rem">N/A</span>`;
       } else {
         const has=charHasItem(charName,item);
         badge=has
-          ?`<span style="${badgeBase};color:#3a7a3a;border:1px solid #5a9a5a;background:rgba(58,122,58,.15)">✔ Have</span>`
-          :`<span style="${badgeBase};color:#c03030;border:1px solid #c03030;background:rgba(160,48,48,.12)">✘ Need</span>`;
+          ?`<span class="rc-check-green" style="flex-shrink:0;font-size:1.05rem;font-weight:700">✔</span>`
+          :`<span class="rc-check-red" style="flex-shrink:0;font-size:1.05rem;font-weight:700">✘</span>`;
       }
-      return`<div style="display:grid;grid-template-columns:220px 1fr;align-items:center;padding:.22rem .5rem;border-bottom:1px solid var(--border)">${itemLink}${badge}</div>`;
+      return`<div style="display:grid;grid-template-columns:220px auto;align-items:center;padding:.22rem .5rem;border-bottom:1px solid var(--border)">${itemLink}${badge}</div>`;
     }).join('');
     container.innerHTML=`<div style="display:flex;flex-direction:column;gap:0;padding:.1rem 0">${rows}</div>`;
   }
