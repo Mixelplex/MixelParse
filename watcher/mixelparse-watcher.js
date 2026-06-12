@@ -15,7 +15,7 @@ const chokidar = require('chokidar');
 const { WebSocketServer } = require('ws');
 
 // ── Log to file (next to exe) so startup output can be reviewed ─────────────
-const _logPath = path.join(path.dirname(process.execPath || __filename), 'mixelparse-watcher.log');
+const _logPath = path.join(__dirname, 'mixelparse-watcher.log');
 const _logFile = fs.createWriteStream(_logPath, { flags: 'w' });
 const _origLog = console.log.bind(console);
 const _origErr = console.error.bind(console);
@@ -298,7 +298,7 @@ function levelFromValue(val) {
 
 // ── Faction state per character ─────────────────────────────────────────────
 // factionState[charName][factionKey] = numeric value
-const _stateFile = path.join(path.dirname(process.execPath || __filename), 'mixelparse-factionstate.json');
+const _stateFile = path.join(__dirname, 'mixelparse-factionstate.json');
 let factionState = {};
 try {
   factionState = JSON.parse(fs.readFileSync(_stateFile, 'utf8'));
@@ -326,7 +326,7 @@ function setFactionValue(charName, factionKey, val) {
 
 // ── Zone state per character ────────────────────────────────────────────────
 // zoneState[charName] = { zone, timestamp }
-const _zoneFile = path.join(path.dirname(process.execPath || __filename), 'mixelparse-zonestate.json');
+const _zoneFile = path.join(__dirname, 'mixelparse-zonestate.json');
 let zoneState = {};
 try {
   zoneState = JSON.parse(fs.readFileSync(_zoneFile, 'utf8'));
@@ -965,7 +965,7 @@ invWatcher.on('error', e => console.error('[INV] Watcher error:', e));
 // ── EQ Log watcher ────────────────────────────────────────────────────────────
 // logPositions[filepath] = byte offset (how far we've read)
 // Persisted to disk so restarts don't re-scan history
-const _posFile = path.join(path.dirname(process.execPath || __filename), 'mixelparse-positions.json');
+const _posFile = path.join(__dirname, 'mixelparse-positions.json');
 let logPositions = {};
 try {
   const raw = fs.readFileSync(_posFile, 'utf8');
@@ -1196,7 +1196,7 @@ const NOTES_BOSS_LIST = [
 ];
 
 // Dedup key = full trimmed line content (timestamp + text)
-const _notesSeenFile = path.join(path.dirname(process.execPath || __filename), 'mixelparse-notesseen.json');
+const _notesSeenFile = path.join(__dirname, 'mixelparse-notesseen.json');
 let notesSeen = new Set();
 try {
   const raw = fs.readFileSync(_notesSeenFile, 'utf8');
