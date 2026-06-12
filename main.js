@@ -5,8 +5,8 @@ const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 
-// ─── Root path (repo root) ────────────────────────────────────────────────────
-const ROOT = app.getAppPath();
+// ─── Root path (repo root, one level up from electron/) ───────────────────────
+const ROOT = path.join(__dirname, '..');
 
 // ─── Paths ────────────────────────────────────────────────────────────────────
 const CONFIG_PATH  = path.join(app.getPath('userData'), 'config.json');
