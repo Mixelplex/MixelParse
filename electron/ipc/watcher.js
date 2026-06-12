@@ -67,7 +67,8 @@ const FACTION_MIN = -2000;
 let logPositions = {};   // { charKey: fileOffset }
 let factionState = {};   // { charKey: { factionLogKey: numericValue } }
 let zoneState    = {};   // { charKey: { zone, timestamp } }
-let invCache     = {};   // { filename: content }
+let invCache     = {};   // { filename: hash } for dedup
+let invContent   = {};   // { filename: content } for sendFullSnapshot
 let _logPosPath  = null;
 let _factionPath = null;
 
@@ -130,7 +131,7 @@ function buildFactionSnapshot(charName) {
 
 function sendFullSnapshot() {
   // Send cached inventory files
-  for (const [filename, content] of Object.entries(invCache)) {
+  for (const [filename, content] of Object.entries(invContent)) {
     broadcast({ type: 'inventory', filename, content });
   }
   // Send faction snapshots
@@ -149,18 +150,41 @@ function sendFullSnapshot() {
 // ── Inventory watcher ─────────────────────────────────────────────────────────
 function startInventoryWatcher() {
   if (!_config || !_config.eqDir) return;
-  const glob = path.join(_config.eqDir, '**', '*-Inventory.txt');
-  const watcher = chokidar.watch(glob, {
-    ignoreInitial: false,
-    persistent: true,
-    awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 100 },
-  });
 
-  watcher.on('add', (fp)    => handleInvFile(fp));
-  watcher.on('change', (fp) => handleInvFile(fp));
-  watcher.on('error', e     => err('Inventory watcher error:', e.message));
-  _watchers.push(watcher);
-  log('Inventory watcher started:', glob);
+  // Startup: scan all existing inventory files immediately
+  try {
+    const files = fs.readdirSync(_config.eqDir);
+    log('[INV] Startup scan found', files.filter(f => f.endsWith('-Inventory.txt')).length, 'inventory files');
+    for (const f of files) {
+      if (!f.endsWith('-Inventory.txt')) continue;
+      handleInvFile(path.join(_config.eqDir, f));
+    }
+  } catch (e) {
+    err('Startup inventory scan error:', e.message);
+  }
+
+  // Watch directory for inventory file changes via mtime polling
+  const invMtimes = {};
+  const t = setInterval(() => {
+    try {
+      const files = fs.readdirSync(_config.eqDir);
+      for (const f of files) {
+        if (!f.endsWith('-Inventory.txt')) continue;
+        const fp = path.join(_config.eqDir, f);
+        try {
+          const mtime = fs.statSync(fp).mtimeMs;
+          if (invMtimes[f] !== mtime) {
+            invMtimes[f] = mtime;
+            handleInvFile(fp);
+          }
+        } catch {}
+      }
+    } catch (e) {
+      err('[INV] Poll error:', e.message);
+    }
+  }, 2000);
+  _timers.push(t);
+  log('Inventory watcher started (mtime polling every 2s):', _config.eqDir);
 }
 
 function handleInvFile(fp) {
@@ -169,7 +193,8 @@ function handleInvFile(fp) {
     const filename = path.basename(fp);
     const hash = crypto.createHash('md5').update(content).digest('hex');
     if (invCache[filename] === hash) return; // no change
-    invCache[filename] = content;
+    invCache[filename] = hash;
+    invContent[filename] = content;
     broadcast({ type: 'inventory', filename, content });
     log('[INV] Sent:', filename);
   } catch (e) {
@@ -183,42 +208,58 @@ function startLogWatcher() {
   const myChars = getMyChars();
   if (!myChars.length) { log('No characters found in EQ dir — log watcher idle.'); return; }
 
-  const glob = path.join(_config.logDir, 'eqlog_*_P1999Green.txt');
-  const watcher = chokidar.watch(glob, {
-    ignoreInitial: false,
-    persistent: true,
-    awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
-  });
-
-  watcher.on('add', (fp) => {
-    const charName = extractCharFromLog(fp);
-    if (!charName) return;
-    const key = resolveCharKey(charName);
-    if (!myChars.map(c => c.toLowerCase()).includes(charName.toLowerCase())) return;
-    // Seek to end on first add (don't replay history)
-    try { logPositions[key] = fs.statSync(fp).size; } catch {}
-    saveLogPositions();
-    // Scan tail of log for last zone visited and broadcast immediately
-    scanLastZoneFromLog(fp, charName);
-  });
-
-  watcher.on('change', (fp) => {
-    const charName = extractCharFromLog(fp);
-    if (!charName) return;
-    if (!myChars.map(c => c.toLowerCase()).includes(charName.toLowerCase())) return;
-    tailLogFile(fp, charName);
-  });
-
-  watcher.on('error', e => err('Log watcher error:', e.message));
-  _watchers.push(watcher);
   log('Log watcher started for chars:', myChars.join(', '));
+
+  // Poll log files for changes via mtime — chokidar unreliable in Electron main process
+  const logMtimes = {};
+  const t = setInterval(() => {
+    try {
+      const files = fs.readdirSync(_config.logDir);
+      for (const f of files) {
+        if (!/^eqlog_.+_P1999Green\.txt$/i.test(f)) continue;
+        const charName = extractCharFromLog(f);
+        if (!charName) continue;
+        if (!myChars.map(c => c.toLowerCase()).includes(charName.toLowerCase())) continue;
+        const fp = path.join(_config.logDir, f);
+        try {
+          const mtime = fs.statSync(fp).mtimeMs;
+          if (logMtimes[f] !== mtime) {
+            logMtimes[f] = mtime;
+            tailLogFile(fp, charName);
+          }
+        } catch {}
+      }
+    } catch (e) {
+      err('[LOG] Poll error:', e.message);
+    }
+  }, 2000);
+  _timers.push(t);
+
+  // Startup zone scan — don't rely on chokidar 'add' events (may be delayed with large dirs)
+  try {
+    const files = fs.readdirSync(_config.logDir);
+    for (const f of files) {
+      if (!/^eqlog_.+_P1999Green\.txt$/i.test(f)) continue;
+      const charName = extractCharFromLog(f);
+      if (!charName) continue;
+      if (!myChars.map(c => c.toLowerCase()).includes(charName.toLowerCase())) continue;
+      const fp = path.join(_config.logDir, f);
+      const key = resolveCharKey(charName);
+      try { logPositions[key] = fs.statSync(fp).size; } catch {}
+      scanLastZoneFromLog(fp, charName);
+    }
+    saveLogPositions();
+  } catch (e) {
+    err('Startup zone scan error:', e.message);
+  }
 }
 
 function scanLastZoneFromLog(fp, charName) {
   // Read last 50KB of log, scan backwards for most recent "You have entered X." line
+  log(`[ZONE] Scanning ${charName} log for last zone...`);
   try {
     const stat = fs.statSync(fp);
-    const readSize = Math.min(50 * 1024, stat.size);
+    const readSize = Math.min(100 * 1024, stat.size);
     const buf = Buffer.alloc(readSize);
     const fd = fs.openSync(fp, 'r');
     fs.readSync(fd, buf, 0, readSize, stat.size - readSize);
@@ -234,6 +275,7 @@ function scanLastZoneFromLog(fp, charName) {
         return;
       }
     }
+    log(`[ZONE] ${charName} — no zone line found in last 50KB`);
   } catch (e) {
     err(`[ZONE] scanLastZoneFromLog error for ${charName}:`, e.message);
   }
@@ -324,6 +366,7 @@ function applyFactionDelta(charName, factionKey, delta, source) {
 function startNotesWatcher() {
   if (!_config || !_config.notesFile) return;
   let lastMtime = 0;
+  let lastNotesHash = '';
   const watcher = chokidar.watch(_config.notesFile, {
     persistent: true,
     awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
@@ -334,6 +377,9 @@ function startNotesWatcher() {
       if (stat.mtimeMs === lastMtime) return;
       lastMtime = stat.mtimeMs;
       const text = fs.readFileSync(fp, 'utf8');
+      const hash = crypto.createHash('md5').update(text).digest('hex');
+      if (hash === lastNotesHash) return;
+      lastNotesHash = hash;
       broadcast({ type: 'notesUpdate', text, timestamp: Date.now() });
       log('[NOTES] Updated, sent to renderer');
     } catch (e) {

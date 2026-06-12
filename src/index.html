@@ -3561,10 +3561,6 @@ function applyPlatToItemDB(){
 // ─── Admin Panel ──────────────────────────────────────────────────────────────
 
 function openAdminPanel(){
-  if(window.MixelParseApp && window.MixelParseApp.isElectron){
-    window.MixelParseApp.openAdmin();
-    return;
-  }
   const w = window.open('admin.html','mixelparse_admin','width=1200,height=800,menubar=no,toolbar=no');
   if(!w) alert('Pop-up blocked — please allow pop-ups for this page.');
 }
@@ -3597,7 +3593,7 @@ window.applyDBToChar    = applyDBToChar;
     { target:'Dain',            full:'Dain Frostreaver IV',         aliases:['dain'] },
     { target:'Statue',          full:'Statue of Rallos Zek',        aliases:['statue','srz','stat'] },
     { target:'Takish',          full:'Guardian of Takish',          aliases:['takish','tak'] },
-    { target:'Tormax',          full:'King Tormax',                 aliases:['tormax','torm'] },
+    { target:'Tormax',          full:'King Tormax',                 aliases:['tormax','torm','kt'] },
     { target:'Tunare',          full:'Tunare',                      aliases:['tunare','tuna'] },
     { target:'Cazic Thule',     full:'Cazic Thule',                 aliases:['cazic','caz','ct'] },
     { target:'Eashen',          full:'Eashen of the Sky',           aliases:['eashen','eas'] },
@@ -3614,28 +3610,53 @@ window.applyDBToChar    = applyDBToChar;
     { target:'Feshlak',         full:'Lord Feshlak',                aliases:['feshlak','fesh'] },
     { target:'Hoshkar',         full:'Hoshkar',                     aliases:['hoshkar','hosh'] },
     { target:'Jorlleag',        full:'Jorlleag',                    aliases:['jorlleag','jorl'] },
-    { target:'Klandicar',       full:'Klandicar',                   aliases:['klandicar','klan'] },
+    { target:'Klandicar',       full:'Klandicar',                   aliases:['klandicar','klan','klandi'] },
     { target:'Koi',             full:"Lord Koi'Doken",              aliases:['koi'] },
-    { target:'Kreizenn',        full:'Lord Kreizenn',               aliases:['kreizenn','krei'] },
+    { target:'Kreizenn',        full:'Lord Kreizenn',               aliases:['kreizenn','krei','kreiz'] },
     { target:'LTK',             full:'Lendiniara the Keeper',       aliases:['ltk'] },
     { target:"Magi P'Tasa",     full:"Magi P'Tasa",                 aliases:['magi','ptasa','mpt'] },
     { target:'Mirenilla',       full:'Lady Mirenilla',              aliases:['mirenilla','mire','mir','ladym'] },
     { target:'Nevederia',       full:'Lady Nevederia',              aliases:['nevederia','neve','nev'] },
     { target:'Sontalak',        full:'Sontalak',                    aliases:['sontalak','sont','son'] },
     { target:'Vulak',           full:"Vulak'Aerr",                  aliases:['vulak','vul'] },
-    { target:'Zlandicar',       full:'Zlandicar',                   aliases:['zlandicar','zlan'] },
-    { target:'Ashenbone Broodmaster',full:'Ashenbone Broodmaster',  aliases:['ashenbone','broodmaster','ashbone'] },
+    { target:'Zlandicar',       full:'Zlandicar',                   aliases:['zlandicar','zlan','zlandi'] },
+    { target:'Ashenbone Broodmaster',full:'Ashenbone Broodmaster',  aliases:['ashen','brod'] },
+    { target:'Bazzt Zzzt',      full:'Bazzt Zzzt',                  aliases:['bazzt','bazz'] },
     { target:'Cekenar',         full:'Cekenar',                     aliases:['cekenar','cek'] },
-    { target:'Essedera',        full:'Essedera',                    aliases:['essedera','esse'] },
-    { target:'Gorenaire',       full:'Gorenaire',                   aliases:['gorenaire','gore','gor'] },
+    { target:'Essedera',        full:'Essedera',                    aliases:['essedera','esse','ess'] },
+    { target:'Gorenaire',       full:'Gorenaire',                   aliases:['gorenaire','gore','goren'] },
+    { target:'Gozzrem',         full:'Gozzrem',                     aliases:['gozzrem','gozz'] },
+    { target:'Ikatiar',         full:'Ikatiar the Venom',           aliases:['ikatiar','ikat','ikky'] },
+    { target:'Kelorek Dar',     full:'Kelorek Dar',                 aliases:['kelorek','kelo'] },
+    { target:'Kozzalym',        full:'Kozzalym',                    aliases:['kozzalym','kozz'] },
+    { target:'Lepethida',       full:'Lepethida',                   aliases:['lepethida','lep'] },
+    { target:'Lord of Ire',     full:'Lord of Ire',                 aliases:['ire'] },
+    { target:'Nexona',          full:'Nexona',                      aliases:['nexona','nex'] },
+    { target:'Sevalak',         full:'Sevalak',                     aliases:['sevalak','seva','sev'] },
+    { target:'Severilous',      full:'Severilous',                  aliases:['severilous','sevr'] },
+    { target:'Silverwing',      full:'Silverwing',                  aliases:['silverwing','silv','sw'] },
+    { target:'Trakanon',        full:'Trakanon',                    aliases:['trakanon','trak'] },
+    { target:'VS',              full:'Venril Sathir',               aliases:['vs','venril'] },
+    { target:'Vaniki',          full:'Vaniki',                      aliases:['vaniki','van'] },
+    { target:'Vox',             full:'Lady Vox',                    aliases:['vox'] },
+    { target:'Xygoz',           full:'Xygoz',                       aliases:['xygoz','xyg'] },
+    { target:'Zlexak',          full:'Zlexak',                      aliases:['zlexak','zlex'] },
+    { target:'Dread',           full:'Dread',                       aliases:['dread'] },
+    { target:'Fright',          full:'Fright',                      aliases:['fright'] },
+    { target:'Naggy',           full:'Lord Nagafen',                aliases:['naggy','nagafen'] },
     { target:'Talendor',        full:'Talendor',                    aliases:['talendor','tal'] },
-    { target:'Severilous',      full:'Severilous',                  aliases:['severilous','sev'] },
-    { target:'Lord of Ire',     full:'Lord of Ire',                 aliases:['lord of ire','ire','loi'] },
-    { target:"Magi P'Tasa",     full:"Magi P'Tasa",                 aliases:['magi ptasa'] },
-    { target:'Derakor',         full:'Derakor the Vindicator',      aliases:['derakor','derk'] },
-    { target:'Wuoshi',          full:'Wuoshi',                      aliases:['wuoshi','wuo'] },
+    { target:'Telk',            full:'Telkorenar',                  aliases:['telk','telkorenar'] },
+    { target:'Terror',          full:'Terror',                      aliases:['terror','terr'] },
+    { target:'Velketor',        full:'Velketor the Sorcerer',       aliases:['velketor','velk'] },
+    { target:'Garzicor',        full:'Garzicor',                    aliases:['garzicor','garz'] },
+    { target:'Inny',            full:'Innoruuk',                    aliases:['inny','innoruuk'] },
+    { target:'KDT',             full:"Keldor Dek'Torek",            aliases:['kdt','keldor'] },
+    { target:'Vindi',           full:'Derakor the Vindicator',      aliases:['vindi','derakor'] },
+    { target:'Wuoshi',          full:'Wuoshi',                      aliases:['wuoshi','wuo','wush'] },
+    { target:'Yael',            full:'Yael',                        aliases:['yael'] },
+    { target:'Lord Bob',        full:'Lord Doljonijiarnimorinar',    aliases:['lord bob','bob'] },
+    { target:'Vilefang',        full:'Vilefang',                    aliases:['vilefang','vile'] },
     { target:'Ring War',        full:'Ring War',                    aliases:['ring war','rw','ring'] },
-    { target:'Yelinak',         full:'Lord Yelinak',                aliases:['yelinak'] },
   ];
 
   // Process a raw notes.txt update (IPC path) — fuzzy match → todEnqueue
@@ -3647,6 +3668,7 @@ window.applyDBToChar    = applyDBToChar;
   function _handleNotesUpdate(text, timestamp){
     if(!text) return;
     const allLines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    console.log('[NOTES] handleNotesUpdate called, lines:', allLines.length, 'baseline set:', _notesBaselineSet, 'lastCount:', _lastNotesLineCount);
     if(!_notesBaselineSet){
       // First call: record current line count as already-seen, fire nothing
       _lastNotesLineCount = allLines.length;
@@ -3656,6 +3678,7 @@ window.applyDBToChar    = applyDBToChar;
     }
     // Only look at lines added since last call
     const newLines = allLines.slice(_lastNotesLineCount);
+    console.log('[NOTES] newLines:', newLines);
     _lastNotesLineCount = allLines.length;
     if(!newLines.length) return;
     for(const line of newLines){

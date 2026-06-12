@@ -1189,7 +1189,7 @@ const NOTES_BOSS_LIST = [
   { target: 'Inny',            full: 'Innoruuk',                    aliases: ['inny', 'innoruuk'] },
   { target: 'KDT',             full: "Keldor Dek'Torek",            aliases: ['kdt', 'keldor'] },
   { target: 'Vindi',           full: 'Derakor the Vindicator',      aliases: ['vindi', 'derakor'] },
-  { target: 'Wuoshi',          full: 'Wuoshi',                      aliases: ['wuoshi', 'wuo'] },
+  { target: 'Wuoshi',          full: 'Wuoshi',                      aliases: ['wuoshi', 'wuo', 'wush'] },
   { target: 'Yael',            full: 'Yael',                        aliases: ['yael'] },
   { target: 'Lord Bob',        full: 'Lord Doljonijiarnimorinar',   aliases: ['lord bob', 'bob'] },
   { target: 'Vilefang',        full: 'Vilefang',                    aliases: ['vilefang', 'vile'] },

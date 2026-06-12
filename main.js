@@ -105,8 +105,14 @@ function createMainWindow() {
 
   mainWindow.loadFile(path.join(ROOT, 'src', 'index.html'));
 
+  // Allow window.open() for admin panel — preserves window.opener relationship
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    return { action: 'allow' };
+  });
+
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
   });
 
   mainWindow.webContents.on('did-finish-load', () => {
