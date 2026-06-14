@@ -104,22 +104,10 @@ function createMainWindow() {
   });
 
   mainWindow.loadFile(path.join(ROOT, 'src', 'index.html'));
-
-  // Allow window.open() for admin panel — preserves window.opener relationship
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    return { action: 'allow' };
-  });
+  mainWindow.webContents.openDevTools();
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
-  });
-
-  mainWindow.webContents.on('did-finish-load', () => {
-    // Re-broadcast full watcher state after renderer loads — startup events may have fired before it was ready
-    if (watcherModule && watcherModule.sendFullSnapshot) {
-      setTimeout(() => watcherModule.sendFullSnapshot(), 500);
-    }
   });
 
   mainWindow.on('minimize', (e) => {
@@ -288,6 +276,55 @@ ipcMain.handle('ui:copy', (e, sourceChar, targetChar) => {
   try {
     if (!fs.existsSync(src)) return { ok: false, error: `Source file not found: ${src}` };
     fs.copyFileSync(src, dst);
+    return { ok: true, dst };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+const BASE_UI_PATH = path.join(app.getPath('userData'), 'baseUI.ini');
+
+ipcMain.handle('ui:set-base', (e, sourceChar) => {
+  if (!config || !config.eqDir) return { ok: false, error: 'No EQ directory configured.' };
+  const src = path.join(config.eqDir, `UI_${sourceChar}_P1999Green.ini`);
+  try {
+    if (!fs.existsSync(src)) return { ok: false, error: `Source file not found.` };
+    fs.copyFileSync(src, BASE_UI_PATH);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('ui:has-base', () => fs.existsSync(BASE_UI_PATH));
+
+ipcMain.handle('ui:browse-ini', async () => {
+  const result = await dialog.showOpenDialog({
+    title: 'Select UI INI File',
+    filters: [{ name: 'EQ UI Files', extensions: ['ini'] }],
+    properties: ['openFile'],
+    defaultPath: config && config.eqDir ? config.eqDir : app.getPath('home'),
+  });
+  if (result.canceled || !result.filePaths.length) return null;
+  return result.filePaths[0];
+});
+
+ipcMain.handle('ui:set-base-from-path', (e, filePath) => {
+  try {
+    if (!fs.existsSync(filePath)) return { ok: false, error: 'File not found.' };
+    fs.copyFileSync(filePath, BASE_UI_PATH);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('ui:copy-from-base', (e, targetChar) => {
+  if (!config || !config.eqDir) return { ok: false, error: 'No EQ directory configured.' };
+  if (!fs.existsSync(BASE_UI_PATH)) return { ok: false, error: 'No base UI set. Please set a base UI first.' };
+  const dst = path.join(config.eqDir, `UI_${targetChar}_P1999Green.ini`);
+  try {
+    fs.copyFileSync(BASE_UI_PATH, dst);
     return { ok: true, dst };
   } catch (e) {
     return { ok: false, error: e.message };
