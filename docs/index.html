@@ -229,14 +229,16 @@
   .auth-msg{font-size:.82rem;margin-top:.5rem;min-height:1.2rem}
   .auth-msg.err{color:#a03030}.auth-msg.ok{color:#3a7a3a}
   .auth-user-bar{font-size:.75rem;color:var(--text-muted);display:flex;align-items:center;gap:.5rem}
-  .zone-bar{position:absolute;top:.5rem;left:1rem;z-index:10;max-width:42%;border:1px solid var(--border);border-radius:4px;padding:.4rem .6rem;background:var(--surface2)}
-  .zone-bar-title{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;margin-bottom:.3rem;border-bottom:1px solid var(--border);padding-bottom:.2rem}
-  .zone-bar-grid{display:grid;grid-template-columns:1fr 1fr;gap:.2rem 1.5rem}
-  .zone-bar-row{font-size:.82rem;font-family:'Crimson Pro',serif;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .zone-bar-char{color:var(--gold-light);font-weight:700;letter-spacing:.02em}
-  .zone-bar-sep{color:var(--border);margin:0 .25rem}
-  .zone-bar-zone{color:var(--text-muted)}
-  .zone-bar-time{opacity:.5;font-size:.7rem;margin-left:.35rem}
+  .zone-bar{position:absolute;top:.5rem;left:1rem;z-index:10;max-width:38%;border:1px solid var(--border);border-radius:4px;padding:.4rem .6rem;background:var(--surface2)}
+  .zone-bar-title{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;margin-bottom:.35rem;border-bottom:1px solid var(--border);padding-bottom:.2rem}
+  .zone-bar-grid{display:grid;grid-template-columns:max-content 1fr max-content 1fr;gap:.18rem .3rem;align-items:baseline}
+  .zone-bar-row{display:contents}
+  .zone-bar-char{color:var(--gold-light);font-weight:700;font-size:.82rem;font-family:'Crimson Pro',serif;letter-spacing:.02em;white-space:nowrap;padding-right:.1rem}
+  .zone-bar-sep-zone{color:var(--text-muted);font-size:.75rem;font-family:'Crimson Pro',serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:.15rem}
+  .zone-bar-sep-zone::before{content:'· ';color:var(--border)}
+  .zone-bar-time{display:none}
+  .zone-bar-sep{display:none}
+  .zone-bar-zone{display:none}
   .auth-signout{background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-muted);padding:.15rem .45rem;font-size:.72rem;cursor:pointer;font-family:\'Crimson Pro\',serif;transition:all .15s}
   .auth-signout:hover{border-color:#a03030;color:#a03030}
   /* ── Watch List Banner ── */
@@ -594,6 +596,7 @@
       </div>
       <div class="header-util-btns">
         <button class="btn primary" id="itemDbBtn" style="font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.06em">&#128230; Item Database</button>
+        <button class="btn" id="uiCopyBtn" style="font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.06em">&#128196; UI Copy Tool</button>
         <button class="btn" id="gearReportsBtn" style="font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.06em">&#128202; Gear Planner Reports</button>
       </div>
     </div>
@@ -675,6 +678,44 @@
       <li>Find <code>CharacterName-Inventory.txt</code> in your EQ folder</li>
       <li>Select all character files and drop them here</li>
     </ol>
+  </div>
+</div>
+
+<!-- UI Copy Tool Modal -->
+<div class="wl-modal-overlay" id="uiCopyOverlay" style="display:none">
+  <div class="wl-modal" style="max-width:440px">
+    <div class="wl-modal-title">&#128196; UI Copy Tool</div>
+
+    <!-- Base status bar -->
+    <div id="uiBaseStatus" style="font-size:.78rem;padding:.3rem .6rem;border-radius:4px;margin-bottom:.9rem;border:1px solid var(--border);color:var(--text-muted)">
+      Base UI: <span id="uiBaseLabel" style="color:var(--accent-gold)">Not set</span>
+    </div>
+
+    <!-- Section: Set / Update Base -->
+    <div style="margin-bottom:.9rem;padding-bottom:.9rem;border-bottom:1px solid var(--border)">
+      <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.05em">Set / Update Base UI</div>
+      <div style="display:flex;gap:.5rem;align-items:center">
+        <select id="uiCopySrc" style="flex:1;background:transparent;color:var(--text-main);border:1px solid var(--border);padding:.35rem .5rem;border-radius:4px;font-size:.85rem">
+          <option value="">-- select character --</option>
+        </select>
+        <button class="btn" id="uiBrowseBtn" style="white-space:nowrap">Browse...</button>
+        <button class="btn" id="uiSetBaseBtn" style="white-space:nowrap">Set as Base</button>
+      </div>
+    </div>
+
+    <!-- Section: Copy to new character -->
+    <div style="margin-bottom:.9rem">
+      <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.05em">Copy Base to New Character</div>
+      <div style="display:flex;gap:.5rem;align-items:center">
+        <input id="uiCopyDest" type="text" placeholder="Destination character name" style="flex:1;background:transparent;color:var(--text-main);border:1px solid var(--border);padding:.35rem .5rem;border-radius:4px;font-size:.85rem" />
+        <button class="btn primary" id="uiCopyConfirmBtn" style="white-space:nowrap">Copy UI</button>
+      </div>
+    </div>
+
+    <div id="uiCopyMsg" style="font-size:.8rem;min-height:1.2rem;margin-bottom:.6rem"></div>
+    <div style="display:flex;justify-content:flex-end">
+      <button class="btn" id="uiCopyCancelBtn">Close</button>
+    </div>
   </div>
 </div>
 
@@ -2391,6 +2432,102 @@ function applyDBToChar(charName){const equipped=getEquippedItems(charName);if(!e
 // saveItemDB and loadItemDB replaced by Supabase versions above
 
 function updateItemDbModal(){const count=Object.keys(itemDB).length;document.getElementById('itemDbStatus').textContent=count>0?'✓ '+count+' items loaded from '+itemDBSources.length+' source'+(itemDBSources.length!==1?'s':''):' No items loaded yet.';document.getElementById('itemDbSourceList').innerHTML=itemDBSources.length?itemDBSources.map(s=>`<div style="padding:.15rem 0;border-bottom:1px solid rgba(74,58,26,.15)">📄 ${esc(s)}</div>`).join(''):'';}
+// ─── UI Copy Tool ─────────────────────────────────────────────────────────────
+function uiCopySetMsg(text, color) {
+  const el = document.getElementById('uiCopyMsg');
+  el.textContent = text;
+  el.style.color = color || 'var(--accent-gold)';
+}
+
+function uiCopyRefreshBase() {
+  if (!window.MixelParseApp || typeof window.MixelParseApp.hasBaseUI !== 'function') return;
+  window.MixelParseApp.hasBaseUI().then(has => {
+    document.getElementById('uiBaseLabel').textContent = has ? 'Set ✔' : 'Not set';
+    document.getElementById('uiBaseLabel').style.color = has ? 'var(--accent-green,#4caf50)' : 'var(--accent-gold)';
+    document.getElementById('uiCopyConfirmBtn').disabled = !has;
+  });
+}
+
+const _uiCopyBtn = document.getElementById('uiCopyBtn');
+console.log('[UI Copy] btn element:', _uiCopyBtn);
+if(_uiCopyBtn) _uiCopyBtn.addEventListener('click', () => {
+  console.log('[UI Copy] button clicked');
+  const src = document.getElementById('uiCopySrc');
+  uiCopySetMsg('');
+  document.getElementById('uiCopyDest').value = '';
+  src.innerHTML = '<option value="">-- select character --</option>';
+  if (window.MixelParseApp && window.MixelParseApp.listUIFiles) {
+    window.MixelParseApp.listUIFiles().then(files => {
+      files.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.charName;
+        opt.textContent = f.charName;
+        src.appendChild(opt);
+      });
+    }).catch(() => uiCopySetMsg('Could not read EQ directory.'));
+  } else {
+    uiCopySetMsg('Electron API unavailable — run as desktop app.');
+  }
+  uiCopyRefreshBase();
+  document.getElementById('uiCopyOverlay').classList.add('open');
+});
+
+const _uiCancelBtn = document.getElementById('uiCopyCancelBtn');
+if(_uiCancelBtn) _uiCancelBtn.addEventListener('click', () => {
+  document.getElementById('uiCopyOverlay').classList.remove('open');
+});
+
+const _uiOverlay = document.getElementById('uiCopyOverlay');
+if(_uiOverlay) _uiOverlay.addEventListener('click', e => {
+  if (e.target === document.getElementById('uiCopyOverlay'))
+    document.getElementById('uiCopyOverlay').classList.remove('open');
+});
+
+const _uiBrowseBtn = document.getElementById('uiBrowseBtn');
+if(_uiBrowseBtn) _uiBrowseBtn.addEventListener('click', () => {
+  if (!window.MixelParseApp) { uiCopySetMsg('Electron API unavailable.'); return; }
+  window.MixelParseApp.browseIniFile().then(filePath => {
+    if (!filePath) return;
+    window.MixelParseApp.setBaseUIFromPath(filePath).then(result => {
+      if (result.ok) {
+        uiCopySetMsg(`✔ Base UI set from ${filePath.split(/[\\/]/).pop()}`, 'var(--accent-green,#4caf50)');
+        uiCopyRefreshBase();
+      } else {
+        uiCopySetMsg(`Error: ${result.error}`);
+      }
+    });
+  });
+});
+
+const _uiSetBaseBtn = document.getElementById('uiSetBaseBtn');
+if(_uiSetBaseBtn) _uiSetBaseBtn.addEventListener('click', () => {
+  const src = document.getElementById('uiCopySrc').value;
+  if (!src) { uiCopySetMsg('Select a character first.'); return; }
+  window.MixelParseApp.setBaseUI(src).then(result => {
+    if (result.ok) {
+      uiCopySetMsg(`✔ Base UI set from ${src}`, 'var(--accent-green,#4caf50)');
+      uiCopyRefreshBase();
+    } else {
+      uiCopySetMsg(`Error: ${result.error}`);
+    }
+  });
+});
+
+const _uiConfirmBtn = document.getElementById('uiCopyConfirmBtn');
+if(_uiConfirmBtn) _uiConfirmBtn.addEventListener('click', () => {
+  const dest = document.getElementById('uiCopyDest').value.trim();
+  if (!dest) { uiCopySetMsg('Enter a destination character name.'); return; }
+  if (!/^[A-Za-z0-9]+$/.test(dest)) { uiCopySetMsg('Character name: letters and numbers only.'); return; }
+  window.MixelParseApp.copyFromBaseUI(dest).then(result => {
+    if (result.ok) {
+      uiCopySetMsg(`✔ UI_${dest}_P1999Green.ini created`, 'var(--accent-green,#4caf50)');
+      setTimeout(() => { document.getElementById('uiCopyOverlay').classList.remove('open'); }, 1800);
+    } else {
+      uiCopySetMsg(`Error: ${result.error}`);
+    }
+  });
+});
+
 document.getElementById('itemDbBtn').addEventListener('click',()=>{updateItemDbModal();document.getElementById('itemDbOverlay').classList.add('open');});
 document.getElementById('gearReportsBtn').addEventListener('click',()=>{
   activeTopView='gearreports';
@@ -5839,9 +5976,13 @@ function renderZoneBar(){
   const entries=Object.entries(charZones);
   if(!entries.length){el.innerHTML='';el.style.display='none';return;}
   el.style.display='';
+  // Sort alphabetically so layout is stable
+  entries.sort((a,b)=>a[0].localeCompare(b[0]));
+  // Pad to even count for 2-per-row layout
+  if(entries.length%2!==0) entries.push(['','']);
   const rows=entries.map(([char,z])=>{
-    const ago=timeAgo(z.timestamp);
-    return `<div class="zone-bar-row"><span class="zone-bar-char">${esc(char)}</span><span class="zone-bar-sep">·</span><span class="zone-bar-zone">${esc(z.zone)}</span><span class="zone-bar-time">${ago}</span></div>`;
+    if(!char) return `<span></span><span></span>`;
+    return `<span class="zone-bar-char">${esc(char)}</span><span class="zone-bar-sep-zone">${esc(z.zone)}</span>`;
   }).join('');
   el.innerHTML=`<div class="zone-bar-title">Last Zone Location</div><div class="zone-bar-grid">${rows}</div>`;
 }
