@@ -682,7 +682,7 @@
 </div>
 
 <!-- UI Copy Tool Modal -->
-<div class="wl-modal-overlay" id="uiCopyOverlay" style="display:none">
+<div class="wl-modal-overlay" id="uiCopyOverlay">
   <div class="wl-modal" style="max-width:440px">
     <div class="wl-modal-title">&#128196; UI Copy Tool</div>
 
@@ -713,7 +713,8 @@
     </div>
 
     <div id="uiCopyMsg" style="font-size:.8rem;min-height:1.2rem;margin-bottom:.6rem"></div>
-    <div style="display:flex;justify-content:flex-end">
+    <div style="display:flex;justify-content:flex-end;gap:.5rem">
+      <button class="btn" id="uiCopyOpenBtn" style="display:none">&#128193; Open Folder</button>
       <button class="btn" id="uiCopyCancelBtn">Close</button>
     </div>
   </div>
@@ -2441,20 +2442,31 @@ function uiCopySetMsg(text, color) {
 
 function uiCopyRefreshBase() {
   if (!window.MixelParseApp || typeof window.MixelParseApp.hasBaseUI !== 'function') return;
-  window.MixelParseApp.hasBaseUI().then(has => {
-    document.getElementById('uiBaseLabel').textContent = has ? 'Set ✔' : 'Not set';
-    document.getElementById('uiBaseLabel').style.color = has ? 'var(--accent-green,#4caf50)' : 'var(--accent-gold)';
-    document.getElementById('uiCopyConfirmBtn').disabled = !has;
+  window.MixelParseApp.hasBaseUI().then(res => {
+    // Back-compat: res may be a bare boolean (old preload) or {ui,char}.
+    const hasUI   = (res && typeof res === 'object') ? !!res.ui   : !!res;
+    const hasChar = (res && typeof res === 'object') ? !!res.char : false;
+    const label = document.getElementById('uiBaseLabel');
+    if (hasUI) {
+      label.textContent = hasChar
+        ? 'Set ✔ (UI + character settings)'
+        : 'Set ✔ (UI only — no friends list/hotbuttons found)';
+      label.style.color = 'var(--accent-green,#4caf50)';
+    } else {
+      label.textContent = 'Not set';
+      label.style.color = 'var(--accent-gold)';
+    }
+    document.getElementById('uiCopyConfirmBtn').disabled = !hasUI;
   });
 }
 
 const _uiCopyBtn = document.getElementById('uiCopyBtn');
-console.log('[UI Copy] btn element:', _uiCopyBtn);
 if(_uiCopyBtn) _uiCopyBtn.addEventListener('click', () => {
-  console.log('[UI Copy] button clicked');
   const src = document.getElementById('uiCopySrc');
   uiCopySetMsg('');
   document.getElementById('uiCopyDest').value = '';
+  const _openBtn = document.getElementById('uiCopyOpenBtn');
+  if (_openBtn) _openBtn.style.display = 'none';
   src.innerHTML = '<option value="">-- select character --</option>';
   if (window.MixelParseApp && window.MixelParseApp.listUIFiles) {
     window.MixelParseApp.listUIFiles().then(files => {
@@ -2504,28 +2516,46 @@ if(_uiSetBaseBtn) _uiSetBaseBtn.addEventListener('click', () => {
   const src = document.getElementById('uiCopySrc').value;
   if (!src) { uiCopySetMsg('Select a character first.'); return; }
   window.MixelParseApp.setBaseUI(src).then(result => {
-    if (result.ok) {
-      uiCopySetMsg(`✔ Base UI set from ${src}`, 'var(--accent-green,#4caf50)');
+    if (result && result.ok) {
+      const note = result.char
+        ? `✔ Base set from ${src} (UI + friends list/hotbuttons)`
+        : `✔ Base set from ${src} (UI only — no character file found for ${src})`;
+      uiCopySetMsg(note, 'var(--accent-green,#4caf50)');
       uiCopyRefreshBase();
     } else {
-      uiCopySetMsg(`Error: ${result.error}`);
+      uiCopySetMsg(`Error: ${result && result.error}`);
     }
   });
 });
 
+let _uiLastOutputPath = null;
 const _uiConfirmBtn = document.getElementById('uiCopyConfirmBtn');
 if(_uiConfirmBtn) _uiConfirmBtn.addEventListener('click', () => {
   const dest = document.getElementById('uiCopyDest').value.trim();
   if (!dest) { uiCopySetMsg('Enter a destination character name.'); return; }
   if (!/^[A-Za-z0-9]+$/.test(dest)) { uiCopySetMsg('Character name: letters and numbers only.'); return; }
   window.MixelParseApp.copyFromBaseUI(dest).then(result => {
-    if (result.ok) {
-      uiCopySetMsg(`✔ UI_${dest}_P1999Green.ini created`, 'var(--accent-green,#4caf50)');
-      setTimeout(() => { document.getElementById('uiCopyOverlay').classList.remove('open'); }, 1800);
+    const openBtn = document.getElementById('uiCopyOpenBtn');
+    if (result && result.ok) {
+      _uiLastOutputPath = result.dst;
+      const fileList = (result.files || []).join(' + ');
+      const note = result.includedChar
+        ? `✔ Saved ${fileList} — drag both into your EQ folder`
+        : `✔ Saved ${fileList} — drag it into your EQ folder`;
+      uiCopySetMsg(note, 'var(--accent-green,#4caf50)');
+      if (openBtn) openBtn.style.display = '';
     } else {
-      uiCopySetMsg(`Error: ${result.error}`);
+      if (openBtn) openBtn.style.display = 'none';
+      uiCopySetMsg(`Error: ${result && result.error}`);
     }
   });
+});
+
+const _uiOpenBtn = document.getElementById('uiCopyOpenBtn');
+if(_uiOpenBtn) _uiOpenBtn.addEventListener('click', () => {
+  if (_uiLastOutputPath && window.MixelParseApp.revealPath) {
+    window.MixelParseApp.revealPath(_uiLastOutputPath);
+  }
 });
 
 document.getElementById('itemDbBtn').addEventListener('click',()=>{updateItemDbModal();document.getElementById('itemDbOverlay').classList.add('open');});

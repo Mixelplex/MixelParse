@@ -33,6 +33,12 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   // ── UI Copy Tool ───────────────────────────────────────────────────────────
   listUIFiles:  ()                     => ipcRenderer.invoke('ui:list'),
   copyUI:       (src, dst)             => ipcRenderer.invoke('ui:copy', src, dst),
+  hasBaseUI:        ()                 => ipcRenderer.invoke('ui:has-base'),
+  setBaseUI:        (sourceChar)       => ipcRenderer.invoke('ui:set-base', sourceChar),
+  setBaseUIFromPath:(filePath)         => ipcRenderer.invoke('ui:set-base-from-path', filePath),
+  browseIniFile:    ()                 => ipcRenderer.invoke('ui:browse-ini'),
+  copyFromBaseUI:   (targetChar)       => ipcRenderer.invoke('ui:copy-from-base', targetChar),
+  revealPath:       (targetPath)       => ipcRenderer.invoke('ui:reveal', targetPath),
 
   // ── Auto-updater ───────────────────────────────────────────────────────────
   checkUpdates: ()         => ipcRenderer.invoke('updater:check'),
@@ -43,4 +49,5 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   // ── Utility ────────────────────────────────────────────────────────────────
   isElectron: true,
   platform: process.platform,
+  bridgeVersion: 'v35-uicopy3',
 });

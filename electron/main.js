@@ -12,6 +12,8 @@ const ROOT = app.getAppPath();
 const CONFIG_PATH  = path.join(app.getPath('userData'), 'config.json');
 const LOGPOS_PATH  = path.join(app.getPath('userData'), 'logPositions.json');
 const FACTION_PATH = path.join(app.getPath('userData'), 'factionState.json');
+const BASE_UI_PATH = path.join(app.getPath('userData'), 'baseUI.ini');
+const BASE_CHAR_PATH = path.join(app.getPath('userData'), 'baseChar.ini');
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let mainWindow    = null;
@@ -276,6 +278,136 @@ ipcMain.handle('ui:copy', (e, sourceChar, targetChar) => {
     if (!fs.existsSync(src)) return { ok: false, error: `Source file not found: ${src}` };
     fs.copyFileSync(src, dst);
     return { ok: true, dst };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// ── UI Copy Tool: base-UI workflow ───────────────────────────────────────────
+// Returns { ui, char } booleans for which base files are set.
+ipcMain.handle('ui:has-base', () => {
+  try {
+    return { ui: fs.existsSync(BASE_UI_PATH), char: fs.existsSync(BASE_CHAR_PATH) };
+  } catch (e) {
+    return { ui: false, char: false };
+  }
+});
+
+// Set the base from a character: copies both UI_<Char>_P1999Green.ini and the
+// character settings file <Char>_P1999Green.ini (friends list, hotbuttons,
+// socials, combat abilities). The char file is optional — if absent we still
+// set the UI base and report char:false.
+ipcMain.handle('ui:set-base', (e, sourceChar) => {
+  if (!config || !config.eqDir) return { ok: false, error: 'No EQ directory configured.' };
+  const uiSrc   = path.join(config.eqDir, `UI_${sourceChar}_P1999Green.ini`);
+  const charSrc = path.join(config.eqDir, `${sourceChar}_P1999Green.ini`);
+  try {
+    if (!fs.existsSync(uiSrc)) return { ok: false, error: `UI file not found: ${uiSrc}` };
+    fs.copyFileSync(uiSrc, BASE_UI_PATH);
+    let char = false;
+    if (fs.existsSync(charSrc)) {
+      fs.copyFileSync(charSrc, BASE_CHAR_PATH);
+      char = true;
+    } else {
+      // No char file for this toon — clear any stale base so we don't ship a
+      // mismatched friends/hotbutton file with the next copy.
+      try { if (fs.existsSync(BASE_CHAR_PATH)) fs.unlinkSync(BASE_CHAR_PATH); } catch (_) {}
+    }
+    return { ok: true, char };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// Set the base from an arbitrary picked UI .ini file. If the picked file is a
+// UI_<Char>_P1999Green.ini, derive the sibling <Char>_P1999Green.ini from the
+// same folder and store it too. If the picked file isn't a recognizable UI
+// file, we still store it as the UI base and skip the char file.
+ipcMain.handle('ui:set-base-from-path', (e, filePath) => {
+  if (!filePath) return { ok: false, error: 'No file selected.' };
+  try {
+    if (!fs.existsSync(filePath)) return { ok: false, error: `File not found: ${filePath}` };
+    fs.copyFileSync(filePath, BASE_UI_PATH);
+    let char = false;
+    const dir  = path.dirname(filePath);
+    const base = path.basename(filePath);
+    const m = base.match(/^UI_(.+)_P1999Green\.ini$/i);
+    if (m) {
+      const charSrc = path.join(dir, `${m[1]}_P1999Green.ini`);
+      if (fs.existsSync(charSrc)) {
+        fs.copyFileSync(charSrc, BASE_CHAR_PATH);
+        char = true;
+      } else {
+        try { if (fs.existsSync(BASE_CHAR_PATH)) fs.unlinkSync(BASE_CHAR_PATH); } catch (_) {}
+      }
+    } else {
+      try { if (fs.existsSync(BASE_CHAR_PATH)) fs.unlinkSync(BASE_CHAR_PATH); } catch (_) {}
+    }
+    return { ok: true, char };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// Open a native picker for a UI .ini file; returns the chosen path or null.
+ipcMain.handle('ui:browse-ini', async () => {
+  const opts = {
+    title: 'Select a UI .ini file',
+    properties: ['openFile'],
+    filters: [{ name: 'EQ UI ini', extensions: ['ini'] }],
+  };
+  if (config && config.eqDir) opts.defaultPath = config.eqDir;
+  const parent = BrowserWindow.getFocusedWindow() || mainWindow;
+  const result = await dialog.showOpenDialog(parent, opts);
+  if (result.canceled || !result.filePaths.length) return null;
+  return result.filePaths[0];
+});
+
+// Copy the stored base(s) to a new character name. Writes into a guaranteed-
+// writable output folder (Documents/MixelParse/UIs) rather than the EQ dir,
+// which is often under Program Files and blocks non-elevated writes (EPERM).
+// Writes BOTH the UI layout file and, if a base char file was captured, the
+// character settings file (friends list, hotbuttons, socials, abilities).
+// The user then drags the generated file(s) into their EQ folder themselves.
+ipcMain.handle('ui:copy-from-base', (e, targetChar) => {
+  if (!fs.existsSync(BASE_UI_PATH)) return { ok: false, error: 'No base UI has been set yet.' };
+  const cleanName = String(targetChar || '').trim().replace(/[<>:"/\\|?*]/g, '');
+  if (!cleanName) return { ok: false, error: 'Enter a destination character name.' };
+  try {
+    const outDir = path.join(app.getPath('documents'), 'MixelParse', 'UIs');
+    fs.mkdirSync(outDir, { recursive: true });
+
+    const uiName  = `UI_${cleanName}_P1999Green.ini`;
+    const uiDst   = path.join(outDir, uiName);
+    fs.copyFileSync(BASE_UI_PATH, uiDst);
+
+    const files = [uiName];
+    let charDst = null;
+    if (fs.existsSync(BASE_CHAR_PATH)) {
+      const charName = `${cleanName}_P1999Green.ini`;
+      charDst = path.join(outDir, charName);
+      fs.copyFileSync(BASE_CHAR_PATH, charDst);
+      files.push(charName);
+    }
+
+    return {
+      ok: true,
+      dst: uiDst,            // primary path used for "reveal"
+      dir: outDir,
+      files,                 // list of filenames written
+      includedChar: !!charDst,
+    };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// Reveal a file (or folder) in the OS file manager, highlighting it.
+ipcMain.handle('ui:reveal', (e, targetPath) => {
+  try {
+    if (!targetPath) return { ok: false, error: 'No path provided.' };
+    shell.showItemInFolder(targetPath);
+    return { ok: true };
   } catch (e) {
     return { ok: false, error: e.message };
   }
