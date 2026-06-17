@@ -614,7 +614,7 @@
     <p>Project 1999 &middot; Guild Inventory Tool</p>
     <div class="ornament">&#10022;</div>
   </div>
-  <div class="version-badge">v1.0</div>
+  <div class="version-badge" id="versionBadge"></div>
 </header>
 
 <div class="modal-overlay" id="itemDbOverlay">
@@ -898,6 +898,20 @@
   </div>
   <div id="subQuests" style="display:none">
     <div id="questsPanel"></div>
+  </div>
+</div>
+
+<div class="wl-modal-overlay" id="updateSplashOverlay">
+  <div class="wl-modal" style="max-width:400px;text-align:center">
+    <div style="font-size:2rem;margin-bottom:.5rem">⚔️</div>
+    <div class="wl-modal-title" style="margin-bottom:.3rem">MixelParse Update Ready</div>
+    <div id="updateSplashVersion" style="font-size:.75rem;color:var(--accent);font-family:'Cinzel',serif;letter-spacing:.08em;margin-bottom:1rem"></div>
+    <p style="font-size:.84rem;color:var(--text-dim);line-height:1.6;margin-bottom:1.2rem">A new version has been downloaded and is ready to install. Restart now to apply the update — your data stays intact.</p>
+    <div style="display:flex;gap:.7rem;justify-content:center;flex-wrap:wrap">
+      <button class="btn primary" onclick="doInstallUpdate()" style="min-width:140px">&#8635; Restart &amp; Update</button>
+      <button class="btn" onclick="closeUpdateSplash()">Later</button>
+    </div>
+    <div style="margin-top:.9rem;font-size:.72rem;color:var(--text-muted);font-style:italic">The update will install automatically on next launch if you choose Later.</div>
   </div>
 </div>
 
@@ -2921,15 +2935,29 @@ function handleUpdateClick(){
   const btn = document.getElementById('updateNavBtn');
   if(!window.MixelParseApp) return;
   if(btn && btn.dataset.state === 'ready'){
-    // Update already downloaded — quit and install
     window.MixelParseApp.installUpdate();
     return;
   }
-  // Trigger a fresh check
-  btn.textContent = '⟳ Checking…';
-  btn.style.color = 'var(--text-muted)';
-  btn.style.pointerEvents = 'none';
+  // Set checking state directly (tray click sends IPC event; button click does not)
+  if(btn){ btn.textContent = '\u27F3 Checking\u2026'; btn.style.color = 'var(--text-muted)'; btn.style.pointerEvents = 'none'; }
   window.MixelParseApp.checkUpdates();
+}
+
+function openUpdateSplash(){
+  if(window.MixelParseApp && window.MixelParseApp.getVersion){
+    window.MixelParseApp.getVersion().then(v => {
+      const el = document.getElementById('updateSplashVersion');
+      if(el) el.textContent = 'Version ' + v + ' ready';
+    });
+  }
+  document.getElementById('updateSplashOverlay').classList.add('open');
+}
+function closeUpdateSplash(){
+  document.getElementById('updateSplashOverlay').classList.remove('open');
+}
+function doInstallUpdate(){
+  closeUpdateSplash();
+  if(window.MixelParseApp) window.MixelParseApp.installUpdate();
 }
 
 function openFeedbackModal(){
@@ -4397,42 +4425,53 @@ window.applyDBToChar    = applyDBToChar;
     injectStatusBadge();
     setWatcherStatus(true); // IPC watcher starts with main process — always connected
 
+    // ── Version badge ───────────────────────────────────────────────────────────
+    if(window.MixelParseApp.getVersion){
+      window.MixelParseApp.getVersion().then(v => {
+        const badge = document.getElementById('versionBadge');
+        if(badge) badge.textContent = 'v' + v;
+      });
+    }
+
     // ── Reveal & wire the Update button ────────────────────────────────────────
     const _updateBtn = document.getElementById('updateNavBtn');
     if(_updateBtn) _updateBtn.style.display = '';
 
-    window.MixelParseApp.onUpdaterEvent(ev => {
+    let _updateCheckTimer = null;
+    function _resetUpdateBtn(){
+      clearTimeout(_updateCheckTimer);
       const btn = document.getElementById('updateNavBtn');
       if(!btn) return;
+      btn.textContent = '\u21BB Update';
+      btn.style.color = 'var(--text-muted)';
+      btn.style.pointerEvents = '';
+      btn.dataset.state = '';
+    }
+
+    window.MixelParseApp.onUpdaterEvent(ev => {
+      const btn = document.getElementById('updateNavBtn');
+      clearTimeout(_updateCheckTimer);
       switch(ev.type){
         case 'checking':
-          btn.textContent = '⟳ Checking…';
-          btn.style.color = 'var(--text-muted)';
-          btn.style.pointerEvents = 'none';
+          if(btn){ btn.textContent = '\u27F3 Checking\u2026'; btn.style.color = 'var(--text-muted)'; btn.style.pointerEvents = 'none'; }
+          _updateCheckTimer = setTimeout(_resetUpdateBtn, 15000);
           break;
         case 'update-available':
-          btn.textContent = '⬇ Downloading…';
-          btn.style.color = '#a0c878';
-          btn.style.pointerEvents = 'none';
-          showWatcherToast('📦 Update available — downloading…');
+          if(btn){ btn.textContent = '\u2B07 Downloading\u2026'; btn.style.color = '#a0c878'; btn.style.pointerEvents = 'none'; }
+          showWatcherToast('\uD83D\uDCE6 Update available \u2014 downloading\u2026');
           break;
         case 'update-downloaded':
-          btn.textContent = '↻ Restart to Update';
-          btn.style.color = '#4caf7d';
-          btn.style.pointerEvents = '';
-          btn.dataset.state = 'ready';
-          showWatcherToast('✔ Update ready — click Restart to Update');
+          if(btn){ btn.textContent = '\u21BB Restart to Update'; btn.style.color = '#4caf7d'; btn.style.pointerEvents = ''; btn.dataset.state = 'ready'; }
+          openUpdateSplash();
           break;
         case 'up-to-date':
-          btn.textContent = '✔ Up to Date';
-          btn.style.color = 'var(--text-muted)';
-          btn.style.pointerEvents = 'none';
-          setTimeout(() => {
-            btn.textContent = '⟳ Update';
-            btn.style.color = 'var(--text-muted)';
-            btn.style.pointerEvents = '';
-            btn.dataset.state = '';
-          }, 3000);
+          if(btn){ btn.textContent = '\u2714 Up to Date'; btn.style.color = 'var(--text-muted)'; btn.style.pointerEvents = 'none'; }
+          showWatcherToast('\u2714 MixelParse is up to date');
+          setTimeout(_resetUpdateBtn, 3000);
+          break;
+        case 'error':
+          showWatcherToast('\u26A0 Update check failed');
+          _resetUpdateBtn();
           break;
       }
     });
