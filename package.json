@@ -21,7 +21,6 @@
   "build": {
     "appId": "com.mixelplex.mixelparse",
     "productName": "MixelParse",
-    "icon": "assets/icon.ico",
     "copyright": "2026 mixelplex",
     "win": {
       "target": [
@@ -38,7 +37,9 @@
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "MixelParse"
+      "shortcutName": "MixelParse",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico"
     },
     "publish": {
       "provider": "github",
