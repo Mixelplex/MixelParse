@@ -8,6 +8,9 @@ const fs = require('fs');
 // ─── Root path (repo root) ────────────────────────────────────────────────────
 const ROOT = app.getAppPath();
 
+// ─── Icon path ────────────────────────────────────────────────────────────────
+const ICON_PATH = path.join(ROOT, 'assets', 'icon.ico');
+
 // ─── Paths ────────────────────────────────────────────────────────────────────
 const CONFIG_PATH  = path.join(app.getPath('userData'), 'config.json');
 const LOGPOS_PATH  = path.join(app.getPath('userData'), 'logPositions.json');
@@ -75,7 +78,7 @@ function createSetupWindow() {
     resizable: false,
     center: true,
     title: 'MixelParse — Setup',
-    icon: path.join(ROOT, 'assets', 'icon.ico'),
+    icon: ICON_PATH,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -95,7 +98,7 @@ function createMainWindow() {
     minWidth: 900,
     minHeight: 600,
     title: 'MixelParse',
-    icon: path.join(ROOT, 'assets', 'icon.ico'),
+    icon: ICON_PATH,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -140,7 +143,7 @@ function createAdminWindow() {
     minWidth: 800,
     minHeight: 600,
     title: 'MixelParse — Admin',
-    icon: path.join(ROOT, 'assets', 'icon.ico'),
+    icon: ICON_PATH,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -155,14 +158,7 @@ function createAdminWindow() {
 
 // ─── Tray ─────────────────────────────────────────────────────────────────────
 function createTray() {
-  const iconPath = path.join(ROOT, 'assets', 'icon.ico');
-  let trayIcon;
-  if (fs.existsSync(iconPath)) {
-    trayIcon = iconPath;
-  } else {
-    trayIcon = nativeImage.createEmpty();
-  }
-  tray = new Tray(trayIcon);
+  tray = new Tray(fs.existsSync(ICON_PATH) ? ICON_PATH : nativeImage.createEmpty());
   tray.setToolTip('MixelParse');
 
   const contextMenu = Menu.buildFromTemplate([
@@ -425,7 +421,8 @@ ipcMain.handle('updater:check', () => {
 });
 
 ipcMain.handle('updater:install', () => {
-  autoUpdater.quitAndInstall();
+  app.isQuitting = true;
+  autoUpdater.quitAndInstall(false, true);
 });
 
 ipcMain.handle('app:get-version', () => app.getVersion());
