@@ -4911,7 +4911,7 @@ function parseDkpCsv(text){
 async function loadDkpFromSupabase(){
   if(!currentUser)return;
   try{
-    const {data}=await sb.from('guild_data').select('dkp_lookup,dkp_meta').eq('pool','SoV').single();
+    const {data}=await sb.from('guild_data').select('dkp_lookup,dkp_meta').eq('pool','SoV').eq('user_id',currentUser.id).single();
     if(data?.dkp_lookup){dkpLookup=data.dkp_lookup;dkpMeta=data.dkp_meta||{};}
   }catch(e){}
 }
@@ -4919,14 +4919,14 @@ async function loadDkpFromSupabase(){
 async function saveDkpToSupabase(){
   try{
     // Check if row exists first
-    const{data:existing,error:selErr}=await sb.from('guild_data').select('pool').eq('pool','SoV').maybeSingle();
+    const{data:existing,error:selErr}=await sb.from('guild_data').select('pool').eq('pool','SoV').eq('user_id',currentUser.id).maybeSingle();
     if(selErr){console.warn('[DKP] Select error',selErr);return;}
     if(existing){
-      const{error}=await sb.from('guild_data').update({dkp_lookup:dkpLookup,dkp_meta:dkpMeta,updated_at:new Date().toISOString()}).eq('pool','SoV');
+      const{error}=await sb.from('guild_data').update({dkp_lookup:dkpLookup,dkp_meta:dkpMeta,updated_at:new Date().toISOString()}).eq('pool','SoV').eq('user_id',currentUser.id);
       if(error)console.warn('[DKP] Update error',error);
       else console.log('[DKP] Saved via update');
     } else {
-      const{error}=await sb.from('guild_data').insert({pool:'SoV',dkp_lookup:dkpLookup,dkp_meta:dkpMeta,updated_at:new Date().toISOString()});
+      const{error}=await sb.from('guild_data').insert({pool:'SoV',user_id:currentUser.id,dkp_lookup:dkpLookup,dkp_meta:dkpMeta,updated_at:new Date().toISOString()});
       if(error)console.warn('[DKP] Insert error',error);
       else console.log('[DKP] Saved via insert');
     }
@@ -5456,7 +5456,7 @@ function sessionDkpTotal(session){
 
 async function loadKillsFromSupabase(){
   try{
-    const{data}=await sb.from('guild_data').select('raid_sessions,credit_data').eq('pool','SoV').single();
+    const{data}=await sb.from('guild_data').select('raid_sessions,credit_data').eq('pool','SoV').eq('user_id',currentUser.id).single();
     if(data?.raid_sessions){
       raidSessions=data.raid_sessions;
       // Migrate old sessions that predate extraSpawns
@@ -5469,9 +5469,9 @@ async function loadKillsFromSupabase(){
 async function saveSessionsToSupabase(){
   try{
     // Use update to avoid clobbering dkp_lookup; insert if row doesn't exist yet
-    const{error}=await sb.from('guild_data').update({raid_sessions:raidSessions,updated_at:new Date().toISOString()}).eq('pool','SoV');
+    const{error}=await sb.from('guild_data').update({raid_sessions:raidSessions,updated_at:new Date().toISOString()}).eq('pool','SoV').eq('user_id',currentUser.id);
     if(error&&error.code==='PGRST116'){
-      await sb.from('guild_data').insert({pool:'SoV',raid_sessions:raidSessions,updated_at:new Date().toISOString()});
+      await sb.from('guild_data').insert({pool:'SoV',user_id:currentUser.id,raid_sessions:raidSessions,updated_at:new Date().toISOString()});
     }
     renderKillsPanel();
   }catch(e){console.error('[Sessions] Save error',e);}
@@ -6552,16 +6552,16 @@ function timeAgo(isoStr){
 async function saveZonesToSupabase(){
   if(!currentUser)return;
   try{
-    const{error}=await sb.from('guild_data').update({zone_data:charZones,updated_at:new Date().toISOString()}).eq('pool','SoV');
+    const{error}=await sb.from('guild_data').update({zone_data:charZones,updated_at:new Date().toISOString()}).eq('pool','SoV').eq('user_id',currentUser.id);
     if(error&&error.code==='PGRST116'){
-      await sb.from('guild_data').insert({pool:'SoV',zone_data:charZones,updated_at:new Date().toISOString()});
+      await sb.from('guild_data').insert({pool:'SoV',user_id:currentUser.id,zone_data:charZones,updated_at:new Date().toISOString()});
     }else if(error){console.error('[Zone] Save error',error);}
   }catch(e){console.error('[Zone] Save exception',e);}
 }
 
 async function loadZonesFromSupabase(){
   try{
-    const{data,error}=await sb.from('guild_data').select('zone_data').eq('pool','SoV').single();
+    const{data,error}=await sb.from('guild_data').select('zone_data').eq('pool','SoV').eq('user_id',currentUser.id).single();
     if(!error&&data&&data.zone_data){
       charZones=data.zone_data;
       renderZoneBar();
@@ -6575,16 +6575,16 @@ async function loadZonesFromSupabase(){
 async function saveBankerRegistryToSupabase(){
   if(!currentUser)return;
   try{
-    const{error}=await sb.from('guild_data').update({banker_registry:bankerRegistry,updated_at:new Date().toISOString()}).eq('pool','SoV');
+    const{error}=await sb.from('guild_data').update({banker_registry:bankerRegistry,updated_at:new Date().toISOString()}).eq('pool','SoV').eq('user_id',currentUser.id);
     if(error&&error.code==='PGRST116'){
-      await sb.from('guild_data').insert({pool:'SoV',banker_registry:bankerRegistry,updated_at:new Date().toISOString()});
+      await sb.from('guild_data').insert({pool:'SoV',user_id:currentUser.id,banker_registry:bankerRegistry,updated_at:new Date().toISOString()});
     }else if(error){console.error('[Bankers] Save error',error);}
   }catch(e){console.error('[Bankers] Save exception',e);}
 }
 
 async function loadBankerRegistryFromSupabase(){
   try{
-    const{data,error}=await sb.from('guild_data').select('banker_registry').eq('pool','SoV').single();
+    const{data,error}=await sb.from('guild_data').select('banker_registry').eq('pool','SoV').eq('user_id',currentUser.id).single();
     if(!error&&data&&Array.isArray(data.banker_registry)){
       bankerRegistry=data.banker_registry;
     }
@@ -6674,9 +6674,9 @@ async function saveCreditDataToSupabase(){
         serializable[char][date]=[...set];
       }
     }
-    const{error}=await sb.from('guild_data').update({credit_data:serializable,updated_at:new Date().toISOString()}).eq('pool','SoV');
+    const{error}=await sb.from('guild_data').update({credit_data:serializable,updated_at:new Date().toISOString()}).eq('pool','SoV').eq('user_id',currentUser.id);
     if(error&&error.code==='PGRST116'){
-      await sb.from('guild_data').insert({pool:'SoV',credit_data:serializable,updated_at:new Date().toISOString()});
+      await sb.from('guild_data').insert({pool:'SoV',user_id:currentUser.id,credit_data:serializable,updated_at:new Date().toISOString()});
     }else if(error){
       console.error('[CreditData] Save error',error);
     }
