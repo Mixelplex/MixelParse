@@ -22,6 +22,7 @@
     "appId": "com.mixelplex.mixelparse",
     "productName": "MixelParse",
     "icon": "assets/icon.ico",
+    "copyright": "2026 mixelplex",
     "win": {
       "target": [
         {
