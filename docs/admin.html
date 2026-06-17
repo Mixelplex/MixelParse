@@ -254,6 +254,12 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
     Utilities
     <span class="sb-badge skip" id="badge-utils">—</span>
   </div>
+  <div class="sb-section">Guild</div>
+  <div class="sb-item" data-suite="feedback" onclick="showSuite('feedback',this);loadFeedback()">
+    <div class="sb-dot skip" id="dot-feedback"></div>
+    Feedback
+    <span class="sb-badge skip" id="badge-feedback">—</span>
+  </div>
 </div>
 
 <!-- MAIN -->
@@ -618,6 +624,16 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
       <div class="suite-desc">Tests esc(), wikiUrl(), itemLink(), dkpChip(), factionColor(), platTypeLabel(), platTypeChip() output correctness.</div>
       <div class="suite-actions"><button class="btn primary" onclick="runSuite('utils')">&#9658; Run Suite</button></div>
       <div id="results-utils"></div>
+    </div>
+
+    <div id="suite-feedback" class="suite">
+      <div class="suite-title">FEEDBACK &amp; SUGGESTIONS</div>
+      <div class="suite-desc">User-submitted feedback from the in-app Feedback form. Sorted newest first.</div>
+      <div class="suite-actions" style="display:flex;align-items:center;gap:.6rem">
+        <button class="btn primary" onclick="loadFeedback()">&#8635; Refresh</button>
+        <span id="feedback-count" style="font-size:.72rem;color:var(--text-m)"></span>
+      </div>
+      <div id="feedback-list" style="margin-top:.75rem"></div>
     </div>
 
   </div><!-- main-content -->
@@ -2314,6 +2330,7 @@ function gcBuildCharBtns() {
   el.innerHTML = '';
   for (const name of Object.keys(meta)) {
     if (!(meta[name] || {}).class) continue;
+    if (A2.isBanker && A2.isBanker(name)) continue;
     const btn = document.createElement('button');
     btn.type = 'button'; btn.className = 'btn';
     btn.style.cssText = 'font-size:.72rem;padding:.2rem .55rem;';
@@ -3169,4 +3186,49 @@ function resetDropScrape() {
   document.getElementById('scrape-progress-wrap').style.display = 'none';
 }
 
+
+
+// ── Feedback Viewer ──────────────────────────────────────────────────
+function esc2(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+async function loadFeedback(){
+  const list=document.getElementById('feedback-list');
+  const countEl=document.getElementById('feedback-count');
+  if(!list)return;
+  list.innerHTML='<div style="color:var(--text-m);font-size:.8rem;padding:.5rem 0">Loading…</div>';
+  if(countEl)countEl.textContent='';
+  const sb=A.sb;
+  if(!sb){list.innerHTML='<div style="color:#a03030;font-size:.8rem;padding:.5rem 0">Not connected — open Admin from within MixelParse.</div>';return;}
+  try{
+    const{data,error}=await sb.from('suggestions').select('*').order('created_at',{ascending:false});
+    if(error)throw error;
+    if(!data||!data.length){
+      list.innerHTML='<div style="color:var(--text-m);font-size:.8rem;padding:.5rem 0">No submissions yet.</div>';
+      if(countEl)countEl.textContent='0 submissions';
+      return;
+    }
+    if(countEl)countEl.textContent=data.length+' submission'+(data.length!==1?'s':'');
+    list.innerHTML=data.map(function(row){
+      const date=new Date(row.created_at).toLocaleString();
+      const subj=row.subject?'<div style="font-size:.78rem;font-weight:600;color:var(--gold-l);margin-bottom:.3rem">'+esc2(row.subject)+'</div>':''
+      return '<div style="border:1px solid var(--border2);border-radius:4px;padding:.75rem 1rem;margin-bottom:.6rem;background:var(--surface)">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;margin-bottom:.4rem">'
+        +'<div style="font-size:.7rem;color:var(--text-m)">'+esc2(row.email||'Unknown')+' &middot; '+esc2(date)+'</div>'
+        +'<button onclick="deleteFeedback(\u0027'+row.id+'\u0027)" style="font-size:.65rem;font-family:var(--cinzel);padding:.15rem .45rem;border:1px solid var(--border2);border-radius:3px;background:none;color:var(--text-m);cursor:pointer;flex-shrink:0">&times; Delete</button>'
+        +'</div>'+subj
+        +'<div style="font-size:.82rem;color:var(--text-d);white-space:pre-wrap;line-height:1.55">'+esc2(row.message)+'</div></div>';
+    }).join('');
+  }catch(e){
+    list.innerHTML='<div style="color:#a03030;font-size:.8rem;padding:.5rem 0">Error: '+esc2(String(e))+'</div>';
+  }
+}
+async function deleteFeedback(id){
+  const sb=A.sb;
+  if(!sb||!id)return;
+  if(!confirm('Delete this submission?'))return;
+  try{
+    const{error}=await sb.from('suggestions').delete().eq('id',id);
+    if(error)throw error;
+    loadFeedback();
+  }catch(e){alert('Delete failed: '+String(e));}
+}
 </script>
