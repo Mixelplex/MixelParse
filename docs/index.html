@@ -263,6 +263,7 @@
   /* ── Watch List Modal ── */
   .wl-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:none;align-items:center;justify-content:center}
   .wl-modal-overlay.open{display:flex}
+  @keyframes updaterShimmer{0%{left:-60%}100%{left:110%}}
   .wl-modal{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:1.25rem;width:min(420px,90vw);max-height:80vh;overflow-y:auto}
   .wl-modal-title{font-family:\'Cinzel\',serif;font-size:.85rem;color:var(--gold);margin-bottom:.75rem;letter-spacing:.06em}
   .wl-modal-input-row{display:flex;gap:.5rem;margin-bottom:.75rem}
@@ -902,16 +903,41 @@
 </div>
 
 <div class="wl-modal-overlay" id="updateSplashOverlay">
-  <div class="wl-modal" style="max-width:400px;text-align:center">
-    <div style="font-size:2rem;margin-bottom:.5rem">⚔️</div>
-    <div class="wl-modal-title" style="margin-bottom:.3rem">MixelParse Update Ready</div>
-    <div id="updateSplashVersion" style="font-size:.75rem;color:var(--accent);font-family:'Cinzel',serif;letter-spacing:.08em;margin-bottom:1rem"></div>
-    <p style="font-size:.84rem;color:var(--text-dim);line-height:1.6;margin-bottom:1.2rem">A new version has been downloaded and is ready to install. Restart now to apply the update — your data stays intact.</p>
-    <div style="display:flex;gap:.7rem;justify-content:center;flex-wrap:wrap">
-      <button class="btn primary" onclick="doInstallUpdate()" style="min-width:140px">&#8635; Restart &amp; Update</button>
-      <button class="btn" onclick="closeUpdateSplash()">Later</button>
+  <div class="wl-modal" style="max-width:420px;text-align:center;padding:1.8rem 1.6rem">
+
+    <div id="updateSplashIcon" style="font-size:2rem;margin-bottom:.6rem">⬇️</div>
+    <div class="wl-modal-title" id="updateSplashTitle" style="margin-bottom:.25rem">Downloading Update</div>
+    <div id="updateSplashVersion" style="font-size:.72rem;color:var(--accent);font-family:'Cinzel',serif;letter-spacing:.08em;margin-bottom:1rem;min-height:1em"></div>
+
+    <!-- Progress bar (downloading state) -->
+    <div id="updateProgressWrap" style="margin-bottom:1rem">
+      <div style="background:rgba(255,255,255,0.07);border-radius:6px;height:10px;overflow:hidden;position:relative;margin-bottom:.5rem">
+        <div id="updateProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#4caf7d,#a0c878);border-radius:6px;transition:width .4s ease;position:relative;overflow:hidden">
+          <div id="updateProgressShimmer" style="position:absolute;top:0;left:-60%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent);animation:updaterShimmer 1.4s infinite"></div>
+        </div>
+      </div>
+      <div id="updateProgressPct" style="font-size:.85rem;color:var(--accent);font-family:'Cinzel',serif;font-weight:600;margin-bottom:.2rem">0%</div>
+      <div id="updateProgressDetails" style="font-size:.72rem;color:var(--text-muted);font-family:monospace">Connecting&hellip;</div>
     </div>
-    <div style="margin-top:.9rem;font-size:.72rem;color:var(--text-muted);font-style:italic">The update will install automatically on next launch if you choose Later.</div>
+
+    <!-- Ready state message -->
+    <p id="updateSplashMsg" style="display:none;font-size:.84rem;color:var(--text-dim);line-height:1.6;margin-bottom:1.2rem">
+      The update has been downloaded and is ready to install.<br>Restart now to apply it &mdash; your data stays intact.
+    </p>
+
+    <!-- Error detail -->
+    <div id="updateErrorDetail" style="display:none;text-align:left;background:rgba(180,60,60,.12);border:1px solid rgba(180,60,60,.3);border-radius:5px;padding:.7rem .85rem;margin-bottom:1rem">
+      <div style="font-size:.72rem;color:#c97070;font-family:'Cinzel',serif;letter-spacing:.05em;margin-bottom:.35rem">&#9888; Error Details</div>
+      <div id="updateErrorMsg" style="font-size:.75rem;color:var(--text-dim);font-family:monospace;word-break:break-all;line-height:1.5"></div>
+    </div>
+
+    <div style="display:flex;gap:.7rem;justify-content:center;flex-wrap:wrap">
+      <button id="updateActionBtn" class="btn primary" style="min-width:150px;display:none" onclick="doInstallUpdate()">&#8635; Restart &amp; Update</button>
+      <button id="updateRetryBtn" class="btn" style="display:none" onclick="retryUpdate()">&#8635; Try Again</button>
+      <button id="updateLaterBtn" class="btn" onclick="closeUpdateSplash()">Later</button>
+    </div>
+    <div id="updateSplashFooter" style="margin-top:.85rem;font-size:.7rem;color:var(--text-muted);font-style:italic">The update will apply automatically on next launch if you choose Later.</div>
+
   </div>
 </div>
 
@@ -2943,13 +2969,67 @@ function handleUpdateClick(){
   window.MixelParseApp.checkUpdates();
 }
 
-function openUpdateSplash(){
+function _updateSplashState(state, data){
+  const icon    = document.getElementById('updateSplashIcon');
+  const title   = document.getElementById('updateSplashTitle');
+  const ver     = document.getElementById('updateSplashVersion');
+  const progWrap= document.getElementById('updateProgressWrap');
+  const bar     = document.getElementById('updateProgressBar');
+  const pct     = document.getElementById('updateProgressPct');
+  const details = document.getElementById('updateProgressDetails');
+  const msg     = document.getElementById('updateSplashMsg');
+  const errBox  = document.getElementById('updateErrorDetail');
+  const errMsg  = document.getElementById('updateErrorMsg');
+  const actBtn  = document.getElementById('updateActionBtn');
+  const retryBtn= document.getElementById('updateRetryBtn');
+  const footer  = document.getElementById('updateSplashFooter');
+
+  // Reset visibility
+  [progWrap,msg,errBox,actBtn,retryBtn].forEach(el=>{ if(el) el.style.display='none'; });
+
+  if(state==='downloading'){
+    icon.textContent='\u2B07\uFE0F';
+    title.textContent='Downloading Update';
+    if(ver && data && data.version) ver.textContent='Version '+data.version;
+    progWrap.style.display='';
+    bar.style.width='2%';
+    pct.textContent='0%';
+    details.textContent='Connecting\u2026';
+    if(footer) footer.style.display='';
+  } else if(state==='progress'){
+    const p = Math.min(100, Math.round(data.percent || 0));
+    bar.style.width=p+'%';
+    pct.textContent=p+'%';
+    const mbDone = (data.transferred/1048576).toFixed(1);
+    const mbTotal= (data.total/1048576).toFixed(1);
+    const speed  = data.bytesPerSecond >= 1048576
+      ? (data.bytesPerSecond/1048576).toFixed(1)+' MB/s'
+      : Math.round(data.bytesPerSecond/1024)+' KB/s';
+    details.textContent=mbDone+' / '+mbTotal+' MB  \u00B7  '+speed;
+  } else if(state==='ready'){
+    icon.textContent='\u2714\uFE0F';
+    title.textContent='Update Ready';
+    msg.style.display='';
+    actBtn.style.display='';
+    if(footer) footer.style.display='';
+  } else if(state==='error'){
+    icon.textContent='\u26A0\uFE0F';
+    title.textContent='Update Failed';
+    errBox.style.display='';
+    errMsg.textContent=data && data.message ? data.message : 'Unknown error';
+    retryBtn.style.display='';
+    if(footer) footer.style.display='none';
+  }
+}
+function openUpdateSplash(state, data){
+  state = state || 'downloading';
   if(window.MixelParseApp && window.MixelParseApp.getVersion){
     window.MixelParseApp.getVersion().then(v => {
       const el = document.getElementById('updateSplashVersion');
-      if(el) el.textContent = 'Version ' + v + ' ready';
+      if(el && state!=='error') el.textContent = 'v' + v;
     });
   }
+  _updateSplashState(state, data);
   document.getElementById('updateSplashOverlay').classList.add('open');
 }
 function closeUpdateSplash(){
@@ -2958,6 +3038,10 @@ function closeUpdateSplash(){
 function doInstallUpdate(){
   closeUpdateSplash();
   if(window.MixelParseApp) window.MixelParseApp.installUpdate();
+}
+function retryUpdate(){
+  closeUpdateSplash();
+  if(window.MixelParseApp) window.MixelParseApp.checkUpdates();
 }
 
 function openFeedbackModal(){
@@ -4458,19 +4542,23 @@ window.applyDBToChar    = applyDBToChar;
           break;
         case 'update-available':
           if(btn){ btn.textContent = '\u2B07 Downloading\u2026'; btn.style.color = '#a0c878'; btn.style.pointerEvents = 'none'; }
-          showWatcherToast('\uD83D\uDCE6 Update available \u2014 downloading\u2026');
+          openUpdateSplash('downloading');
+          break;
+        case 'download-progress':
+          _updateSplashState('progress', ev);
           break;
         case 'update-downloaded':
           if(btn){ btn.textContent = '\u21BB Restart to Update'; btn.style.color = '#4caf7d'; btn.style.pointerEvents = ''; btn.dataset.state = 'ready'; }
-          openUpdateSplash();
+          _updateSplashState('ready');
           break;
         case 'up-to-date':
           if(btn){ btn.textContent = '\u2714 Up to Date'; btn.style.color = 'var(--text-muted)'; btn.style.pointerEvents = 'none'; }
+          closeUpdateSplash();
           showWatcherToast('\u2714 MixelParse is up to date');
           setTimeout(_resetUpdateBtn, 3000);
           break;
         case 'error':
-          showWatcherToast('\u26A0 Update check failed');
+          openUpdateSplash('error', ev);
           _resetUpdateBtn();
           break;
       }
