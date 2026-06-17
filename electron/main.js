@@ -428,6 +428,8 @@ ipcMain.handle('updater:install', () => {
   autoUpdater.quitAndInstall();
 });
 
+ipcMain.handle('app:get-version', () => app.getVersion());
+
 // ─── Auto-updater events ──────────────────────────────────────────────────────
 autoUpdater.on('update-available', () => {
   mainWindow && mainWindow.webContents.send('updater-event', { type: 'update-available' });
@@ -440,6 +442,7 @@ autoUpdater.on('update-downloaded', () => {
 });
 autoUpdater.on('error', (err) => {
   console.error('[Updater]', err.message);
+  mainWindow && mainWindow.webContents.send('updater-event', { type: 'error', message: err.message });
 });
 
 // ─── App lifecycle ────────────────────────────────────────────────────────────
