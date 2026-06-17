@@ -1,3 +1,4 @@
 node_modules/
 electron-bin.zip
 *.asar
+dist/
