@@ -434,6 +434,15 @@ ipcMain.handle('app:get-version', () => app.getVersion());
 autoUpdater.on('update-available', () => {
   mainWindow && mainWindow.webContents.send('updater-event', { type: 'update-available' });
 });
+autoUpdater.on('download-progress', (progress) => {
+  mainWindow && mainWindow.webContents.send('updater-event', {
+    type: 'download-progress',
+    percent: progress.percent,
+    transferred: progress.transferred,
+    total: progress.total,
+    bytesPerSecond: progress.bytesPerSecond
+  });
+});
 autoUpdater.on('update-not-available', () => {
   mainWindow && mainWindow.webContents.send('updater-event', { type: 'up-to-date' });
 });
