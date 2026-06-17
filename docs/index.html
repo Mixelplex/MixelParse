@@ -94,6 +94,8 @@
   .legend{font-size:.75rem;color:var(--text-muted);font-style:italic;margin-bottom:.75rem}
   .combined-header{margin:.75rem 1rem 0;display:flex;align-items:center;gap:.5rem;font-family:\'Cinzel\',serif;font-size:.8rem;color:var(--gold-dim);letter-spacing:.07em}
   .combined-header hr{flex:1;border:none;border-top:1px solid var(--border)}
+  .banker-add-row{display:flex;gap:.5rem;align-items:center;margin:.75rem 1rem .5rem;flex-wrap:wrap}
+  #bankersPanel.drag-over{outline:2px dashed var(--gold);outline-offset:-6px;background:rgba(201,146,42,.05)}
   /* ── Gear Planner layout ── */
   .upg-layout{display:grid;grid-template-columns:1fr 190px;gap:.85rem;margin:0 1rem 2rem;align-items:start}
   /* ── Stacked panes (left) ── */
@@ -211,6 +213,9 @@
   .modal h2{font-family:\'Cinzel\',serif;font-size:1rem;color:var(--gold-light);letter-spacing:.08em;margin-bottom:.6rem}
   .modal p{color:var(--text-dim);font-size:.9rem;margin-bottom:1.2rem}
   .modal-btns{display:flex;gap:.6rem;justify-content:center}
+  .help-modal-list{list-style:none;padding:0;margin:0 0 1.2rem;display:flex;flex-direction:column;gap:.55rem}
+  .help-modal-item{display:flex;gap:.55rem;align-items:flex-start;font-size:.87rem;color:var(--text-dim);line-height:1.5}
+  .help-modal-bullet{color:var(--gold);flex-shrink:0;font-size:.8rem;margin-top:.22em}
   .btn-confirm-danger{background:#7a1010;border:1px solid #a02020;border-radius:3px;color:#f8d0d0;padding:.45rem 1rem;cursor:pointer;font-family:\'Crimson Pro\',serif;font-size:.9rem}
   .btn-confirm-danger:hover{background:#a01010}
   /* ── Auth Screen ── */
@@ -631,11 +636,14 @@
   <div class="top-nav-item" data-view="dkp">DKP History</div>
   <div class="top-nav-item" data-view="plat">Plat Prices</div>
   <div class="top-nav-item" data-view="kills">Raid Kill Tracker</div>
+  <div class="top-nav-item" data-view="bankers">Bankers</div>
   <div id="syncIndicator" title="Click to save now" onclick="forceSaveNow()" style="margin-left:auto;cursor:pointer;font-size:.65rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:4px;transition:background .15s">
     <span id="syncDot" style="width:7px;height:7px;border-radius:50%;background:#888;display:inline-block;transition:background .3s"></span>
     <span id="syncLabel">saved</span>
   </div>
   <div class="top-nav-item" style="color:var(--text-muted);font-size:.65rem" onclick="openAdminPanel()">&#9881; Admin</div>
+  <div style="color:var(--text-muted);font-size:.65rem;font-family:'Cinzel',serif;letter-spacing:.07em;padding:.55rem .9rem;cursor:pointer;white-space:nowrap" onclick="showCurrentHelp()" title="How to use this tab">Help</div>
+  <div style="color:var(--text-muted);font-size:.65rem;font-family:'Cinzel',serif;letter-spacing:.07em;padding:.55rem .9rem;cursor:pointer;white-space:nowrap" onclick="openFeedbackModal()" title="Submit feedback or suggestions">Feedback</div>
 </div>
 
 <div id="dkpView" style="display:none">
@@ -654,11 +662,16 @@
   <div class="rc-panel" id="gearReportsPanel"></div>
 </div>
 
+<div id="bankersView" style="display:none">
+  <div class="rc-panel" id="bankersPanel"></div>
+</div>
+
 <div class="tab-bar" id="tabBar">
   <div class="tab-add" id="tabAdd" title="Add character files">&#65291;</div>
 </div>
 <input type="file" id="fileInput" accept=".txt" multiple style="display:none">
 <input type="file" id="charRefreshInput" accept=".txt" style="display:none">
+<input type="file" id="bankerAddInput" accept=".txt" style="display:none">
 <input type="file" id="dkpCsvInput" accept=".csv" style="display:none">
 <input type="file" id="creditCsvInput" accept=".csv" style="display:none">
 
@@ -835,6 +848,37 @@
   </div>
 </div>
 
+<div class="wl-modal-overlay" id="feedbackModalOverlay">
+  <div class="wl-modal" style="max-width:460px">
+    <div class="wl-modal-title">&#128172; Feedback &amp; Suggestions</div>
+    <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.9rem;line-height:1.5">Got a feature idea, bug report, or general thought? Send it through — all submissions are reviewed.</p>
+    <div style="margin-bottom:.6rem">
+      <label style="font-size:.75rem;color:var(--text-muted);display:block;margin-bottom:.3rem;letter-spacing:.04em">SUBJECT <span style="opacity:.6">(optional)</span></label>
+      <input type="text" id="feedbackSubject" class="wl-modal-input" placeholder="e.g. Gear Planner idea…" maxlength="120" style="width:100%">
+    </div>
+    <div style="margin-bottom:.9rem">
+      <label style="font-size:.75rem;color:var(--text-muted);display:block;margin-bottom:.3rem;letter-spacing:.04em">MESSAGE <span style="color:#a03030">*</span></label>
+      <textarea id="feedbackMessage" class="wl-modal-input" rows="5" maxlength="2000" placeholder="Describe your idea or issue…" style="width:100%;resize:vertical;min-height:100px;font-family:inherit"></textarea>
+      <div id="feedbackCharCount" style="font-size:.7rem;color:var(--text-muted);text-align:right;margin-top:.2rem">0 / 2000</div>
+    </div>
+    <div id="feedbackStatus" style="font-size:.8rem;margin-bottom:.6rem;min-height:1.2em"></div>
+    <div style="display:flex;gap:.6rem;justify-content:flex-end">
+      <button class="btn" onclick="closeFeedbackModal()">Cancel</button>
+      <button class="btn primary" id="feedbackSubmitBtn" onclick="submitFeedback()">Send Feedback</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="helpModalOverlay">
+  <div class="modal" style="max-width:560px;text-align:left;padding:1.75rem">
+    <h2 id="helpModalTitle" style="text-align:center;margin-bottom:.2rem"></h2>
+    <p id="helpModalSub" style="text-align:center;margin-bottom:1rem;font-size:.75rem;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase"></p>
+    <ul class="help-modal-list" id="helpModalList"></ul>
+    <div style="text-align:center;display:flex;flex-direction:column;gap:.45rem;align-items:center">
+      <button class="btn" style="min-width:100px" onclick="dismissHelp()">Got it</button>
+      <span style="font-size:.68rem;color:var(--text-muted);cursor:pointer;opacity:.65;text-decoration:underline" onclick="resetAllHelp()">Reset all tips</span>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <h2>&#9888; Confirm</h2>
@@ -1185,16 +1229,19 @@ _rebuildItemDBIndex();
 let chars={},charMeta={},gearStats={},factionData={},skyshrineData={},questData={};
 let activeTab=null,activeSub='inventory';
 let sortCol='name',sortDir=1;
+let bankerRegistry=[]; // char names treated as inventory-only "banker" toons
 
 // ─── Parse inventory ──────────────────────────────────────────────────────────
 function parseInventory(text,charName){const items=[];for(const line of text.split('\n')){const p=line.trim().split('\t');if(p.length<4)continue;const[loc,name,id,count]=p;if(name==='Empty'||name==='Name')continue;if(Number(id)===0)continue;items.push({char:charName,location:loc,name:name.trim(),id:Number(id),count:Number(count)});}return items;}
 function locationType(loc){if(/^Bank/.test(loc))return 'bank';if(/^General/.test(loc)||/^Held/.test(loc))return 'bag';return 'equipped';}
 function extractCharName(fn){return fn.replace(/-Inventory\.txt$/i,'').replace(/\.txt$/i,'');}
-function charNames(){return Object.keys(chars);}
+function charNames(){return Object.keys(chars).filter(n=>!isBanker(n));}
+function isBanker(cn){return bankerRegistry.some(b=>b.toLowerCase()===String(cn).toLowerCase());}
+function bankerNames(){return bankerRegistry.map(b=>Object.keys(chars).find(k=>k.toLowerCase()===b.toLowerCase())||b);}
 function getEquippedItems(cn){return(chars[cn]||[]).filter(i=>locationType(i.location)==='equipped');}
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
-function buildTabs(){const bar=document.getElementById('tabBar');bar.querySelectorAll('.tab').forEach(t=>t.remove());const names=charNames();if(names.length>1)bar.insertBefore(makeTab('__all__','&#9876; All Characters'),document.getElementById('tabAdd'));names.forEach(n=>bar.insertBefore(makeTab(n,n),document.getElementById('tabAdd')));if(activeTab==='__all__'&&names.length<2)activeTab=names[0]||null;if(activeTab&&activeTab!=='__all__'&&!chars[activeTab])activeTab=names[0]||null;if(!activeTab&&names.length===1)activeTab=names[0];if(!activeTab&&names.length>1)activeTab='__all__';bar.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.char===activeTab));document.getElementById('subtabBar').style.display=(activeTab&&activeTab!=='__all__')?'flex':'none';}
+function buildTabs(){const bar=document.getElementById('tabBar');bar.querySelectorAll('.tab').forEach(t=>t.remove());const names=charNames();if(names.length>1)bar.insertBefore(makeTab('__all__','&#9876; All Characters'),document.getElementById('tabAdd'));names.forEach(n=>bar.insertBefore(makeTab(n,n),document.getElementById('tabAdd')));if(activeTab==='__all__'&&names.length<2)activeTab=names[0]||null;if(activeTab&&activeTab!=='__all__'&&(!chars[activeTab]||isBanker(activeTab)))activeTab=names[0]||null;if(!activeTab&&names.length===1)activeTab=names[0];if(!activeTab&&names.length>1)activeTab='__all__';bar.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.char===activeTab));document.getElementById('subtabBar').style.display=(activeTab&&activeTab!=='__all__')?'flex':'none';}
 function makeTab(charKey,label){const t=document.createElement('div');t.className='tab';t.dataset.char=charKey;const span=document.createElement('span');span.innerHTML=label;t.appendChild(span);if(charKey!=='__all__'){const status=getOverallStatus(charKey);const dot=document.createElement('span');dot.className='tab-rc-dot';dot.title='Raid Consumes: '+(status==='green'?'Ready':status==='yellow'?'Mostly Ready':'Not Ready');dot.style.cssText='font-size:.7rem;line-height:1;margin-left:.1rem;';dot.textContent=status==='green'?'✔':status==='yellow'?'◐':'✘';dot.style.color=status==='green'?'#3a7a3a':status==='yellow'?'#b07800':'#a03030';t.appendChild(dot);const reload=document.createElement('span');reload.className='remove-char';reload.textContent='↻';reload.title='Refresh inventory';reload.style.cssText='font-size:.9rem;';reload.addEventListener('click',e=>{e.stopPropagation();const inp=document.getElementById('charRefreshInput');inp.dataset.charkey=charKey;inp.click();});t.appendChild(reload);const x=document.createElement('span');x.className='remove-char';x.textContent='✕';x.addEventListener('click',e=>{e.stopPropagation();confirmAction('Remove '+charKey+'?',async()=>{delete chars[charKey];delete charMeta[charKey];delete gearStats[charKey];if(activeTab===charKey)activeTab=charNames()[0]||null;refresh();if(currentUser){try{await sb.from('characters').delete().eq('user_id',currentUser.id).eq('char_name',charKey);}catch(err){console.warn('Failed to delete character from Supabase:',err);}}});});t.appendChild(x);}t.addEventListener('click',()=>{activeTab=charKey;localStorage.setItem('mp_activeTab',charKey);if(charKey==='__all__')activeSub='inventory';buildTabs();renderView();});return t;}
 // ── Top Nav ──
 let activeTopView='characters';
@@ -1207,6 +1254,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     const isPlat=activeTopView==='plat';
     const isKills=activeTopView==='kills';
     const isGearReports=activeTopView==='gearreports';
+    const isBankers=activeTopView==='bankers';
     document.getElementById('tabBar').style.display=isChars?'flex':'none';
     
     document.getElementById('watchlistBar').style.display=isChars?'':'none';
@@ -1218,20 +1266,23 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     document.getElementById('platView').style.display=isPlat?'block':'none';
     document.getElementById('killsView').style.display=isKills?'block':'none';
     document.getElementById('gearReportsView').style.display=isGearReports?'block':'none';
+    document.getElementById('bankersView').style.display=isBankers?'block':'none';
     if(isDkp){renderDkpPanel();}
     else if(isPlat){renderPlatPanel();}
     else if(isKills){renderKillsPanel();}
     else if(isGearReports){renderGearReportsPanel();}
+    else if(isBankers){renderBankersPanel();}
     else{renderView();}
+    maybeShowHelp(activeTopView);
   });
 });
-document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();});});
+document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();maybeShowHelp('sub_'+activeSub);});});
 function refresh(){buildTabs();renderView();saveState();}
 function renderOnly(){buildTabs();renderView();}
 function renderView(){if(activeTopView&&activeTopView!=='characters')return;const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderCityBars();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();}
 
 // ─── Inventory Table ──────────────────────────────────────────────────────────
-function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.values(chars).flat():(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;return ms&&ml;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=source.reduce((s,i)=>s+i.count,0);const unique=new Set(source.map(i=>i.id)).size;const stacks=source.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span>':'');}
+function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.values(chars).flat():(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;return ms&&ml;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=source.reduce((s,i)=>s+i.count,0);const unique=new Set(source.map(i=>i.id)).size;const stacks=source.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span><span class="stat">Bankers <span class="stat-val">'+bankerNames().length+'</span></span>':'');}
 
 // ─── Stats Panel ──────────────────────────────────────────────────────────────
 function renderStatsPanel(){const panel=document.getElementById('statsPanel');const name=activeTab;if(!name||name==='__all__'){panel.innerHTML='';return;}const meta=charMeta[name]||{};const base=meta.baseStats||null;const selClass=meta.class||'';const selLevel=meta.level||1;const selRace=meta.race||'';const charGear=gearStats[name]||{};const dbCount=Object.keys(itemDB).length;const getBaseVal=(k)=>{if(!base)return'';const si=STAT_KEYS.indexOf(k);if(si>=0)return base.stats[si]||'';const ri=RESIST_KEYS.indexOf(k);if(ri>=0)return base.resists[ri]||'';const pi=POOL_KEYS.indexOf(k);if(pi>=0)return base.pools?.[pi]||'';return'';};
@@ -2572,6 +2623,7 @@ document.getElementById('gearReportsBtn').addEventListener('click',()=>{
   document.getElementById('dkpView').style.display='none';
   document.getElementById('platView').style.display='none';
   document.getElementById('killsView').style.display='none';
+  document.getElementById('bankersView').style.display='none';
   document.getElementById('gearReportsView').style.display='block';
   renderGearReportsPanel();
 });
@@ -2613,6 +2665,40 @@ function loadFiles(files){const arr=[...files];if(!arr.length)return;let loaded=
 
 document.getElementById('fileInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
 document.getElementById('charRefreshInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const cn=extractCharName(file.name);chars[cn]=parseInventory(ev.target.result,cn);if(!charMeta[cn])charMeta[cn]={};if(activeTab!==cn)activeTab=cn;refresh();};reader.readAsText(file);e.target.value='';});
+function addBankerFromFile(file){
+  if(!file)return;
+  if(!/-Inventory\.txt$/i.test(file.name)){
+    alert(`"${file.name}" doesn't look like an inventory export.\n\nPick the toon's "<CharacterName>-Inventory.txt" file (created via /outputfile inventory).`);
+    return;
+  }
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const cn=extractCharName(file.name);
+    chars[cn]=parseInventory(ev.target.result,cn);
+    if(!charMeta[cn])charMeta[cn]={};
+    if(!bankerRegistry.some(b=>b.toLowerCase()===cn.toLowerCase())){
+      bankerRegistry.push(cn);
+      saveBankerRegistryToSupabase();
+    }
+    refresh();
+    renderBankersPanel();
+  };
+  reader.readAsText(file);
+}
+document.getElementById('bankerAddInput').addEventListener('change',e=>{
+  addBankerFromFile(e.target.files[0]);
+  e.target.value='';
+});
+{
+  const bp=document.getElementById('bankersPanel');
+  bp.addEventListener('dragover',e=>{e.preventDefault();bp.classList.add('drag-over');});
+  bp.addEventListener('dragleave',()=>bp.classList.remove('drag-over'));
+  bp.addEventListener('drop',e=>{
+    e.preventDefault();
+    bp.classList.remove('drag-over');
+    [...e.dataTransfer.files].forEach(addBankerFromFile);
+  });
+}
 document.getElementById('dkpCsvInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const {lookup,txCount}=parseDkpCsv(ev.target.result);dkpLookup=lookup;dkpMeta={updatedAt:new Date().toISOString(),txCount};dkpCacheKey='';saveDkpToSupabase();renderDkpPanel();applyDkpToItemDB();};reader.readAsText(file);e.target.value='';});
 document.getElementById('creditCsvInput').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const parsed=parseOdkpDetailsCsv(ev.target.result);console.log('[CreditCheck] Parsed chars:',Object.keys(parsed),'total dates:',Object.values(parsed).reduce((s,d)=>s+Object.keys(d).length,0));creditData=parsed;window.creditData=parsed;saveCreditDataToSupabase();renderKillsPanel();};reader.readAsText(file);e.target.value='';})
 document.getElementById('dzInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value='';});
@@ -2629,6 +2715,177 @@ document.getElementById('clearAllBtn').addEventListener('click',()=>{document.ge
 let _confirmCb=null;
 function confirmAction(msg,cb){document.getElementById('modalMsg').textContent=msg;_confirmCb=cb;document.getElementById('modalOverlay').classList.add('open');}
 document.getElementById('modalCancel').addEventListener('click',()=>{document.getElementById('modalOverlay').classList.remove('open');_confirmCb=null;});
+
+// \u2500\u2500\u2500 Help / How To Use \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+const HELP_CONTENT={
+  characters:{title:'Characters',sub:'Getting started',tips:[
+    'Drag an inventory file onto the screen (or click +) to add a character. Files must be named CharName-Inventory.txt from your EQ directory.',
+    'Each character gets a tab at the top. Click \u21bb to refresh their inventory, or \u2715 to remove them.',
+    'The \u2694 All Characters tab searches across every loaded character at once.',
+    'The status dot (\u2714/\u25d0/\u2718) on each tab shows raid consume readiness at a glance.',
+    'The MixelParse watcher (mixelparse-watcher.js) can auto-reload inventories and feed live data from your EQ log.',
+  ]},
+  dkp:{title:'DKP History',sub:'Guild economy',tips:[
+    'Import your guild\'s full DKP history from an ODKP CSV export using the Import button.',
+    'Search by item name or character to view bid and spend history (26k+ transactions supported).',
+    'DKP data links to Credit Check inside the Raid Kill Tracker for raid attendance verification.',
+  ]},
+  plat:{title:'Plat Prices',sub:'Market data',tips:[
+    'Displays current market prices sourced from PigParse.',
+    'Search by item name to find the going rate.',
+    'Prices sync automatically via Supabase Edge Function \u2014 no manual refresh needed.',
+  ]},
+  kills:{title:'Raid Kill Tracker',sub:'Session & DKP management',tips:[
+    'Click New Session to start tracking kills for a raid night. Name it and set the zone tier.',
+    'Click a boss to log a kill (full DKP) or fail-tick (partial). Role checkboxes (MT, Healer, etc.) award FTE bonus DKP.',
+    'Hourly Ticks track base attendance DKP. The watcher triggers them via /note standard (or ntov, sky, vp) in EQ chat.',
+    'The watcher fires TOD modals when it detects /note <boss> in your EQ log — use the /note INFO button (top right) for a full list of boss keywords and aliases.',
+    'Bot Loot Bonus rows record loot credit DKP (0.1 / 0.5 / 1.0 increments) awarded by the DKP bot.',
+    'Credit Check cross-references your saved sessions against the ODKP CSV export to confirm raid attendance.',
+  ]},
+  bankers:{title:'Bankers',sub:'Inventory-only toons',tips:[
+    'Register toons whose only function is holding items (e.g. Mixelvault, Mixelbank).',
+    'Bankers appear in the All Characters inventory search but are excluded from all character systems: gear, factions, quests, DKP, etc.',
+    'Add via the Add Banker\u2026 button or drag-drop an Inventory.txt file onto the panel.',
+    'Remove with \u2715 to return the toon to the normal character roster with inventory data intact.',
+  ]},
+  sub_inventory:{title:'Inventory',sub:'Item search & browsing',tips:[
+    'Search by item name or item ID in the search box \u2014 results update instantly.',
+    'Filter by location: Equipped, Bank, or Bag using the dropdown.',
+    'Click any column header to sort ascending or descending.',
+    'Item names are P99 wiki links \u2014 click any item to open its wiki page.',
+    'The Watch List bar at the bottom highlights items you\'re hunting. Configure rules with the \u2694 button.',
+  ]},
+  sub_stats:{title:'Character Stats',sub:'Gear scoring & softcaps',tips:[
+    'Shows your total stats from equipped gear with class-weighted scoring.',
+    'Set your class, race, and level using the dropdowns at the top of the panel to enable softcap color coding.',
+    'Green = above softcap \u00b7 Yellow = approaching \u00b7 Gray = below. Hover a stat for a slot-by-slot breakdown.',
+    'Haste is capped at 41% \u2014 multiple haste items correctly show highest item wins.',
+    'Stat weights are class-specific \u2014 make sure your class is set correctly for accurate scoring.',
+  ]},
+  sub_upgrades:{title:'Gear Planner',sub:'Upgrade finder',tips:[
+    'Compares your equipped gear against the item database to find upgrades per slot.',
+    'Score is weighted by your class\'s stat priorities \u2014 set your class in Character Stats first.',
+    'Biggest Upgrades shows Major / Medium / Minor tier improvements with P99 wiki links and "why" explanations.',
+    'Haste is single-item capped at 41% \u2014 the planner scores items relative to your current haste value.',
+    'GM and unobtainable items are filtered out automatically. Lore items deduplicate if already equipped.',
+  ]},
+  sub_consumes:{title:'Raid Consumes',sub:'Pre-raid checklist',tips:[
+    'Tracks which consumables each character needs stocked before a raid.',
+    '\u2714 Green = stocked \u00b7 \u25d0 Yellow = partial \u00b7 \u2718 Red = missing.',
+    'The status dot on each character\'s tab reflects their overall readiness at a glance.',
+  ]},
+  sub_factions:{title:'Factions',sub:'Standing tracker',tips:[
+    'Tracks faction standing per character from real-time /con messages in the EQ log.',
+    'The watcher reads con results and updates standings automatically as you play.',
+    'City bars show Skyshrine, Kael Drakkel, and Thurgadin side by side with independent visibility toggles.',
+    'In the All Characters view, toggle individual factions shown or hidden via the \u2699 button \u2014 state persists in localStorage.',
+    'Kill faction values update when you kill tracked mobs \u2014 exact per-mob deltas sourced from the P99 wiki.',
+  ]},
+  sub_skyshrine:{title:'Skyshrine',sub:'Armor quest tracker',tips:[
+    'Tracks Skyshrine armor quest progress per character.',
+    'Check off pieces you\'ve obtained to see what\'s still needed to complete your set.',
+  ]},
+  sub_quests:{title:'Quests',sub:'Quest progress',tips:[
+    'Covers major quests: Dozekar Tear quests (all 14 classes), Plane of Sky class quests, and the Thex Mallet.',
+    'Check off completed steps \u2014 progress persists in Supabase.',
+    'All quest data is sourced from the P99 wiki for accuracy.',
+  ]},
+};
+
+let _helpCurrentKey=null;
+
+function maybeShowHelp(key){
+  if(!HELP_CONTENT[key])return;
+  if(localStorage.getItem('mp_help_seen_'+key))return;
+  showHelpModal(key);
+}
+
+function showHelpModal(key){
+  const c=HELP_CONTENT[key];
+  if(!c)return;
+  _helpCurrentKey=key;
+  document.getElementById('helpModalTitle').textContent=c.title;
+  document.getElementById('helpModalSub').textContent=c.sub;
+  const ul=document.getElementById('helpModalList');
+  ul.innerHTML='';
+  c.tips.forEach(tip=>{
+    const li=document.createElement('li');
+    li.className='help-modal-item';
+    li.innerHTML='<span class="help-modal-bullet" aria-hidden="true">\u25b8</span><span>'+tip+'</span>';
+    ul.appendChild(li);
+  });
+  document.getElementById('helpModalOverlay').classList.add('open');
+}
+
+function dismissHelp(){
+  if(_helpCurrentKey)localStorage.setItem('mp_help_seen_'+_helpCurrentKey,'1');
+  document.getElementById('helpModalOverlay').classList.remove('open');
+  _helpCurrentKey=null;
+}
+
+function resetAllHelp(){
+  Object.keys(HELP_CONTENT).forEach(k=>localStorage.removeItem('mp_help_seen_'+k));
+  document.getElementById('helpModalOverlay').classList.remove('open');
+  _helpCurrentKey=null;
+  if(typeof window.showWatcherToast==='function')window.showWatcherToast('\u2139 Help tips reset \u2014 they\'ll reappear as you visit each tab.');
+}
+
+function openFeedbackModal(){
+  document.getElementById('feedbackSubject').value='';
+  document.getElementById('feedbackMessage').value='';
+  document.getElementById('feedbackCharCount').textContent='0 / 2000';
+  document.getElementById('feedbackStatus').textContent='';
+  document.getElementById('feedbackSubmitBtn').disabled=false;
+  document.getElementById('feedbackModalOverlay').classList.add('open');
+}
+function closeFeedbackModal(){
+  document.getElementById('feedbackModalOverlay').classList.remove('open');
+}
+async function submitFeedback(){
+  const subject=document.getElementById('feedbackSubject').value.trim();
+  const message=document.getElementById('feedbackMessage').value.trim();
+  const status=document.getElementById('feedbackStatus');
+  const btn=document.getElementById('feedbackSubmitBtn');
+  if(!message){status.style.color='#a03030';status.textContent='Please enter a message before submitting.';return;}
+  btn.disabled=true;
+  btn.textContent='Sending\u2026';
+  status.style.color='var(--text-muted)';
+  status.textContent='';
+  try{
+    const{error}=await sb.from('suggestions').insert({
+      user_id:currentUser?.id||null,
+      email:currentUser?.email||null,
+      subject:subject||null,
+      message,
+    });
+    if(error)throw error;
+    status.style.color='#3a7a3a';
+    status.textContent='\u2714 Submitted \u2014 thanks for the feedback!';
+    btn.textContent='Sent';
+    setTimeout(()=>closeFeedbackModal(),1800);
+  }catch(e){
+    console.warn('[Feedback] Submit error',e);
+    status.style.color='#a03030';
+    status.textContent='Something went wrong. Please try again.';
+    btn.disabled=false;
+    btn.textContent='Send Feedback';
+  }
+}
+document.getElementById('feedbackMessage').addEventListener('input',function(){
+  document.getElementById('feedbackCharCount').textContent=this.value.length+' / 2000';
+});
+document.getElementById('feedbackModalOverlay').addEventListener('click',e=>{
+  if(e.target===document.getElementById('feedbackModalOverlay'))closeFeedbackModal();
+});
+function showCurrentHelp(){
+  const key=activeTopView==='characters'?('sub_'+activeSub):activeTopView;
+  showHelpModal(key);
+}
+
+document.getElementById('helpModalOverlay').addEventListener('click',e=>{
+  if(e.target===document.getElementById('helpModalOverlay'))dismissHelp();
+});
 document.getElementById('modalConfirm').addEventListener('click',()=>{document.getElementById('modalOverlay').classList.remove('open');if(_confirmCb){_confirmCb();_confirmCb=null;}});
 document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('modalOverlay')){document.getElementById('modalOverlay').classList.remove('open');_confirmCb=null;}});
 
@@ -2680,16 +2937,19 @@ async function onSignedIn(user){
   // Small delay to ensure Supabase render has completed first
   setTimeout(() => { if(typeof requestWatcherAll === 'function') requestWatcherAll(); }, 500);
   // DKP and kills now loaded inside loadFromSupabase before first render
+  setTimeout(() => { maybeShowHelp('characters'); }, 900);
 }
 
 function onSignedOut(){
   currentUser=null;
-  chars={};charMeta={};gearStats={};watchList=[];factionData={};skyshrineData={};questData={};dkpLookup={};dkpMeta={};platData=[];platMeta={};platCachedRows=[];platCacheKey='';platTypeFilter='all';raidSessions=[];activeSession=null;sessionsView='new';activeTab=null;creditData=null;charZones={};
+  chars={};charMeta={};gearStats={};watchList=[];factionData={};skyshrineData={};questData={};dkpLookup={};dkpMeta={};platData=[];platMeta={};platCachedRows=[];platCacheKey='';platTypeFilter='all';raidSessions=[];activeSession=null;sessionsView='new';activeTab=null;creditData=null;charZones={};bankerRegistry=[];
+  {const bp=document.getElementById('bankersPanel');if(bp)bp.innerHTML='';}
   document.getElementById('userBar').style.display='none';
   document.getElementById('topNav').style.display='none';
   document.getElementById('dkpView').style.display='none';
   document.getElementById('platView').style.display='none';
   document.getElementById('killsView').style.display='none';
+  document.getElementById('bankersView').style.display='none';
   showAuthScreen();
   refresh();
 }
@@ -2806,6 +3066,8 @@ async function loadFromSupabase(){
   await loadKillsFromSupabase();
   await loadDkpFromSupabase();
   await loadZonesFromSupabase();
+  await loadBankerRegistryFromSupabase();
+  await migrateLegacyBankers();
   applyDkpToItemDB();
   applyPlatToItemDB();
 
@@ -2854,7 +3116,7 @@ async function saveToSupabase(){
   setSyncStatus('saving');
   try{
     // Upsert all characters
-    const rows=charNames().map(cn=>({
+    const rows=Object.keys(chars).map(cn=>({
       user_id:currentUser.id,
       char_name:cn,
       class:charMeta[cn]?.class||null,
@@ -3530,6 +3792,25 @@ function renderSkyshrinePanel(){
     </div>`;
 }
 
+function getQuestCatsHidden(){
+  try{return new Set(JSON.parse(localStorage.getItem('mp_quest_cats_hidden')||'[]'));}
+  catch{return new Set();}
+}
+function setQuestCatsHidden(s){
+  localStorage.setItem('mp_quest_cats_hidden',JSON.stringify([...s]));
+}
+function getQuestCat(q){
+  if(q.cat)return q.cat;
+  const n=q.name||'';
+  if(n.includes('Thex Mallet'))return 'reaper';
+  if(n.includes('Plane of Sky'))return 'posky';
+  if(n.includes('Dozekar'))return 'dozekar';
+  return 'other';
+}
+function toggleQuestCatConfig(){
+  window._questCatConfigOpen=!window._questCatConfigOpen;
+  renderQuestsPanel();
+}
 function renderQuestsPanel(){
   const panel=document.getElementById('questsPanel');
   if(!panel)return;
@@ -3660,13 +3941,31 @@ function renderQuestsPanel(){
     </div>`;
   }
 
-  const criticalHtml=(QUEST_DB.critical||[]).map(renderQuest).join('');
+  const _questHidden=getQuestCatsHidden();
+  const QUEST_CATS=[
+    {key:'reaper',label:'Reaper of the Dead'},
+    {key:'posky',label:'Plane of Sky'},
+    {key:'dozekar',label:'Dozekar Tears'},
+    {key:'jboots',label:'Jboots'},
+  ];
+  const criticalHtml=(QUEST_DB.critical||[]).filter(q=>!_questHidden.has(getQuestCat(q))).map(renderQuest).join('');
   const classQuests=QUEST_DB.classes&&QUEST_DB.classes[cls]?QUEST_DB.classes[cls]:[];
-  const classHtml=classQuests.map(renderQuest).join('');
+  const classHtml=classQuests.filter(q=>!_questHidden.has(getQuestCat(q))).map(renderQuest).join('');
+  const _configOpen=!!window._questCatConfigOpen;
+  const configChips=QUEST_CATS.map(c=>{
+    const isVis=!_questHidden.has(c.key);
+    return '<span class="faction-char-chip'+(isVis?' active':'')
+      +'" onclick="(function(){const h=getQuestCatsHidden();h.has(\''+c.key+'\')?h.delete(\''+c.key+'\'):h.add(\''+c.key+'\');setQuestCatsHidden(h);renderQuestsPanel();})()">'
+      +esc(c.label)+'</span>';
+  }).join('');
+  const configRowHtml='<div style="display:'+(_configOpen?'flex':'none')+';gap:.4rem;flex-wrap:wrap;padding:.4rem .75rem .5rem;border-bottom:1px solid var(--border)">'+configChips+'</div>';
+  const filterBarHtml='<div style="display:flex;align-items:center;justify-content:flex-end;padding:.35rem .75rem .1rem"><button class="watchlist-gear-btn" onclick="toggleQuestCatConfig()" title="Filter quest categories">⚙</button></div>';
 
   panel.innerHTML=`
-    <div class="quests-wrap">
-      ${criticalHtml||classHtml?'':'<div class="empty-state">No quest data. Set your class in Character Stats.</div>'}
+    <div class="quests-wrap" style="padding-top:.1rem">
+      ${filterBarHtml}
+      ${configRowHtml}
+      ${criticalHtml||classHtml?'':'<div class="empty-state" style="padding:1rem">No quests to show. Set your class in Character Stats, or enable categories via ⚙.</div>'}
       ${criticalHtml?`<div class="quest-section-label">🌟 Critical Quests — All Classes</div>${criticalHtml}`:''}
       ${classHtml?`<div class="quest-section-label">⚔️ ${esc(cls)} Quests</div>${classHtml}`:''}
     </div>`;
@@ -3826,6 +4125,15 @@ window.applyDBToChar    = applyDBToChar;
     { target:'Ring War',        full:'Ring War',                    aliases:['ring war','rw','ring'] },
   ];
 
+  // /note aliases for Hourly Ticks DKP entries — checked after _NOTES_BOSS_LIST.
+  // Mirrors NOTES_TICK_MAP in mixelparse-watcher.js — keep in sync.
+  // desc/value must match HOURLY_ROLES exactly.
+  const _NOTES_TICK_MAP = [
+    { desc:'Ticks - Standard (hourly)',        value:1, aliases:['standard','hourly','std'] },
+    { desc:'Ticks - NToV/Sky/VP (hourly)',     value:2, aliases:['ntov','sky','vp'] },
+    { desc:'Ticks - Training Events (hourly)', value:3, aliases:['training','train'] },
+  ];
+
   // Process a raw notes.txt update (IPC path) — fuzzy match → todEnqueue
   // Only processes NEW lines since last call to avoid re-firing old entries.
   // On the very first call, treat the full file as baseline (already-seen) so
@@ -3850,13 +4158,23 @@ window.applyDBToChar    = applyDBToChar;
     if(!newLines.length) return;
     for(const line of newLines){
       const ll = line.toLowerCase();
+      let matched = false;
       for(const boss of _NOTES_BOSS_LIST){
         const hit = boss.aliases.some(a => ll.includes(a)) ||
                     ll.includes(boss.target.toLowerCase()) ||
                     ll.includes(boss.full.toLowerCase());
         if(hit){
           todEnqueue(boss.target, boss.full, line, timestamp);
+          matched = true;
           break; // one boss match per line is enough
+        }
+      }
+      if(matched) continue;
+      for(const tick of _NOTES_TICK_MAP){
+        const hit = tick.aliases.some(a => new RegExp('(^|\\s)'+a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\s|$)','i').test(ll));
+        if(hit){
+          todTickHandle(tick.desc, tick.value);
+          break;
         }
       }
     }
@@ -3883,6 +4201,7 @@ window.applyDBToChar    = applyDBToChar;
       activeTab = (saved && (saved === '__all__' || true)) ? saved : cn;
     }
     refresh(); // re-render and save (saveToSupabase guards against pre-load saves)
+    if(activeTopView==='bankers') renderBankersPanel();
     if(isNew) showWatcherToast(`📦 Loaded ${cn}`);
   }
 
@@ -3899,6 +4218,7 @@ window.applyDBToChar    = applyDBToChar;
     clearTimeout(toast._hideTimer);
     toast._hideTimer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
   }
+  window.showWatcherToast = showWatcherToast; // also called from todAddToSession/todStartNewSession/todTickHandle outside this IIFE
 
   function connect(){
     if(ws && ws.readyState <= 1) return;
@@ -3937,6 +4257,9 @@ window.applyDBToChar    = applyDBToChar;
         if(msg.type === 'todNote'){
           const t = msg;
           todEnqueue(t.target, t.full, t.noteText, t.timestamp);
+        }
+        if(msg.type === 'todTick'){
+          todTickHandle(msg.desc, msg.value);
         }
         if(msg.type === 'zoneUpdate'){
           charZones[msg.charName] = { zone: msg.zone, timestamp: msg.timestamp };
@@ -3991,6 +4314,10 @@ window.applyDBToChar    = applyDBToChar;
         if(msg.type === 'todNote'){
           // IPC watcher may send pre-processed todNote (future-proofing)
           todEnqueue(msg.target, msg.full, msg.noteText, msg.timestamp);
+        }
+        if(msg.type === 'todTick'){
+          // IPC watcher may send pre-processed todTick (future-proofing)
+          todTickHandle(msg.desc, msg.value);
         }
         if(msg.type === 'notesUpdate'){
           // IPC watcher sends raw notes text — process with local fuzzy match
@@ -4066,6 +4393,23 @@ function _todSkipAll(){
   _todModalOpen = false;
   const overlay = document.getElementById('tod-modal-overlay');
   if(overlay) overlay.remove();
+}
+
+// /note <alias> for Hourly Ticks (Standard / NToV-Sky-VP / Training).
+// Unlike boss TODs, no modal — mirrors clicking + on the Hourly Ticks row directly.
+// "No session in progress" means activeSession isn't in raidSessions yet —
+// this also covers the lazy-init empty draft created when the Kill Tracker
+// view renders (renderKillsPanel sets activeSession=newSession() but never
+// pushes/saves it). In that case we push it now and save, so the session is
+// both visible in history and persisted — matching todStartNewSession for bosses.
+function todTickHandle(desc, value){
+  if(!activeSession) activeSession = newSession();
+  const isNew = !raidSessions.includes(activeSession);
+  if(isNew) raidSessions.push(activeSession);
+  window.ktHourlyAdj(desc, value, 1);
+  saveSessionsToSupabase();
+  const qty = (activeSession.hourly||[]).find(r=>r.desc===desc)?.qty || 0;
+  showWatcherToast(`⏱ ${isNew?'New session — ':''}${desc.replace('Ticks - ','')} ×${qty}`);
 }
 
 function showTodModal(target, full, noteText, timestamp){
@@ -4265,6 +4609,9 @@ Object.defineProperty(window,'itemDBSources',{get:()=>itemDBSources});
 Object.defineProperty(window,'chars',{get:()=>chars});
 Object.defineProperty(window,'charMeta',{get:()=>charMeta});
 Object.defineProperty(window,'gearStats',{get:()=>gearStats});
+window.charNames = charNames;
+window.isBanker = isBanker;
+window.bankerNames = bankerNames;
 window.saveDkpToSupabase= saveDkpToSupabase;
 window.loadDkpFromSupabase = loadDkpFromSupabase;
 
@@ -5291,6 +5638,72 @@ window.gprSelect=function(key){
   renderGearReportsPanel();
 };
 
+function toggleNoteRef(){
+  const el=document.getElementById('ktNoteRef');
+  if(!el)return;
+  el.style.display=el.style.display==='none'?'block':'none';
+}
+function buildNoteRefHtml(){
+  const ALIAS_MAP={
+    'Dozekar':'doze','Avatar of War':'avatar, aow, avt','Dain':'dain',
+    'Statue':'statue, srz, stat','Takish':'takish, tak','Tormax':'tormax, torm, kt',
+    'Tunare':'tuna','Cazic Thule':'cazic, caz, ct','Eashen':'eashen, eas',
+    'MOTG':'motg','Phara Dar':'phara, phar, pd','Prog':'prog',
+    'TFA':'tfa, arbiter','Vyemm':'vyemm, vyem','Yelinak':'yeli, yel',
+    'Aaryonar':'aary','Dagarn':'dagarn, dag','Dracoliche':'draco, drac',
+    'Druushk':'druu','Feshlak':'fesh','Hoshkar':'hosh','Jorlleag':'jorl',
+    'Klandicar':'klan, klandi','Koi':'koi','Kreizenn':'krei, kreiz',
+    'LTK':'ltk',"Magi P'Tasa":'magi, ptasa, mpt','Mirenilla':'mire, ladym',
+    'Nevederia':'neve, nev','Sontalak':'sont, son',"Vulak'Aerr":'vulak, vul',
+    'Zlandicar':'zlan, zlandi','Ashenbone Broodmaster':'ashen, brod',
+    'Bazzt Zzzt':'bazzt, bazz','Cekenar':'cek','Essedera':'esse, ess',
+    'Gorenaire':'gore, goren','Gozzrem':'gozz','Ikatiar the Venom':'ikat, ikky',
+    'Kelorek Dar':'kelorek, kelo','Kozzalym':'kozz','Lepethida':'lep',
+    'Lord of Ire':'ire','Nexona':'nex','Sevalak':'seva, sev',
+    'Severilous':'sevr','Silverwing':'silv, sw','Trakanon':'trak',
+    'Venril Sathir':'vs, venril','Vaniki':'van','Lady Vox':'vox',
+    'Xygoz':'xyg','Zlexak':'zlex','Dread':'dread','Fright':'fright',
+    'Lord Nagafen':'naggy, nagafen','Talendor':'tal','Telkorenar':'telk',
+    'Terror':'terr','Velketor the Sorcerer':'velk','Garzicor':'garz',
+    'Innoruuk':'inny','Keldor Dek\'Torek':'kdt, keldor',
+    'Derakor the Vindicator':'vindi, derakor','Wuoshi':'wuo, wush',
+    'Yael':'yael','Lord Doljonijiarnimorinar':'lord bob, bob','Vilefang':'vile',
+  };
+  const TH='padding:.2rem .6rem .2rem 0;text-align:left;color:var(--text-muted);font-weight:normal;border-bottom:1px solid var(--border);font-size:.72rem';
+  const colgroup='';
+  const tiers=[...new Set(BOSS_ROSTER.map(b=>b.tier))];
+  const bossRows=tiers.map(tier=>{
+    const bosses=BOSS_ROSTER.filter(b=>b.tier===tier);
+    const header=`<tr><td colspan="2" style="padding:.4rem .6rem .15rem;font-family:'Cinzel',serif;font-size:.63rem;color:var(--gold);letter-spacing:.1em;text-transform:uppercase;border-top:1px solid var(--border)">${esc(tier)}</td></tr>`;
+    const rows=bosses.map(b=>{
+      const fullName=b.full||b.target;
+      const aliases=ALIAS_MAP[fullName]||ALIAS_MAP[b.target]||b.target.toLowerCase();
+      const kwList=aliases!==b.target.toLowerCase()?b.target.toLowerCase()+', '+aliases:b.target.toLowerCase();
+      return `<tr>
+        <td style="padding:.15rem 1rem .15rem 0;color:var(--text-dim);white-space:nowrap;vertical-align:top">${esc(fullName)}</td>
+        <td style="padding:.15rem 0;color:var(--gold-light);font-family:monospace;font-size:.75rem;vertical-align:top;white-space:nowrap">${esc(kwList)}</td>
+      </tr>`;
+    }).join('');
+    return header+rows;
+  }).join('');
+  return `<div style="padding:.5rem .75rem;max-height:400px;overflow-y:auto;border-bottom:1px solid var(--border);background:var(--surface2)">
+    <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.6rem">Type <span style="font-family:monospace;color:var(--gold-light)">/note &lt;keyword&gt;</span> in EQ — the watcher fuzzy-matches and fires the TOD modal or logs the tick.</div>
+    <table style="width:auto;border-collapse:collapse;font-size:.78rem">
+      ${colgroup}
+      <thead><tr>
+        <th style="${TH}">Boss</th>
+        <th style="${TH}">/note keywords</th>
+      </tr></thead>
+      <tbody>
+        <tr><td colspan="2" style="padding:.4rem .6rem .15rem;font-family:'Cinzel',serif;font-size:.63rem;color:var(--gold);letter-spacing:.1em;text-transform:uppercase">Hourly Ticks</td></tr>
+        <tr><td style="padding:.15rem 1rem .15rem 0;color:var(--text-dim);vertical-align:top">Standard</td><td style="padding:.15rem 0;color:var(--gold-light);font-family:monospace;font-size:.75rem;vertical-align:top;white-space:nowrap">standard, hourly, std</td></tr>
+        <tr><td style="padding:.15rem 1rem .15rem 0;color:var(--text-dim);vertical-align:top">NToV / Sky / VP</td><td style="padding:.15rem 0;color:var(--gold-light);font-family:monospace;font-size:.75rem;vertical-align:top;white-space:nowrap">ntov, sky, vp</td></tr>
+        <tr><td style="padding:.15rem 1rem .15rem 0;color:var(--text-dim);vertical-align:top">Training Events</td><td style="padding:.15rem 0;color:var(--gold-light);font-family:monospace;font-size:.75rem;vertical-align:top;white-space:nowrap">training, train</td></tr>
+        ${bossRows}
+      </tbody>
+    </table>
+  </div>`;
+}
 function renderKillsPanel(){
   const panel=document.getElementById('killsPanel');
   if(!panel)return;
@@ -5466,11 +5879,13 @@ function renderKillsPanel(){
   const _bossColScroll=document.getElementById('ktBossCol')?.scrollTop||0;
   const _scrollTop=window.scrollY;
   panel.innerHTML=`
-    <div style="display:flex;border-bottom:1px solid var(--border)">
+    <div style="display:flex;border-bottom:1px solid var(--border);align-items:stretch">
       <div class="kt-view-tab${sessionsView==='new'?' active':''}" onclick="ktSetView('new')">⚔ New Session</div>
       <div class="kt-view-tab${sessionsView==='history'?' active':''}" onclick="ktSetView('history')">📜 History (${raidSessions.length})</div>
       <div class="kt-view-tab${sessionsView==='creditcheck'?' active':''}" onclick="ktSetView('creditcheck')">🔍 Credit Check</div>
+      <div style="margin-left:auto;display:flex;align-items:center;padding:0 .6rem"><button class="watchlist-gear-btn" onclick="toggleNoteRef()" title="/note keyword reference" style="font-size:.72rem;font-family:'Cinzel',serif;letter-spacing:.04em;padding:.2rem .5rem;border:1px solid var(--border);border-radius:3px">/note INFO</button></div>
     </div>
+    <div id="ktNoteRef" style="display:none">${buildNoteRefHtml()}</div>
     ${sessionsView==='creditcheck'?renderCreditCheckPanel():sessionsView==='history'?`<div style="padding:.5rem 0">${histHtml}</div>`:`
       <div style="display:flex;gap:.75rem;padding:.6rem 1rem;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap;background:var(--surface2)">
         <div style="display:flex;align-items:center;gap:.4rem">
@@ -6026,7 +6441,7 @@ function timeAgo(isoStr){
 }
 
 async function saveZonesToSupabase(){
-  if(!window.currentUser)return;
+  if(!currentUser)return;
   try{
     const{error}=await sb.from('guild_data').update({zone_data:charZones,updated_at:new Date().toISOString()}).eq('pool','SoV');
     if(error&&error.code==='PGRST116'){
@@ -6045,6 +6460,86 @@ async function loadZonesFromSupabase(){
       setInterval(renderZoneBar,60000);
     }
   }catch(e){console.error('[Zone] Load exception',e);}
+}
+
+// ── Banker registry ─────────────────────────────────────────────────────────
+async function saveBankerRegistryToSupabase(){
+  if(!currentUser)return;
+  try{
+    const{error}=await sb.from('guild_data').update({banker_registry:bankerRegistry,updated_at:new Date().toISOString()}).eq('pool','SoV');
+    if(error&&error.code==='PGRST116'){
+      await sb.from('guild_data').insert({pool:'SoV',banker_registry:bankerRegistry,updated_at:new Date().toISOString()});
+    }else if(error){console.error('[Bankers] Save error',error);}
+  }catch(e){console.error('[Bankers] Save exception',e);}
+}
+
+async function loadBankerRegistryFromSupabase(){
+  try{
+    const{data,error}=await sb.from('guild_data').select('banker_registry').eq('pool','SoV').single();
+    if(!error&&data&&Array.isArray(data.banker_registry)){
+      bankerRegistry=data.banker_registry;
+    }
+  }catch(e){console.error('[Bankers] Load exception',e);}
+}
+
+// One-time migration: if no registry exists yet but the legacy banker mules
+// (Mixelvault / Mixelbank) are present in the loaded roster, seed the registry
+// from them — no inventory data moves, they just get flagged as bankers.
+async function migrateLegacyBankers(){
+  if(bankerRegistry.length)return;
+  const seedNames=['Mixelvault','Mixelbank'];
+  const found=seedNames
+    .map(n=>Object.keys(chars).find(k=>k.toLowerCase()===n.toLowerCase()))
+    .filter(Boolean);
+  if(found.length){
+    bankerRegistry=found;
+    await saveBankerRegistryToSupabase();
+  }
+}
+
+// ── Bankers tab ──────────────────────────────────────────────────────────────
+function renderBankersPanel(){
+  const panel=document.getElementById('bankersPanel');
+  if(!panel)return;
+  const names=bankerNames();
+
+  const list=names.length
+    ?names.map(n=>{
+        const hasInv=!!chars[n];
+        return `<div class="tab" style="cursor:default">
+          <span>${esc(n)}</span>
+          ${hasInv?'':'<span style="opacity:.6;font-size:.7rem;margin-left:.3rem">(no inventory file seen yet)</span>'}
+          <span class="remove-char" data-banker="${esc(n)}" title="Remove from Bankers (keeps inventory data, returns to roster)" style="opacity:1;cursor:pointer">&#10005;</span>
+        </div>`;
+      }).join('')
+    :`<div class="empty-state" style="padding:.6rem .9rem">No bankers registered yet &mdash; add one above.</div>`;
+
+  panel.innerHTML=`
+    <div class="combined-header"><span>&#127974; Bankers</span><hr></div>
+    <div class="banker-add-row">
+      <button class="btn primary" id="bankerAddBtn">&#128193; Add Banker&hellip;</button>
+      <span style="font-size:.78rem;color:var(--text-muted)">Pick that toon's <code>-Inventory.txt</code> from your EQ folder, or drag &amp; drop it anywhere on this tab</span>
+    </div>
+    <div class="tab-bar" style="border-bottom:none;flex-wrap:wrap;overflow:visible">
+      ${list}
+    </div>
+  `;
+
+  document.getElementById('bankerAddBtn').addEventListener('click',()=>{
+    document.getElementById('bankerAddInput').click();
+  });
+
+  panel.querySelectorAll('[data-banker]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const n=el.dataset.banker;
+      confirmAction(`Remove ${n} from Bankers? Inventory data is kept — the toon returns to your normal roster tabs.`,()=>{
+        bankerRegistry=bankerRegistry.filter(b=>b.toLowerCase()!==n.toLowerCase());
+        saveBankerRegistryToSupabase();
+        refresh();
+        renderBankersPanel();
+      });
+    });
+  });
 }
 
 async function saveCreditDataToSupabase(){
