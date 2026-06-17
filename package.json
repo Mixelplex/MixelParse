@@ -1,6 +1,6 @@
 {
   "name": "mixelparse",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "EverQuest P99 Guild Management Tool",
   "main": "electron/main.js",
   "author": "mixelplex",
@@ -52,6 +52,11 @@
       "src/**/*",
       "assets/**/*"
     ],
-    "extraResources": []
+    "extraResources": [
+      {
+        "from": "assets",
+        "to": "assets"
+      }
+    ]
   }
 }

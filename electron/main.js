@@ -9,7 +9,11 @@ const fs = require('fs');
 const ROOT = app.getAppPath();
 
 // ─── Icon path ────────────────────────────────────────────────────────────────
-const ICON_PATH = path.join(ROOT, 'assets', 'icon.ico');
+// In packaged builds, assets live outside the asar in extraResources.
+// In dev, they're relative to the repo root.
+const ICON_PATH = app.isPackaged
+  ? path.join(process.resourcesPath, 'assets', 'icon.ico')
+  : path.join(ROOT, 'assets', 'icon.ico');
 
 // ─── Paths ────────────────────────────────────────────────────────────────────
 const CONFIG_PATH  = path.join(app.getPath('userData'), 'config.json');
