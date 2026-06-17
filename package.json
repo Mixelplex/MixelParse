@@ -21,6 +21,7 @@
   "build": {
     "appId": "com.mixelplex.mixelparse",
     "productName": "MixelParse",
+    "icon": "assets/icon.ico",
     "artifactName": "${productName}-Setup-${version}.${ext}",
     "copyright": "2026 mixelplex",
     "win": {
