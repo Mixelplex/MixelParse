@@ -1361,6 +1361,14 @@ const NOTES_BOSS_LIST = [
   { target: 'Vilefang',        full: 'Vilefang',                    aliases: ['vilefang', 'vile'] },
 ];
 
+// /note aliases for Hourly Ticks DKP entries — checked after NOTES_BOSS_LIST.
+// desc/value must match HOURLY_ROLES in index.html exactly.
+const NOTES_TICK_MAP = [
+  { desc: 'Ticks - Standard (hourly)',        value: 1, aliases: ['standard', 'hourly', 'std'] },
+  { desc: 'Ticks - NToV/Sky/VP (hourly)',     value: 2, aliases: ['ntov', 'sky', 'vp'] },
+  { desc: 'Ticks - Training Events (hourly)', value: 3, aliases: ['training', 'train'] },
+];
+
 // RE: [Day Mon DD HH:MM:SS YYYY ] text
 const RE_NOTE_LINE = /^\[(\w+ \w+ +\d+ [\d:]+ \d+) \] (.+)$/;
 
@@ -1380,6 +1388,18 @@ function fuzzyMatchBoss(text) {
   return null;
 }
 
+function fuzzyMatchTick(text) {
+  const t = text.toLowerCase().trim();
+  for (const tick of NOTES_TICK_MAP) {
+    for (const alias of tick.aliases) {
+      const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp('(^|\\s)' + escaped + '(\\s|$)', 'i');
+      if (re.test(t)) return tick;
+    }
+  }
+  return null;
+}
+
 function processNotesLines(lines) {
   for (const line of lines) {
     const trimmed = line.trim();
@@ -1392,6 +1412,12 @@ function processNotesLines(lines) {
     if (boss) {
       console.log(`[NOTES] TOD detected: "${text}" → ${boss.target} (${boss.full})`);
       broadcast({ type: 'todNote', target: boss.target, full: boss.full, noteText: text, timestamp });
+      continue;
+    }
+    const tick = fuzzyMatchTick(text);
+    if (tick) {
+      console.log(`[NOTES] Tick detected: "${text}" → ${tick.desc}`);
+      broadcast({ type: 'todTick', desc: tick.desc, value: tick.value, noteText: text, timestamp });
     }
   }
 }
