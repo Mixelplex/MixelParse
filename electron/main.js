@@ -174,6 +174,13 @@ function createTray() {
       label: 'Admin Panel',
       click: () => { createAdminWindow(); }
     },
+    {
+      label: 'Check for Updates',
+      click: () => {
+        autoUpdater.checkForUpdatesAndNotify();
+        mainWindow && mainWindow.webContents.send('updater-event', { type: 'checking' });
+      }
+    },
     { type: 'separator' },
     {
       label: 'Quit',
@@ -417,9 +424,16 @@ ipcMain.handle('updater:check', () => {
   autoUpdater.checkForUpdatesAndNotify();
 });
 
+ipcMain.handle('updater:install', () => {
+  autoUpdater.quitAndInstall();
+});
+
 // ─── Auto-updater events ──────────────────────────────────────────────────────
 autoUpdater.on('update-available', () => {
   mainWindow && mainWindow.webContents.send('updater-event', { type: 'update-available' });
+});
+autoUpdater.on('update-not-available', () => {
+  mainWindow && mainWindow.webContents.send('updater-event', { type: 'up-to-date' });
 });
 autoUpdater.on('update-downloaded', () => {
   mainWindow && mainWindow.webContents.send('updater-event', { type: 'update-downloaded' });

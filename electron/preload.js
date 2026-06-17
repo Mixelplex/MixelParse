@@ -41,7 +41,8 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   revealPath:       (targetPath)       => ipcRenderer.invoke('ui:reveal', targetPath),
 
   // ── Auto-updater ───────────────────────────────────────────────────────────
-  checkUpdates: ()         => ipcRenderer.invoke('updater:check'),
+  checkUpdates:  ()         => ipcRenderer.invoke('updater:check'),
+  installUpdate: ()         => ipcRenderer.invoke('updater:install'),
   onUpdaterEvent: (cb)     => {
     ipcRenderer.on('updater-event', (e, data) => cb(data));
   },
