@@ -139,6 +139,7 @@
   .upg-stat-pos{font-size:.75rem;color:#1a6a1a;font-weight:500}
   .upg-stat-neg{font-size:.75rem;color:#a03030;font-weight:500}
   .upg-pane-from{font-size:.72rem;color:var(--text-muted);font-style:italic}
+  .upg-avail-badge{font-size:.72rem;color:#3a7a3a;font-weight:600;margin:.15rem 0 .1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .upg-pane-cost{font-size:.72rem;color:var(--text-muted)}
   /* alt picker row */
   .upg-alt-row{padding:.3rem .75rem .4rem;border-top:1px solid rgba(74,58,26,.12);background:rgba(160,120,50,.03);display:flex;align-items:center;gap:.5rem}
@@ -806,6 +807,57 @@
         <option value="bag">Bags</option>
         <option value="bank">Bank</option>
       </select>
+      <select class="filter-select" id="classFilter">
+        <option value="">All classes</option>
+        <option value="WAR">Warrior</option>
+        <option value="CLR">Cleric</option>
+        <option value="PAL">Paladin</option>
+        <option value="SHD">Shadow Knight</option>
+        <option value="MNK">Monk</option>
+        <option value="RNG">Ranger</option>
+        <option value="BRD">Bard</option>
+        <option value="DRU">Druid</option>
+        <option value="ENC">Enchanter</option>
+        <option value="MAG">Magician</option>
+        <option value="NEC">Necromancer</option>
+        <option value="ROG">Rogue</option>
+        <option value="SHM">Shaman</option>
+        <option value="WIZ">Wizard</option>
+      </select>
+      <select class="filter-select" id="slotFilter">
+        <option value="">All slots</option>
+        <optgroup label="Head &amp; Neck">
+          <option value="HEAD">Head</option>
+          <option value="FACE">Face</option>
+          <option value="NECK">Neck</option>
+          <option value="EAR">Ear</option>
+        </optgroup>
+        <optgroup label="Body">
+          <option value="SHOULDERS">Shoulders</option>
+          <option value="ARMS">Arms</option>
+          <option value="BACK">Back</option>
+          <option value="WRIST">Wrist</option>
+          <option value="HANDS">Hands</option>
+          <option value="CHEST">Chest</option>
+          <option value="LEGS">Legs</option>
+          <option value="FEET">Feet</option>
+          <option value="WAIST">Waist</option>
+        </optgroup>
+        <optgroup label="Accessories">
+          <option value="FINGERS">Fingers</option>
+        </optgroup>
+        <optgroup label="Weapons &amp; Shields">
+          <option value="PRIMARY">Primary</option>
+          <option value="SECONDARY">Secondary</option>
+          <option value="TWOHANDER">Two-Hander</option>
+          <option value="ONEHANDER">One-Hander</option>
+          <option value="SHIELD">Shield</option>
+        </optgroup>
+        <optgroup label="Ranged">
+          <option value="RANGE">Range</option>
+          <option value="AMMO">Ammo</option>
+        </optgroup>
+      </select>
       <button class="btn danger" id="clearAllBtn">✕ Clear Search</button>
     </div>
     <div class="stats-bar" id="statsBar"></div>
@@ -1282,7 +1334,7 @@ function renderOnly(){buildTabs();renderView();}
 function renderView(){if(activeTopView&&activeTopView!=='characters')return;const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderCityBars();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();}
 
 // ─── Inventory Table ──────────────────────────────────────────────────────────
-function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.values(chars).flat():(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;return ms&&ml;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=source.reduce((s,i)=>s+i.count,0);const unique=new Set(source.map(i=>i.id)).size;const stacks=source.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span><span class="stat">Bankers <span class="stat-val">'+bankerNames().length+'</span></span>':'');}
+function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const classFilter=document.getElementById('classFilter').value;const slotFilter=document.getElementById('slotFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.values(chars).flat():(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;let mc=true;if(classFilter||slotFilter){const db=itemDBGet(item.name);if(!db||(db._slot||'NONE')==='NONE'){mc=false;}else{if(classFilter){const cls=(db._classes||'ALL').toUpperCase();if(cls!=='ALL'&&!cls.split(/\s+/).includes(classFilter))mc=false;}if(slotFilter&&mc){const slots=db._slots||[db._slot];if(!slots.includes(slotFilter))mc=false;}}}return ms&&ml&&mc;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=source.reduce((s,i)=>s+i.count,0);const unique=new Set(source.map(i=>i.id)).size;const stacks=source.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span><span class="stat">Bankers <span class="stat-val">'+bankerNames().length+'</span></span>':'');}
 
 // ─── Stats Panel ──────────────────────────────────────────────────────────────
 function renderStatsPanel(){const panel=document.getElementById('statsPanel');const name=activeTab;if(!name||name==='__all__'){panel.innerHTML='';return;}const meta=charMeta[name]||{};const base=meta.baseStats||null;const selClass=meta.class||'';const selLevel=meta.level||1;const selRace=meta.race||'';const charGear=gearStats[name]||{};const dbCount=Object.keys(itemDB).length;const getBaseVal=(k)=>{if(!base)return'';const si=STAT_KEYS.indexOf(k);if(si>=0)return base.stats[si]||'';const ri=RESIST_KEYS.indexOf(k);if(ri>=0)return base.resists[ri]||'';const pi=POOL_KEYS.indexOf(k);if(pi>=0)return base.pools?.[pi]||'';return'';};
@@ -1892,6 +1944,19 @@ function renderUpgradesPanel(){
 
   // (2H card already built above — removed from here)
 
+  // Build inventory availability lookup — non-equipped items across all chars + bankers
+  const _invAvail={};
+  for(const[_cn,_citems] of Object.entries(chars)){
+    const _isBnk=isBanker(_cn);
+    for(const _citem of _citems){
+      if(_isBnk||locationType(_citem.location)!=='equipped'){
+        if(!_invAvail[_citem.name])_invAvail[_citem.name]=[];
+        _invAvail[_citem.name].push({char:_cn,type:_isBnk?'banker':'char'});
+      }
+    }
+  }
+  window._upgInvAvail=_invAvail;
+
   let cardsHtml='';
   for(const sr of slotResults){
     const {item,dbSlot,currentData,candidates,cardId}=sr;
@@ -1911,6 +1976,11 @@ function renderUpgradesPanel(){
       const prefix=c._effGain>0?'▲ ':c._effGain<0?'▼ ':'';
       let label=prefix+esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
       if(isWepSlotCard&&(c.dmg||c.delay)){const dps=weaponDpsScore(c,dbSlot,charClass,charLevel,baselineTotals);if(dps>0)label+=` [${Math.round(dps*100)/10} dps]`;}
+      const _avOpt=_invAvail[c.name];
+      if(_avOpt&&_avOpt.length){
+        const _chars=[...new Set(_avOpt.filter(a=>a.type!=='banker').map(a=>a.char))];
+        const _bnks=[...new Set(_avOpt.filter(a=>a.type==='banker').map(a=>'['+a.char+']'))];
+        label+=' ★ '+[..._chars,..._bnks].join(', ');}
       return `<option value="${i}">${label}</option>`;
     }).join(''):'';
     const cost=hasBest?[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' · '):'';
@@ -2180,9 +2250,18 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
   const charLevel=meta.level||60;
   const candDpsVal=(isWepSlotUpg&&(cand.dmg||cand.delay))?weaponDpsScore(cand,sr.dbSlot,meta.class||'',charLevel,null):0;
   const candDpsHtml=candDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0;text-align:right">${Math.round(candDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)">dps</span></div>`:'';
+  const _avPane=window._upgInvAvail&&window._upgInvAvail[cand.name];
+  const _avPaneHtml=_avPane&&_avPane.length
+    ?`<div class="upg-avail-badge">★ `
+      +[
+        ...[...new Set(_avPane.filter(a=>a.type!=='banker').map(a=>esc(a.char)))],
+        ...[...new Set(_avPane.filter(a=>a.type==='banker').map(a=>'Banker: '+esc(a.char)))]
+      ].join(' · ')
+    +'</div>':'';
   upgPaneEl.innerHTML=`
     <div class="upg-pane-label">Best upgrade</div>
     <div class="upg-pane-name upg-pane-upgrade">${itemLink(cand.name)}</div>
+    ${_avPaneHtml}
     ${candDpsHtml}
     <div class="upg-pane-stats">${statsHtml||'<span class="upg-stat-cur">No stat changes</span>'}</div>
     ${(cand._mob||cand._from)?`<div class="upg-pane-from">${cand._mob?esc(cand._mob)+' · ':''} ${esc(cand._zone||cand._from||'')}</div>`:''}
@@ -2201,6 +2280,11 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
       const prefix=c._effGain>0?'▲ ':c._effGain<0?'▼ ':'';
       let label=prefix+esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
       if(isWepSlotAlt&&(c.dmg||c.delay)){const dps=weaponDpsScore(c,sr.dbSlot,meta.class||'',meta.level||60,null);if(dps>0)label+=` [${Math.round(dps*100)/10} dps]`;}
+      const _avAlt=window._upgInvAvail&&window._upgInvAvail[c.name];
+      if(_avAlt&&_avAlt.length){
+        const _ac=[...new Set(_avAlt.filter(a=>a.type!=='banker').map(a=>a.char))];
+        const _ab=[...new Set(_avAlt.filter(a=>a.type==='banker').map(a=>'['+a.char+']'))];
+        label+=' ★ '+[..._ac,..._ab].join(', ');}
       return `<option value="${i}"${i===selIdx?' selected':''}>${label}</option>`;
     }).join('');
     altRowEl.innerHTML=`<span class="upg-alt-label">Compare</span>
@@ -2658,7 +2742,7 @@ function itemLink(n){return `<a href="${wikiUrl(n)}" target="_blank" rel="noopen
 // ─── Sort ─────────────────────────────────────────────────────────────────────
 document.querySelectorAll('th[data-col]').forEach(th=>{th.addEventListener('click',()=>{const col=th.dataset.col;if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=1;}document.querySelectorAll('th').forEach(t=>t.classList.remove('sorted'));th.classList.add('sorted');th.querySelector('.sort-arrow').textContent=sortDir===1?' &#8593;':' &#8595;';renderTable();});});
 document.getElementById('searchBox').addEventListener('input',renderTable);
-document.getElementById('locationFilter').addEventListener('change',renderTable);
+document.getElementById('locationFilter').addEventListener('change',renderTable);document.getElementById('classFilter').addEventListener('change',renderTable);document.getElementById('slotFilter').addEventListener('change',renderTable);
 
 // ─── File Loading ─────────────────────────────────────────────────────────────
 function loadFiles(files){const arr=[...files];if(!arr.length)return;let loaded=0,lastName=null;arr.forEach(file=>{const reader=new FileReader();reader.onload=e=>{const cn=extractCharName(file.name);chars[cn]=parseInventory(e.target.result,cn);if(!charMeta[cn])charMeta[cn]={};lastName=cn;if(++loaded===arr.length){activeTab=arr.length>1&&Object.keys(chars).length>1?'__all__':lastName;refresh();}};reader.readAsText(file);});}
@@ -2709,7 +2793,7 @@ dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
 dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');loadFiles(e.dataTransfer.files);});
 
 // ─── Clear All ────────────────────────────────────────────────────────────────
-document.getElementById('clearAllBtn').addEventListener('click',()=>{document.getElementById('searchBox').value='';document.getElementById('locationFilter').value='';refresh();});
+document.getElementById('clearAllBtn').addEventListener('click',()=>{document.getElementById('searchBox').value='';document.getElementById('locationFilter').value='';document.getElementById('classFilter').value='';document.getElementById('slotFilter').value='';refresh();});
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 let _confirmCb=null;
@@ -2778,8 +2862,8 @@ const HELP_CONTENT={
   sub_factions:{title:'Factions',sub:'Standing tracker',tips:[
     'Tracks faction standing per character from real-time /con messages in the EQ log.',
     'The watcher reads con results and updates standings automatically as you play.',
-    'City bars show Skyshrine, Kael Drakkel, and Thurgadin side by side with independent visibility toggles.',
-    'In the All Characters view, toggle individual factions shown or hidden via the \u2699 button \u2014 state persists in localStorage.',
+    'Each city bar (Skyshrine, Kael Drakkel, Thurgadin) has its own \u2699 button \u2014 click it to show or hide that city\'s standings independently.',
+    'In the All Characters view, use the \u2699 button to toggle individual faction rows shown or hidden \u2014 state persists in localStorage.',
     'Kill faction values update when you kill tracked mobs \u2014 exact per-mob deltas sourced from the P99 wiki.',
   ]},
   sub_skyshrine:{title:'Skyshrine',sub:'Armor quest tracker',tips:[
@@ -2790,6 +2874,7 @@ const HELP_CONTENT={
     'Covers major quests: Dozekar Tear quests (all 14 classes), Plane of Sky class quests, and the Thex Mallet.',
     'Check off completed steps \u2014 progress persists in Supabase.',
     'All quest data is sourced from the P99 wiki for accuracy.',
+    'Use the ⚙ button in the panel header to filter by quest category. Gold chip = visible, dim chip = hidden. Categories: Reaper of the Dead, Plane of Sky, Dozekar Tears, and Jboots (coming soon).',
   ]},
 };
 
@@ -5500,6 +5585,18 @@ function renderGearReportsPanel(){
   const panel=document.getElementById('gearReportsPanel');
   if(!panel)return;
 
+  // Build inventory availability — non-equipped items across all chars + bankers
+  const invAvail={};
+  for(const[_cn,_citems] of Object.entries(chars)){
+    const _isBnk=isBanker(_cn);
+    for(const _ci of _citems){
+      if(_isBnk||locationType(_ci.location)!=='equipped'){
+        if(!invAvail[_ci.name])invAvail[_ci.name]=[];
+        invAvail[_ci.name].push({char:_cn,type:_isBnk?'banker':'char'});
+      }
+    }
+  }
+
   // Collect all plans across all chars
   const allPlans=[];
   for(const cn of charNames()){
@@ -5535,22 +5632,34 @@ function renderGearReportsPanel(){
     return (ai<0?99:ai)-(bi<0?99:bi);
   });
 
-  let totalDkp=0,totalPlat=0,selectedCount=0,totalScore=0;
+  let totalDkp=0,totalPlat=0,selectedCount=0,totalScore=0,platExcludedCount=0;
   const rows=sorted.map(e=>{
     const slotLabel=e.cardId!==e.slot?e.cardId:e.slot;
     if(e.upgradeName){
       selectedCount++;
       if(e.score)totalScore+=e.score;
       if(e.dkp)totalDkp+=Number(e.dkp);
-      if(e.plat)totalPlat+=Number(e.plat);
+      if(e.plat){
+        if(invAvail[e.upgradeName]&&invAvail[e.upgradeName].length){platExcludedCount++;}
+        else{totalPlat+=Number(e.plat);}
+      }
       const sc=e.score>=20?'upg-score-hi':e.score>=8?'upg-score-mid':'upg-score-lo';
       const scoreStr=e.score!=null?((e.score>=0?'+':'')+e.score+' pts'):'—';
       const dkpHtml=e.dkp?`<span class="gpr-cost-dkp">${e.dkp} DKP</span>`:'';
       const platHtml=e.plat?`<span class="gpr-cost-plat">${Math.round(Number(e.plat)*100)/100}k pp</span>`:'';
       const costHtml=[dkpHtml,platHtml].filter(Boolean).join(' ');
+      const _avGpr=invAvail[e.upgradeName];
+      const _avGprHtml=_avGpr&&_avGpr.length
+        ?'<div class="upg-avail-badge">★ '
+          +[
+            ...[...new Set(_avGpr.filter(a=>a.type!=='banker').map(a=>a.char))],
+            ...[...new Set(_avGpr.filter(a=>a.type==='banker').map(a=>'Banker: '+a.char))]
+          ].join(' · ')
+          +'</div>'
+        :'';
       return `<tr>
         <td class="gpr-slot">${esc(slotLabel)}</td>
-        <td><span class="gpr-item">${esc(e.upgradeName)}</span></td>
+        <td><span class="gpr-item">${esc(e.upgradeName)}</span>${_avGprHtml}</td>
         <td>
           ${e.mob?`<span class="gpr-item" style="font-size:.82rem">${esc(e.mob)}</span><br>`:''}
           <span class="gpr-from">${esc(e.zone||e.from||'—')}</span>
@@ -5627,7 +5736,7 @@ function renderGearReportsPanel(){
     </table>
     <div class="gpr-totals">
       <div class="gpr-total-item"><span class="gpr-total-label">Total DKP</span><span class="gpr-total-val">${totalDkp?totalDkp+' DKP':'—'}</span></div>
-      <div class="gpr-total-item"><span class="gpr-total-label">Total Plat</span><span class="gpr-total-val">${totalPlat?Math.round(totalPlat*100)/100+'k pp':'—'}</span></div>
+      <div class="gpr-total-item"><span class="gpr-total-label">Total Plat</span><span class="gpr-total-val">${totalPlat?Math.round(totalPlat*100)/100+'k pp':'—'}${platExcludedCount?`<span style="display:block;font-size:.68rem;color:var(--text-muted);margin-top:.1rem">${platExcludedCount} item${platExcludedCount!==1?'s':''} in inventory excluded</span>`:''}</span></div>
       <div class="gpr-total-item"><span class="gpr-total-label">Upgrades</span><span class="gpr-total-val">${selectedCount} / ${entries.length} slots</span></div>
       <div class="gpr-total-item"><span class="gpr-total-label">Avg score</span><span class="gpr-total-val">${avgScore!=='—'?'+'+avgScore+' pts':'—'}</span></div>
     </div>`;
@@ -6418,7 +6527,7 @@ function parseOdkpDetailsCsv(text){
 function renderZoneBar(){
   const el=document.getElementById('zoneBar');
   if(!el)return;
-  const entries=Object.entries(charZones);
+  const entries=Object.entries(charZones).filter(([char])=>!isBanker(char));
   if(!entries.length){el.innerHTML='';el.style.display='none';return;}
   el.style.display='';
   // Sort alphabetically so layout is stable
@@ -6503,6 +6612,17 @@ function renderBankersPanel(){
   if(!panel)return;
   const names=bankerNames();
 
+  // Build banker zone section (same grid layout as renderZoneBar)
+  const bzEntries=names.map(n=>[n,charZones[n]]).filter(([,z])=>!!z);
+  let bankerZoneHtml='';
+  if(bzEntries.length){
+    const bze=[...bzEntries];
+    if(bze.length%2!==0)bze.push(['',null]);
+    const bzRows=bze.map(([c,z])=>!c?'<span></span><span></span>'
+      :`<span class="zone-bar-char">${esc(c)}</span><span class="zone-bar-sep-zone">${esc(z.zone)}</span>`).join('');
+    bankerZoneHtml=`<div style="padding:.4rem .75rem .55rem;border-bottom:1px solid var(--border)"><div class="zone-bar-title" style="margin-bottom:.3rem">Zone Locations</div><div class="zone-bar-grid">${bzRows}</div></div>`;
+  }
+
   const list=names.length
     ?names.map(n=>{
         const hasInv=!!chars[n];
@@ -6516,6 +6636,7 @@ function renderBankersPanel(){
 
   panel.innerHTML=`
     <div class="combined-header"><span>&#127974; Bankers</span><hr></div>
+    ${bankerZoneHtml}
     <div class="banker-add-row">
       <button class="btn primary" id="bankerAddBtn">&#128193; Add Banker&hellip;</button>
       <span style="font-size:.78rem;color:var(--text-muted)">Pick that toon's <code>-Inventory.txt</code> from your EQ folder, or drag &amp; drop it anywhere on this tab</span>
