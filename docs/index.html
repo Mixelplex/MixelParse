@@ -645,6 +645,7 @@
   <div class="top-nav-item" style="color:var(--text-muted);font-size:.65rem" onclick="openAdminPanel()">&#9881; Admin</div>
   <div style="color:var(--text-muted);font-size:.65rem;font-family:'Cinzel',serif;letter-spacing:.07em;padding:.55rem .9rem;cursor:pointer;white-space:nowrap" onclick="showCurrentHelp()" title="How to use this tab">Help</div>
   <div style="color:var(--text-muted);font-size:.65rem;font-family:'Cinzel',serif;letter-spacing:.07em;padding:.55rem .9rem;cursor:pointer;white-space:nowrap" onclick="openFeedbackModal()" title="Submit feedback or suggestions">Feedback</div>
+  <div id="updateNavBtn" style="display:none;font-size:.65rem;font-family:'Cinzel',serif;letter-spacing:.07em;padding:.55rem .9rem;cursor:pointer;white-space:nowrap;color:var(--text-muted);transition:color .2s" onclick="handleUpdateClick()" title="Check for updates">&#8635; Update</div>
 </div>
 
 <div id="dkpView" style="display:none">
@@ -2916,6 +2917,21 @@ function resetAllHelp(){
   if(typeof window.showWatcherToast==='function')window.showWatcherToast('\u2139 Help tips reset \u2014 they\'ll reappear as you visit each tab.');
 }
 
+function handleUpdateClick(){
+  const btn = document.getElementById('updateNavBtn');
+  if(!window.MixelParseApp) return;
+  if(btn && btn.dataset.state === 'ready'){
+    // Update already downloaded — quit and install
+    window.MixelParseApp.installUpdate();
+    return;
+  }
+  // Trigger a fresh check
+  btn.textContent = '⟳ Checking…';
+  btn.style.color = 'var(--text-muted)';
+  btn.style.pointerEvents = 'none';
+  window.MixelParseApp.checkUpdates();
+}
+
 function openFeedbackModal(){
   document.getElementById('feedbackSubject').value='';
   document.getElementById('feedbackMessage').value='';
@@ -4380,6 +4396,46 @@ window.applyDBToChar    = applyDBToChar;
   function initElectronBridge(){
     injectStatusBadge();
     setWatcherStatus(true); // IPC watcher starts with main process — always connected
+
+    // ── Reveal & wire the Update button ────────────────────────────────────────
+    const _updateBtn = document.getElementById('updateNavBtn');
+    if(_updateBtn) _updateBtn.style.display = '';
+
+    window.MixelParseApp.onUpdaterEvent(ev => {
+      const btn = document.getElementById('updateNavBtn');
+      if(!btn) return;
+      switch(ev.type){
+        case 'checking':
+          btn.textContent = '⟳ Checking…';
+          btn.style.color = 'var(--text-muted)';
+          btn.style.pointerEvents = 'none';
+          break;
+        case 'update-available':
+          btn.textContent = '⬇ Downloading…';
+          btn.style.color = '#a0c878';
+          btn.style.pointerEvents = 'none';
+          showWatcherToast('📦 Update available — downloading…');
+          break;
+        case 'update-downloaded':
+          btn.textContent = '↻ Restart to Update';
+          btn.style.color = '#4caf7d';
+          btn.style.pointerEvents = '';
+          btn.dataset.state = 'ready';
+          showWatcherToast('✔ Update ready — click Restart to Update');
+          break;
+        case 'up-to-date':
+          btn.textContent = '✔ Up to Date';
+          btn.style.color = 'var(--text-muted)';
+          btn.style.pointerEvents = 'none';
+          setTimeout(() => {
+            btn.textContent = '⟳ Update';
+            btn.style.color = 'var(--text-muted)';
+            btn.style.pointerEvents = '';
+            btn.dataset.state = '';
+          }, 3000);
+          break;
+      }
+    });
 
     window.MixelParseApp.onWatcherEvent(msg => {
       try {
