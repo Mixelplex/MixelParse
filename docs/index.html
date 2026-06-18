@@ -3285,7 +3285,6 @@ async function loadFromSupabase(){
   await loadDkpFromSupabase();
   await loadZonesFromSupabase();
   await loadBankerRegistryFromSupabase();
-  await migrateLegacyBankers();
   applyDkpToItemDB();
   applyPlatToItemDB();
 
@@ -6811,20 +6810,8 @@ async function loadBankerRegistryFromSupabase(){
   }catch(e){console.error('[Bankers] Load exception',e);}
 }
 
-// One-time migration: if no registry exists yet but the legacy banker mules
-// (Mixelvault / Mixelbank) are present in the loaded roster, seed the registry
-// from them — no inventory data moves, they just get flagged as bankers.
-async function migrateLegacyBankers(){
-  if(bankerRegistry.length)return;
-  const seedNames=['Mixelvault','Mixelbank'];
-  const found=seedNames
-    .map(n=>Object.keys(chars).find(k=>k.toLowerCase()===n.toLowerCase()))
-    .filter(Boolean);
-  if(found.length){
-    bankerRegistry=found;
-    await saveBankerRegistryToSupabase();
-  }
-}
+// migrateLegacyBankers() — retired. One-time seed already ran; removing bankers
+// now correctly results in an empty registry that persists as-is.
 
 // ── Bankers tab ──────────────────────────────────────────────────────────────
 function renderBankersPanel(){
