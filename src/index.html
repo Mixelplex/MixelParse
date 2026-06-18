@@ -4353,22 +4353,24 @@ window.applyDBToChar    = applyDBToChar;
   ];
 
   // Process a raw notes.txt update (IPC path) — fuzzy match → todEnqueue
-  // Only processes NEW lines since last call to avoid re-firing old entries.
-  // On the very first call, treat the full file as baseline (already-seen) so
-  // pre-existing TOD entries don't pop up as new detections on watcher connect.
-  let _lastNotesLineCount = 0;
-  let _notesBaselineSet = false;
+  // _seenNoteLines deduplicates so each unique note line fires at most once,
+  // even if the watcher sends the full file instead of only new bytes.
+  const _seenNoteLines = new Set();
+  let _lastNotesLineCount = 0;  // kept as dead var — do not remove
+  let _notesBaselineSet   = false; // kept as dead var — do not remove
   function _handleNotesUpdate(text, timestamp, isBaseline){
     if(isBaseline){
-      // Legacy — no longer needed now that watcher tail-reads, but kept as no-op safety net
-      _notesBaselineSet = true;
+      // Baseline: mark all existing lines as already-seen so they don't fire on reconnect
+      const bLines = text ? text.split('\n').map(l=>l.trim()).filter(Boolean) : [];
+      for(const bl of bLines) _seenNoteLines.add(bl);
       return;
     }
     if(!text) return;
-    // watcher.js now sends only NEW bytes since last change, so every line here is fresh
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    console.log('[NOTES] handleNotesUpdate — new lines:', lines.length);
+    console.log('[NOTES] handleNotesUpdate — incoming lines:', lines.length);
     for(const line of lines){
+      if(_seenNoteLines.has(line)) continue; // already processed — skip
+      _seenNoteLines.add(line);
       const ll = line.toLowerCase();
       let matched = false;
       for(const boss of _NOTES_BOSS_LIST){
@@ -4391,7 +4393,6 @@ window.applyDBToChar    = applyDBToChar;
       }
     }
   }
-
   function setWatcherStatus(connected){
     watcherConnected = connected;
     const el = document.getElementById('watcher-status');
