@@ -4358,15 +4358,23 @@ window.applyDBToChar    = applyDBToChar;
   // pre-existing TOD entries don't pop up as new detections on watcher connect.
   let _lastNotesLineCount = 0;
   let _notesBaselineSet = false;
-  function _handleNotesUpdate(text, timestamp){
+  function _handleNotesUpdate(text, timestamp, isBaseline){
+    if(isBaseline){
+      // Called from notesBaseline — record existing lines, fire nothing
+      const allLines = (text||'').split('\n').map(l => l.trim()).filter(Boolean);
+      _lastNotesLineCount = allLines.length;
+      _notesBaselineSet = true;
+      console.log('[NOTES] Baseline set from watcher startup —', allLines.length, 'existing lines skipped');
+      return;
+    }
     if(!text) return;
     const allLines = text.split('\n').map(l => l.trim()).filter(Boolean);
     console.log('[NOTES] handleNotesUpdate called, lines:', allLines.length, 'baseline set:', _notesBaselineSet, 'lastCount:', _lastNotesLineCount);
     if(!_notesBaselineSet){
-      // First call: record current line count as already-seen, fire nothing
+      // Fallback: notesBaseline not received yet — set baseline and skip
       _lastNotesLineCount = allLines.length;
       _notesBaselineSet = true;
-      console.log('[NOTES] Baseline set — ' + allLines.length + ' existing line(s) skipped');
+      console.log('[NOTES] Baseline set (fallback) — ' + allLines.length + ' existing line(s) skipped');
       return;
     }
     // Only look at lines added since last call
@@ -4591,6 +4599,10 @@ window.applyDBToChar    = applyDBToChar;
         if(msg.type === 'todTick'){
           // IPC watcher may send pre-processed todTick (future-proofing)
           todTickHandle(msg.desc, msg.value);
+        }
+        if(msg.type === 'notesBaseline'){
+          // Watcher sends this at startup with existing file content — set baseline without firing any TOD
+          _handleNotesUpdate(msg.text, msg.timestamp, true);
         }
         if(msg.type === 'notesUpdate'){
           // IPC watcher sends raw notes text — process with local fuzzy match
