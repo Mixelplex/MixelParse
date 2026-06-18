@@ -4476,6 +4476,8 @@ window.applyDBToChar    = applyDBToChar;
         }
         if(msg.type === 'zoneUpdate'){
           charZones[msg.charName] = { zone: msg.zone, timestamp: msg.timestamp };
+          knownWatcherChars.add(msg.charName);
+          scheduleZonePrune();
           saveZonesToSupabase();
           renderZoneBar();
         }
@@ -4597,6 +4599,8 @@ window.applyDBToChar    = applyDBToChar;
         }
         if(msg.type === 'zoneUpdate'){
           charZones[msg.charName] = { zone: msg.zone, timestamp: msg.timestamp };
+          knownWatcherChars.add(msg.charName);
+          scheduleZonePrune();
           saveZonesToSupabase();
           renderZoneBar();
         }
@@ -5546,6 +5550,8 @@ let sessionsView='new'; // 'new' | 'history' | 'creditcheck'
 let ktExpanded={}; // {target: true} — which boss role panels are open
 let creditData=null; // parsed ODKP details CSV: {charName→{date→Set<normalizedBoss>}}
 let charZones={}; // charName → { zone, timestamp }
+let knownWatcherChars=new Set(); // chars the watcher has actively reported this session
+let _zonePruneTimer=null; // debounce handle for stale-entry cleanup
 
 // Hourly ticks — session level, shown at top
 const HOURLY_ROLES=[
@@ -6714,7 +6720,9 @@ function parseOdkpDetailsCsv(text){
 function renderZoneBar(){
   const el=document.getElementById('zoneBar');
   if(!el)return;
-  const entries=Object.entries(charZones).filter(([char])=>!isBanker(char));
+  // Only show chars that have a loaded inventory OR have been actively reported by the watcher
+  // this session. This prevents stale Supabase entries with wrong names from appearing.
+  const entries=Object.entries(charZones).filter(([char])=>!isBanker(char)&&(chars[char]||knownWatcherChars.has(char)));
   if(!entries.length){el.innerHTML='';el.style.display='none';return;}
   el.style.display='';
   // Sort alphabetically so layout is stable
@@ -6756,6 +6764,31 @@ async function loadZonesFromSupabase(){
       setInterval(renderZoneBar,60000);
     }
   }catch(e){console.error('[Zone] Load exception',e);}
+}
+
+// Debounced prune: waits 10s after last zone update before cleaning up stale Supabase keys.
+// This lets the watcher finish its startup broadcast before we decide what's valid.
+function scheduleZonePrune(){
+  clearTimeout(_zonePruneTimer);
+  _zonePruneTimer=setTimeout(pruneStaleZones,10000);
+}
+
+// Remove charZones entries that are definitely stale — not a loaded char, not a registered
+// banker, and not reported by the watcher this session. Preserves zones for real chars
+// even if they haven't logged in this session (e.g. alts with loaded inventory files).
+async function pruneStaleZones(){
+  if(!knownWatcherChars.size)return; // watcher hasn't reported anything yet — don't prune
+  const allKnown=new Set([
+    ...knownWatcherChars,
+    ...Object.keys(chars),          // any char with a loaded inventory file
+    ...bankerNames()
+  ].map(n=>n.toLowerCase()));
+  const staleKeys=Object.keys(charZones).filter(k=>!allKnown.has(k.toLowerCase()));
+  if(!staleKeys.length)return;
+  staleKeys.forEach(k=>delete charZones[k]);
+  console.log('[Zone] Pruned stale zone entries:',staleKeys);
+  renderZoneBar();
+  await saveZonesToSupabase();
 }
 
 // ── Banker registry ─────────────────────────────────────────────────────────
