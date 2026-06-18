@@ -432,8 +432,8 @@ ipcMain.handle('updater:install', () => {
 ipcMain.handle('app:get-version', () => app.getVersion());
 
 // ─── Auto-updater events ──────────────────────────────────────────────────────
-autoUpdater.on('update-available', () => {
-  mainWindow && mainWindow.webContents.send('updater-event', { type: 'update-available' });
+autoUpdater.on('update-available', (info) => {
+  mainWindow && mainWindow.webContents.send('updater-event', { type: 'update-available', version: info.version });
 });
 autoUpdater.on('download-progress', (progress) => {
   mainWindow && mainWindow.webContents.send('updater-event', {
@@ -447,8 +447,8 @@ autoUpdater.on('download-progress', (progress) => {
 autoUpdater.on('update-not-available', () => {
   mainWindow && mainWindow.webContents.send('updater-event', { type: 'up-to-date' });
 });
-autoUpdater.on('update-downloaded', () => {
-  mainWindow && mainWindow.webContents.send('updater-event', { type: 'update-downloaded' });
+autoUpdater.on('update-downloaded', (info) => {
+  mainWindow && mainWindow.webContents.send('updater-event', { type: 'update-downloaded', version: info.version });
 });
 autoUpdater.on('error', (err) => {
   console.error('[Updater]', err.message);
