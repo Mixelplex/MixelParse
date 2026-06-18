@@ -4360,23 +4360,37 @@ window.applyDBToChar    = applyDBToChar;
   let _notesBaselineSet = false;
   function _handleNotesUpdate(text, timestamp, isBaseline){
     if(isBaseline){
-      // Called from notesBaseline — record existing lines, fire nothing
-      const allLines = (text||'').split('\n').map(l => l.trim()).filter(Boolean);
-      _lastNotesLineCount = allLines.length;
+      // Legacy — no longer needed now that watcher tail-reads, but kept as no-op safety net
       _notesBaselineSet = true;
-      console.log('[NOTES] Baseline set from watcher startup —', allLines.length, 'existing lines skipped');
       return;
     }
     if(!text) return;
-    const allLines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    console.log('[NOTES] handleNotesUpdate called, lines:', allLines.length, 'baseline set:', _notesBaselineSet, 'lastCount:', _lastNotesLineCount);
-    if(!_notesBaselineSet){
-      // Fallback: notesBaseline not received yet — set baseline and skip
-      _lastNotesLineCount = allLines.length;
-      _notesBaselineSet = true;
-      console.log('[NOTES] Baseline set (fallback) — ' + allLines.length + ' existing line(s) skipped');
-      return;
+    // watcher.js now sends only NEW bytes since last change, so every line here is fresh
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    console.log('[NOTES] handleNotesUpdate — new lines:', lines.length);
+    for(const line of lines){
+      const ll = line.toLowerCase();
+      let matched = false;
+      for(const boss of _NOTES_BOSS_LIST){
+        const hit = boss.aliases.some(a => ll.includes(a)) ||
+                    ll.includes(boss.target.toLowerCase()) ||
+                    ll.includes(boss.full.toLowerCase());
+        if(hit){
+          todEnqueue(boss.target, boss.full, line, timestamp);
+          matched = true;
+          break;
+        }
+      }
+      if(matched) continue;
+      for(const tick of _NOTES_TICK_MAP){
+        const hit = tick.aliases.some(a => new RegExp('(^|\\s)'+a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\s|$)','i').test(ll));
+        if(hit){
+          todTickHandle(tick.desc, tick.value);
+          break;
+        }
+      }
     }
+  }
     // Only look at lines added since last call
     const newLines = allLines.slice(_lastNotesLineCount);
     console.log('[NOTES] newLines:', newLines);
