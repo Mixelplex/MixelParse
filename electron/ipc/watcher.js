@@ -891,10 +891,10 @@ function startNotesWatcher() {
     } catch (e) {
       err('[NOTES] Poll error:', e.message);
     }
-  }, 2000);
+  }, 500);
 
   _timers.push(t);
-  log('Notes watcher started (mtime polling every 2s):', fp);
+  log('Notes watcher started (mtime polling every 500ms):', fp);
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
