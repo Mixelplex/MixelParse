@@ -2,6 +2,10 @@
 
 const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage } = require('electron');
 const { autoUpdater } = require('electron-updater');
+// Explicitly set update behaviour — download silently, install on next quit.
+// This ensures users on a broken renderer still get fixes automatically.
+autoUpdater.autoDownload        = true;
+autoUpdater.autoInstallOnAppQuit = true;
 const path = require('path');
 const fs = require('fs');
 
