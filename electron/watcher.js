@@ -145,6 +145,20 @@ function sendFullSnapshot() {
   for (const [charName, z] of Object.entries(zoneState)) {
     broadcast({ type: 'zoneUpdate', charName, zone: z.zone, timestamp: z.timestamp });
   }
+  // Send notes baseline — renderer uses this to mark existing notes as already-seen
+  // so they don't fire TOD modals on watcher connect. Sent here (not at startup) to
+  // guarantee the renderer's IPC listener is registered before this arrives.
+  if (_config && _config.notesFile) {
+    try {
+      if (fs.existsSync(_config.notesFile)) {
+        const text = fs.readFileSync(_config.notesFile, 'utf8');
+        broadcast({ type: 'notesBaseline', text, timestamp: Date.now() });
+        log('[NOTES] Sent notesBaseline —', text.split('\n').filter(Boolean).length, 'existing lines marked as seen');
+      }
+    } catch (e) {
+      err('[NOTES] notesBaseline read error:', e.message);
+    }
+  }
 }
 
 // ── Inventory watcher ─────────────────────────────────────────────────────────
