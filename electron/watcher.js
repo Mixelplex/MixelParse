@@ -829,46 +829,58 @@ function applyFactionDelta(charName, factionKey, delta, source) {
 }
 
 // ── Notes file watcher (TOD) ──────────────────────────────────────────────────
+// Uses setInterval mtime polling (chokidar non-functional in Electron main process on Windows)
+// and byte-position tail-reading so only NEW bytes are sent — never the full file.
 function startNotesWatcher() {
   if (!_config || !_config.notesFile) return;
-  let _notesPos = 0;
+  const fp = _config.notesFile;
+  let _notesPos  = 0;
+  let _notesMtime = 0;
 
-  // Seek to end of file at startup — only tail NEW content written after this point.
-  // This means the renderer never needs baseline logic; every notesUpdate is already new lines.
-  if (fs.existsSync(_config.notesFile)) {
-    try {
-      _notesPos = fs.statSync(_config.notesFile).size;
-      log('[NOTES] Seeked to end of notes.txt —', _notesPos, 'bytes skipped');
-    } catch (e) { err('[NOTES] Could not stat notes.txt:', e.message); }
-  }
-
-  function tailNotesFile(fp) {
-    try {
+  // Seek to end-of-file on startup so pre-existing notes are never re-fired.
+  try {
+    if (fs.existsSync(fp)) {
       const stat = fs.statSync(fp);
-      if (stat.size <= _notesPos) return; // no new content
-      const fd = fs.openSync(fp, 'r');
-      const buf = Buffer.alloc(stat.size - _notesPos);
-      const bytesRead = fs.readSync(fd, buf, 0, buf.length, _notesPos);
-      fs.closeSync(fd);
-      _notesPos += bytesRead;
-      const newText = buf.toString('utf8', 0, bytesRead);
-      if (!newText.trim()) return;
-      broadcast({ type: 'notesUpdate', text: newText, timestamp: Date.now() });
-      log('[NOTES] New content sent:', bytesRead, 'bytes');
-    } catch (e) {
-      err('[NOTES] Error tailing notes file:', e.message);
+      _notesPos  = stat.size;
+      _notesMtime = stat.mtimeMs;
+      log(`[NOTES] notes.txt found — seeked to end (${_notesPos} bytes), watching for new entries`);
+    } else {
+      log(`[NOTES] notes.txt not found at ${fp} — will detect when created`);
     }
+  } catch (e) {
+    err('[NOTES] Startup stat error:', e.message);
   }
 
-  const watcher = chokidar.watch(_config.notesFile, {
-    persistent: true,
-    awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
-  });
-  watcher.on('add',    fp => { _notesPos = 0; tailNotesFile(fp); }); // file created after start
-  watcher.on('change', fp => tailNotesFile(fp));
-  watcher.on('error',  e  => err('Notes watcher error:', e.message));
-  _watchers.push(watcher);
-  log('[NOTES] Notes watcher started:', _config.notesFile, '— position:', _notesPos);
+  const t = setInterval(() => {
+    try {
+      if (!fs.existsSync(fp)) return;
+      const stat = fs.statSync(fp);
+      // File unchanged
+      if (stat.mtimeMs === _notesMtime) return;
+      _notesMtime = stat.mtimeMs;
+      // File was truncated/recreated — reset position
+      if (stat.size < _notesPos) {
+        _notesPos = 0;
+        log('[NOTES] notes.txt truncated — resetting position');
+      }
+      if (stat.size === _notesPos) return; // mtime changed but no new bytes
+      // Read only the new bytes since last position
+      const fd  = fs.openSync(fp, 'r');
+      const buf = Buffer.alloc(stat.size - _notesPos);
+      const read = fs.readSync(fd, buf, 0, buf.length, _notesPos);
+      fs.closeSync(fd);
+      _notesPos += read;
+      const text = buf.slice(0, read).toString('utf8');
+      if (!text.trim()) return;
+      broadcast({ type: 'notesUpdate', text, timestamp: Date.now() });
+      log('[NOTES] Updated — sent', read, 'new bytes to renderer');
+    } catch (e) {
+      err('[NOTES] Poll error:', e.message);
+    }
+  }, 2000);
+
+  _timers.push(t);
+  log('Notes watcher started (mtime polling every 2s):', fp);
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
