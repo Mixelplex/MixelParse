@@ -831,48 +831,44 @@ function applyFactionDelta(charName, factionKey, delta, source) {
 // ── Notes file watcher (TOD) ──────────────────────────────────────────────────
 function startNotesWatcher() {
   if (!_config || !_config.notesFile) return;
-  let lastMtime = 0;
-  let lastNotesHash = '';
+  let _notesPos = 0;
 
-  // Read current file at startup and send as baseline so the renderer knows
-  // which lines already existed — prevents the first real /note from being eaten
-  // by the renderer's baseline-detection logic.
+  // Seek to end of file at startup — only tail NEW content written after this point.
+  // This means the renderer never needs baseline logic; every notesUpdate is already new lines.
   if (fs.existsSync(_config.notesFile)) {
     try {
-      const text = fs.readFileSync(_config.notesFile, 'utf8');
-      const hash = crypto.createHash('md5').update(text).digest('hex');
-      lastNotesHash = hash;
-      broadcast({ type: 'notesBaseline', text, timestamp: Date.now() });
-      log('[NOTES] Baseline sent —', text.split('\n').filter(Boolean).length, 'existing lines');
-    } catch (e) { err('[NOTES] Error reading baseline:', e.message); }
-  } else {
-    // File doesn't exist yet — baseline is zero lines, send empty baseline
-    broadcast({ type: 'notesBaseline', text: '', timestamp: Date.now() });
-    log('[NOTES] notes.txt not found — baseline set to zero lines');
+      _notesPos = fs.statSync(_config.notesFile).size;
+      log('[NOTES] Seeked to end of notes.txt —', _notesPos, 'bytes skipped');
+    } catch (e) { err('[NOTES] Could not stat notes.txt:', e.message); }
+  }
+
+  function tailNotesFile(fp) {
+    try {
+      const stat = fs.statSync(fp);
+      if (stat.size <= _notesPos) return; // no new content
+      const fd = fs.openSync(fp, 'r');
+      const buf = Buffer.alloc(stat.size - _notesPos);
+      const bytesRead = fs.readSync(fd, buf, 0, buf.length, _notesPos);
+      fs.closeSync(fd);
+      _notesPos += bytesRead;
+      const newText = buf.toString('utf8', 0, bytesRead);
+      if (!newText.trim()) return;
+      broadcast({ type: 'notesUpdate', text: newText, timestamp: Date.now() });
+      log('[NOTES] New content sent:', bytesRead, 'bytes');
+    } catch (e) {
+      err('[NOTES] Error tailing notes file:', e.message);
+    }
   }
 
   const watcher = chokidar.watch(_config.notesFile, {
     persistent: true,
     awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
   });
-  watcher.on('change', (fp) => {
-    try {
-      const stat = fs.statSync(fp);
-      if (stat.mtimeMs === lastMtime) return;
-      lastMtime = stat.mtimeMs;
-      const text = fs.readFileSync(fp, 'utf8');
-      const hash = crypto.createHash('md5').update(text).digest('hex');
-      if (hash === lastNotesHash) return;
-      lastNotesHash = hash;
-      broadcast({ type: 'notesUpdate', text, timestamp: Date.now() });
-      log('[NOTES] Updated, sent to renderer');
-    } catch (e) {
-      err('[NOTES] Error reading notes file:', e.message);
-    }
-  });
-  watcher.on('error', e => err('Notes watcher error:', e.message));
+  watcher.on('add',    fp => { _notesPos = 0; tailNotesFile(fp); }); // file created after start
+  watcher.on('change', fp => tailNotesFile(fp));
+  watcher.on('error',  e  => err('Notes watcher error:', e.message));
   _watchers.push(watcher);
-  log('Notes watcher started:', _config.notesFile);
+  log('[NOTES] Notes watcher started:', _config.notesFile, '— position:', _notesPos);
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
