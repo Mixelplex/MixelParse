@@ -3023,11 +3023,16 @@ function _updateSplashState(state, data){
 }
 function openUpdateSplash(state, data){
   state = state || 'downloading';
-  if(window.MixelParseApp && window.MixelParseApp.getVersion){
-    window.MixelParseApp.getVersion().then(v => {
-      const el = document.getElementById('updateSplashVersion');
-      if(el && state!=='error') el.textContent = 'v' + v;
-    });
+  const el = document.getElementById('updateSplashVersion');
+  if(el && state !== 'error'){
+    if(data && data.version){
+      el.textContent = 'v' + data.version;
+    } else if(window.MixelParseApp && window.MixelParseApp.getVersion){
+      // Fallback only — should not normally be reached now that version is forwarded
+      window.MixelParseApp.getVersion().then(v => {
+        if(el && state !== 'error') el.textContent = 'v' + v;
+      });
+    }
   }
   _updateSplashState(state, data);
   document.getElementById('updateSplashOverlay').classList.add('open');
@@ -4542,7 +4547,7 @@ window.applyDBToChar    = applyDBToChar;
           break;
         case 'update-available':
           if(btn){ btn.textContent = '\u2B07 Downloading\u2026'; btn.style.color = '#a0c878'; btn.style.pointerEvents = 'none'; }
-          openUpdateSplash('downloading');
+          openUpdateSplash('downloading', ev);
           break;
         case 'download-progress':
           _updateSplashState('progress', ev);
@@ -5094,7 +5099,7 @@ function parseDkpCsv(text){
 async function loadDkpFromSupabase(){
   if(!currentUser)return;
   try{
-    const {data}=await sb.from('guild_data').select('dkp_lookup,dkp_meta').eq('pool','SoV').eq('user_id',currentUser.id).single();
+    const {data}=await sb.from('guild_data').select('dkp_lookup,dkp_meta').eq('pool','SoV').not('dkp_lookup','is',null).order('updated_at',{ascending:false}).limit(1).maybeSingle();
     if(data?.dkp_lookup){dkpLookup=data.dkp_lookup;dkpMeta=data.dkp_meta||{};}
   }catch(e){}
 }
