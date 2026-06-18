@@ -4391,34 +4391,6 @@ window.applyDBToChar    = applyDBToChar;
       }
     }
   }
-    // Only look at lines added since last call
-    const newLines = allLines.slice(_lastNotesLineCount);
-    console.log('[NOTES] newLines:', newLines);
-    _lastNotesLineCount = allLines.length;
-    if(!newLines.length) return;
-    for(const line of newLines){
-      const ll = line.toLowerCase();
-      let matched = false;
-      for(const boss of _NOTES_BOSS_LIST){
-        const hit = boss.aliases.some(a => ll.includes(a)) ||
-                    ll.includes(boss.target.toLowerCase()) ||
-                    ll.includes(boss.full.toLowerCase());
-        if(hit){
-          todEnqueue(boss.target, boss.full, line, timestamp);
-          matched = true;
-          break; // one boss match per line is enough
-        }
-      }
-      if(matched) continue;
-      for(const tick of _NOTES_TICK_MAP){
-        const hit = tick.aliases.some(a => new RegExp('(^|\\s)'+a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\s|$)','i').test(ll));
-        if(hit){
-          todTickHandle(tick.desc, tick.value);
-          break;
-        }
-      }
-    }
-  }
 
   function setWatcherStatus(connected){
     watcherConnected = connected;
