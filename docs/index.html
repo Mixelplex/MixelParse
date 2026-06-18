@@ -245,6 +245,11 @@
   .zone-bar-time{display:none}
   .zone-bar-sep{display:none}
   .zone-bar-zone{display:none}
+  .zone-nw-row{margin-top:.35rem;padding-top:.3rem;border-top:1px solid var(--border);font-size:.72rem;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:.15rem .4rem;align-items:baseline}
+  .nw-label{font-family:'Cinzel',serif;letter-spacing:.04em;font-size:.66rem;color:var(--text-dim)}
+  .nw-value{color:var(--gold-light);font-weight:700;font-family:'Crimson Pro',serif;font-size:.8rem}
+  .nw-sep{color:var(--border)}
+  .nw-note{color:var(--text-muted);font-style:italic;font-size:.66rem}
   .auth-signout{background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-muted);padding:.15rem .45rem;font-size:.72rem;cursor:pointer;font-family:\'Crimson Pro\',serif;transition:all .15s}
   .auth-signout:hover{border-color:#a03030;color:#a03030}
   /* ── Watch List Banner ── */
@@ -1320,12 +1325,36 @@ _rebuildItemDBIndex();
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let chars={},charMeta={},gearStats={},factionData={},skyshrineData={},questData={};
+let charCoins={}; // charName → { pp, gp, sp, cp } captured from inventory coin lines
 let activeTab=null,activeSub='inventory';
 let sortCol='name',sortDir=1;
 let bankerRegistry=[]; // char names treated as inventory-only "banker" toons
 
 // ─── Parse inventory ──────────────────────────────────────────────────────────
-function parseInventory(text,charName){const items=[];for(const line of text.split('\n')){const p=line.trim().split('\t');if(p.length<4)continue;const[loc,name,id,count]=p;if(name==='Empty'||name==='Name')continue;if(Number(id)===0)continue;items.push({char:charName,location:loc,name:name.trim(),id:Number(id),count:Number(count)});}return items;}
+function parseInventory(text,charName){
+  const items=[];
+  const coins={pp:0,gp:0,sp:0,cp:0};
+  for(const line of text.split('\n')){
+    const p=line.trim().split('\t');
+    if(p.length<4)continue;
+    const[loc,name,id,count]=p;
+    if(name==='Empty'||name==='Name')continue;
+    if(Number(id)===0){
+      // Coin line — PersonalMoney and BankMoney both count toward networth
+      if(loc==='PersonalMoney'||loc==='BankMoney'){
+        const n=name.trim().toLowerCase(),amt=Number(count)||0;
+        if(n==='platinum')coins.pp+=amt;
+        else if(n==='gold')coins.gp+=amt;
+        else if(n==='silver')coins.sp+=amt;
+        else if(n==='copper')coins.cp+=amt;
+      }
+      continue;
+    }
+    items.push({char:charName,location:loc,name:name.trim(),id:Number(id),count:Number(count)});
+  }
+  charCoins[charName]=coins;
+  return items;
+}
 function locationType(loc){if(/^Bank/.test(loc))return 'bank';if(/^General/.test(loc)||/^Held/.test(loc))return 'bag';return 'equipped';}
 function extractCharName(fn){return fn.replace(/-Inventory\.txt$/i,'').replace(/\.txt$/i,'');}
 function charNames(){return Object.keys(chars).filter(n=>!isBanker(n));}
@@ -1370,7 +1399,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
   });
 });
 document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();maybeShowHelp('sub_'+activeSub);});});
-function refresh(){buildTabs();renderView();saveState();}
+function refresh(){buildTabs();renderView();saveState();renderNetworthBar();}
 function renderOnly(){buildTabs();renderView();}
 function renderView(){if(activeTopView&&activeTopView!=='characters')return;const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderCityBars();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();}
 
@@ -3160,7 +3189,7 @@ async function onSignedIn(user){
 
 function onSignedOut(){
   currentUser=null;
-  chars={};charMeta={};gearStats={};watchList=[];factionData={};skyshrineData={};questData={};dkpLookup={};dkpMeta={};platData=[];platMeta={};platCachedRows=[];platCacheKey='';platTypeFilter='all';raidSessions=[];activeSession=null;sessionsView='new';activeTab=null;creditData=null;charZones={};bankerRegistry=[];
+  chars={};charMeta={};gearStats={};charCoins={};watchList=[];factionData={};skyshrineData={};questData={};dkpLookup={};dkpMeta={};platData=[];platMeta={};platCachedRows=[];platCacheKey='';platTypeFilter='all';raidSessions=[];activeSession=null;sessionsView='new';activeTab=null;creditData=null;charZones={};bankerRegistry=[];
   {const bp=document.getElementById('bankersPanel');if(bp)bp.innerHTML='';}
   document.getElementById('userBar').style.display='none';
   document.getElementById('topNav').style.display='none';
@@ -5270,6 +5299,7 @@ async function fetchPlatData(){
     console.log('[Plat] Sample record:',platData[0]); // so we can see the shape
     renderPlatPanel();
     applyPlatToItemDB();
+    renderNetworthBar();
   }catch(e){
     console.error('[Plat] Fetch error',e);
     const panel=document.getElementById('platPanel');
@@ -6714,8 +6744,76 @@ function parseOdkpDetailsCsv(text){
   return result;
 }
 
-// Save/load creditData from Supabase guild_data
-// ── Zone tracking ────────────────────────────────────────────────────────────
+// ── Networth ─────────────────────────────────────────────────────────────────
+// Liquid networth: sum all coin across every char (including bankers) → plat equivalent
+function calcLiquidNetworth(){
+  let total=0;
+  for(const c of Object.values(charCoins)){
+    total+=(c.pp||0)+(c.gp||0)/10+(c.sp||0)/100+(c.cp||0)/1000;
+  }
+  return Math.floor(total);
+}
+
+// Market networth: liquid + estimated value of tradeable items at 30-day Pigparse WTS avg.
+// NO DROP items and items with no WTS price are excluded.
+function calcMarketNetworth(){
+  const liquid=calcLiquidNetworth();
+  const result={liquid,market:liquid,unpriced:0,hasPlat:false};
+  if(!platData.length)return result;
+  result.hasPlat=true;
+
+  // Build WTS price lookup: lowercase item name → best a30 price
+  const priceLookup={};
+  for(const r of platData){
+    if(r.t!==0)continue; // WTS only
+    const a30=r.a30??-1;
+    if(a30<=0||!r.n)continue;
+    const key=r.n.toLowerCase();
+    if(!priceLookup[key]||a30>priceLookup[key])priceLookup[key]=a30;
+  }
+
+  let marketAdd=0;
+  for(const items of Object.values(chars)){
+    for(const item of items){
+      if(itemDB&&itemDB[item.name]&&itemDB[item.name]._nodrop)continue; // skip NO DROP
+      const price=priceLookup[item.name.toLowerCase()];
+      if(!price){result.unpriced++;continue;}
+      marketAdd+=price*(item.count||1);
+    }
+  }
+  result.market=liquid+Math.floor(marketAdd);
+  return result;
+}
+
+// Renders the networth summary row inside the zone bar panel.
+// Called whenever inventory or plat data changes.
+function renderNetworthBar(){
+  const el=document.getElementById('zoneBar');
+  if(!el)return;
+  // Remove any existing nw row and re-inject after renderZoneBar sets innerHTML
+  // (renderZoneBar calls us after setting its own HTML, so we just append)
+  const existing=el.querySelector('.zone-nw-row');
+  if(existing)existing.remove();
+
+  const hasCoins=Object.keys(charCoins).length>0;
+  if(!hasCoins)return;
+
+  const{liquid,market,unpriced,hasPlat}=calcMarketNetworth();
+  if(liquid===0&&market===0)return;
+
+  let html=`<span class="nw-label">&#128176; Liquid:</span> <span class="nw-value">${liquid.toLocaleString()} pp</span>`;
+  if(hasPlat){
+    html+=` <span class="nw-sep">·</span> <span class="nw-label">&#128230; Est. Market:</span> <span class="nw-value">${market.toLocaleString()} pp</span>`;
+    if(unpriced>0)html+=` <span class="nw-note">${unpriced} unpriced</span>`;
+  }
+
+  const row=document.createElement('div');
+  row.className='zone-nw-row';
+  row.innerHTML=html;
+  el.appendChild(row);
+}
+
+// ── Zone tracking ─────────────────────────────────────────────────────────────
 function renderZoneBar(){
   const el=document.getElementById('zoneBar');
   if(!el)return;
@@ -6733,6 +6831,7 @@ function renderZoneBar(){
     return `<span class="zone-bar-char">${esc(char)}</span><span class="zone-bar-sep-zone">${esc(z.zone)}</span>`;
   }).join('');
   el.innerHTML=`<div class="zone-bar-title">Last Zone Location</div><div class="zone-bar-grid">${rows}</div>`;
+  renderNetworthBar();
 }
 
 function timeAgo(isoStr){
