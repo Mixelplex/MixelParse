@@ -4353,7 +4353,7 @@ window.applyDBToChar    = applyDBToChar;
     { target:'Koi',             full:"Lord Koi'Doken",              aliases:['koi'] },
     { target:'Kreizenn',        full:'Lord Kreizenn',               aliases:['kreizenn','krei','kreiz'] },
     { target:'LTK',             full:'Lendiniara the Keeper',       aliases:['ltk'] },
-    { target:"Magi P'Tasa",     full:"Magi P'Tasa",                 aliases:['magi','ptasa','mpt'] },
+    { target:"Magi P'Tasa",     full:"Magi P'Tasa",                 aliases:['magi'] },
     { target:'Mirenilla',       full:'Lady Mirenilla',              aliases:['mirenilla','mire','mir','ladym'] },
     { target:'Nevederia',       full:'Lady Nevederia',              aliases:['nevederia','neve','nev'] },
     { target:'Sontalak',        full:'Sontalak',                    aliases:['sontalak','sont','son'] },
@@ -4393,8 +4393,22 @@ window.applyDBToChar    = applyDBToChar;
     { target:'Vindi',           full:'Derakor the Vindicator',      aliases:['vindi','derakor'] },
     { target:'Wuoshi',          full:'Wuoshi',                      aliases:['wuoshi','wuo','wush'] },
     { target:'Yael',            full:'Yael',                        aliases:['yael'] },
+    { target:'UDB',             full:'Undead Bard (Trakanon)',       aliases:['udb','undead bard'] },
     { target:'Lord Bob',        full:'Lord Doljonijiarnimorinar',    aliases:['lord bob','bob'] },
     { target:'Vilefang',        full:'Vilefang',                    aliases:['vilefang','vile'] },
+    { target:'Avatar of Abhorrence', full:'Avatar of Abhorrence',    aliases:['abhor'] },
+    { target:"Coercer T'vala",       full:"Coercer T'vala",           aliases:['coercer'] },
+    { target:"Grandmaster R'Tal",    full:"Grandmaster R'Tal",        aliases:['grandmaster','rtal'] },
+    { target:"High Priest M'kari",   full:"High Priest M'kari",       aliases:['mkari'] },
+    { target:'Lord of Loathing',     full:'Lord of Loathing',         aliases:['loathing','lord of loathing','lord'] },
+    { target:'Master of Spite',      full:'Master of Spite',          aliases:['spite','master of spite','master'] },
+    { target:'Mistress of Scorn',    full:'Mistress of Scorn',        aliases:['scorn','mistress of scorn','mistress'] },
+    { target:'Casalen',         full:'Casalen',                     aliases:['casalen','cas'] },
+    { target:'Grozzmel',        full:'Grozzmel',                    aliases:['grozzmel','grozz'] },
+    { target:'Krigara',         full:'Krigara',                     aliases:['krigara','krig'] },
+    { target:'Midayor',         full:'Midayor',                     aliases:['midayor','mid'] },
+    { target:'Tavekalem',       full:'Tavekalem',                   aliases:['tavekalem','tave','tav'] },
+    { target:'Ymmeln',          full:'Ymmeln',                      aliases:['ymmeln','ymm'] },
     { target:'Ring War',        full:'Ring War',                    aliases:['ring war','rw','ring'] },
   ];
 
@@ -5587,7 +5601,13 @@ const BOSS_ROSTER=[
   {target:'Velketor',      full:'Velketor the Sorcerer',       tier:'Tier Six',   dkp:1,   baseDkp:0.7, raceFTE:null,campFTE:2},
   // Tier Seven
   {target:'Garzicor',      full:'Garzicor',                    tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:1.5, campFTE:1},
-  {target:'Hate Minis',    full:'Hate Minis',                  tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:1.5, campFTE:1},
+  {target:'Avatar of Abhorrence', full:'Avatar of Abhorrence',       tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:1.5, campFTE:1},
+  {target:"Coercer T'vala",       full:"Coercer T'vala",              tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:1.5, campFTE:1},
+  {target:"Grandmaster R'Tal",    full:"Grandmaster R'Tal",           tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:1.5, campFTE:1},
+  {target:"High Priest M'kari",   full:"High Priest M'kari",          tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:1.5, campFTE:1},
+  {target:'Lord of Loathing',     full:'Lord of Loathing',            tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:1.5, campFTE:1},
+  {target:'Master of Spite',      full:'Master of Spite',             tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:1.5, campFTE:1},
+  {target:'Mistress of Scorn',    full:'Mistress of Scorn',           tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:1.5, campFTE:1},
   {target:'Inny',          full:'Innoruuk',                    tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:1.5, campFTE:1},
   {target:'KDT',           full:"Keldor Dek'Torek",            tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:1.5, campFTE:1},
   {target:'UDB',           full:'Undead Bard (Trakanon)',      tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:1.5, campFTE:1},
@@ -5597,7 +5617,12 @@ const BOSS_ROSTER=[
   // Tier Eight
   {target:'Lord Bob',      full:'Lord Doljonijiarnimorinar',   tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
   {target:'Vilefang',      full:'Vilefang',                    tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
-  {target:'HoT Minis',     full:'Halls of Testing Minis',     tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
+  {target:'Casalen',       full:'Casalen',                     tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
+  {target:'Grozzmel',      full:'Grozzmel',                    tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
+  {target:'Krigara',       full:'Krigara',                     tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
+  {target:'Midayor',       full:'Midayor',                     tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
+  {target:'Tavekalem',     full:'Tavekalem',                   tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
+  {target:'Ymmeln',        full:'Ymmeln',                      tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
 ];
 
 // Sessions: [{id, date, kills:[target,...], roles:[{desc,value,qty},...], note}] [{id, date, kills:[target,...], roles:[{desc,value,qty},...], note}]
@@ -6027,6 +6052,12 @@ function buildNoteRefHtml(){
     'Innoruuk':'inny','Keldor Dek\'Torek':'kdt, keldor',
     'Derakor the Vindicator':'vindi, derakor','Wuoshi':'wuo, wush',
     'Yael':'yael','Lord Doljonijiarnimorinar':'lord bob, bob','Vilefang':'vile',
+    'Undead Bard (Trakanon)':'udb, undead bard',
+    'Casalen':'cas','Grozzmel':'grozz','Krigara':'krig',
+    'Midayor':'mid','Tavekalem':'tave, tav','Ymmeln':'ymm',
+    'Avatar of Abhorrence':'abhor','Coercer T\'vala':'coercer',
+    'Grandmaster R\'Tal':'grandmaster, rtal','High Priest M\'kari':'mkari',
+    'Lord of Loathing':'loathing, lord','Master of Spite':'spite, master','Mistress of Scorn':'scorn, mistress',
   };
   const TH='padding:.2rem .6rem .2rem 0;text-align:left;color:var(--text-muted);font-weight:normal;border-bottom:1px solid var(--border);font-size:.72rem';
   const colgroup='';
@@ -6751,9 +6782,18 @@ const ODKP_ALIAS={
   'fright':'Fright',
   // Garzicor
   'garzicor':'Garzicor',
-  // HoT Minis
-  'midayor':'HoT Minis','tavekalem':'HoT Minis','casalen':'HoT Minis',
-  'krigara':'HoT Minis','ymmeln':'HoT Minis','grozzmel':'HoT Minis',
+  // UDB
+  'udb':'UDB','undead bard':'UDB',
+  'casalen':'Casalen','midayor':'Midayor','tavekalem':'Tavekalem',
+  'krigara':'Krigara','ymmeln':'Ymmeln','grozzmel':'Grozzmel',
+  // Hate Minis
+  'abhor':"Avatar of Abhorrence",
+  'coercer':"Coercer T'vala",
+  'grandmaster':"Grandmaster R'Tal",'rtal':"Grandmaster R'Tal",
+  'mkari':"High Priest M'kari",
+  'loathing':'Lord of Loathing','lord':'Lord of Loathing',
+  'spite':'Master of Spite','master':'Master of Spite',
+  'scorn':'Mistress of Scorn','mistress':'Mistress of Scorn',
   // Lord Bob
   'lord bob':'Lord Bob','lord doljonijiarnimorinar':'Lord Bob',
   // Hoshkar
