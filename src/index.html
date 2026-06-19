@@ -6814,6 +6814,14 @@ function openNetworthModal(){
   overlay.classList.add('open');
 }
 
+// Delegated listener for 🚫 and ✕ restore buttons inside the networth modal
+document.addEventListener('click',function(e){
+  const excBtn=e.target.closest('.nw-exclude-btn');
+  if(excBtn){const name=excBtn.dataset.name;if(name)excludeFromNetworth(name);return;}
+  const unexcBtn=e.target.closest('.nw-unexclude-btn');
+  if(unexcBtn){const name=unexcBtn.dataset.name;if(name)unexcludeFromNetworth(name);}
+});
+
 function renderNetworthModalBody(body){
   const{priced,nodrop,nowts,excluded,totalPP}=buildNetworthData();
 
@@ -6825,7 +6833,7 @@ function renderNetworthModalBody(body){
     <td class="r">${r.count}</td>
     <td class="r">${r.unitPrice.toLocaleString()} pp</td>
     <td class="r" style="color:var(--gold-light);font-weight:600">${Math.floor(r.total).toLocaleString()} pp</td>
-    <td class="r"><button onclick="excludeFromNetworth(${JSON.stringify(r.name)})" title="Exclude from networth" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--text-muted);padding:0 .2rem;line-height:1" onmouseover="this.style.color='#c0392b'" onmouseout="this.style.color='var(--text-muted)'">🚫</button></td>
+    <td class="r"><button class="nw-exclude-btn" data-name="${esc(r.name)}" title="Exclude from networth" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--text-muted);padding:0 .2rem;line-height:1" onmouseover="this.style.color='#c0392b'" onmouseout="this.style.color='var(--text-muted)'">🚫</button></td>
   </tr>`).join('');
 
   const nowtsRows=nowts.map(r=>`<tr>
@@ -6839,7 +6847,7 @@ function renderNetworthModalBody(body){
     <td>${esc(r.name)}</td>
     <td style="color:var(--text-muted)">${esc(r.char)}</td>
     <td class="r">${r.count}</td>
-    <td><button onclick="unexcludeFromNetworth(${JSON.stringify(r.name)})" title="Remove exclusion" style="background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--text-muted);padding:0 .2rem;font-family:var(--cinzel);letter-spacing:.04em" onmouseover="this.style.color='var(--gold-light)'" onmouseout="this.style.color='var(--text-muted)'">✕ restore</button></td>
+    <td><button class="nw-unexclude-btn" data-name="${esc(r.name)}" title="Remove exclusion" style="background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--text-muted);padding:0 .2rem;font-family:var(--cinzel);letter-spacing:.04em" onmouseover="this.style.color='var(--gold-light)'" onmouseout="this.style.color='var(--text-muted)'">✕ restore</button></td>
   </tr>`).join('');
 
   const excludedSection=excluded.length?`
