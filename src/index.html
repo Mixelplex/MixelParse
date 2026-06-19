@@ -3339,6 +3339,7 @@ async function loadFromSupabase(){
   await loadDkpFromSupabase();
   await loadZonesFromSupabase();
   await loadBankerRegistryFromSupabase();
+  await loadPriceExclusionsFromSupabase();
   applyDkpToItemDB();
   applyPlatToItemDB();
   fetchPlatData(); // auto-fetch Pigparse on load — runs in background, no await
@@ -5297,6 +5298,7 @@ const PIGPARSE_URL='https://sonenrhxvmheslwufhqf.supabase.co/functions/v1/pigpar
 
 let platData=[];          // raw array from Pigparse
 let platMeta={};          // {fetchedAt, count}
+let priceExclusions=[];   // item names (lowercase) excluded from networth calc
 let platCachedRows=[];
 let platCacheKey='';
 let platSort={col:'avg',dir:'desc'};
@@ -6771,6 +6773,7 @@ function parseOdkpDetailsCsv(text){
 }
 
 function buildNetworthData(){
+  const exclusionSet=new Set(priceExclusions.map(n=>n.toLowerCase()));
   const priceLookup={};
   for(const r of platData){
     if(r.t!==0)continue;
@@ -6787,17 +6790,18 @@ function buildNetworthData(){
     const key=r.n.toLowerCase();
     if(!priceLookup[key]||price>priceLookup[key])priceLookup[key]=price;
   }
-  const priced=[],nodrop=[],nowts=[];
+  const priced=[],nodrop=[],nowts=[],excluded=[];
   for(const[cn,items]of Object.entries(chars)){
     for(const item of items){
       if(itemDB&&itemDB[item.name]&&itemDB[item.name]._nodrop){nodrop.push({char:cn,name:item.name,count:item.count||1});continue;}
+      if(exclusionSet.has(item.name.toLowerCase())){excluded.push({char:cn,name:item.name,count:item.count||1});continue;}
       const price=priceLookup[item.name.toLowerCase()];
       if(!price){nowts.push({char:cn,name:item.name,count:item.count||1});continue;}
       priced.push({char:cn,name:item.name,count:item.count||1,unitPrice:price,total:price*(item.count||1)});
     }
   }
   priced.sort((a,b)=>b.total-a.total);
-  return{priced,nodrop,nowts,totalPP:Math.floor(priced.reduce((s,r)=>s+r.total,0))};
+  return{priced,nodrop,nowts,excluded,totalPP:Math.floor(priced.reduce((s,r)=>s+r.total,0))};
 }
 
 function openNetworthModal(){
@@ -6806,7 +6810,12 @@ function openNetworthModal(){
   const body=document.getElementById('networthModalBody');
   if(!overlay||!body)return;
 
-  const{priced,nodrop,nowts,totalPP}=buildNetworthData();
+  renderNetworthModalBody(body);
+  overlay.classList.add('open');
+}
+
+function renderNetworthModalBody(body){
+  const{priced,nodrop,nowts,excluded,totalPP}=buildNetworthData();
 
   const tblHdr=(cols)=>`<thead><tr>${cols.map(([label,cls])=>`<th class="${cls||''}">${label}</th>`).join('')}</tr></thead>`;
 
@@ -6816,13 +6825,7 @@ function openNetworthModal(){
     <td class="r">${r.count}</td>
     <td class="r">${r.unitPrice.toLocaleString()} pp</td>
     <td class="r" style="color:var(--gold-light);font-weight:600">${Math.floor(r.total).toLocaleString()} pp</td>
-  </tr>`).join('');
-
-  const nodropRows=nodrop.map(r=>`<tr>
-    <td>${esc(r.name)}</td>
-    <td style="color:var(--text-muted)">${esc(r.char)}</td>
-    <td class="r">${r.count}</td>
-    <td style="color:#a05030">NO DROP</td>
+    <td class="r"><button onclick="excludeFromNetworth(${JSON.stringify(r.name)})" title="Exclude from networth" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--text-muted);padding:0 .2rem;line-height:1" onmouseover="this.style.color='#c0392b'" onmouseout="this.style.color='var(--text-muted)'">🚫</button></td>
   </tr>`).join('');
 
   const nowtsRows=nowts.map(r=>`<tr>
@@ -6832,17 +6835,34 @@ function openNetworthModal(){
     <td style="color:var(--text-muted)">No WTS data</td>
   </tr>`).join('');
 
+  const excludedRows=excluded.map(r=>`<tr>
+    <td>${esc(r.name)}</td>
+    <td style="color:var(--text-muted)">${esc(r.char)}</td>
+    <td class="r">${r.count}</td>
+    <td><button onclick="unexcludeFromNetworth(${JSON.stringify(r.name)})" title="Remove exclusion" style="background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--text-muted);padding:0 .2rem;font-family:var(--cinzel);letter-spacing:.04em" onmouseover="this.style.color='var(--gold-light)'" onmouseout="this.style.color='var(--text-muted)'">✕ restore</button></td>
+  </tr>`).join('');
+
+  const excludedSection=excluded.length?`
+    <div class="nw-section-hdr" style="color:#a05030">Excluded — ${excluded.length}</div>
+    <div class="nw-tbl-wrap">
+      <table class="nw-tbl">
+        ${tblHdr([['Item'],['Char'],['Count','r'],['Action']])}
+        <tbody>${excludedRows}</tbody>
+      </table>
+    </div>`:'';
+
   body.innerHTML=`
     <div class="nw-summary-cards">
       <div class="nw-card"><div class="nw-card-label">Est. Market Value</div><div class="nw-card-val" style="color:var(--gold-light);font-size:1.3rem">${totalPP.toLocaleString()} pp</div></div>
       <div class="nw-card"><div class="nw-card-label">Priced Items</div><div class="nw-card-val" style="color:var(--green)">${priced.length.toLocaleString()}</div></div>
       <div class="nw-card"><div class="nw-card-label">No WTS Data</div><div class="nw-card-val" style="color:var(--text-muted)">${nowts.length.toLocaleString()}</div></div>
+      ${excluded.length?`<div class="nw-card"><div class="nw-card-label">Excluded</div><div class="nw-card-val" style="color:#a05030">${excluded.length.toLocaleString()}</div></div>`:''}
     </div>
 
     <div class="nw-section-hdr" style="color:var(--gold-light)">Priced Items — ${priced.length}</div>
     <div class="nw-tbl-wrap" style="max-height:420px">
       <table class="nw-tbl">
-        ${tblHdr([['Item'],['Char'],['Count','r'],['Unit (30d)','r'],['Total','r']])}
+        ${tblHdr([['Item'],['Char'],['Count','r'],['Unit (30d)','r'],['Total','r'],['','r']])}
         <tbody>${pricedRows}</tbody>
       </table>
     </div>
@@ -6853,14 +6873,52 @@ function openNetworthModal(){
         ${tblHdr([['Item'],['Char'],['Count','r'],['Reason']])}
         <tbody>${nowtsRows}</tbody>
       </table>
-    </div>`;
+    </div>
 
-  overlay.classList.add('open');
+    ${excludedSection}`;
 }
 
 function closeNetworthModal(){
   const overlay=document.getElementById('networthModalOverlay');
   if(overlay)overlay.classList.remove('open');
+}
+
+async function excludeFromNetworth(name){
+  const key=name.toLowerCase();
+  if(!priceExclusions.includes(key))priceExclusions.push(key);
+  await savePriceExclusionsToSupabase();
+  renderNetworthBar();
+  // Re-render modal body in place
+  const body=document.getElementById('networthModalBody');
+  if(body)renderNetworthModalBody(body);
+}
+
+async function unexcludeFromNetworth(name){
+  const key=name.toLowerCase();
+  priceExclusions=priceExclusions.filter(n=>n!==key);
+  await savePriceExclusionsToSupabase();
+  renderNetworthBar();
+  const body=document.getElementById('networthModalBody');
+  if(body)renderNetworthModalBody(body);
+}
+
+async function savePriceExclusionsToSupabase(){
+  if(!currentUser)return;
+  try{
+    const{error}=await sb.from('guild_data').update({price_exclusions:priceExclusions,updated_at:new Date().toISOString()}).eq('pool','SoV').eq('user_id',currentUser.id);
+    if(error&&error.code==='PGRST116'){
+      await sb.from('guild_data').insert({pool:'SoV',user_id:currentUser.id,price_exclusions:priceExclusions,updated_at:new Date().toISOString()});
+    }else if(error){console.error('[PriceExclusions] Save error',error);}
+  }catch(e){console.error('[PriceExclusions] Save exception',e);}
+}
+
+async function loadPriceExclusionsFromSupabase(){
+  try{
+    const{data,error}=await sb.from('guild_data').select('price_exclusions').eq('pool','SoV').eq('user_id',currentUser.id).single();
+    if(!error&&data&&Array.isArray(data.price_exclusions)){
+      priceExclusions=data.price_exclusions;
+    }
+  }catch(e){console.error('[PriceExclusions] Load exception',e);}
 }
 
 // Renders estimated market value of tradeable items into the header networth display.
