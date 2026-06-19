@@ -362,7 +362,7 @@ const RE_FACTION = /^\[.+?\] Your faction standing with (\S+) (got better|got wo
 //   "a wyvern regards you as an ally."          (Ally only uses "as an")
 //   "Nanzata the Warder regards you warmly."
 //   "a frost giant regards you indifferently -- What do you want?"
-const RE_CON = /^\[.+?\] (.+?) (?:(?:(?:regards|considers|judges) you|glares at you) (?:as an? )?\w*?\b(ally|warmly|kindly|amiably?|indifferently?|apprehensively?|dubiously?|threateningly?|scowls)|(ally|warmly|kindly|amiably?|indifferently?|apprehensively?|dubiously?|threateningly?|scowls) (?:regards|considers|judges) you)/i;
+const RE_CON = /^\[.+?\] (.+?) (?:(?:(?:regards|considers|judges) you|glares at you) (?:as an? )?\w*?\b(ally|warmly|kindly|amiably?|indifferently?|apprehensively?|dubiously?|threateningly?)|(ally|warmly|kindly|amiably?|indifferently?|apprehensively?|dubiously?|threateningly?) (?:regards|considers|judges) you|(scowls) at you)/i;
 
 // Map of NPC name (lowercase, as it appears in EQ log) → faction display name
 // Multiple NPCs can map to the same faction — whichever you happen to con updates it.
@@ -823,7 +823,7 @@ function parseConLine(charName, line) {
   if (!m) return null;
 
   const npcName = m[1].toLowerCase();
-  const conWord = (m[2] || m[3]).toLowerCase();
+  const conWord = (m[2] || m[3] || m[4]).toLowerCase();
 
   const displayName = CON_TARGET_MAP[npcName];
   if (!displayName) return null; // NPC not in our table

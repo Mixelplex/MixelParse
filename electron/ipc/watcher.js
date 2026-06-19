@@ -328,7 +328,7 @@ function tailLogFile(fp, charName) {
 // Matches: "A frost giant regards you as an ally."
 //          "Nanzata the Warder regards you warmly."
 //          "A frost giant scowls at you, ready to attack!"
-const RE_CON = /^\[.+?\] (.+?) (?:(?:(?:regards|considers|judges) you|glares at you) (?:as an? )?\w*?\b(ally|warmly|kindly|amiably?|indifferently?|apprehensively?|dubiously?|threateningly?|scowls)|(ally|warmly|kindly|amiably?|indifferently?|apprehensively?|dubiously?|threateningly?|scowls) (?:regards|considers|judges) you)/i;
+const RE_CON = /^\[.+?\] (.+?) (?:(?:(?:regards|considers|judges) you|glares at you) (?:as an? )?\w*?\b(ally|warmly|kindly|amiably?|indifferently?|apprehensively?|dubiously?|threateningly?)|(ally|warmly|kindly|amiably?|indifferently?|apprehensively?|dubiously?|threateningly?) (?:regards|considers|judges) you|(scowls) at you)/i;
 
 const CON_TARGET_MAP = {
   // ── Claws of Veeshan ──────────────────────────────────────────────────────
@@ -805,7 +805,7 @@ function processLogLine(line, charName) {
   const conMatch = line.match(RE_CON);
   if (conMatch) {
     const npcName     = conMatch[1].trim().toLowerCase();
-    const conWord     = (conMatch[2] || conMatch[3]).trim().toLowerCase();
+    const conWord     = (conMatch[2] || conMatch[3] || conMatch[4]).trim().toLowerCase();
     const displayName = CON_TARGET_MAP[npcName];
     if (displayName) {
       const levelName = CON_WORD_TO_LEVEL[conWord];
