@@ -17,6 +17,10 @@
   header h1{font-family:\'Cinzel\',serif;font-size:clamp(1.3rem,5vw,1.9rem);color:var(--gold-light);letter-spacing:.12em;text-shadow:0 0 30px rgba(201,146,42,.4)}
   header p{margin-top:.3rem;color:var(--text-dim);font-size:.85rem;font-style:italic}
   .version-badge{position:absolute;bottom:.5rem;right:1rem;font-family:\'Cinzel\',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.06em}
+  #networthDisplay{position:absolute;left:62%;top:50%;transform:translateY(-50%);text-align:left;line-height:1.5;display:none}
+  .nw-header-label{font-family:\'Cinzel\',serif;font-size:.6rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;margin-bottom:.1rem}
+  .nw-header-value{font-family:\'Crimson Pro\',serif;font-size:1.1rem;color:var(--gold-light);font-weight:700;letter-spacing:.02em}
+  .nw-header-note{font-family:\'Crimson Pro\',serif;font-size:.72rem;color:var(--text-muted);font-style:italic}
   .ornament{color:var(--gold-dim);font-size:1.1rem;margin:.25rem 0;letter-spacing:.3em}
   .tab-bar{display:flex;border-bottom:2px solid var(--border-glow);background:var(--surface2);overflow-x:auto;padding:0 1rem}
   .tab{font-family:\'Cinzel\',serif;font-size:.72rem;letter-spacing:.07em;color:var(--text-muted);padding:.6rem .9rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .15s,border-color .15s;user-select:none;display:flex;align-items:center;gap:.35rem}
@@ -245,11 +249,6 @@
   .zone-bar-time{display:none}
   .zone-bar-sep{display:none}
   .zone-bar-zone{display:none}
-  .zone-nw-row{margin-top:.35rem;padding-top:.3rem;border-top:1px solid var(--border);font-size:.72rem;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:.15rem .4rem;align-items:baseline}
-  .nw-label{font-family:'Cinzel',serif;letter-spacing:.04em;font-size:.66rem;color:var(--text-dim)}
-  .nw-value{color:var(--gold-light);font-weight:700;font-family:'Crimson Pro',serif;font-size:.8rem}
-  .nw-sep{color:var(--border)}
-  .nw-note{color:var(--text-muted);font-style:italic;font-size:.66rem}
   .auth-signout{background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-muted);padding:.15rem .45rem;font-size:.72rem;cursor:pointer;font-family:\'Crimson Pro\',serif;transition:all .15s}
   .auth-signout:hover{border-color:#a03030;color:#a03030}
   /* ── Watch List Banner ── */
@@ -621,6 +620,7 @@
     <div class="ornament">&#10022;</div>
   </div>
   <div class="version-badge" id="versionBadge"></div>
+  <div id="networthDisplay"></div>
 </header>
 
 <div class="modal-overlay" id="itemDbOverlay">
@@ -1340,14 +1340,12 @@ function parseInventory(text,charName){
     const[loc,name,id,count]=p;
     if(name==='Empty'||name==='Name')continue;
     if(Number(id)===0){
-      // Coin line — PersonalMoney and BankMoney both count toward networth
-      if(loc==='PersonalMoney'||loc==='BankMoney'){
-        const n=name.trim().toLowerCase(),amt=Number(count)||0;
-        if(n==='platinum')coins.pp+=amt;
-        else if(n==='gold')coins.gp+=amt;
-        else if(n==='silver')coins.sp+=amt;
-        else if(n==='copper')coins.cp+=amt;
-      }
+      // Coin line — id 0 means currency. Accept any location; match names loosely.
+      const n=name.trim().toLowerCase(),amt=Number(count)||0;
+      if(n.includes('platinum'))coins.pp+=amt;
+      else if(n.includes('gold'))coins.gp+=amt;
+      else if(n.includes('silver'))coins.sp+=amt;
+      else if(n.includes('copper'))coins.cp+=amt;
       continue;
     }
     items.push({char:charName,location:loc,name:name.trim(),id:Number(id),count:Number(count)});
@@ -6744,73 +6742,40 @@ function parseOdkpDetailsCsv(text){
   return result;
 }
 
-// ── Networth ─────────────────────────────────────────────────────────────────
-// Liquid networth: sum all coin across every char (including bankers) → plat equivalent
-function calcLiquidNetworth(){
-  let total=0;
-  for(const c of Object.values(charCoins)){
-    total+=(c.pp||0)+(c.gp||0)/10+(c.sp||0)/100+(c.cp||0)/1000;
-  }
-  return Math.floor(total);
-}
+// Renders estimated market value of tradeable items into the header networth display.
+// No coin data (P99 inventory files don't export coin) — items only.
+// Includes equipped gear. Excludes NO DROP items. Requires platData to be loaded.
+function renderNetworthBar(){
+  const el=document.getElementById('networthDisplay');
+  if(!el)return;
 
-// Market networth: liquid + estimated value of tradeable items at 30-day Pigparse WTS avg.
-// NO DROP items and items with no WTS price are excluded.
-function calcMarketNetworth(){
-  const liquid=calcLiquidNetworth();
-  const result={liquid,market:liquid,unpriced:0,hasPlat:false};
-  if(!platData.length)return result;
-  result.hasPlat=true;
+  const hasChars=Object.keys(chars).length>0;
+  if(!hasChars||!platData.length){el.style.display='none';return;}
 
   // Build WTS price lookup: lowercase item name → best a30 price
   const priceLookup={};
   for(const r of platData){
-    if(r.t!==0)continue; // WTS only
+    if(r.t!==0)continue;
     const a30=r.a30??-1;
     if(a30<=0||!r.n)continue;
     const key=r.n.toLowerCase();
     if(!priceLookup[key]||a30>priceLookup[key])priceLookup[key]=a30;
   }
 
-  let marketAdd=0;
+  let marketPP=0,unpriced=0;
   for(const items of Object.values(chars)){
     for(const item of items){
-      if(itemDB&&itemDB[item.name]&&itemDB[item.name]._nodrop)continue; // skip NO DROP
+      if(itemDB&&itemDB[item.name]&&itemDB[item.name]._nodrop)continue;
       const price=priceLookup[item.name.toLowerCase()];
-      if(!price){result.unpriced++;continue;}
-      marketAdd+=price*(item.count||1);
+      if(!price){unpriced++;continue;}
+      marketPP+=price*(item.count||1);
     }
   }
-  result.market=liquid+Math.floor(marketAdd);
-  return result;
-}
 
-// Renders the networth summary row inside the zone bar panel.
-// Called whenever inventory or plat data changes.
-function renderNetworthBar(){
-  const el=document.getElementById('zoneBar');
-  if(!el)return;
-  // Remove any existing nw row and re-inject after renderZoneBar sets innerHTML
-  // (renderZoneBar calls us after setting its own HTML, so we just append)
-  const existing=el.querySelector('.zone-nw-row');
-  if(existing)existing.remove();
-
-  const hasCoins=Object.keys(charCoins).length>0;
-  if(!hasCoins)return;
-
-  const{liquid,market,unpriced,hasPlat}=calcMarketNetworth();
-  if(liquid===0&&market===0)return;
-
-  let html=`<span class="nw-label">&#128176; Liquid:</span> <span class="nw-value">${liquid.toLocaleString()} pp</span>`;
-  if(hasPlat){
-    html+=` <span class="nw-sep">·</span> <span class="nw-label">&#128230; Est. Market:</span> <span class="nw-value">${market.toLocaleString()} pp</span>`;
-    if(unpriced>0)html+=` <span class="nw-note">${unpriced} unpriced</span>`;
-  }
-
-  const row=document.createElement('div');
-  row.className='zone-nw-row';
-  row.innerHTML=html;
-  el.appendChild(row);
+  el.innerHTML=`<div class="nw-header-label">&#128230; Est. Market Value</div>
+    <div class="nw-header-value">${Math.floor(marketPP).toLocaleString()} pp</div>
+    ${unpriced?`<div class="nw-header-note">${unpriced} items unpriced</div>`:''}`;
+  el.style.display='';
 }
 
 // ── Zone tracking ─────────────────────────────────────────────────────────────
@@ -6831,7 +6796,6 @@ function renderZoneBar(){
     return `<span class="zone-bar-char">${esc(char)}</span><span class="zone-bar-sep-zone">${esc(z.zone)}</span>`;
   }).join('');
   el.innerHTML=`<div class="zone-bar-title">Last Zone Location</div><div class="zone-bar-grid">${rows}</div>`;
-  renderNetworthBar();
 }
 
 function timeAgo(isoStr){
