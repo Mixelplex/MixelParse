@@ -3213,6 +3213,8 @@ function loadNetworth(){
   const chars=A.chars||{};
   const platData=A.platData||[];
   const itemDB=A.itemDB||{};
+  const priceExclusions=A.priceExclusions||[];
+  const exclusionSet=new Set(priceExclusions.map(n=>n.toLowerCase()));
 
   if(!Object.keys(chars).length){
     el.innerHTML='<div style="color:var(--text-m);font-size:.8rem;padding:.5rem 0">No characters loaded — load inventory files in MixelParse first.</div>';
@@ -3223,26 +3225,37 @@ function loadNetworth(){
     return;
   }
 
-  // Build WTS 30-day price lookup
+  // Build WTS price lookup — same t≥2 troll defense as index.html
   const priceLookup={};
   for(const r of platData){
     if(r.t!==0)continue;
-    const a30=r.a30??-1;
-    if(a30<=0||!r.n)continue;
+    if(!r.n)continue;
+    const candidates=[
+      [r.a30??-1, r.t30??0],
+      [r.a60??-1, r.t60??0],
+      [r.a90??-1, r.t90??0],
+    ].filter(([price,cnt])=>price>0&&cnt>=2).map(([price])=>price);
+    if(!candidates.length)continue;
+    const price=Math.min(...candidates);
     const key=r.n.toLowerCase();
-    if(!priceLookup[key]||a30>priceLookup[key])priceLookup[key]=a30;
+    if(!priceLookup[key]||price>priceLookup[key])priceLookup[key]=price;
   }
 
   // Categorize every item across all chars
-  const priced=[];   // { char, name, count, unitPrice, total }
-  const nodrop=[];   // { char, name, count }
-  const nowts=[];    // { char, name, count }
+  const priced=[];
+  const nodrop=[];
+  const nowts=[];
+  const excluded=[];
 
   for(const[cn,items]of Object.entries(chars)){
     for(const item of items){
       const dbEntry=itemDB[item.name];
       if(dbEntry&&dbEntry._nodrop){
         nodrop.push({char:cn,name:item.name,count:item.count||1});
+        continue;
+      }
+      if(exclusionSet.has(item.name.toLowerCase())){
+        excluded.push({char:cn,name:item.name,count:item.count||1});
         continue;
       }
       const price=priceLookup[item.name.toLowerCase()];
@@ -3256,11 +3269,12 @@ function loadNetworth(){
 
   priced.sort((a,b)=>b.total-a.total);
   const totalPP=Math.floor(priced.reduce((s,r)=>s+r.total,0));
-  if(sumEl)sumEl.textContent=`${totalPP.toLocaleString()} pp · ${priced.length} priced · ${nodrop.length+nowts.length} excluded`;
+  if(sumEl)sumEl.textContent=`${totalPP.toLocaleString()} pp · ${priced.length} priced · ${excluded.length} excluded`;
 
   const thStyle='style="text-align:left;font-family:var(--cinzel);font-size:.6rem;letter-spacing:.08em;padding:.4rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)"';
   const tdStyle='style="padding:.3rem .6rem;font-size:.78rem;border-bottom:1px solid var(--border2)"';
   const tdR='style="padding:.3rem .6rem;font-size:.78rem;border-bottom:1px solid var(--border2);text-align:right"';
+  const thR='style="text-align:right;font-family:var(--cinzel);font-size:.6rem;letter-spacing:.08em;padding:.4rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)"';
 
   const pricedRows=priced.map(r=>`<tr>
     <td ${tdStyle}>${esc2(r.name)}</td>
@@ -3268,6 +3282,7 @@ function loadNetworth(){
     <td ${tdR}>${r.count}</td>
     <td ${tdR}>${r.unitPrice.toLocaleString()} pp</td>
     <td ${tdR} style="padding:.3rem .6rem;font-size:.78rem;border-bottom:1px solid var(--border2);text-align:right;color:var(--gold-l);font-weight:600">${Math.floor(r.total).toLocaleString()} pp</td>
+    <td ${tdR}><button onclick="adminExcludeFromNetworth(${JSON.stringify(r.name)})" title="Exclude from networth" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:var(--text-m);padding:0 .2rem" onmouseover="this.style.color='#c0392b'" onmouseout="this.style.color='var(--text-m)'">🚫</button></td>
   </tr>`).join('');
 
   const nodropRows=nodrop.map(r=>`<tr>
@@ -3283,6 +3298,27 @@ function loadNetworth(){
     <td ${tdR}>${r.count}</td>
     <td ${tdStyle} style="padding:.3rem .6rem;font-size:.78rem;border-bottom:1px solid var(--border2);color:var(--text-m)">No WTS data</td>
   </tr>`).join('');
+
+  // Deduplicate excluded by name for the management list
+  const seenExcl=new Set();
+  const excludedUniq=excluded.filter(r=>{if(seenExcl.has(r.name.toLowerCase()))return false;seenExcl.add(r.name.toLowerCase());return true;});
+  const excludedRows=excludedUniq.map(r=>`<tr>
+    <td ${tdStyle}>${esc2(r.name)}</td>
+    <td ${tdStyle} style="padding:.3rem .6rem;font-size:.78rem;border-bottom:1px solid var(--border2);color:var(--text-m)">${esc2(r.char)}</td>
+    <td ${tdR}><button onclick="adminUnexcludeFromNetworth(${JSON.stringify(r.name)})" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:var(--text-m);font-family:var(--cinzel);letter-spacing:.04em;padding:0 .2rem" onmouseover="this.style.color='var(--gold-l)'" onmouseout="this.style.color='var(--text-m)'">✕ restore</button></td>
+  </tr>`).join('');
+
+  const excludedSection=excluded.length?`
+    <div style="font-family:var(--cinzel);font-size:.62rem;letter-spacing:.1em;color:#a05030;margin-bottom:.4rem">EXCLUDED FROM NETWORTH — ${excludedUniq.length} items</div>
+    <div style="overflow-y:auto;max-height:240px;border:1px solid var(--border2);border-radius:4px;margin-bottom:1.5rem">
+      <table style="width:100%;border-collapse:collapse">
+        <thead style="position:sticky;top:0;background:var(--bg)"><tr>
+          <th ${thStyle}>Item</th><th ${thStyle}>Char</th>
+          <th ${thR}>Action</th>
+        </tr></thead>
+        <tbody>${excludedRows}</tbody>
+      </table>
+    </div>`:'';
 
   el.innerHTML=`
     <div style="display:flex;gap:1.5rem;margin-bottom:1.25rem;flex-wrap:wrap">
@@ -3302,7 +3338,13 @@ function loadNetworth(){
         <div style="font-size:.58rem;font-family:var(--cinzel);letter-spacing:.1em;color:var(--text-m);text-transform:uppercase;margin-bottom:.2rem">No WTS Data</div>
         <div style="font-size:1rem;color:var(--text-m)">${nowts.length.toLocaleString()} items</div>
       </div>
+      ${excluded.length?`<div style="padding:.6rem 1rem;background:var(--surface);border:1px solid var(--border2);border-radius:4px;min-width:100px">
+        <div style="font-size:.58rem;font-family:var(--cinzel);letter-spacing:.1em;color:var(--text-m);text-transform:uppercase;margin-bottom:.2rem">Excluded</div>
+        <div style="font-size:1rem;color:#a05030">${excludedUniq.length.toLocaleString()} items</div>
+      </div>`:''}
     </div>
+
+    ${excludedSection}
 
     <div style="font-family:var(--cinzel);font-size:.62rem;letter-spacing:.1em;color:var(--gold-l);margin-bottom:.4rem">PRICED ITEMS — ${priced.length}</div>
     <div style="overflow-y:auto;max-height:420px;border:1px solid var(--border2);border-radius:4px;margin-bottom:1.5rem">
@@ -3311,9 +3353,10 @@ function loadNetworth(){
           <tr>
             <th ${thStyle}>Item</th>
             <th ${thStyle}>Char</th>
-            <th style="text-align:right;font-family:var(--cinzel);font-size:.6rem;letter-spacing:.08em;padding:.4rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)">Count</th>
-            <th style="text-align:right;font-family:var(--cinzel);font-size:.6rem;letter-spacing:.08em;padding:.4rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)">Unit (30d)</th>
-            <th style="text-align:right;font-family:var(--cinzel);font-size:.6rem;letter-spacing:.08em;padding:.4rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)">Total</th>
+            <th ${thR}>Count</th>
+            <th ${thR}>Unit (30d)</th>
+            <th ${thR}>Total</th>
+            <th ${thR}></th>
           </tr>
         </thead>
         <tbody>${pricedRows}</tbody>
@@ -3326,7 +3369,7 @@ function loadNetworth(){
         <thead style="position:sticky;top:0;background:var(--bg)">
           <tr>
             <th ${thStyle}>Item</th><th ${thStyle}>Char</th>
-            <th style="text-align:right;font-family:var(--cinzel);font-size:.6rem;letter-spacing:.08em;padding:.4rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)">Count</th>
+            <th ${thR}>Count</th>
             <th ${thStyle}>Reason</th>
           </tr>
         </thead>
@@ -3340,13 +3383,25 @@ function loadNetworth(){
         <thead style="position:sticky;top:0;background:var(--bg)">
           <tr>
             <th ${thStyle}>Item</th><th ${thStyle}>Char</th>
-            <th style="text-align:right;font-family:var(--cinzel);font-size:.6rem;letter-spacing:.08em;padding:.4rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)">Count</th>
+            <th ${thR}>Count</th>
             <th ${thStyle}>Reason</th>
           </tr>
         </thead>
         <tbody>${nowtsRows}</tbody>
       </table>
     </div>`;
+}
+
+async function adminExcludeFromNetworth(name){
+  if(!A||!A.excludeFromNetworth){console.warn('[Admin] excludeFromNetworth not available on A');return;}
+  await A.excludeFromNetworth(name);
+  loadNetworth();
+}
+
+async function adminUnexcludeFromNetworth(name){
+  if(!A||!A.unexcludeFromNetworth){console.warn('[Admin] unexcludeFromNetworth not available on A');return;}
+  await A.unexcludeFromNetworth(name);
+  loadNetworth();
 }
 
 async function loadFeedback(){
