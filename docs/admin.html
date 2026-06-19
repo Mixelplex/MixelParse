@@ -255,6 +255,11 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
     <span class="sb-badge skip" id="badge-utils">—</span>
   </div>
   <div class="sb-section">Guild</div>
+  <div class="sb-item" data-suite="networth" onclick="showSuite('networth',this);loadNetworth()">
+    <div class="sb-dot skip" id="dot-networth"></div>
+    Networth Audit
+    <span class="sb-badge skip" id="badge-networth">—</span>
+  </div>
   <div class="sb-item" data-suite="feedback" onclick="showSuite('feedback',this);loadFeedback()">
     <div class="sb-dot skip" id="dot-feedback"></div>
     Feedback
@@ -624,6 +629,16 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
       <div class="suite-desc">Tests esc(), wikiUrl(), itemLink(), dkpChip(), factionColor(), platTypeLabel(), platTypeChip() output correctness.</div>
       <div class="suite-actions"><button class="btn primary" onclick="runSuite('utils')">&#9658; Run Suite</button></div>
       <div id="results-utils"></div>
+    </div>
+
+    <div id="suite-networth" class="suite">
+      <div class="suite-title">NETWORTH AUDIT</div>
+      <div class="suite-desc">Full breakdown of estimated market value across all characters and bankers. Priced items use the 30-day Pigparse WTS average. Requires inventory files and Plat Prices to be loaded in MixelParse.</div>
+      <div class="suite-actions" style="display:flex;align-items:center;gap:.6rem">
+        <button class="btn primary" onclick="loadNetworth()">&#8635; Refresh</button>
+        <span id="networth-summary" style="font-size:.72rem;color:var(--text-m)"></span>
+      </div>
+      <div id="networth-content" style="margin-top:.75rem"></div>
     </div>
 
     <div id="suite-feedback" class="suite">
@@ -3190,6 +3205,150 @@ function resetDropScrape() {
 
 // ── Feedback Viewer ──────────────────────────────────────────────────
 function esc2(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function loadNetworth(){
+  const el=document.getElementById('networth-content');
+  const sumEl=document.getElementById('networth-summary');
+  if(!el)return;
+
+  const chars=A.chars||{};
+  const platData=A.platData||[];
+  const itemDB=A.itemDB||{};
+
+  if(!Object.keys(chars).length){
+    el.innerHTML='<div style="color:var(--text-m);font-size:.8rem;padding:.5rem 0">No characters loaded — load inventory files in MixelParse first.</div>';
+    return;
+  }
+  if(!platData.length){
+    el.innerHTML='<div style="color:var(--text-m);font-size:.8rem;padding:.5rem 0">No plat data — fetch Plat Prices in MixelParse first.</div>';
+    return;
+  }
+
+  // Build WTS 30-day price lookup
+  const priceLookup={};
+  for(const r of platData){
+    if(r.t!==0)continue;
+    const a30=r.a30??-1;
+    if(a30<=0||!r.n)continue;
+    const key=r.n.toLowerCase();
+    if(!priceLookup[key]||a30>priceLookup[key])priceLookup[key]=a30;
+  }
+
+  // Categorize every item across all chars
+  const priced=[];   // { char, name, count, unitPrice, total }
+  const nodrop=[];   // { char, name, count }
+  const nowts=[];    // { char, name, count }
+
+  for(const[cn,items]of Object.entries(chars)){
+    for(const item of items){
+      const dbEntry=itemDB[item.name];
+      if(dbEntry&&dbEntry._nodrop){
+        nodrop.push({char:cn,name:item.name,count:item.count||1});
+        continue;
+      }
+      const price=priceLookup[item.name.toLowerCase()];
+      if(!price){
+        nowts.push({char:cn,name:item.name,count:item.count||1});
+        continue;
+      }
+      priced.push({char:cn,name:item.name,count:item.count||1,unitPrice:price,total:price*(item.count||1)});
+    }
+  }
+
+  priced.sort((a,b)=>b.total-a.total);
+  const totalPP=Math.floor(priced.reduce((s,r)=>s+r.total,0));
+  if(sumEl)sumEl.textContent=`${totalPP.toLocaleString()} pp · ${priced.length} priced · ${nodrop.length+nowts.length} excluded`;
+
+  const thStyle='style="text-align:left;font-family:var(--cinzel);font-size:.6rem;letter-spacing:.08em;padding:.4rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)"';
+  const tdStyle='style="padding:.3rem .6rem;font-size:.78rem;border-bottom:1px solid var(--border2)"';
+  const tdR='style="padding:.3rem .6rem;font-size:.78rem;border-bottom:1px solid var(--border2);text-align:right"';
+
+  const pricedRows=priced.map(r=>`<tr>
+    <td ${tdStyle}>${esc2(r.name)}</td>
+    <td ${tdStyle} style="padding:.3rem .6rem;font-size:.78rem;border-bottom:1px solid var(--border2);color:var(--text-m)">${esc2(r.char)}</td>
+    <td ${tdR}>${r.count}</td>
+    <td ${tdR}>${r.unitPrice.toLocaleString()} pp</td>
+    <td ${tdR} style="padding:.3rem .6rem;font-size:.78rem;border-bottom:1px solid var(--border2);text-align:right;color:var(--gold-l);font-weight:600">${Math.floor(r.total).toLocaleString()} pp</td>
+  </tr>`).join('');
+
+  const nodropRows=nodrop.map(r=>`<tr>
+    <td ${tdStyle}>${esc2(r.name)}</td>
+    <td ${tdStyle} style="padding:.3rem .6rem;font-size:.78rem;border-bottom:1px solid var(--border2);color:var(--text-m)">${esc2(r.char)}</td>
+    <td ${tdR}>${r.count}</td>
+    <td ${tdStyle} style="padding:.3rem .6rem;font-size:.78rem;border-bottom:1px solid var(--border2);color:#a05030">NO DROP</td>
+  </tr>`).join('');
+
+  const nowtsRows=nowts.map(r=>`<tr>
+    <td ${tdStyle}>${esc2(r.name)}</td>
+    <td ${tdStyle} style="padding:.3rem .6rem;font-size:.78rem;border-bottom:1px solid var(--border2);color:var(--text-m)">${esc2(r.char)}</td>
+    <td ${tdR}>${r.count}</td>
+    <td ${tdStyle} style="padding:.3rem .6rem;font-size:.78rem;border-bottom:1px solid var(--border2);color:var(--text-m)">No WTS data</td>
+  </tr>`).join('');
+
+  el.innerHTML=`
+    <div style="display:flex;gap:1.5rem;margin-bottom:1.25rem;flex-wrap:wrap">
+      <div style="padding:.6rem 1rem;background:var(--surface);border:1px solid var(--border2);border-radius:4px;min-width:140px">
+        <div style="font-size:.58rem;font-family:var(--cinzel);letter-spacing:.1em;color:var(--text-m);text-transform:uppercase;margin-bottom:.2rem">Est. Market Value</div>
+        <div style="font-size:1.3rem;color:var(--gold-l);font-weight:700">${totalPP.toLocaleString()} pp</div>
+      </div>
+      <div style="padding:.6rem 1rem;background:var(--surface);border:1px solid var(--border2);border-radius:4px;min-width:100px">
+        <div style="font-size:.58rem;font-family:var(--cinzel);letter-spacing:.1em;color:var(--text-m);text-transform:uppercase;margin-bottom:.2rem">Priced</div>
+        <div style="font-size:1rem;color:var(--pass)">${priced.length.toLocaleString()} items</div>
+      </div>
+      <div style="padding:.6rem 1rem;background:var(--surface);border:1px solid var(--border2);border-radius:4px;min-width:100px">
+        <div style="font-size:.58rem;font-family:var(--cinzel);letter-spacing:.1em;color:var(--text-m);text-transform:uppercase;margin-bottom:.2rem">No Drop</div>
+        <div style="font-size:1rem;color:#a05030">${nodrop.length.toLocaleString()} items</div>
+      </div>
+      <div style="padding:.6rem 1rem;background:var(--surface);border:1px solid var(--border2);border-radius:4px;min-width:100px">
+        <div style="font-size:.58rem;font-family:var(--cinzel);letter-spacing:.1em;color:var(--text-m);text-transform:uppercase;margin-bottom:.2rem">No WTS Data</div>
+        <div style="font-size:1rem;color:var(--text-m)">${nowts.length.toLocaleString()} items</div>
+      </div>
+    </div>
+
+    <div style="font-family:var(--cinzel);font-size:.62rem;letter-spacing:.1em;color:var(--gold-l);margin-bottom:.4rem">PRICED ITEMS — ${priced.length}</div>
+    <div style="overflow-y:auto;max-height:420px;border:1px solid var(--border2);border-radius:4px;margin-bottom:1.5rem">
+      <table style="width:100%;border-collapse:collapse">
+        <thead style="position:sticky;top:0;background:var(--bg)">
+          <tr>
+            <th ${thStyle}>Item</th>
+            <th ${thStyle}>Char</th>
+            <th style="text-align:right;font-family:var(--cinzel);font-size:.6rem;letter-spacing:.08em;padding:.4rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)">Count</th>
+            <th style="text-align:right;font-family:var(--cinzel);font-size:.6rem;letter-spacing:.08em;padding:.4rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)">Unit (30d)</th>
+            <th style="text-align:right;font-family:var(--cinzel);font-size:.6rem;letter-spacing:.08em;padding:.4rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)">Total</th>
+          </tr>
+        </thead>
+        <tbody>${pricedRows}</tbody>
+      </table>
+    </div>
+
+    <div style="font-family:var(--cinzel);font-size:.62rem;letter-spacing:.1em;color:#a05030;margin-bottom:.4rem">NO DROP — ${nodrop.length}</div>
+    <div style="overflow-y:auto;max-height:280px;border:1px solid var(--border2);border-radius:4px;margin-bottom:1.5rem">
+      <table style="width:100%;border-collapse:collapse">
+        <thead style="position:sticky;top:0;background:var(--bg)">
+          <tr>
+            <th ${thStyle}>Item</th><th ${thStyle}>Char</th>
+            <th style="text-align:right;font-family:var(--cinzel);font-size:.6rem;letter-spacing:.08em;padding:.4rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)">Count</th>
+            <th ${thStyle}>Reason</th>
+          </tr>
+        </thead>
+        <tbody>${nodropRows}</tbody>
+      </table>
+    </div>
+
+    <div style="font-family:var(--cinzel);font-size:.62rem;letter-spacing:.1em;color:var(--text-m);margin-bottom:.4rem">NO WTS DATA — ${nowts.length}</div>
+    <div style="overflow-y:auto;max-height:280px;border:1px solid var(--border2);border-radius:4px">
+      <table style="width:100%;border-collapse:collapse">
+        <thead style="position:sticky;top:0;background:var(--bg)">
+          <tr>
+            <th ${thStyle}>Item</th><th ${thStyle}>Char</th>
+            <th style="text-align:right;font-family:var(--cinzel);font-size:.6rem;letter-spacing:.08em;padding:.4rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)">Count</th>
+            <th ${thStyle}>Reason</th>
+          </tr>
+        </thead>
+        <tbody>${nowtsRows}</tbody>
+      </table>
+    </div>`;
+}
+
 async function loadFeedback(){
   const list=document.getElementById('feedback-list');
   const countEl=document.getElementById('feedback-count');
