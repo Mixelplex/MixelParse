@@ -6775,10 +6775,13 @@ function buildNetworthData(){
   for(const r of platData){
     if(r.t!==0)continue;
     if(!r.n)continue;
-    // Use the minimum of all available non-negative price windows.
-    // Troll prices inflate one window (usually a30); legitimate items
-    // are stable across windows so the min barely changes them.
-    const candidates=[r.a30,r.a60,r.a90].map(v=>v??-1).filter(v=>v>0);
+    // Only accept a price window if it has ≥2 transactions — filters single troll listings.
+    // Use the minimum across qualifying windows as an additional troll price defense.
+    const candidates=[
+      [r.a30??-1, r.t30??0],
+      [r.a60??-1, r.t60??0],
+      [r.a90??-1, r.t90??0],
+    ].filter(([price,cnt])=>price>0&&cnt>=2).map(([price])=>price);
     if(!candidates.length)continue;
     const price=Math.min(...candidates);
     const key=r.n.toLowerCase();
