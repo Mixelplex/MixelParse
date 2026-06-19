@@ -6100,6 +6100,7 @@ function renderKillsPanel(){
           <span class="kt-check-name" onclick="ktToggleBossRoles('${esc(b.target)}')" style="cursor:pointer;flex:1">${esc(b.target)}</span>
           ${b.target!==b.full?`<span class="kt-check-full">${esc(b.full)}</span>`:''}
           <span class="kt-check-dkp" id="ktdkp_${esc(b.target)}">${state==='killed'?killTotal+' DKP':state==='failtick'?'1 DKP':b.dkp+'+'+b.baseDkp}</span>
+          ${state?`<button type="button" class="kt-clear-btn" data-bosstgt="${esc(b.target)}" title="Clear" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.72rem;padding:0 .2rem;line-height:1;opacity:.7" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.7'">✕</button>`:'<span style="display:inline-block;width:1.2rem"></span>'}
           <span class="kt-expand-btn" onclick="ktToggleBossRoles('${esc(b.target)}')">${isOpen?'▲':'▼'}</span>
         </div>
         <div id="ktbr_${esc(b.target)}" style="display:${isOpen?'block':'none'};border-bottom:1px solid var(--border);background:var(--surface)">
@@ -6129,6 +6130,7 @@ function renderKillsPanel(){
               </div>
               <span class="kt-check-name" data-spawnkey="${esc(sp.key)}" onclick="ktToggleBossRoles(this.dataset.spawnkey)" style="cursor:pointer;flex:1">${esc(b.target)}${spLabel}</span>
               <span class="kt-check-dkp" id="ktdkp_${esc(sp.key)}">${sp.state==='killed'?spKillTotal+' DKP':sp.state==='failtick'?b.baseDkp+' DKP':b.dkp+'+'+b.baseDkp}</span>
+              ${sp.state?`<button type="button" class="kt-clear-btn" data-spawnkey="${esc(sp.key)}" title="Clear" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.72rem;padding:0 .2rem;line-height:1;opacity:.7" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.7'">✕</button>`:'<span style="display:inline-block;width:1.2rem"></span>'}
               <span class="kt-expand-btn" data-spawnkey="${esc(sp.key)}" onclick="ktToggleBossRoles(this.dataset.spawnkey)">${spOpen?'▲':'▼'}</span>
               <button type="button" data-spawnkey="${esc(sp.key)}" onclick="ktRemoveSpawn(this.dataset.spawnkey)" style="margin-left:.25rem;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.8rem;padding:0 .2rem" title="Remove spawn">✕</button>
             </div>
@@ -6323,7 +6325,13 @@ window.ktSetBossState=function(target,newState){
   const dkpEl=document.getElementById('ktdkp_'+target);
   if(dkpEl)dkpEl.textContent=newState==='killed'?killTotal+' DKP':newState==='failtick'?b.baseDkp+' DKP':b.dkp+'+'+b.baseDkp;
   const row=dkpEl?.closest('.kt-check-row');
-  if(row){row.className='kt-check-row'+(newState==='killed'?' kt-checked':newState==='failtick'?' kt-failtick':'');}
+  if(row){
+    row.className='kt-check-row'+(newState==='killed'?' kt-checked':newState==='failtick'?' kt-failtick':'');
+    if(!row.querySelector('.kt-clear-btn')){
+      const ph=row.querySelector('span[style*="1.2rem"]');
+      if(ph){const btn=document.createElement('button');btn.type='button';btn.className='kt-clear-btn';btn.dataset.bosstgt=target;btn.title='Clear';btn.textContent='✕';btn.style.cssText='background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.72rem;padding:0 .2rem;line-height:1;opacity:.7';btn.onmouseover=()=>btn.style.opacity='1';btn.onmouseout=()=>btn.style.opacity='.7';ph.replaceWith(btn);}
+    }
+  }
   // Auto-expand on killed
   if(newState==='killed'&&!ktExpanded[target]){
     ktExpanded[target]=true;
@@ -6401,6 +6409,52 @@ window.ktRemoveSpawn=function(spawnKey){
   renderKillsPanel();
 };
 
+window.ktClearBossState=function(target){
+  if(!activeSession.killState)return;
+  delete activeSession.killState[target];
+  // Uncheck both radios
+  document.querySelectorAll(`input[name="boss_${target}"]`).forEach(r=>{r.checked=false;});
+  const b=BOSS_ROSTER.find(x=>x.target===target);
+  const dkpEl=document.getElementById('ktdkp_'+target);
+  if(dkpEl)dkpEl.textContent=b?b.dkp+'+'+b.baseDkp:'—';
+  const row=dkpEl?.closest('.kt-check-row');
+  if(row){
+    row.className='kt-check-row';
+    // Remove the clear button, put placeholder back
+    const clearBtn=row.querySelector('.kt-clear-btn');
+    if(clearBtn){const ph=document.createElement('span');ph.style.cssText='display:inline-block;width:1.2rem';clearBtn.replaceWith(ph);}
+  }
+  ktUpdateBadge();
+};
+
+window.ktClearSpawnState=function(spawnKey){
+  if(!activeSession.extraSpawns)return;
+  const sp=activeSession.extraSpawns.find(x=>x.key===spawnKey);
+  if(!sp)return;
+  sp.state=null;
+  document.querySelectorAll(`input[name="boss_${spawnKey}"]`).forEach(r=>{r.checked=false;});
+  const b=BOSS_ROSTER.find(x=>x.target===sp.base);
+  const dkpEl=document.getElementById('ktdkp_'+spawnKey);
+  if(dkpEl)dkpEl.textContent=b?b.dkp+'+'+b.baseDkp:'—';
+  const row=dkpEl?.closest('.kt-check-row');
+  if(row){
+    row.className='kt-check-row';
+    const clearBtn=row.querySelector('.kt-clear-btn');
+    if(clearBtn){const ph=document.createElement('span');ph.style.cssText='display:inline-block;width:1.2rem';clearBtn.replaceWith(ph);}
+  }
+  ktUpdateBadge();
+};
+
+// Delegated handler for kt-clear-btn
+document.addEventListener('click',function(e){
+  const btn=e.target.closest('.kt-clear-btn');
+  if(!btn)return;
+  const spawnKey=btn.dataset.spawnkey;
+  const bossTgt=btn.dataset.bosstgt;
+  if(spawnKey)ktClearSpawnState(spawnKey);
+  else if(bossTgt)ktClearBossState(bossTgt);
+});
+
 window.ktSetSpawnState=function(spawnKey,newState){
   if(!activeSession.extraSpawns)return;
   const sp=activeSession.extraSpawns.find(x=>x.key===spawnKey);
@@ -6412,7 +6466,13 @@ window.ktSetSpawnState=function(spawnKey,newState){
   const dkpEl=document.getElementById('ktdkp_'+spawnKey);
   if(dkpEl)dkpEl.textContent=newState==='killed'?killTotal+' DKP':newState==='failtick'?b.baseDkp+' DKP':b.dkp+'+'+b.baseDkp;
   const row=dkpEl?.closest('.kt-check-row');
-  if(row){row.className='kt-check-row'+(newState==='killed'?' kt-checked':newState==='failtick'?' kt-failtick':'');}
+  if(row){
+    row.className='kt-check-row'+(newState==='killed'?' kt-checked':newState==='failtick'?' kt-failtick':'');
+    if(!row.querySelector('.kt-clear-btn')){
+      const ph=row.querySelector('span[style*="1.2rem"]');
+      if(ph){const btn=document.createElement('button');btn.type='button';btn.className='kt-clear-btn';btn.dataset.spawnkey=spawnKey;btn.title='Clear';btn.textContent='✕';btn.style.cssText='background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.72rem;padding:0 .2rem;line-height:1;opacity:.7';btn.onmouseover=()=>btn.style.opacity='1';btn.onmouseout=()=>btn.style.opacity='.7';ph.replaceWith(btn);}
+    }
+  }
   if(newState==='killed'&&!ktExpanded[spawnKey]){
     ktExpanded[spawnKey]=true;
     const el=document.getElementById('ktbr_'+spawnKey);
