@@ -5722,11 +5722,12 @@ function sessionDkpTotal(session){
     return sum;
   },0);
   const hourlyDkp=(session.hourly||[]).reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
+  const tickSubDkp=(session.tickSubmissions||[]).reduce((s,r)=>s+(r.dkp||0),0);
   const bossRoleDkp=Object.values(session.bossRoles||{}).filter(Array.isArray).flat().reduce((s,r)=>s+(r.value||0),0);
   const bpVal=(session.buffParksNinja?0.5:0.3)*(session.buffParksQty||0);
   const rwDkp=RW_CHECKPOINTS.reduce((s,cp)=>(session.rwChecks||{})[cp.key]?s+cp.value:s,0);
   const botLootDkp=(session.botLoot||[]).reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
-  return Math.round((killDkp+extraDkp+hourlyDkp+bossRoleDkp+bpVal+rwDkp+botLootDkp)*10)/10;
+  return Math.round((killDkp+extraDkp+hourlyDkp+tickSubDkp+bossRoleDkp+bpVal+rwDkp+botLootDkp)*10)/10;
 }
 
 async function loadKillsFromSupabase(){
@@ -5765,9 +5766,24 @@ function buildHourlyHtml(){
         <button class="kt-qty-btn" onclick="ktHourlyAdj('${esc(role.desc)}',${role.value},-1)">−</button>
         <span class="kt-qty-num" style="color:${qty>0?'var(--gold-light)':'var(--text-muted)'}">${qty}</span>
         <button class="kt-qty-btn" onclick="ktHourlyAdj('${esc(role.desc)}',${role.value},1)">+</button>
+        <button class="kt-qty-btn" data-submit-desc="${esc(role.desc)}" data-submit-val="${role.value}" onclick="ktSubmitTicks(this.dataset.submitDesc,parseFloat(this.dataset.submitVal))" title="Submit & reset" style="background:var(--surface2);color:var(--gold-light);border-color:var(--gold-light);font-size:.6rem;letter-spacing:.04em;font-family:'Cinzel',serif;padding:0 .35rem;opacity:${qty>0?'1':'.3'};pointer-events:${qty>0?'auto':'none'}">Submit</button>
       </div>
     </div>`;
   }
+  html+='</div>';
+
+  // ── HoT section ──
+  const hotSpeed=activeSession.hotSpeedBonus||false;
+  html+='<div style="border-bottom:1px solid var(--border)">';
+  html+=`<div style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">HoT — SESSION</div>`;
+  html+=`<label class="kt-role-row" style="cursor:pointer;gap:.5rem">
+    <input type="checkbox" ${hotSpeed?'checked':''} onchange="activeSession.hotSpeedBonus=this.checked;renderKillsPanel()" style="accent-color:var(--gold-light);width:14px;height:14px">
+    <span class="kt-role-desc">Speed Bonus</span>
+    <span class="kt-role-val" style="color:${hotSpeed?'var(--gold-light)':'var(--text-muted)'}">+1 DKP</span>
+  </label>`;
+  html+=`<div class="kt-role-row" style="justify-content:flex-end;padding:.3rem .85rem">
+    <button class="kt-qty-btn" onclick="ktSubmitHoT()" style="background:var(--surface2);color:var(--gold-light);border-color:var(--gold-light);font-size:.6rem;letter-spacing:.04em;font-family:'Cinzel',serif;padding:0 .5rem">Submit HoT Run</button>
+  </div>`;
   html+='</div>';
 
   // ── Buff and Parks section ──
@@ -6257,6 +6273,19 @@ function renderKillsPanel(){
       if(botLootDkp)lines.push(`<span class="kt-seg-label">Bot Loot</span><span class="kt-seg-val">${(s.botLoot||[]).map(r=>`${r.qty}\u00d7 ${r.value.toFixed(1)}`).join(', ')}</span><span class="kt-seg-dkp">${botLootDkp} DKP</span>`);
       if(rwChecked.length)lines.push(`<span class="kt-seg-label">Ring War</span><span class="kt-seg-val">${rwChecked.length}/4 checkpoints</span><span class="kt-seg-dkp">${rwDkp} DKP</span>`);
 
+      // Tick submissions — one row per submission with ✕ delete
+      const tickSubs=s.tickSubmissions||[];
+      const tickSubLines=tickSubs.map(sub=>{
+        const t=sub.submittedAt?new Date(sub.submittedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):'';
+        const label=sub.desc.replace(' (hourly)','')+(sub.speedBonus?' + Speed':'');
+        return `<div class="kt-seg-row" style="grid-template-columns:80px 1fr auto auto;gap:.4rem .5rem">
+          <span class="kt-seg-label">Tick Sub</span>
+          <span class="kt-seg-val">${esc(label)}${t?` <span style="color:var(--text-muted);font-size:.7rem">@ ${t}</span>`:''}</span>
+          <span class="kt-seg-dkp">${sub.dkp} DKP</span>
+          <button onclick="ktDeleteTickSubmission('${esc(s.id)}','${esc(sub.id)}')" title="Remove" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.7rem;padding:0;line-height:1" onmouseover="this.style.color='#c0392b'" onmouseout="this.style.color='var(--text-muted)'">✕</button>
+        </div>`;
+      }).join('');
+
       return`<div class="kt-seg-card">
         <div class="kt-seg-header">
           <div class="kt-seg-date">${dateLabel}${s.note?` <em class="kt-seg-note">— ${esc(s.note)}</em>`:''}</div>
@@ -6264,7 +6293,7 @@ function renderKillsPanel(){
           <button class="kt-seg-load" onclick="ktLoadSession('${esc(s.id)}')">Load</button>
           <button class="kt-undo-btn" onclick="ktDeleteSession('${esc(s.id)}')">✕</button>
         </div>
-        ${lines.length?`<div class="kt-seg-body">${lines.map(l=>`<div class="kt-seg-row">${l}</div>`).join('')}</div>`:''}
+        ${(lines.length||tickSubLines)?`<div class="kt-seg-body">${lines.map(l=>`<div class="kt-seg-row">${l}</div>`).join('')}${tickSubLines}</div>`:''}
       </div>`;
     }).join('');
 
@@ -6529,6 +6558,43 @@ window.ktSpawnRoleToggle=function(spawnKey,desc,value,checked){
   const state=sp.state||null;
   const dkpEl=document.getElementById('ktdkp_'+spawnKey);
   if(dkpEl)dkpEl.textContent=state==='killed'?killTotal+' DKP':state==='failtick'?b.baseDkp+' DKP':b.dkp+'+'+b.baseDkp;
+  ktUpdateBadge();
+};
+
+window.ktSubmitTicks=function(desc,value){
+  if(!activeSession.tickSubmissions)activeSession.tickSubmissions=[];
+  const existing=(activeSession.hourly||[]).find(r=>r.desc===desc);
+  const qty=existing?existing.qty:0;
+  if(qty<=0)return;
+  const dkp=Math.round(qty*value*10)/10;
+  activeSession.tickSubmissions.push({
+    id:'ts_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+    desc,value,qty,speedBonus:false,dkp,submittedAt:new Date().toISOString()
+  });
+  // Reset counter
+  activeSession.hourly=(activeSession.hourly||[]).filter(r=>r.desc!==desc);
+  renderKillsPanel();
+  ktUpdateBadge();
+};
+
+window.ktSubmitHoT=function(){
+  if(!activeSession.tickSubmissions)activeSession.tickSubmissions=[];
+  const speedBonus=activeSession.hotSpeedBonus||false;
+  const dkp=speedBonus?1:0;
+  activeSession.tickSubmissions.push({
+    id:'ts_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+    desc:'HoT Run',value:0,qty:1,speedBonus,dkp,submittedAt:new Date().toISOString()
+  });
+  activeSession.hotSpeedBonus=false;
+  renderKillsPanel();
+  ktUpdateBadge();
+};
+
+window.ktDeleteTickSubmission=function(sessionId,subId){
+  const s=raidSessions.find(x=>x.id===sessionId);
+  if(!s)return;
+  s.tickSubmissions=(s.tickSubmissions||[]).filter(x=>x.id!==subId);
+  renderKillsPanel();
   ktUpdateBadge();
 };
 
