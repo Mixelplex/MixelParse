@@ -1299,7 +1299,7 @@ const NOTES_BOSS_LIST = [
   { target: 'Tormax',          full: 'King Tormax',                 aliases: ['tormax', 'torm', 'kt'] },
   { target: 'Tunare',          full: 'Tunare',                      aliases: ['tunare', 'tuna'] },
   { target: 'Cazic Thule',     full: 'Cazic Thule',                 aliases: ['cazic', 'caz', 'ct'] },
-  { target: 'Eashen',          full: 'Eashen of the Sky',           aliases: ['eashen', 'eas'] },
+  { target: 'Eashen',          full: 'Eashen of the Sky',           aliases: ['eashen', 'eas', 'eash'] },
   { target: 'MOTG',            full: 'Master of the Guard',         aliases: ['motg', 'master of the guard'] },
   { target: 'Phara Dar',       full: 'Phara Dar',                   aliases: ['phara', 'phar', 'pd'] },
   { target: 'Prog',            full: 'The Progenitor',              aliases: ['prog', 'progenitor'] },
@@ -1319,11 +1319,11 @@ const NOTES_BOSS_LIST = [
   { target: 'LTK',             full: 'Lendiniara the Keeper',       aliases: ['ltk'] },
   { target: "Magi P'Tasa",     full: "Magi P'Tasa",                 aliases: ['magi'] },
   { target: 'Mirenilla',       full: 'Lady Mirenilla',              aliases: ['mirenilla', 'mire', 'mir', 'ladym'] },
-  { target: 'Nevederia',       full: 'Lady Nevederia',              aliases: ['nevederia', 'neve', 'nev'] },
+  { target: 'Nevederia',       full: 'Lady Nevederia',              aliases: ['nevederia', 'neve', 'nev', 'ladyn'] },
   { target: 'Sontalak',        full: 'Sontalak',                    aliases: ['sontalak', 'sont', 'son'] },
   { target: 'Vulak',           full: "Vulak'Aerr",                  aliases: ['vulak', 'vul'] },
   { target: 'Zlandicar',       full: 'Zlandicar',                   aliases: ['zlandicar', 'zlan', 'zlandi'] },
-  { target: 'Ashenbone Broodmaster', full: 'Ashenbone Broodmaster', aliases: ['ashen', 'brod'] },
+  { target: 'Ashenbone Broodmaster', full: 'Ashenbone Broodmaster', aliases: ['ashen', 'brod', 'brood'] },
   { target: 'Bazzt Zzzt',      full: 'Bazzt Zzzt',                  aliases: ['bazzt', 'bazz'] },
   { target: 'Cekenar',         full: 'Cekenar',                     aliases: ['cekenar', 'cek'] },
   { target: 'Essedera',        full: 'Essedera',                    aliases: ['essedera', 'esse', 'ess'] },
@@ -1383,6 +1383,22 @@ const NOTES_TICK_MAP = [
   { desc: 'Ticks - Training Events (hourly)', value: 3, aliases: ['training', 'train'] },
 ];
 
+// /note aliases for Ring War checkpoints — toggles the checkpoint directly,
+// no kill modal. key must match RW_CHECKPOINTS keys in index.html exactly.
+// Mirrors _NOTES_RW_MAP in index.html.
+const NOTES_RW_MAP = [
+  { key: 'readiness', aliases: ['rwready', 'rw ready'] },
+  { key: 'wave1',      aliases: ['rw1', 'rw wave 1'] },
+  { key: 'wave2',      aliases: ['rw2', 'rw wave 2'] },
+  { key: 'wave3',      aliases: ['rw3', 'rw wave 3'] },
+];
+
+// /note alias for HoT Farm Ticks — mirrors clicking + on the HoT Farm Ticks row.
+// Mirrors _NOTES_HOT_MAP in index.html.
+const NOTES_HOT_MAP = [
+  { aliases: ['hotfarm', 'hot'] },
+];
+
 // RE: [Day Mon DD HH:MM:SS YYYY ] text
 const RE_NOTE_LINE = /^\[(\w+ \w+ +\d+ [\d:]+ \d+) \] (.+)$/;
 
@@ -1414,6 +1430,30 @@ function fuzzyMatchTick(text) {
   return null;
 }
 
+function fuzzyMatchRW(text) {
+  const t = text.toLowerCase().trim();
+  for (const rw of NOTES_RW_MAP) {
+    for (const alias of rw.aliases) {
+      const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp('(^|\\s)' + escaped + '(\\s|$)', 'i');
+      if (re.test(t)) return rw;
+    }
+  }
+  return null;
+}
+
+function fuzzyMatchHot(text) {
+  const t = text.toLowerCase().trim();
+  for (const hot of NOTES_HOT_MAP) {
+    for (const alias of hot.aliases) {
+      const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp('(^|\\s)' + escaped + '(\\s|$)', 'i');
+      if (re.test(t)) return hot;
+    }
+  }
+  return null;
+}
+
 function processNotesLines(lines) {
   for (const line of lines) {
     const trimmed = line.trim();
@@ -1432,6 +1472,18 @@ function processNotesLines(lines) {
     if (tick) {
       console.log(`[NOTES] Tick detected: "${text}" → ${tick.desc}`);
       broadcast({ type: 'todTick', desc: tick.desc, value: tick.value, noteText: text, timestamp });
+      continue;
+    }
+    const rw = fuzzyMatchRW(text);
+    if (rw) {
+      console.log(`[NOTES] Ring War checkpoint detected: "${text}" → ${rw.key}`);
+      broadcast({ type: 'todRW', key: rw.key, noteText: text, timestamp });
+      continue;
+    }
+    const hot = fuzzyMatchHot(text);
+    if (hot) {
+      console.log(`[NOTES] HoT Farm Tick detected: "${text}"`);
+      broadcast({ type: 'todHot', noteText: text, timestamp });
     }
   }
 }

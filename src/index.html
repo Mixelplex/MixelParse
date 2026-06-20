@@ -4335,7 +4335,7 @@ window.applyDBToChar    = applyDBToChar;
     { target:'Tormax',          full:'King Tormax',                 aliases:['tormax','torm','kt'] },
     { target:'Tunare',          full:'Tunare',                      aliases:['tunare','tuna'] },
     { target:'Cazic Thule',     full:'Cazic Thule',                 aliases:['cazic','caz','ct'] },
-    { target:'Eashen',          full:'Eashen of the Sky',           aliases:['eashen','eas'] },
+    { target:'Eashen',          full:'Eashen of the Sky',           aliases:['eashen','eas','eash'] },
     { target:'MOTG',            full:'Master of the Guard',         aliases:['motg','master of the guard'] },
     { target:'Phara Dar',       full:'Phara Dar',                   aliases:['phara','phar','pd'] },
     { target:'Prog',            full:'The Progenitor',              aliases:['prog','progenitor'] },
@@ -4355,11 +4355,11 @@ window.applyDBToChar    = applyDBToChar;
     { target:'LTK',             full:'Lendiniara the Keeper',       aliases:['ltk'] },
     { target:"Magi P'Tasa",     full:"Magi P'Tasa",                 aliases:['magi'] },
     { target:'Mirenilla',       full:'Lady Mirenilla',              aliases:['mirenilla','mire','mir','ladym'] },
-    { target:'Nevederia',       full:'Lady Nevederia',              aliases:['nevederia','neve','nev'] },
+    { target:'Nevederia',       full:'Lady Nevederia',              aliases:['nevederia','neve','nev','ladyn'] },
     { target:'Sontalak',        full:'Sontalak',                    aliases:['sontalak','sont','son'] },
     { target:'Vulak',           full:"Vulak'Aerr",                  aliases:['vulak','vul'] },
     { target:'Zlandicar',       full:'Zlandicar',                   aliases:['zlandicar','zlan','zlandi'] },
-    { target:'Ashenbone Broodmaster',full:'Ashenbone Broodmaster',  aliases:['ashen','brod'] },
+    { target:'Ashenbone Broodmaster',full:'Ashenbone Broodmaster',  aliases:['ashen','brod','brood'] },
     { target:'Bazzt Zzzt',      full:'Bazzt Zzzt',                  aliases:['bazzt','bazz'] },
     { target:'Cekenar',         full:'Cekenar',                     aliases:['cekenar','cek'] },
     { target:'Essedera',        full:'Essedera',                    aliases:['essedera','esse','ess'] },
@@ -4421,6 +4421,22 @@ window.applyDBToChar    = applyDBToChar;
     { desc:'Ticks - Training Events (hourly)', value:3, aliases:['training','train'] },
   ];
 
+  // /note aliases for Ring War checkpoints — toggles the checkpoint directly
+  // (no kill modal, unlike /note rw which fires the standard TOD modal).
+  // key must match RW_CHECKPOINTS keys exactly. Mirrors NOTES_RW_MAP in mixelparse-watcher.js.
+  const _NOTES_RW_MAP = [
+    { key:'readiness', aliases:['rwready','rw ready'] },
+    { key:'wave1',      aliases:['rw1','rw wave 1'] },
+    { key:'wave2',      aliases:['rw2','rw wave 2'] },
+    { key:'wave3',      aliases:['rw3','rw wave 3'] },
+  ];
+
+  // /note alias for HoT Farm Ticks — mirrors clicking + on the HoT Farm Ticks row.
+  // Mirrors NOTES_HOT_MAP in mixelparse-watcher.js.
+  const _NOTES_HOT_MAP = [
+    { aliases:['hotfarm','hot'] },
+  ];
+
   // Process a raw notes.txt update (IPC path) — fuzzy match → todEnqueue
   // _seenNoteLines deduplicates so each unique note line fires at most once,
   // even if the watcher sends the full file instead of only new bytes.
@@ -4457,6 +4473,24 @@ window.applyDBToChar    = applyDBToChar;
         const hit = tick.aliases.some(a => new RegExp('(^|\\s)'+a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\s|$)','i').test(ll));
         if(hit){
           todTickHandle(tick.desc, tick.value);
+          matched = true;
+          break;
+        }
+      }
+      if(matched) continue;
+      for(const rw of _NOTES_RW_MAP){
+        const hit = rw.aliases.some(a => new RegExp('(^|\\s)'+a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\s|$)','i').test(ll));
+        if(hit){
+          todRWHandle(rw.key);
+          matched = true;
+          break;
+        }
+      }
+      if(matched) continue;
+      for(const hot of _NOTES_HOT_MAP){
+        const hit = hot.aliases.some(a => new RegExp('(^|\\s)'+a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\s|$)','i').test(ll));
+        if(hit){
+          todHotFarmHandle();
           break;
         }
       }
@@ -4542,6 +4576,12 @@ window.applyDBToChar    = applyDBToChar;
         }
         if(msg.type === 'todTick'){
           todTickHandle(msg.desc, msg.value);
+        }
+        if(msg.type === 'todRW'){
+          todRWHandle(msg.key);
+        }
+        if(msg.type === 'todHot'){
+          todHotFarmHandle();
         }
         if(msg.type === 'zoneUpdate'){
           charZones[msg.charName] = { zone: msg.zone, timestamp: msg.timestamp };
@@ -4658,6 +4698,14 @@ window.applyDBToChar    = applyDBToChar;
           // IPC watcher may send pre-processed todTick (future-proofing)
           todTickHandle(msg.desc, msg.value);
         }
+        if(msg.type === 'todRW'){
+          // IPC watcher may send pre-processed todRW (future-proofing)
+          todRWHandle(msg.key);
+        }
+        if(msg.type === 'todHot'){
+          // IPC watcher may send pre-processed todHot (future-proofing)
+          todHotFarmHandle();
+        }
         if(msg.type === 'notesBaseline'){
           // Watcher sends this at startup with existing file content — set baseline without firing any TOD
           _handleNotesUpdate(msg.text, msg.timestamp, true);
@@ -4755,6 +4803,37 @@ function todTickHandle(desc, value){
   saveSessionsToSupabase();
   const qty = (activeSession.hourly||[]).find(r=>r.desc===desc)?.qty || 0;
   showWatcherToast(`⏱ ${isNew?'New session — ':''}${desc.replace('Ticks - ','')} ×${qty}`);
+}
+
+// /note <alias> for Ring War checkpoints (readiness/wave1/wave2/wave3).
+// Each checkpoint is its own killed/failtick boss entry under Tier Nine —
+// directly marks it Killed, same as picking the Killed radio in the panel.
+// Re-firing the same alias is a no-op (already killed, stays killed).
+const RW_CHECKPOINT_TARGET = {readiness:'RW Readiness',wave1:'RW Wave 1',wave2:'RW Wave 2',wave3:'RW Wave 3'};
+function todRWHandle(key){
+  if(!activeSession) activeSession = newSession();
+  const isNew = !raidSessions.includes(activeSession);
+  if(isNew) raidSessions.push(activeSession);
+  const target = RW_CHECKPOINT_TARGET[key] || key;
+  const already = (activeSession.killState||{})[target]==='killed';
+  if(!activeSession.killState) activeSession.killState={};
+  activeSession.killState[target]='killed';
+  saveSessionsToSupabase();
+  renderKillsPanel();
+  const b = BOSS_ROSTER.find(x=>x.target===target);
+  const label = b ? b.full : target;
+  showWatcherToast(`🏹 ${isNew?'New session — ':''}Ring War: ${label}${already?' (already killed)':''}`);
+}
+
+// /note <alias> for HoT Farm Ticks — mirrors clicking + on the HoT Farm Ticks row.
+function todHotFarmHandle(){
+  if(!activeSession) activeSession = newSession();
+  const isNew = !raidSessions.includes(activeSession);
+  if(isNew) raidSessions.push(activeSession);
+  window.ktHotFarmAdj(1);
+  saveSessionsToSupabase();
+  const qty = activeSession.hotFarmQty||0;
+  showWatcherToast(`⏱ ${isNew?'New session — ':''}HoT Farm Tick ×${qty}`);
 }
 
 function showTodModal(target, full, noteText, timestamp){
@@ -5623,6 +5702,11 @@ const BOSS_ROSTER=[
   {target:'Midayor',       full:'Midayor',                     tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
   {target:'Tavekalem',     full:'Tavekalem',                   tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
   {target:'Ymmeln',        full:'Ymmeln',                      tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
+  // Tier Nine — Ring War checkpoints. Failtick pays 0 (attended raid but missed this wave).
+  {target:'RW Readiness', full:'Readiness (before RW starts)', tier:'Tier Nine', dkp:1,   baseDkp:0, raceFTE:null,campFTE:null},
+  {target:'RW Wave 1',    full:'Beginning of RW / Wave 1',     tier:'Tier Nine', dkp:0.8, baseDkp:0, raceFTE:null,campFTE:null},
+  {target:'RW Wave 2',    full:'End of Wave 2',                tier:'Tier Nine', dkp:1.2, baseDkp:0, raceFTE:null,campFTE:null},
+  {target:'RW Wave 3',    full:'End of Wave 3',                tier:'Tier Nine', dkp:2,   baseDkp:0, raceFTE:null,campFTE:null},
 ];
 
 // Sessions: [{id, date, kills:[target,...], roles:[{desc,value,qty},...], note}] [{id, date, kills:[target,...], roles:[{desc,value,qty},...], note}]
@@ -5648,15 +5732,6 @@ const BOT_LOOT_ROLES=[
   {desc:'Bot Loot - 1.0 DKP', value:1.0},
 ];
 
-// Ring War — special event, not a kill/failtick boss.
-// DKP awarded per checkpoint attended.
-const RW_CHECKPOINTS=[
-  {key:'readiness', desc:'Readiness (before RW starts)',  value:1.0, optional:true},
-  {key:'wave1',     desc:'Beginning of RW / Wave 1',      value:0.8},
-  {key:'wave2',     desc:'End of Wave 2',                 value:1.2},
-  {key:'wave3',     desc:'End of Wave 3',                 value:2.0},
-];
-
 // Per-boss roles — filtered by boss target
 // bosses:[] = all bosses EXCEPT Ring War. bosses:['X'] = only those bosses.
 const BOSS_ROLES=[
@@ -5680,16 +5755,13 @@ const BOSS_ROLES=[
              'Klandicar','Koi','Kreizenn','LTK',"Magi P'Tasa",'Mirenilla','Nevederia',
              'Sontalak','Vulak','Zlandicar']},
   // Ring War exclusive roles
-  {desc:'Ninja Looter (NL)',            value:0.2, bosses:['Ring War']},
-  {desc:'Turn in Reward',               value:10,  bosses:['Ring War']},
+  {desc:'Ninja Looter (NL)',            value:0.2, bosses:['RW Readiness','RW Wave 1','RW Wave 2','RW Wave 3']},
+  {desc:'Turn in Reward',               value:10,  bosses:['RW Readiness','RW Wave 1','RW Wave 2','RW Wave 3']},
 ];
 
 function rolesForBoss(target){
   const b=BOSS_ROSTER.find(x=>x.target===target);
-  // Ring War only gets roles explicitly tagged for it; global (bosses:[]) roles are for kill events
-  const roles=BOSS_ROLES.filter(r=>target==='Ring War'
-    ? r.bosses.includes('Ring War')
-    : (r.bosses.length===0||r.bosses.includes(target)));
+  const roles=BOSS_ROLES.filter(r=>r.bosses.length===0||r.bosses.includes(target));
   const fte=[];
   if(b?.raceFTE)fte.push({desc:'Race FTE Bonus', value:b.raceFTE, bosses:[target]});
   if(b?.campFTE)fte.push({desc:'Camp FTE Pickup', value:b.campFTE, bosses:[target]});
@@ -5700,7 +5772,7 @@ function newSession(){
   // killState: {target: 'killed'|'failtick'|null}
   // extraSpawns: [{base, key, state, bossRoles}] — Big 3 additional spawns
   const now=new Date();
-  return{id:Date.now().toString(),date:now.toISOString().slice(0,10),startedAt:now.toISOString(),killState:{},hourly:[],hourlyNinja:{},bossRoles:{},buffParksQty:0,buffParksNinja:false,botLoot:[],rwChecks:{},note:'',extraSpawns:[]};
+  return{id:Date.now().toString(),date:now.toISOString().slice(0,10),startedAt:now.toISOString(),killState:{},hourly:[],hourlyNinja:{},bossRoles:{},buffParksQty:0,buffParksNinja:false,botLoot:[],note:'',extraSpawns:[]};
 }
 
 function sessionDkpTotal(session){
@@ -5725,9 +5797,8 @@ function sessionDkpTotal(session){
   const tickSubDkp=(session.tickSubmissions||[]).reduce((s,r)=>s+(r.dkp||0),0);
   const bossRoleDkp=Object.values(session.bossRoles||{}).filter(Array.isArray).flat().reduce((s,r)=>s+(r.value||0),0);
   const bpVal=(session.buffParksNinja?0.5:0.3)*(session.buffParksQty||0);
-  const rwDkp=RW_CHECKPOINTS.reduce((s,cp)=>(session.rwChecks||{})[cp.key]?s+cp.value:s,0);
   const botLootDkp=(session.botLoot||[]).reduce((s,r)=>s+(r.value||0)*(r.qty||1),0);
-  return Math.round((killDkp+extraDkp+hourlyDkp+tickSubDkp+bossRoleDkp+bpVal+rwDkp+botLootDkp)*10)/10;
+  return Math.round((killDkp+extraDkp+hourlyDkp+tickSubDkp+bossRoleDkp+bpVal+botLootDkp)*10)/10;
 }
 
 async function loadKillsFromSupabase(){
@@ -5787,7 +5858,7 @@ function buildHourlyHtml(){
   html+=`<div style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">HoT — SESSION</div>`;
   html+=`<div class="kt-role-row${hotQty>0?' kt-role-active':''}" >
     <span class="kt-role-desc">HoT Farm Ticks</span>
-    <span class="kt-role-val">1 DKP/tick</span>
+    <span class="kt-role-val">1 DKP</span>
     <div class="kt-role-qty">
       <button class="kt-qty-btn" onclick="ktHotFarmAdj(-1)">&#8722;</button>
       <span class="kt-qty-num" id="hotFarmQtyDisplay" style="color:${hotQty>0?'var(--gold-light)':'var(--text-muted)'};min-width:1.4rem;text-align:center">${hotQty}</span>
@@ -6147,7 +6218,7 @@ function renderKillsPanel(){
   for(const tier of tiers){
     const bosses=BOSS_ROSTER.filter(b=>b.tier===tier);
     const c=TIER_COLORS[tier]||TIER_COLORS['Misc'];
-    bossHtml+=`<div class="kt-tier-header" style="color:${c.text};border-color:${c.border};background:${c.bg}">${tier} — ${bosses[0].dkp}+${bosses[0].baseDkp} Kill DKP</div>`;
+    bossHtml+=`<div class="kt-tier-header" style="color:${c.text};border-color:${c.border};background:${c.bg}">${tier}${tier==='Tier Nine'?' — Ring War':' — '+bosses[0].dkp+'+'+bosses[0].baseDkp+' Kill DKP'}</div>`;
     for(const b of bosses){
       const state=activeSession.killState[b.target]||null;
       const isOpen=!!ktExpanded[b.target];
@@ -6221,28 +6292,6 @@ function renderKillsPanel(){
     }
   }
 
-  // ── Tier Nine: Ring War — checkpoint-based attendance, not kill/failtick ──
-  {
-    const c=TIER_COLORS['Tier Nine'];
-    const rwTotalDkp=RW_CHECKPOINTS.reduce((s,cp)=>(activeSession.rwChecks||{})[cp.key]?s+cp.value:s,0);
-    bossHtml+=`<div class="kt-tier-header" style="color:${c.text};border-color:${c.border};background:${c.bg}">Tier Nine — Ring War${rwTotalDkp>0?' · '+Math.round(rwTotalDkp*10)/10+' DKP':''}</div>`;
-    bossHtml+=`<div style="display:flex;${window._mob?'flex-direction:column;':''};border-bottom:1px solid var(--border)">`;
-    // Left: per-event roles (reuses buildBossRoleHtml with 'Ring War' as target)
-    bossHtml+=`<div style="flex:1;${window._mob?'':' border-right:1px solid var(--border);'}";id="ktbr_Ring War">`;
-    bossHtml+=buildBossRoleHtml('Ring War');
-    bossHtml+=`</div>`;
-    // Right: 4 attendance checkpoints
-    bossHtml+=`<div style="flex:1;padding:.4rem 0">`;
-    for(const cp of RW_CHECKPOINTS){
-      const checked=!!(activeSession.rwChecks||{})[cp.key];
-      bossHtml+=`<label class="kt-role-row${checked?' kt-role-active':''}" style="cursor:pointer;gap:.6rem;user-select:none;">
-        <input type="checkbox" ${checked?'checked':''} onchange="ktRWCheck('${cp.key}',this.checked)" style="accent-color:var(--gold-light);width:14px;height:14px;flex-shrink:0;">
-        <span class="kt-role-desc">${esc(cp.desc)}${cp.optional?' <em style="font-size:.8em;opacity:.6">(optional)</em>':''}</span>
-        <span class="kt-role-val">${cp.value} DKP</span>
-      </label>`;
-    }
-    bossHtml+=`</div></div>`;
-  }
 
   const total=sessionDkpTotal(activeSession);
   const killCount=Object.values(activeSession.killState).filter(s=>s==='killed').length;
@@ -6273,8 +6322,6 @@ function renderKillsPanel(){
       const botLootDkp=Math.round((s.botLoot||[]).reduce((sum,r)=>sum+(r.value||0)*(r.qty||1),0)*10)/10;
       const bnpQty=s.buffParksQty||0;
       const bnpDkp=Math.round((s.buffParksNinja?0.5:0.3)*bnpQty*10)/10;
-      const rwChecked=Object.keys(s.rwChecks||{});
-      const rwDkp=Math.round(RW_CHECKPOINTS.reduce((sum,cp)=>(s.rwChecks||{})[cp.key]?sum+cp.value:sum,0)*10)/10;
       const bossRoleDkp=Math.round(Object.values(s.bossRoles||{}).filter(Array.isArray).flat().reduce((sum,r)=>sum+(r.value||0),0)*10)/10;
       const killDkp=Math.round(killed.reduce((sum,k)=>{
         const baseTarget=k.includes('__')?k.split('__')[0]:k;
@@ -6293,7 +6340,6 @@ function renderKillsPanel(){
       if(hourlyTotal)lines.push(`<span class="kt-seg-label">Hourly</span><span class="kt-seg-val">${(s.hourly||[]).map(r=>`${r.qty||1}× ${r.desc.replace(' (hourly)','')}`).join(', ')}</span><span class="kt-seg-dkp">${hourlyDkp} DKP</span>`);
       if(bnpQty)lines.push(`<span class="kt-seg-label">B&P</span><span class="kt-seg-val">${bnpQty} click${bnpQty!==1?'s':''}${s.buffParksNinja?' (NL)':''}</span><span class="kt-seg-dkp">${bnpDkp} DKP</span>`);
       if(botLootDkp)lines.push(`<span class="kt-seg-label">Bot Loot</span><span class="kt-seg-val">${(s.botLoot||[]).map(r=>`${r.qty}\u00d7 ${r.value.toFixed(1)}`).join(', ')}</span><span class="kt-seg-dkp">${botLootDkp} DKP</span>`);
-      if(rwChecked.length)lines.push(`<span class="kt-seg-label">Ring War</span><span class="kt-seg-val">${rwChecked.length}/4 checkpoints</span><span class="kt-seg-dkp">${rwDkp} DKP</span>`);
 
       // Tick submissions — one row per submission with ✕ delete
       const tickSubs=s.tickSubmissions||[];
@@ -6444,13 +6490,6 @@ window.ktBossRoleToggle=function(target,desc,value,checked){
   if(checked)activeSession.bossRoles[target].push({desc,value,qty:1});
   const el=document.getElementById('ktbr_'+target);
   if(el)el.innerHTML=buildBossRoleHtml(target);
-  // Ring War has no BOSS_ROSTER entry — skip kill DKP display, just update badge and re-render RW panel
-  if(target==='Ring War'){
-    const rwRolesEl=document.getElementById('ktbr_Ring War');
-    if(rwRolesEl)rwRolesEl.innerHTML=buildBossRoleHtml('Ring War');
-    ktUpdateBadge();
-    return;
-  }
   const extra=activeSession.bossRoles[target].reduce((s,r)=>s+(r.value||0),0);
   const b=BOSS_ROSTER.find(x=>x.target===target);
   const state=activeSession.killState[target]||null;
@@ -6700,15 +6739,8 @@ window.ktBotLootAdj=function(desc,value,delta){
   renderKillsPanel();
 };
 
-window.ktRWCheck=function(key,checked){
-  if(!activeSession.rwChecks)activeSession.rwChecks={};
-  if(checked)activeSession.rwChecks[key]=true;
-  else delete activeSession.rwChecks[key];
-  renderKillsPanel();
-};
-
 window.ktSaveSession=function(){
-  const s={...activeSession,killState:{...activeSession.killState},hourly:(activeSession.hourly||[]).map(r=>({...r})),bossRoles:Object.fromEntries(Object.entries(activeSession.bossRoles||{}).map(([k,v])=>[k,(Array.isArray(v)?v:[]).map(r=>({...r}))])),rwChecks:{...(activeSession.rwChecks||{})}};
+  const s={...activeSession,killState:{...activeSession.killState},hourly:(activeSession.hourly||[]).map(r=>({...r})),bossRoles:Object.fromEntries(Object.entries(activeSession.bossRoles||{}).map(([k,v])=>[k,(Array.isArray(v)?v:[]).map(r=>({...r}))]))};
   const idx=raidSessions.findIndex(x=>x.id===s.id);
   if(idx>=0)raidSessions[idx]=s;else raidSessions.push(s);
   saveSessionsToSupabase();
@@ -6726,7 +6758,6 @@ window.ktExportPDF=function(){
   const failticks=Object.entries(s.killState||{}).filter(([,v])=>v==='failtick').map(([k])=>k);
   const bossRoles=s.bossRoles||{};
   const hourly=s.hourly||[];
-  const rwChecks=s.rwChecks||{};
   const bnpQty=s.buffParksQty||0;
   const tiers=[...new Set(BOSS_ROSTER.map(b=>b.tier))];
   let tiersHtml='';
