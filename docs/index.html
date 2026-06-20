@@ -457,6 +457,13 @@
   .kt-expand-btn:hover{color:var(--gold-dim)}
   .kt-boss-roles-panel{border-top:1px solid rgba(200,184,144,.3)}
   .kt-boss-roles-panel .kt-role-row{padding:.3rem 1rem .3rem 2rem;gap:.5rem}
+  /* Tighter variant for Hourly Ticks / HoT / Buff and Park / Bot Loot rows — same flex layout
+     and column widths as .kt-role-row, just less vertical padding so the panel takes up less
+     room. Scoped to .kt-tick-row only so the TOD modal and boss-roles checklist (which both
+     reuse the base .kt-role-row class) are untouched. */
+  .kt-tick-row{padding:.4rem 1rem}
+  .kt-tick-subrow{padding:.15rem 1rem .25rem 1rem;gap:.5rem}
+  .kt-tick-section-header{font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.25rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)}
   .kt-role-val-inline{font-size:.7rem;color:var(--gold-dim);font-family:\'Cinzel\',serif;white-space:nowrap;margin-left:.35rem;flex-shrink:0}
   .kt-boss-role-total{font-family:\'Cinzel\',serif;font-size:.72rem;font-weight:700;color:var(--gold-light);padding:.35rem 1rem .35rem 2rem;border-top:1px solid rgba(200,184,144,.3);background:rgba(122,80,16,.06);text-align:right}
   .kt-dkp-badge{font-family:\'Cinzel\',serif;font-size:.82rem;font-weight:700;color:var(--gold-light);background:rgba(122,80,16,.1);border:1px solid var(--border-glow);border-radius:4px;padding:.3rem .7rem;white-space:nowrap}
@@ -4409,7 +4416,6 @@ window.applyDBToChar    = applyDBToChar;
     { target:'Midayor',         full:'Midayor',                     aliases:['midayor','mid'] },
     { target:'Tavekalem',       full:'Tavekalem',                   aliases:['tavekalem','tave','tav'] },
     { target:'Ymmeln',          full:'Ymmeln',                      aliases:['ymmeln','ymm'] },
-    { target:'Ring War',        full:'Ring War',                    aliases:['ring war','rw','ring'] },
   ];
 
   // /note aliases for Hourly Ticks DKP entries — checked after _NOTES_BOSS_LIST.
@@ -4422,8 +4428,9 @@ window.applyDBToChar    = applyDBToChar;
   ];
 
   // /note aliases for Ring War checkpoints — toggles the checkpoint directly
-  // (no kill modal, unlike /note rw which fires the standard TOD modal).
-  // key must match RW_CHECKPOINTS keys exactly. Mirrors NOTES_RW_MAP in mixelparse-watcher.js.
+  // (no kill modal — the generic '/note rw' boss-modal entry was removed; rwready/rw1/rw2/rw3
+  // are the only valid Ring War aliases now). key must match RW_CHECKPOINTS keys exactly.
+  // Mirrors NOTES_RW_MAP in mixelparse-watcher.js.
   const _NOTES_RW_MAP = [
     { key:'readiness', aliases:['rwready','rw ready'] },
     { key:'wave1',      aliases:['rw1','rw wave 1'] },
@@ -4481,7 +4488,7 @@ window.applyDBToChar    = applyDBToChar;
       for(const rw of _NOTES_RW_MAP){
         const hit = rw.aliases.some(a => new RegExp('(^|\\s)'+a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\s|$)','i').test(ll));
         if(hit){
-          todRWHandle(rw.key);
+          todRWHandle(rw.key, line, timestamp);
           matched = true;
           break;
         }
@@ -4578,7 +4585,7 @@ window.applyDBToChar    = applyDBToChar;
           todTickHandle(msg.desc, msg.value);
         }
         if(msg.type === 'todRW'){
-          todRWHandle(msg.key);
+          todRWHandle(msg.key, msg.noteText, msg.timestamp);
         }
         if(msg.type === 'todHot'){
           todHotFarmHandle();
@@ -4700,7 +4707,7 @@ window.applyDBToChar    = applyDBToChar;
         }
         if(msg.type === 'todRW'){
           // IPC watcher may send pre-processed todRW (future-proofing)
-          todRWHandle(msg.key);
+          todRWHandle(msg.key, msg.noteText, msg.timestamp);
         }
         if(msg.type === 'todHot'){
           // IPC watcher may send pre-processed todHot (future-proofing)
@@ -4806,24 +4813,19 @@ function todTickHandle(desc, value){
 }
 
 // /note <alias> for Ring War checkpoints (readiness/wave1/wave2/wave3).
-// Each checkpoint is its own killed/failtick boss entry under Tier Nine —
-// directly marks it Killed, same as picking the Killed radio in the panel.
-// Re-firing the same alias is a no-op (already killed, stays killed).
+// Each checkpoint is its own killed/failtick boss entry under Tier Nine.
+// Routes through the standard TOD kill modal (todEnqueue/showTodModal) — same
+// Roles checklist, session picker, and Add to Session / Start New Session /
+// Failtick flow as every other boss. rolesForBoss() restricts Ring War targets
+// to just their 2 exclusive roles (Ninja Looter, Turn in Reward) — see BOSS_ROLES.
 const RW_CHECKPOINT_TARGET = {readiness:'RW Readiness',wave1:'RW Wave 1',wave2:'RW Wave 2',wave3:'RW Wave 3'};
-function todRWHandle(key){
-  if(!activeSession) activeSession = newSession();
-  const isNew = !raidSessions.includes(activeSession);
-  if(isNew) raidSessions.push(activeSession);
+function todRWHandle(key, noteText, timestamp){
   const target = RW_CHECKPOINT_TARGET[key] || key;
-  const already = (activeSession.killState||{})[target]==='killed';
-  if(!activeSession.killState) activeSession.killState={};
-  activeSession.killState[target]='killed';
-  saveSessionsToSupabase();
-  renderKillsPanel();
   const b = BOSS_ROSTER.find(x=>x.target===target);
-  const label = b ? b.full : target;
-  showWatcherToast(`🏹 ${isNew?'New session — ':''}Ring War: ${label}${already?' (already killed)':''}`);
+  const full = b ? b.full : target;
+  todEnqueue(target, full, noteText || target, timestamp || new Date().toISOString());
 }
+
 
 // /note <alias> for HoT Farm Ticks — mirrors clicking + on the HoT Farm Ticks row.
 function todHotFarmHandle(){
@@ -5703,10 +5705,12 @@ const BOSS_ROSTER=[
   {target:'Tavekalem',     full:'Tavekalem',                   tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
   {target:'Ymmeln',        full:'Ymmeln',                      tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
   // Tier Nine — Ring War checkpoints. Failtick pays 0 (attended raid but missed this wave).
-  {target:'RW Readiness', full:'Readiness (before RW starts)', tier:'Tier Nine', dkp:1,   baseDkp:0, raceFTE:null,campFTE:null},
-  {target:'RW Wave 1',    full:'Beginning of RW / Wave 1',     tier:'Tier Nine', dkp:0.8, baseDkp:0, raceFTE:null,campFTE:null},
-  {target:'RW Wave 2',    full:'End of Wave 2',                tier:'Tier Nine', dkp:1.2, baseDkp:0, raceFTE:null,campFTE:null},
-  {target:'RW Wave 3',    full:'End of Wave 3',                tier:'Tier Nine', dkp:2,   baseDkp:0, raceFTE:null,campFTE:null},
+  // target stays 'RW Readiness'/'RW Wave N' (internal data key — killState, BOSS_ROLES, saved
+  // sessions all key off this). display is what renders as the bold name in the Kill Tracker row.
+  {target:'RW Readiness', display:'Readiness',                   full:'Readiness (before RW starts)', tier:'Tier Nine', dkp:1,   baseDkp:0, raceFTE:null,campFTE:null},
+  {target:'RW Wave 1',    display:'Beginning of RW / Wave 1',    full:'Beginning of RW / Wave 1',     tier:'Tier Nine', dkp:0.8, baseDkp:0, raceFTE:null,campFTE:null},
+  {target:'RW Wave 2',    display:'End of Wave 2',                full:'End of Wave 2',                tier:'Tier Nine', dkp:1.2, baseDkp:0, raceFTE:null,campFTE:null},
+  {target:'RW Wave 3',    display:'End of Wave 3',                full:'End of Wave 3',                tier:'Tier Nine', dkp:2,   baseDkp:0, raceFTE:null,campFTE:null},
 ];
 
 // Sessions: [{id, date, kills:[target,...], roles:[{desc,value,qty},...], note}] [{id, date, kills:[target,...], roles:[{desc,value,qty},...], note}]
@@ -5759,9 +5763,15 @@ const BOSS_ROLES=[
   {desc:'Turn in Reward',               value:10,  bosses:['RW Readiness','RW Wave 1','RW Wave 2','RW Wave 3']},
 ];
 
+const _RW_TARGETS=['RW Readiness','RW Wave 1','RW Wave 2','RW Wave 3'];
 function rolesForBoss(target){
   const b=BOSS_ROSTER.find(x=>x.target===target);
-  const roles=BOSS_ROLES.filter(r=>r.bosses.length===0||r.bosses.includes(target));
+  const isRW=_RW_TARGETS.includes(target);
+  // Ring War only gets its 2 exclusive roles (NL, Turn in Reward) — generic bosses:[]
+  // roles (Playmaker Bonus, Tank Bonus, etc.) don't apply, per BOSS_ROLES comment above.
+  const roles=isRW
+    ? BOSS_ROLES.filter(r=>r.bosses.includes(target))
+    : BOSS_ROLES.filter(r=>r.bosses.length===0||r.bosses.includes(target));
   const fte=[];
   if(b?.raceFTE)fte.push({desc:'Race FTE Bonus', value:b.raceFTE, bosses:[target]});
   if(b?.campFTE)fte.push({desc:'Camp FTE Pickup', value:b.campFTE, bosses:[target]});
@@ -5826,14 +5836,14 @@ async function saveSessionsToSupabase(){
 
 function buildHourlyHtml(){
   let html='<div style="border-bottom:1px solid var(--border)">';
-  html+=`<div style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">HOURLY TICKS — SESSION</div>`;
+  html+=`<div class="kt-tick-section-header">HOURLY TICKS</div>`;
   for(const role of HOURLY_ROLES){
     const existing=(activeSession.hourly||[]).find(r=>r.desc===role.desc);
     const qty=existing?existing.qty:0;
     const ninja=(activeSession.hourlyNinja||{})[role.desc]||false;
     const dispVal=(role.value+(ninja?0.2:0)).toFixed(1).replace('.0','');
     const safeDesc=esc(role.desc);
-    html+=`<div class="kt-role-row${qty>0?' kt-role-active':''}" >
+    html+=`<div class="kt-role-row kt-tick-row${qty>0?' kt-role-active':''}" >
       <span class="kt-role-desc">${safeDesc.replace(" (hourly)","")}</span>
       <span class="kt-role-val">${dispVal} DKP</span>
       <div class="kt-role-qty">
@@ -5843,7 +5853,7 @@ function buildHourlyHtml(){
         <button class="kt-qty-btn" data-submit-desc="${safeDesc}" data-submit-val="${role.value}" onclick="ktSubmitTicks(this.dataset.submitDesc,parseFloat(this.dataset.submitVal))" title="Submit & reset" style="background:var(--surface2);color:var(--gold-light);border-color:var(--gold-light);font-size:.63rem;letter-spacing:.05em;font-family:'Cinzel',serif;padding:0 .55rem;min-width:3.8rem;opacity:${qty>0?'1':'.3'};pointer-events:${qty>0?'auto':'none'}">SUBMIT</button>
       </div>
     </div>
-    <label class="kt-role-row" style="cursor:pointer;gap:.5rem;padding-top:.15rem;padding-bottom:.15rem">
+    <label class="kt-role-row kt-tick-subrow" style="cursor:pointer">
       <input type="checkbox" ${ninja?'checked':''} onchange="ktHourlyNinja('${safeDesc}',this.checked)" style="accent-color:var(--gold-light);width:14px;height:14px">
       <span class="kt-role-desc" style="font-size:.7rem;color:var(--text-muted)">Ninjalooter</span>
       <span class="kt-role-val" style="color:${ninja?'var(--gold-light)':'var(--text-muted)'}">+0.2 DKP/tick</span>
@@ -5855,8 +5865,8 @@ function buildHourlyHtml(){
   const hotSpeed=activeSession.hotSpeedBonus||false;
   const hotQty=activeSession.hotFarmQty||0;
   html+='<div style="border-bottom:1px solid var(--border)">';
-  html+=`<div style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">HoT — SESSION</div>`;
-  html+=`<div class="kt-role-row${hotQty>0?' kt-role-active':''}" >
+  html+=`<div class="kt-tick-section-header">HoT</div>`;
+  html+=`<div class="kt-role-row kt-tick-row${hotQty>0?' kt-role-active':''}" >
     <span class="kt-role-desc">HoT Farm Ticks</span>
     <span class="kt-role-val">1 DKP</span>
     <div class="kt-role-qty">
@@ -5870,7 +5880,7 @@ function buildHourlyHtml(){
                opacity:${hotQty>0?'1':'.3'};pointer-events:${hotQty>0?'auto':'none'}">SUBMIT</button>
     </div>
   </div>`;
-  html+=`<label class="kt-role-row" style="cursor:pointer;gap:.5rem">
+  html+=`<label class="kt-role-row kt-tick-subrow" style="cursor:pointer">
     <input type="checkbox" ${hotSpeed?'checked':''} onchange="activeSession.hotSpeedBonus=this.checked;renderKillsPanel()" style="accent-color:var(--gold-light);width:14px;height:14px">
     <span class="kt-role-desc">Speed Bonus</span>
     <span class="kt-role-val" style="color:${hotSpeed?'var(--gold-light)':'var(--text-muted)'}">+1 DKP</span>
@@ -5882,8 +5892,8 @@ function buildHourlyHtml(){
   const bpVal=bpNinja?0.5:0.3;
   const bpQty=activeSession.buffParksQty||0;
   html+='<div style="border-bottom:1px solid var(--border)">';
-  html+=`<div style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">BUFF AND PARKS — SESSION</div>`;
-  html+=`<div class="kt-role-row${bpQty>0?' kt-role-active':''}" >
+  html+=`<div class="kt-tick-section-header">BUFF AND PARKS</div>`;
+  html+=`<div class="kt-role-row kt-tick-row${bpQty>0?' kt-role-active':''}" >
     <span class="kt-role-desc">Buff and Park</span>
     <span class="kt-role-val">${bpVal} DKP</span>
     <div class="kt-role-qty">
@@ -5893,18 +5903,18 @@ function buildHourlyHtml(){
       <button class="kt-qty-btn" onclick="ktSubmitBuffParks()" title="Submit & reset" style="background:var(--surface2);color:var(--gold-light);border-color:var(--gold-light);font-size:.63rem;letter-spacing:.05em;font-family:'Cinzel',serif;padding:0 .55rem;min-width:3.8rem;opacity:${bpQty>0?'1':'.3'};pointer-events:${bpQty>0?'auto':'none'}">SUBMIT</button>
     </div>
   </div>`;
-  html+=`<label class="kt-role-row" style="cursor:pointer;gap:.5rem;">
+  html+=`<label class="kt-role-row kt-tick-subrow" style="cursor:pointer">
     <input type="checkbox" ${bpNinja?'checked':''} onchange="ktBuffParksNinja(this.checked)" style="accent-color:var(--gold-light);width:14px;height:14px;">
     <span class="kt-role-desc">Ninjalooter</span>
     <span class="kt-role-val" style="color:${bpNinja?'var(--gold-light)':'var(--text-muted)'}">+0.2 DKP/click</span>
   </label>`;
   html+='</div>';
   html+='<div style="border-bottom:1px solid var(--border)">';
-  html+=`<div style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">DKP BOT LOOT BONUS — SESSION</div>`;
+  html+=`<div class="kt-tick-section-header">DKP BOT LOOT BONUS</div>`;
   for(const role of BOT_LOOT_ROLES){
     const existing=(activeSession.botLoot||[]).find(r=>r.desc===role.desc);
     const qty=existing?existing.qty:0;
-    html+=`<div class="kt-role-row${qty>0?' kt-role-active':''}" >
+    html+=`<div class="kt-role-row kt-tick-row${qty>0?' kt-role-active':''}" >
       <span class="kt-role-desc">${role.desc}</span>
       <span class="kt-role-val">${role.value.toFixed(1)} DKP</span>
       <div class="kt-role-qty">
@@ -6237,8 +6247,8 @@ function renderKillsPanel(){
               <span>Failtick</span>
             </label>
           </div>
-          <span class="kt-check-name" onclick="ktToggleBossRoles('${esc(b.target)}')" style="cursor:pointer;flex:1">${esc(b.target)}</span>
-          ${b.target!==b.full?`<span class="kt-check-full">${esc(b.full)}</span>`:''}
+          <span class="kt-check-name" onclick="ktToggleBossRoles('${esc(b.target)}')" style="cursor:pointer;flex:1">${esc(b.display||b.target)}</span>
+          ${(b.display||b.target)!==b.full?`<span class="kt-check-full">${esc(b.full)}</span>`:''}
           <span class="kt-check-dkp" id="ktdkp_${esc(b.target)}">${state==='killed'?killTotal+' DKP':state==='failtick'?'1 DKP':b.dkp+'+'+b.baseDkp}</span>
           ${state?`<button type="button" class="kt-clear-btn" data-bosstgt="${esc(b.target)}" title="Clear" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.72rem;padding:0 .2rem;line-height:1;opacity:.7" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.7'">✕</button>`:'<span style="display:inline-block;width:1.2rem"></span>'}
           <span class="kt-expand-btn" onclick="ktToggleBossRoles('${esc(b.target)}')">${isOpen?'▲':'▼'}</span>
@@ -6294,8 +6304,8 @@ function renderKillsPanel(){
 
 
   const total=sessionDkpTotal(activeSession);
-  const killCount=Object.values(activeSession.killState).filter(s=>s==='killed').length;
-  const failtickCount=Object.values(activeSession.killState).filter(s=>s==='failtick').length;
+  const killCount=Object.entries(activeSession.killState).filter(([k,v])=>v==='killed'&&BOSS_ROSTER.some(b=>b.target===(k.includes('__')?k.split('__')[0]:k))).length;
+  const failtickCount=Object.entries(activeSession.killState).filter(([k,v])=>v==='failtick'&&BOSS_ROSTER.some(b=>b.target===(k.includes('__')?k.split('__')[0]:k))).length;
 
   const sorted=[...raidSessions].sort((a,b)=>{
     const aKey=a.startedAt||a.date;
@@ -6308,15 +6318,26 @@ function renderKillsPanel(){
       const d=new Date(s.date+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
       const timeStr=s.startedAt?new Date(s.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):null;
       const dateLabel=timeStr?`${d} · ${timeStr}`:d;
-      const killed=Object.entries(s.killState||{}).filter(([,v])=>v==='killed').map(([k])=>k);
-      const failtickTargets=Object.entries(s.killState||{}).filter(([,v])=>v==='failtick').map(([k])=>k);
+      // Filter against BOSS_ROSTER (or extraSpawns base) so any orphaned killState key —
+      // e.g. from a removed boss, old saved session, or manual data edit — never shows up
+      // as a phantom 0-DKP entry. See HANDOFF_v1.1.3 'Ring War' bug.
+      const _validKey=k=>{const baseTarget=k.includes('__')?k.split('__')[0]:k;return BOSS_ROSTER.some(b=>b.target===baseTarget);};
+      const killed=Object.entries(s.killState||{}).filter(([k,v])=>v==='killed'&&_validKey(k)).map(([k])=>k);
+      const failtickTargets=Object.entries(s.killState||{}).filter(([k,v])=>v==='failtick'&&_validKey(k)).map(([k])=>k);
       // Include extra Big 3 spawns in summary
       (s.extraSpawns||[]).forEach(sp=>{
         if(sp.state==='killed')killed.push(sp.key);
         else if(sp.state==='failtick')failtickTargets.push(sp.key);
       });
-      // Display name helper — strip __N suffix for readability, append #N
-      const spawnLabel=k=>{const m=k.match(/^(.+)__(\d+)$/);return m?`${m[1]} #${m[2]}`:k;};
+      // Display name helper — resolves BOSS_ROSTER display name (e.g. Ring War checkpoints'
+      // friendly label) when available, else strips __N suffix for readability, append #N.
+      const spawnLabel=k=>{
+        const m=k.match(/^(.+)__(\d+)$/);
+        const baseTarget=m?m[1]:k;
+        const b=BOSS_ROSTER.find(x=>x.target===baseTarget);
+        const name=b&&b.display?b.display:baseTarget;
+        return m?`${name} #${m[2]}`:name;
+      };
       const hourlyTotal=(s.hourly||[]).reduce((sum,r)=>sum+(r.qty||1),0);
       const hourlyDkp=(s.hourly||[]).reduce((sum,r)=>sum+(r.value||0)*(r.qty||1),0);
       const botLootDkp=Math.round((s.botLoot||[]).reduce((sum,r)=>sum+(r.value||0)*(r.qty||1),0)*10)/10;
@@ -6339,13 +6360,15 @@ function renderKillsPanel(){
       if(bossRoleDkp)lines.push(`<span class="kt-seg-label">Roles</span><span class="kt-seg-val">${Object.entries(s.bossRoles||{}).flatMap(([,rs])=>rs.map(r=>r.desc)).join(', ')}</span><span class="kt-seg-dkp">${bossRoleDkp} DKP</span>`);
       if(hourlyTotal)lines.push(`<span class="kt-seg-label">Hourly</span><span class="kt-seg-val">${(s.hourly||[]).map(r=>`${r.qty||1}× ${r.desc.replace(' (hourly)','')}`).join(', ')}</span><span class="kt-seg-dkp">${hourlyDkp} DKP</span>`);
       if(bnpQty)lines.push(`<span class="kt-seg-label">B&P</span><span class="kt-seg-val">${bnpQty} click${bnpQty!==1?'s':''}${s.buffParksNinja?' (NL)':''}</span><span class="kt-seg-dkp">${bnpDkp} DKP</span>`);
-      if(botLootDkp)lines.push(`<span class="kt-seg-label">Bot Loot</span><span class="kt-seg-val">${(s.botLoot||[]).map(r=>`${r.qty}\u00d7 ${r.value.toFixed(1)}`).join(', ')}</span><span class="kt-seg-dkp">${botLootDkp} DKP</span>`);
+      if(botLootDkp)lines.push(`<span class="kt-seg-label">Bot Loot</span><span class="kt-seg-val">${(s.botLoot||[]).map(r=>`${r.qty}x Bot Loot bonus - ${r.value.toFixed(1)}`).join(', ')}</span><span class="kt-seg-dkp">${botLootDkp} DKP</span>`);
 
       // Tick submissions — one row per submission with ✕ delete
       const tickSubs=s.tickSubmissions||[];
       const tickSubLines=tickSubs.map(sub=>{
         const t=sub.submittedAt?new Date(sub.submittedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):'';
-        const label=sub.desc.replace(' (hourly)','')+(sub.speedBonus?' + Speed':'')+(sub.ninja?' (NL)':'');
+        // desc names the per-unit tier (e.g. "Bot Loot - 0.1 DKP"), not the line total —
+        // append ×qty when more than 1 was submitted so the dkp total is self-explanatory.
+        const label=sub.desc.replace(' (hourly)','')+(sub.qty&&sub.qty!==1?` ×${sub.qty}`:'')+(sub.speedBonus?' + Speed':'')+(sub.ninja?' (NL)':'');
         return `<div class="kt-seg-row" style="grid-template-columns:80px 1fr auto auto;gap:.4rem .5rem">
           <span class="kt-seg-label">Tick Sub</span>
           <span class="kt-seg-val">${esc(label)}${t?` <span style="color:var(--text-muted);font-size:.7rem">@ ${t}</span>`:''}</span>
