@@ -438,14 +438,14 @@
   .kt-check-name{font-family:\'Cinzel\',serif;font-size:.78rem;font-weight:600;color:var(--text);flex:1}
   .kt-check-full{font-size:.7rem;color:var(--text-muted);font-style:italic}
   .kt-check-dkp{font-size:.72rem;color:var(--gold-dim);font-family:\'Cinzel\',serif;margin-left:auto;white-space:nowrap}
-  .kt-role-row{display:flex;align-items:center;gap:.5rem;padding:.4rem .75rem;border-bottom:1px solid rgba(200,184,144,.2);cursor:pointer}
+  .kt-role-row{display:flex;align-items:center;gap:.6rem;padding:.6rem 1rem;border-bottom:1px solid rgba(200,184,144,.2);cursor:pointer}
   .kt-role-row:hover{background:rgba(200,184,144,.08)}
   .kt-role-row.kt-role-active{background:rgba(26,90,26,.07)}
   .kt-role-row input[type=checkbox]{accent-color:var(--gold-light);width:14px;height:14px;flex-shrink:0;cursor:pointer}
-  .kt-role-desc{font-size:.78rem;color:var(--text-dim);flex:1;line-height:1.2}
-  .kt-role-val{font-size:.7rem;color:var(--gold-dim);white-space:nowrap;font-family:\'Cinzel\',serif}
-  .kt-role-qty{display:flex;align-items:center;gap:.3rem;margin-left:.3rem}
-  .kt-qty-btn{width:20px;height:20px;border:1px solid var(--border);border-radius:3px;background:var(--surface2);color:var(--gold);font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;transition:border-color .1s}
+  .kt-role-desc{font-size:.86rem;color:var(--text-dim);flex:1;line-height:1.3;white-space:nowrap}
+  .kt-role-val{font-size:.76rem;color:var(--gold-dim);white-space:nowrap;font-family:\'Cinzel\',serif;min-width:4.5rem;text-align:right}
+  .kt-role-qty{display:flex;align-items:center;gap:.38rem;margin-left:.35rem}
+  .kt-qty-btn{width:26px;height:26px;border:1px solid var(--border);border-radius:3px;background:var(--surface2);color:var(--gold);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;transition:border-color .1s}
   .kt-qty-btn:hover{border-color:var(--gold-light)}
   .kt-check-row.kt-failtick{background:rgba(160,48,48,.06)}
   .kt-radio-group{display:flex;gap:.3rem;flex-shrink:0}
@@ -5700,7 +5700,7 @@ function newSession(){
   // killState: {target: 'killed'|'failtick'|null}
   // extraSpawns: [{base, key, state, bossRoles}] — Big 3 additional spawns
   const now=new Date();
-  return{id:Date.now().toString(),date:now.toISOString().slice(0,10),startedAt:now.toISOString(),killState:{},hourly:[],bossRoles:{},buffParksQty:0,buffParksNinja:false,botLoot:[],rwChecks:{},note:'',extraSpawns:[]};
+  return{id:Date.now().toString(),date:now.toISOString().slice(0,10),startedAt:now.toISOString(),killState:{},hourly:[],hourlyNinja:{},bossRoles:{},buffParksQty:0,buffParksNinja:false,botLoot:[],rwChecks:{},note:'',extraSpawns:[]};
 }
 
 function sessionDkpTotal(session){
@@ -5759,31 +5759,51 @@ function buildHourlyHtml(){
   for(const role of HOURLY_ROLES){
     const existing=(activeSession.hourly||[]).find(r=>r.desc===role.desc);
     const qty=existing?existing.qty:0;
-    html+=`<div class="kt-role-row${qty>0?' kt-role-active':''}">
-      <span class="kt-role-desc">${esc(role.desc)}</span>
-      <span class="kt-role-val">${role.value} DKP</span>
+    const ninja=(activeSession.hourlyNinja||{})[role.desc]||false;
+    const dispVal=(role.value+(ninja?0.2:0)).toFixed(1).replace('.0','');
+    const safeDesc=esc(role.desc);
+    html+=`<div class="kt-role-row${qty>0?' kt-role-active':''}" >
+      <span class="kt-role-desc">${safeDesc.replace(" (hourly)","")}</span>
+      <span class="kt-role-val">${dispVal} DKP</span>
       <div class="kt-role-qty">
-        <button class="kt-qty-btn" onclick="ktHourlyAdj('${esc(role.desc)}',${role.value},-1)">−</button>
+        <button class="kt-qty-btn" onclick="ktHourlyAdj('${safeDesc}',${role.value},-1)">−</button>
         <span class="kt-qty-num" style="color:${qty>0?'var(--gold-light)':'var(--text-muted)'}">${qty}</span>
-        <button class="kt-qty-btn" onclick="ktHourlyAdj('${esc(role.desc)}',${role.value},1)">+</button>
-        <button class="kt-qty-btn" data-submit-desc="${esc(role.desc)}" data-submit-val="${role.value}" onclick="ktSubmitTicks(this.dataset.submitDesc,parseFloat(this.dataset.submitVal))" title="Submit & reset" style="background:var(--surface2);color:var(--gold-light);border-color:var(--gold-light);font-size:.6rem;letter-spacing:.04em;font-family:'Cinzel',serif;padding:0 .35rem;opacity:${qty>0?'1':'.3'};pointer-events:${qty>0?'auto':'none'}">Submit</button>
+        <button class="kt-qty-btn" onclick="ktHourlyAdj('${safeDesc}',${role.value},1)">+</button>
+        <button class="kt-qty-btn" data-submit-desc="${safeDesc}" data-submit-val="${role.value}" onclick="ktSubmitTicks(this.dataset.submitDesc,parseFloat(this.dataset.submitVal))" title="Submit & reset" style="background:var(--surface2);color:var(--gold-light);border-color:var(--gold-light);font-size:.63rem;letter-spacing:.05em;font-family:'Cinzel',serif;padding:0 .55rem;min-width:3.8rem;opacity:${qty>0?'1':'.3'};pointer-events:${qty>0?'auto':'none'}">SUBMIT</button>
       </div>
-    </div>`;
+    </div>
+    <label class="kt-role-row" style="cursor:pointer;gap:.5rem;padding-top:.15rem;padding-bottom:.15rem">
+      <input type="checkbox" ${ninja?'checked':''} onchange="ktHourlyNinja('${safeDesc}',this.checked)" style="accent-color:var(--gold-light);width:14px;height:14px">
+      <span class="kt-role-desc" style="font-size:.7rem;color:var(--text-muted)">Ninjalooter</span>
+      <span class="kt-role-val" style="color:${ninja?'var(--gold-light)':'var(--text-muted)'}">+0.2 DKP/tick</span>
+    </label>`;
   }
   html+='</div>';
 
-  // ── HoT section ──
+  // ── HoT Farm Ticks section ──
   const hotSpeed=activeSession.hotSpeedBonus||false;
+  const hotQty=activeSession.hotFarmQty||0;
   html+='<div style="border-bottom:1px solid var(--border)">';
   html+=`<div style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">HoT — SESSION</div>`;
+  html+=`<div class="kt-role-row${hotQty>0?' kt-role-active':''}" >
+    <span class="kt-role-desc">HoT Farm Ticks</span>
+    <span class="kt-role-val">1 DKP/tick</span>
+    <div class="kt-role-qty">
+      <button class="kt-qty-btn" onclick="ktHotFarmAdj(-1)">&#8722;</button>
+      <span class="kt-qty-num" id="hotFarmQtyDisplay" style="color:${hotQty>0?'var(--gold-light)':'var(--text-muted)'};min-width:1.4rem;text-align:center">${hotQty}</span>
+      <button class="kt-qty-btn" onclick="ktHotFarmAdj(1)">+</button>
+      <button class="kt-qty-btn" onclick="ktSubmitHoT()" title="Submit & reset"
+        style="background:var(--surface2);color:var(--gold-light);border-color:var(--gold-light);
+               font-size:.63rem;letter-spacing:.05em;font-family:'Cinzel',serif;
+               padding:0 .55rem;min-width:3.8rem;
+               opacity:${hotQty>0?'1':'.3'};pointer-events:${hotQty>0?'auto':'none'}">SUBMIT</button>
+    </div>
+  </div>`;
   html+=`<label class="kt-role-row" style="cursor:pointer;gap:.5rem">
     <input type="checkbox" ${hotSpeed?'checked':''} onchange="activeSession.hotSpeedBonus=this.checked;renderKillsPanel()" style="accent-color:var(--gold-light);width:14px;height:14px">
     <span class="kt-role-desc">Speed Bonus</span>
     <span class="kt-role-val" style="color:${hotSpeed?'var(--gold-light)':'var(--text-muted)'}">+1 DKP</span>
   </label>`;
-  html+=`<div class="kt-role-row" style="justify-content:flex-end;padding:.3rem .85rem">
-    <button class="kt-qty-btn" onclick="ktSubmitHoT()" style="background:var(--surface2);color:var(--gold-light);border-color:var(--gold-light);font-size:.6rem;letter-spacing:.04em;font-family:'Cinzel',serif;padding:0 .5rem">Submit HoT Run</button>
-  </div>`;
   html+='</div>';
 
   // ── Buff and Parks section ──
@@ -5792,13 +5812,14 @@ function buildHourlyHtml(){
   const bpQty=activeSession.buffParksQty||0;
   html+='<div style="border-bottom:1px solid var(--border)">';
   html+=`<div style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.08em;color:var(--text-muted);padding:.4rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)">BUFF AND PARKS — SESSION</div>`;
-  html+=`<div class="kt-role-row${bpQty>0?' kt-role-active':''}">
-    <span class="kt-role-desc">Buff and Parks</span>
+  html+=`<div class="kt-role-row${bpQty>0?' kt-role-active':''}" >
+    <span class="kt-role-desc">Buff and Park</span>
     <span class="kt-role-val">${bpVal} DKP</span>
     <div class="kt-role-qty">
       <button class="kt-qty-btn" onclick="ktBuffParksAdj(-1)">−</button>
       <span class="kt-qty-num" style="color:${bpQty>0?'var(--gold-light)':'var(--text-muted)'}">${bpQty}</span>
       <button class="kt-qty-btn" onclick="ktBuffParksAdj(1)">+</button>
+      <button class="kt-qty-btn" onclick="ktSubmitBuffParks()" title="Submit & reset" style="background:var(--surface2);color:var(--gold-light);border-color:var(--gold-light);font-size:.63rem;letter-spacing:.05em;font-family:'Cinzel',serif;padding:0 .55rem;min-width:3.8rem;opacity:${bpQty>0?'1':'.3'};pointer-events:${bpQty>0?'auto':'none'}">SUBMIT</button>
     </div>
   </div>`;
   html+=`<label class="kt-role-row" style="cursor:pointer;gap:.5rem;">
@@ -5812,13 +5833,14 @@ function buildHourlyHtml(){
   for(const role of BOT_LOOT_ROLES){
     const existing=(activeSession.botLoot||[]).find(r=>r.desc===role.desc);
     const qty=existing?existing.qty:0;
-    html+=`<div class="kt-role-row${qty>0?' kt-role-active':''}">
+    html+=`<div class="kt-role-row${qty>0?' kt-role-active':''}" >
       <span class="kt-role-desc">${role.desc}</span>
       <span class="kt-role-val">${role.value.toFixed(1)} DKP</span>
       <div class="kt-role-qty">
         <button class="kt-qty-btn" type="button" onclick="ktBotLootAdj('${role.desc}',${role.value},-1)">−</button>
         <span class="kt-qty-num" style="color:${qty>0?'var(--gold-light)':'var(--text-muted)'}">${qty}</span>
         <button class="kt-qty-btn" type="button" onclick="ktBotLootAdj('${role.desc}',${role.value},1)">+</button>
+        <button class="kt-qty-btn" type="button" data-submit-desc="${role.desc}" data-submit-val="${role.value}" onclick="ktSubmitBotLoot(this.dataset.submitDesc,parseFloat(this.dataset.submitVal))" title="Submit & reset" style="background:var(--surface2);color:var(--gold-light);border-color:var(--gold-light);font-size:.63rem;letter-spacing:.05em;font-family:'Cinzel',serif;padding:0 .55rem;min-width:3.8rem;opacity:${qty>0?'1':'.3'};pointer-events:${qty>0?'auto':'none'}">SUBMIT</button>
       </div>
     </div>`;
   }
@@ -5955,7 +5977,7 @@ function renderGearReportsPanel(){
           ${e.mob?`<span class="gpr-item" style="font-size:.82rem">${esc(e.mob)}</span><br>`:''}
           <span class="gpr-from">${esc(e.zone||e.from||'—')}</span>
         </td>
-        <td style="text-align:right;white-space:nowrap">${costHtml||'<span style="color:var(--text-muted);font-size:.75rem">—</span>'}</td>
+        <td>${costHtml||'<span style="color:var(--text-muted);font-size:.75rem">—</span>'}</td>
         <td style="text-align:right"><span class="upg-score-pill ${sc}">${esc(scoreStr)}</span></td>
       </tr>`;
     } else {
@@ -6277,7 +6299,7 @@ function renderKillsPanel(){
       const tickSubs=s.tickSubmissions||[];
       const tickSubLines=tickSubs.map(sub=>{
         const t=sub.submittedAt?new Date(sub.submittedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):'';
-        const label=sub.desc.replace(' (hourly)','')+(sub.speedBonus?' + Speed':'');
+        const label=sub.desc.replace(' (hourly)','')+(sub.speedBonus?' + Speed':'')+(sub.ninja?' (NL)':'');
         return `<div class="kt-seg-row" style="grid-template-columns:80px 1fr auto auto;gap:.4rem .5rem">
           <span class="kt-seg-label">Tick Sub</span>
           <span class="kt-seg-val">${esc(label)}${t?` <span style="color:var(--text-muted);font-size:.7rem">@ ${t}</span>`:''}</span>
@@ -6299,6 +6321,8 @@ function renderKillsPanel(){
 
   const _bossColScroll=document.getElementById('ktBossCol')?.scrollTop||0;
   const _scrollTop=window.scrollY;
+  const _rightPanel=panel.querySelector('div[style*="overflow-y:auto;max-height:72vh"]:last-child');
+  const _rightScroll=_rightPanel?.scrollTop||0;
   panel.innerHTML=`
     <div style="display:flex;border-bottom:1px solid var(--border);align-items:stretch">
       <div class="kt-view-tab${sessionsView==='new'?' active':''}" onclick="ktSetView('new')">⚔ New Session</div>
@@ -6321,22 +6345,23 @@ function renderKillsPanel(){
       </div>
       <div style="display:flex;overflow:hidden">
         <div style="flex:1;border-right:1px solid var(--border);overflow-y:auto;max-height:72vh" id="ktBossCol">${bossHtml}</div>
-        <div style="width:260px;overflow-y:auto;max-height:72vh">
+        <div style="width:430px;overflow-y:auto;max-height:72vh">
           <div style="padding:.5rem .75rem;border-bottom:1px solid var(--border);background:var(--surface2)">
             <label style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted);display:block;margin-bottom:.3rem">SESSION NOTE</label>
-            <textarea class="kt-date-input" placeholder="e.g. Full ToV clear" style="width:100%;height:60px;resize:vertical;font-size:.82rem;line-height:1.4" oninput="activeSession.note=this.value">${esc(activeSession.note||'')}</textarea>
+            <textarea class="kt-date-input" placeholder="e.g. Full ToV clear" style="width:100%;height:66px;resize:vertical;font-size:.85rem;line-height:1.45" oninput="activeSession.note=this.value">${esc(activeSession.note||'')}</textarea>
           </div>
           ${buildHourlyHtml()}
         </div>
       </div>
     `}`;
-  panel.scrollTop=_scrollTop;
   const _bossCol=document.getElementById('ktBossCol');
   if(_bossCol)_bossCol.scrollTop=_bossColScroll;
   requestAnimationFrame(()=>{
     window.scrollTo(0,_scrollTop);
     const bc=document.getElementById('ktBossCol');
     if(bc)bc.scrollTop=_bossColScroll;
+    const rp=panel.querySelector('div[style*="width:430px"]');
+    if(rp)rp.scrollTop=_rightScroll;
   });
 }
 
@@ -6566,26 +6591,38 @@ window.ktSubmitTicks=function(desc,value){
   const existing=(activeSession.hourly||[]).find(r=>r.desc===desc);
   const qty=existing?existing.qty:0;
   if(qty<=0)return;
-  const dkp=Math.round(qty*value*10)/10;
+  const ninja=(activeSession.hourlyNinja||{})[desc]||false;
+  const effectiveVal=value+(ninja?0.2:0);
+  const dkp=Math.round(qty*effectiveVal*10)/10;
   activeSession.tickSubmissions.push({
     id:'ts_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
-    desc,value,qty,speedBonus:false,dkp,submittedAt:new Date().toISOString()
+    desc,value,qty,ninja,dkp,submittedAt:new Date().toISOString()
   });
-  // Reset counter
+  // Reset counter and ninja flag
   activeSession.hourly=(activeSession.hourly||[]).filter(r=>r.desc!==desc);
+  if(activeSession.hourlyNinja)delete activeSession.hourlyNinja[desc];
   renderKillsPanel();
   ktUpdateBadge();
 };
 
 window.ktSubmitHoT=function(){
+  const qty=activeSession.hotFarmQty||0;
+  if(qty<=0)return;
   if(!activeSession.tickSubmissions)activeSession.tickSubmissions=[];
   const speedBonus=activeSession.hotSpeedBonus||false;
-  const dkp=speedBonus?1:0;
+  const dkp=qty+(speedBonus?1:0);
   activeSession.tickSubmissions.push({
     id:'ts_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
-    desc:'HoT Run',value:0,qty:1,speedBonus,dkp,submittedAt:new Date().toISOString()
+    desc:'HoT Farm Ticks',value:1,qty,speedBonus,dkp,submittedAt:new Date().toISOString()
   });
+  activeSession.hotFarmQty=0;
   activeSession.hotSpeedBonus=false;
+  renderKillsPanel();
+  ktUpdateBadge();
+};
+
+window.ktHotFarmAdj=function(delta){
+  activeSession.hotFarmQty=Math.max(0,(activeSession.hotFarmQty||0)+delta);
   renderKillsPanel();
   ktUpdateBadge();
 };
@@ -6603,22 +6640,24 @@ window.ktHourlyAdj=function(desc,value,delta){
   const existing=activeSession.hourly.find(r=>r.desc===desc);
   if(existing){existing.qty=Math.max(0,existing.qty+delta);if(existing.qty===0)activeSession.hourly=activeSession.hourly.filter(r=>r.desc!==desc);}
   else if(delta>0){activeSession.hourly.push({desc,value,qty:1});}
-  // Re-render right panel only
-  const right=document.querySelector('#killsPanel .kt-role-row')?.closest('div[style*="width:260px"]');
-  const panel=document.getElementById('killsPanel');
-  // Find the hourly panel div and replace
-  const allDivs=panel?.querySelectorAll('div');
-  // Simplest: just update the qty display inline
-  const rows=panel?.querySelectorAll('.kt-role-row');
-  const qty=activeSession.hourly.find(r=>r.desc===desc)?.qty||0;
-  for(const row of (rows||[])){
-    const descEl=row.querySelector('.kt-role-desc');
-    if(descEl?.textContent===desc){
-      const qtyEl=row.querySelector('.kt-qty-num');
-      if(qtyEl){qtyEl.textContent=qty;qtyEl.style.color=qty>0?'var(--gold-light)':'var(--text-muted)';}
-      row.className='kt-role-row'+(qty>0?' kt-role-active':'');
-    }
-  }
+  renderKillsPanel();
+  ktUpdateBadge();
+};
+
+window.ktSubmitBuffParks=function(){
+  const qty=activeSession.buffParksQty||0;
+  if(qty<=0)return;
+  if(!activeSession.tickSubmissions)activeSession.tickSubmissions=[];
+  const ninja=activeSession.buffParksNinja||false;
+  const val=ninja?0.5:0.3;
+  const dkp=Math.round(qty*val*10)/10;
+  activeSession.tickSubmissions.push({
+    id:'ts_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+    desc:'Buff and Park'+(ninja?' (NL)':''),value:val,qty,ninja,dkp,submittedAt:new Date().toISOString()
+  });
+  activeSession.buffParksQty=0;
+  activeSession.buffParksNinja=false;
+  renderKillsPanel();
   ktUpdateBadge();
 };
 
@@ -6627,9 +6666,30 @@ window.ktBuffParksAdj=function(delta){
   renderKillsPanel();
 };
 
+window.ktHourlyNinja=function(desc,checked){
+  if(!activeSession.hourlyNinja)activeSession.hourlyNinja={};
+  activeSession.hourlyNinja[desc]=!!checked;
+  renderKillsPanel();
+};
+
 window.ktBuffParksNinja=function(checked){
   activeSession.buffParksNinja=!!checked;
   renderKillsPanel();
+};
+
+window.ktSubmitBotLoot=function(desc,value){
+  const existing=(activeSession.botLoot||[]).find(r=>r.desc===desc);
+  const qty=existing?existing.qty:0;
+  if(qty<=0)return;
+  if(!activeSession.tickSubmissions)activeSession.tickSubmissions=[];
+  const dkp=Math.round(qty*value*10)/10;
+  activeSession.tickSubmissions.push({
+    id:'ts_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+    desc,value,qty,dkp,submittedAt:new Date().toISOString()
+  });
+  activeSession.botLoot=(activeSession.botLoot||[]).filter(r=>r.desc!==desc);
+  renderKillsPanel();
+  ktUpdateBadge();
 };
 
 window.ktBotLootAdj=function(desc,value,delta){
