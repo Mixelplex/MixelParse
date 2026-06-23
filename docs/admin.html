@@ -265,6 +265,11 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
     Feedback
     <span class="sb-badge skip" id="badge-feedback">—</span>
   </div>
+  <div class="sb-item" data-suite="activeusers" onclick="showSuite('activeusers',this);loadActiveUsers()">
+    <div class="sb-dot skip" id="dot-activeusers"></div>
+    Active Users
+    <span class="sb-badge skip" id="badge-activeusers">—</span>
+  </div>
 </div>
 
 <!-- MAIN -->
@@ -651,6 +656,16 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
       <div id="feedback-list" style="margin-top:.75rem"></div>
     </div>
 
+    <div id="suite-activeusers" class="suite">
+      <div class="suite-title">ACTIVE USERS</div>
+      <div class="suite-desc">Every account that has signed in, with last-login time and total login count. Sorted by most recent login first.</div>
+      <div class="suite-actions" style="display:flex;align-items:center;gap:.6rem">
+        <button class="btn primary" onclick="loadActiveUsers()">&#8635; Refresh</button>
+        <span id="activeusers-count" style="font-size:.72rem;color:var(--text-m)"></span>
+      </div>
+      <div id="activeusers-list" style="margin-top:.75rem"></div>
+    </div>
+
   </div><!-- main-content -->
 </div><!-- main -->
 </div><!-- shell -->
@@ -992,12 +1007,16 @@ SUITES.upgrades = [
   const _NO_DW=new Set(['Paladin','Shadow Knight']);
   const _DMG_CAP={'Warrior':100,'Paladin':100,'Shadow Knight':100,'Monk':200,'Rogue':200,'Ranger':200,'Bard':200};
   const _WEP_SKILLS={'Monk':['hand to hand','1h blunt','2h blunt'],'Rogue':['1h slashing','1h blunt','piercing']};
+  // Per-class DW skill cap and max-skill denominator (mirrors index.html DW_SKILL_CAP/DW_MAX_SKILL)
+  const _DW_SKILL_CAP={'Monk':252,'Rogue':245,'Ranger':240,'Bard':210,'Warrior':240};
+  const _DW_MAX_SKILL={'Monk':400,'Rogue':400,'Ranger':400,'Bard':400,'Warrior':475};
 
   function _wdps(item, slot, cls, lv, dex){
+    if(slot==='TWOHANDER')slot='PRIMARY';
     const dmg=Number(item.dmg||0), delay=Number(item.delay||0);
     const lvCap=Math.min(lv||60,60);
     if(!_MELEE.has(cls))return 0;
-    const itype=(item._skill||'').toLowerCase();
+    const itype=(item._skill||item._itemType||'').toLowerCase();
     const is2h=itype.includes('2h')||itype.includes('two');
     if(cls==='Bard'&&(slot==='SECONDARY'||slot==='PRIMARY')){
       const best=Math.max(Number(item._percmod||0),Number(item._stringmod||0),Number(item._windmod||0),Number(item._brasmod||0),Number(item._allmod||0));
@@ -1013,15 +1032,34 @@ SUITES.upgrades = [
     if(cls==='Rogue'&&is2h)return 0;
     const cap=_DMG_CAP[cls]||100;
     const d=Math.min(dmg,cap);
+    // H2H hit-rate factor (~97.22%) from P1999 damage calculator
+    const isH2H=itype.includes('hand to hand');
+    const h2hFactor=isH2H?0.9722:1.0;
+    // Damage bonus (MH PRIMARY only) — Lucy table via window.lucyDmgBonus if connected,
+    // inline fallback for standalone diagnostic suite (no opener required)
     let bonus=0;
-    if(lvCap>=28&&slot==='PRIMARY')bonus=is2h?Math.floor(delay*37/44):Math.floor((lvCap-25)/3);
+    if(lvCap>=28&&slot==='PRIMARY'){
+      if(window.lucyDmgBonus){
+        bonus=window.lucyDmgBonus(delay,lvCap);
+      } else {
+        // Fallback: power curve for standalone mode (no app connection)
+        const _2hFactor=0.000515*Math.pow(lvCap-28,2.135);
+        bonus=is2h?Math.floor(delay*_2hFactor):Math.floor((lvCap-25)/3);
+      }
+    }
     const effect=item._effect||'', effectType=item._effectType||'';
     const hasCombat=effect&&effectType&&effectType.toLowerCase().includes('combat');
-    const procDmg=hasCombat?(_PROC_DB[effect]||35):0;
+    const procDmg=hasCombat?(_PROC_DB[effect]!==undefined?_PROC_DB[effect]:35):0;
     const dexCap=Math.min(255,dex||175);
     const ppm=(dexCap/170)+0.5;
-    const procDps=slot==='SECONDARY'?(ppm*0.5*procDmg/60):(ppm*procDmg/60);
-    const ratio=slot==='SECONDARY'?(2*d)/delay:((2*d+bonus)/delay);
+    // DW chance for OH proc rate (mirrors index.html)
+    const dwSkillCap=_DW_SKILL_CAP[cls]||252;
+    const dwMaxSkill=_DW_MAX_SKILL[cls]||400;
+    const dwSkill=Math.min((lvCap+1)*7,dwSkillCap);
+    const dwChance=Math.min((dwSkill+lvCap)/dwMaxSkill,1.0);
+    const procDps=slot==='SECONDARY'?(ppm*0.5*dwChance*procDmg/60):(ppm*procDmg/60);
+    // Ratio: OH scaled by dwChance and h2hFactor; MH scaled by h2hFactor only
+    const ratio=slot==='SECONDARY'?(d/delay)*h2hFactor*dwChance:(((d+bonus)/delay)*h2hFactor);
     let bs=0;
     if(cls==='Rogue'&&slot==='PRIMARY'&&itype.includes('piercing')){
       const bsAvg=Math.max(90,(225*d)/50);
@@ -1225,21 +1263,31 @@ function wdpsCompare(){
 
   const procADmg = itemA._effect&&window._wdpsProcDB ? (window._wdpsProcDB[itemA._effect]||35) : 0;
   const procBDmg = itemB._effect&&window._wdpsProcDB ? (window._wdpsProcDB[itemB._effect]||35) : 0;
-  const bonus = (lv>=28&&slot==='PRIMARY') ? Math.floor((Math.min(lv,60)-25)/3) : 0;
+  const lv60disp = Math.min(lv||60,60);
+  function _dispBonus(item) {
+    if (lv60disp < 28 || slot !== 'PRIMARY') return 0;
+    const it = (item._skill||item._itemType||'').toLowerCase();
+    const is2h = it.includes('2h') || it.includes('two');
+    if (is2h) return Math.floor((item.delay||0) * 0.000515 * Math.pow(lv60disp-28, 2.135));
+    return Math.floor((lv60disp-25)/3);
+  }
+  const bonusDispA = _dispBonus(itemA);
+  const bonusDispB = _dispBonus(itemB);
   const pre = document.getElementById('wdps-breakdown');
   pre.style.display='block';
   pre.textContent=[
-    `Class: ${cls}  Slot: ${slot}  Level: ${lv}  DEX: ${dex}  Scale: ×${scale}`,
+    `Class: ${cls}  Slot: ${slot}  Level: ${lv}  DEX: ${dex}  Scale: x${scale}`,
     '',
-    `ITEM A:  ${itemA.dmg||0}dmg / ${itemA.delay||0}delay  skill:"${itemA._skill||'—'}"  proc:${itemA._effect||'none'}${procADmg?' ('+procADmg+'dmg)':''}`,
-    `  dmg-bonus:+${bonus}  raw:${scoreA.toFixed(4)}  scaled:${scaledA.toFixed(2)} pts`,
+    `ITEM A:  ${itemA.dmg||0}dmg / ${itemA.delay||0}delay  skill:"${itemA._skill||'--'}"  proc:${itemA._effect||'none'}${procADmg?' ('+procADmg+'dmg)':''}`,
+    `  dmg-bonus:+${bonusDispA}  raw:${scoreA.toFixed(4)}  scaled:${scaledA.toFixed(2)} pts`,
     '',
-    `ITEM B:  ${itemB.dmg||0}dmg / ${itemB.delay||0}delay  skill:"${itemB._skill||'—'}"  proc:${itemB._effect||'none'}${procBDmg?' ('+procBDmg+'dmg)':''}`,
-    `  dmg-bonus:+${bonus}  raw:${scoreB.toFixed(4)}  scaled:${scaledB.toFixed(2)} pts`,
+    `ITEM B:  ${itemB.dmg||0}dmg / ${itemB.delay||0}delay  skill:"${itemB._skill||'--'}"  proc:${itemB._effect||'none'}${procBDmg?' ('+procBDmg+'dmg)':''}`,
+    `  dmg-bonus:+${bonusDispB}  raw:${scoreB.toFixed(4)}  scaled:${scaledB.toFixed(2)} pts`,
     '',
-    `Delta: ${delta>=0?'+':''}${delta.toFixed(2)} pts → ${Math.abs(delta)<0.05?'Tied':delta>0?'A wins':'B wins'}`,
+    `Delta: ${delta>=0?'+':''}${delta.toFixed(2)} pts -> ${Math.abs(delta)<0.05?'Tied':delta>0?'A wins':'B wins'}`,
   ].join('\n');
 }
+
 
 // BRIDGE
 SUITES.bridge = [
@@ -2193,7 +2241,7 @@ let _gcItemB     = null;
 let _gcSlotData  = {};     // slot -> { equippedName, equippedData, equippedScore, candidates[] }
 
 const GC_SLOT_ORDER = ['HEAD','FACE','EAR1','EAR2','NECK','SHOULDERS','ARMS','BACK',
-                       'WRIST1','WRIST2','HANDS','PRIMARY','SECONDARY','RANGE',
+                       'WRIST1','WRIST2','HANDS','PRIMARY','SECONDARY','TWOHANDER','RANGE',
                        'CHEST','LEGS','FEET','WAIST','FINGERS1','FINGERS2','AMMO'];
 // Map DB slot names to indexed slot keys for duplicate slots
 const GC_SLOT_INDEX = {'EAR':'EAR','FINGERS':'FINGERS','WRIST':'WRIST'};
@@ -2271,7 +2319,7 @@ function gcBuildBaseTotals(charName) {
 }
 
 // Core item scorer — mirrors effectiveGain logic from index.html
-function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, dex) {
+function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, dex, curSlotHaste) {
   const A2 = gcGetApp();
   const STAT_KEYS_ALL = A2 ? (A2.STAT_KEYS_ALL || []) : [];
   const NO_CAP = A2 ? new Set([...(A2.NO_CAP || ['hpbonus','manabonus'])]) : new Set(['hpbonus','manabonus']);
@@ -2281,7 +2329,7 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
   const WIS_CLASSES = A2?.WIS_CLASSES || new Set(['Cleric','Druid','Paladin','Ranger','Shaman']);
   const INT_CLASSES = A2?.INT_CLASSES || new Set(['Enchanter','Magician','Necromancer','Wizard','Shadow Knight','Bard']);
   const _manaKey = WIS_CLASSES.has(cls) ? 'wis' : INT_CLASSES.has(cls) ? 'int' : null;
-  if (_manaKey && weights[_manaKey] >= 2.0 && (baseTotals[_manaKey] || 0) >= 200) NO_CAP.add(_manaKey);
+  if (_manaKey && weights[_manaKey] >= 2.0 && (baseTotals[_manaKey] || 0) <= 255) NO_CAP.add(_manaKey);
   let total = 0;
   for (const k of STAT_KEYS_ALL) {
     const v = Number(itemData[k] || 0); if (!v) continue;
@@ -2305,8 +2353,15 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
     const hasteVal = Number(itemData.haste || 0);
     const CLASS_STAT_THRESHOLDS_gc = A2?.CLASS_STAT_THRESHOLDS || {};
     const hasteThresh = (CLASS_STAT_THRESHOLDS_gc[cls] || {}).haste || 41;
-    // Haste comes from a single item — score standalone, capped at 41
-    const cappedHaste = Math.min(hasteVal, hasteThresh);
+    // EQ haste only applies from a single item (no stacking) — mirrors index.html
+    // effectiveGain() and gcCompare()'s scoreVal(). baseTotals.haste is the highest
+    // haste value among all currently-equipped items. If this item IS that source,
+    // other slots contribute 0; otherwise other slots already supply baseTotals.haste.
+    const curBestHaste = baseTotals.haste || 0;
+    const slotHaste = curSlotHaste != null ? Number(curSlotHaste) : curBestHaste;
+    const baseHasteWithoutSlot = (slotHaste >= curBestHaste) ? 0 : curBestHaste;
+    const otherHaste = (hasteVal > 0 && hasteVal > baseHasteWithoutSlot) ? 0 : baseHasteWithoutSlot;
+    const cappedHaste = Math.min(otherHaste + hasteVal, hasteThresh) - Math.min(otherHaste, hasteThresh);
     total += cappedHaste * weights.haste;
   }
   // ── Flowing Thought mana regen scoring (mirrors index.html effectiveGain) ──
@@ -2315,13 +2370,14 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
     const FT_MANA_PER_TIER = A2?.FT_MANA_PER_TIER || 75;
     total += Number(itemData._ft) * FT_MANA_PER_TIER * (weights.manabonus || 1.0);
   }
-  // ── Weapon DPS scoring (mirrors index.html weaponDpsScore + CLASS_WEAPON_DPS_SCALE) ──
-  if (slot && cls && window._wdpsScore) {
+  // ── Weapon dmg scoring — uses dmg weight from CLASS_STAT_WEIGHTS via getStatWeights ──
+  // Mirrors index.html effectiveGain: ratio = weaponDpsScore() result, scaled by weights.dmg
+  const dmgW = weights.dmg || 0;
+  const WEP_SLOTS_GC = new Set(['PRIMARY','SECONDARY','RANGE','TWOHANDER']);
+  if (dmgW > 0 && slot && WEP_SLOTS_GC.has(slot) && window._wdpsScore) {
     const effSlot = slot === 'TWOHANDER' ? 'PRIMARY' : slot;
-    const rawDps = window._wdpsScore(itemData, effSlot, cls, level || 60, dex || (baseTotals.dex || 175));
-    const CLASS_WEAPON_DPS_SCALE = {Warrior:10,Paladin:8,'Shadow Knight':8,Monk:10,Rogue:9,Ranger:10,Bard:4};
-    const scale = CLASS_WEAPON_DPS_SCALE[cls] || 0;
-    total += rawDps * scale;
+    const ratio = window._wdpsScore(itemData, effSlot, cls, level || 60, dex || (baseTotals.dex || 175));
+    total += ratio * dmgW;
   }
   return Math.round(total * 10) / 10;
 }
@@ -2503,6 +2559,7 @@ function gcPopulateSlotDropdown(charName) {
 
   slotSel.innerHTML = '<option value="">— Choose a slot —</option>';
 
+  const GC_SLOT_DISPLAY = { TWOHANDER: '2H WEAPON' };
   const usedSlots = new Set();
   const missingSlots = [];
   for (const slot of GC_SLOT_ORDER) {
@@ -2516,11 +2573,12 @@ function gcPopulateSlotDropdown(charName) {
 
     const opt = document.createElement('option');
     opt.value = slot;
+    const slotLabel = GC_SLOT_DISPLAY[slot] || slot;
 
     if (isEmpty) {
       const gainStr = topCand ? ` ▲+${topCand.score}` : '';
       const candShort = topCand ? (topCand.name.length > 22 ? topCand.name.slice(0,22)+'…' : topCand.name) : '—';
-      opt.textContent = `${slot} — (empty) → ${candShort}${gainStr}`;
+      opt.textContent = `${slotLabel} — (empty) → ${candShort}${gainStr}`;
       opt.style.color = topCand && topCand.score >= 15 ? '#4caf7d' : '#c9a84c';
       opt.style.fontStyle = 'italic';
     } else {
@@ -2529,7 +2587,7 @@ function gcPopulateSlotDropdown(charName) {
         ? (gain > 0 ? ` ▲+${gain}` : gain < 0 ? ` ▼${gain}` : ' ●=')
         : '';
       const itemShort = eq.name.length > 28 ? eq.name.slice(0,28)+'…' : eq.name;
-      opt.textContent = `${slot} — ${itemShort} [${eq.score}pts${gainStr}]`;
+      opt.textContent = `${slotLabel} — ${itemShort} [${eq.score}pts${gainStr}]`;
       if (gain !== null && gain >= 15) opt.style.color = '#4caf7d';
       else if (gain !== null && gain >= 5) opt.style.color = '#c9a84c';
     }
@@ -2682,9 +2740,12 @@ function gcSearch(which) {
   const slot = document.getElementById('gc-slot')?.value || '';
 
   const ssCustom = A2 ? (A2.SS_CUSTOM_ITEMS || new Set()) : new Set();
+  // TWOHANDER slot maps to PRIMARY in the item DB — 2H weapons are stored as _slot=PRIMARY
+  const slotBase = gcBaseSlot(slot);
+  const slotMatch = slotBase === 'TWOHANDER' ? 'PRIMARY' : slotBase;
   const keys = Object.keys(db).filter(k => {
     if (!k.toLowerCase().includes(val)) return false;
-    if (slot && db[k]._slot && db[k]._slot !== gcBaseSlot(slot)) return false;
+    if (slot && db[k]._slot && db[k]._slot !== slotMatch) return false;
     if (ssCustom.has(k)) return false;
     if (k.startsWith('Custom ')) return false;
     if (!gcItemUsable(db[k])) return false;
@@ -2751,7 +2812,7 @@ function gcCompare() {
   const WIS_CLASSES_gc = A2.WIS_CLASSES || new Set(['Cleric','Druid','Paladin','Ranger','Shaman']);
   const INT_CLASSES_gc = A2.INT_CLASSES || new Set(['Enchanter','Magician','Necromancer','Wizard','Shadow Knight','Bard']);
   const _gcManaKey = WIS_CLASSES_gc.has(cls) ? 'wis' : INT_CLASSES_gc.has(cls) ? 'int' : null;
-  if (_gcManaKey && weights[_gcManaKey] >= 2.0 && (baseTotals[_gcManaKey] || 0) >= 200) NO_CAP.add(_gcManaKey);
+  if (_gcManaKey && weights[_gcManaKey] >= 2.0 && (baseTotals[_gcManaKey] || 0) <= 255) NO_CAP.add(_gcManaKey);
   const gcSlot     = gcBaseSlot(document.getElementById('gc-slot')?.value || (_gcItemA?.data?._slot) || '');
   const gcDex      = Math.min(255, baseTotals.dex || 175);
 
@@ -2781,7 +2842,8 @@ function gcCompare() {
           // otherHaste: if THIS item IS the haste source, other slots = 0.
           // If this item is NOT the haste source, other slots = baseTotals.haste.
           const curBestHaste = baseTotals.haste || 0;
-          const otherHaste = (v > 0 && v >= curBestHaste) ? 0 : curBestHaste;
+          const baseHasteWithoutSlot = (curSlotHaste >= curBestHaste) ? 0 : curBestHaste;
+          const otherHaste = (v > 0 && v > baseHasteWithoutSlot) ? 0 : baseHasteWithoutSlot;
           return (Math.min(otherHaste + v, hasteThresh) - Math.min(otherHaste, hasteThresh)) * w;
         }
         if (NO_CAP.has(k)) return v * w;
@@ -2808,8 +2870,7 @@ function gcCompare() {
     const WEP_SLOTS = new Set(['PRIMARY','SECONDARY','RANGE','TWOHANDER']);
     const effSlot = gcSlot === 'TWOHANDER' ? 'PRIMARY' : gcSlot;
     if (WEP_SLOTS.has(gcSlot) && window._wdpsScore) {
-      const CLASS_WEAPON_DPS_SCALE = {Warrior:10,Paladin:8,'Shadow Knight':8,Monk:10,Rogue:9,Ranger:10,Bard:4};
-      const scale = CLASS_WEAPON_DPS_SCALE[cls] || 0;
+      const scale = weights.dmg || 0;
       if (scale > 0) {
         const rawA = window._wdpsScore(dataA, effSlot, cls, level, gcDex);
         const rawB = window._wdpsScore(dataB, effSlot, cls, level, gcDex);
@@ -2819,9 +2880,18 @@ function gcCompare() {
           // Sub-rows: ratio, proc, backstab
           const dmgA = Number(dataA.dmg||0), delA = Number(dataA.delay||0);
           const dmgB = Number(dataB.dmg||0), delB = Number(dataB.delay||0);
-          const bonus = (level>=28&&effSlot==='PRIMARY') ? Math.floor((Math.min(level,60)-25)/3) : 0;
-          const ratioA = delA ? ((2*dmgA+(effSlot==='PRIMARY'?bonus:0))/delA).toFixed(3) : '—';
-          const ratioB = delB ? ((2*dmgB+(effSlot==='PRIMARY'?bonus:0))/delB).toFixed(3) : '—';
+          const lv60 = Math.min(level||60, 60);
+          function _calcBonus(itemD, del) {
+            if (lv60 < 28 || effSlot !== 'PRIMARY') return 0;
+            const it = (itemD._skill||itemD._itemType||'').toLowerCase();
+            const is2h = it.includes('2h') || it.includes('two');
+            if (is2h) return Math.floor(del * 0.000515 * Math.pow(lv60 - 28, 2.135));
+            return Math.floor((lv60 - 25) / 3);
+          }
+          const bonusA = _calcBonus(dataA, delA);
+          const bonusB = _calcBonus(dataB, delB);
+          const ratioA = delA ? ((dmgA+(effSlot==='PRIMARY'?bonusA:0))/delA).toFixed(3) : '—';
+          const ratioB = delB ? ((dmgB+(effSlot==='PRIMARY'?bonusB:0))/delB).toFixed(3) : '—';
           const procA = dataA._effect && (dataA._effectType||'').toLowerCase().includes('combat') ? dataA._effect : '';
           const procB = dataB._effect && (dataB._effectType||'').toLowerCase().includes('combat') ? dataB._effect : '';
           rows.push({
@@ -2829,7 +2899,7 @@ function gcCompare() {
             suffix:'', va:ratioA, vb:ratioB, w:scale,
             scoreA, scoreB, capState:'',
             isWeapon:true,
-            extra: `dmg/delay: A=${dmgA}/${delA} B=${dmgB}/${delB}  +bonus:${bonus}  proc: A=${procA||'—'} B=${procB||'—'}`
+            extra: `dmg/delay: A=${dmgA}/${delA} B=${dmgB}/${delB}  +bonus: A=${bonusA} B=${bonusB}  proc: A=${procA||'—'} B=${procB||'—'}`
           });
         }
       }
@@ -2856,8 +2926,9 @@ function gcCompare() {
     return rows;
   }
 
-  const totalA = Math.round(gcScoreItem(_gcItemA.data, weights, baseTotals, hpPerSta, gcSlot, cls, level, gcDex) * 10) / 10;
-  const totalB = Math.round(gcScoreItem(_gcItemB.data, weights, baseTotals, hpPerSta, gcSlot, cls, level, gcDex) * 10) / 10;
+  const curSlotHaste = Number(_gcItemA.data.haste || 0);
+  const totalA = Math.round(gcScoreItem(_gcItemA.data, weights, baseTotals, hpPerSta, gcSlot, cls, level, gcDex, curSlotHaste) * 10) / 10;
+  const totalB = Math.round(gcScoreItem(_gcItemB.data, weights, baseTotals, hpPerSta, gcSlot, cls, level, gcDex, curSlotHaste) * 10) / 10;
   const winner = totalA > totalB ? 'a' : totalB > totalA ? 'b' : 'tie';
   const delta  = Math.round((totalB - totalA) * 10) / 10;
 
@@ -3444,5 +3515,47 @@ async function deleteFeedback(id){
     if(error)throw error;
     loadFeedback();
   }catch(e){alert('Delete failed: '+String(e));}
+}
+
+async function loadActiveUsers(){
+  const list=document.getElementById('activeusers-list');
+  const countEl=document.getElementById('activeusers-count');
+  if(!list)return;
+  list.innerHTML='<div style="color:var(--text-m);font-size:.8rem;padding:.5rem 0">Loading…</div>';
+  if(countEl)countEl.textContent='';
+  const sb=A.sb;
+  if(!sb){list.innerHTML='<div style="color:#a03030;font-size:.8rem;padding:.5rem 0">Not connected — open Admin from within MixelParse.</div>';return;}
+  try{
+    const{data,error}=await sb.from('user_activity').select('*').order('last_login',{ascending:false});
+    if(error)throw error;
+    if(!data||!data.length){
+      list.innerHTML='<div style="color:var(--text-m);font-size:.8rem;padding:.5rem 0">No login activity recorded yet.</div>';
+      if(countEl)countEl.textContent='0 users';
+      return;
+    }
+    const now=Date.now();
+    const activeCutoff=7*24*60*60*1000; // 7 days — "recently active" threshold for the count summary
+    const recentCount=data.filter(function(row){return row.last_login&&(now-new Date(row.last_login).getTime())<activeCutoff;}).length;
+    if(countEl)countEl.textContent=data.length+' total user'+(data.length!==1?'s':'')+' &middot; '+recentCount+' active in last 7 days';
+    list.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:.82rem">'
+      +'<thead><tr style="text-align:left;border-bottom:1px solid var(--border2)">'
+      +'<th style="padding:.4rem .6rem;color:var(--text-m);font-weight:600">Email</th>'
+      +'<th style="padding:.4rem .6rem;color:var(--text-m);font-weight:600">Last Login</th>'
+      +'<th style="padding:.4rem .6rem;color:var(--text-m);font-weight:600;text-align:right">Login Count</th>'
+      +'</tr></thead><tbody>'
+      +data.map(function(row){
+        const date=row.last_login?new Date(row.last_login).toLocaleString():'—';
+        const isRecent=row.last_login&&(now-new Date(row.last_login).getTime())<activeCutoff;
+        const dotColor=isRecent?'#3a7a3a':'var(--text-m)';
+        return '<tr style="border-bottom:1px solid var(--border2)">'
+          +'<td style="padding:.4rem .6rem;color:var(--text-d)"><span style="display:inline-block;width:.5rem;height:.5rem;border-radius:50%;background:'+dotColor+';margin-right:.4rem"></span>'+esc2(row.email||'Unknown')+'</td>'
+          +'<td style="padding:.4rem .6rem;color:var(--text-d)">'+esc2(date)+'</td>'
+          +'<td style="padding:.4rem .6rem;color:var(--text-d);text-align:right">'+(row.login_count||1)+'</td>'
+          +'</tr>';
+      }).join('')
+      +'</tbody></table>';
+  }catch(e){
+    list.innerHTML='<div style="color:#a03030;font-size:.8rem;padding:.5rem 0">Error: '+esc2(String(e))+'</div>';
+  }
 }
 </script>
