@@ -141,6 +141,10 @@
   .upg-section-wrap{border:1px solid var(--border);border-radius:0 0 5px 5px;overflow:hidden;margin-bottom:.75rem}
   .upg-section-toggle{background:none;border:none;color:var(--text-muted);font-size:.75rem;cursor:pointer;padding:0;margin-left:auto;font-family:'Cinzel',serif;letter-spacing:.05em}
   .upg-big-bar{height:4px;border-radius:2px;margin-top:3px}
+  .upg-budget-tabs{display:flex;gap:2px;flex-wrap:wrap}
+  .upg-budget-tab{background:none;border:1px solid var(--border);border-radius:4px;color:var(--text-muted);font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.06em;cursor:pointer;padding:.2rem .55rem;transition:background .12s,color .12s}
+  .upg-budget-tab:hover{background:rgba(160,120,50,.08);color:var(--text)}
+  .upg-budget-tab.upg-budget-active{background:rgba(160,120,50,.18);border-color:var(--border-glow);color:var(--gold)}
     .upg-slot-card{border:1px solid var(--border);border-radius:5px;overflow:hidden}
   .upg-slot-head{display:flex;align-items:center;gap:.6rem;padding:.35rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border)}
   .upg-slot-label{font-family:\'Cinzel\',serif;font-size:.6rem;letter-spacing:.09em;color:var(--text-muted);text-transform:uppercase}
@@ -224,6 +228,17 @@
   .gpr-cost-dkp{font-family:\'Cinzel\',serif;font-size:.72rem;color:var(--gold);white-space:nowrap}
   .gpr-cost-plat{font-family:\'Cinzel\',serif;font-size:.72rem;color:#6a9a4a;white-space:nowrap}
   .gpr-none{color:var(--text-muted);font-style:italic;font-family:\'Crimson Pro\',serif;font-size:.85rem;opacity:.5}
+  .gpr-edit-btn{font-size:.7rem;color:var(--text-muted);cursor:pointer;opacity:.55;transition:opacity .15s,color .15s;margin-left:.4rem;vertical-align:middle}
+  .gpr-edit-btn:hover{opacity:1;color:var(--gold-light)}
+  .gpr-pick-search{width:100%;background:transparent;color:var(--text-main);border:1px solid var(--border);padding:.4rem .6rem;border-radius:4px;font-size:.85rem;margin-bottom:.6rem;box-sizing:border-box}
+  .gpr-pick-list{max-height:50vh;overflow-y:auto;border:1px solid var(--border);border-radius:4px}
+  .gpr-pick-row{padding:.45rem .65rem;border-bottom:1px solid rgba(74,58,26,.12);cursor:pointer;font-size:.85rem;color:var(--text-main);display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+  .gpr-pick-row:last-child{border-bottom:none}
+  .gpr-pick-row:hover{background:rgba(160,120,50,.1);color:var(--gold-light)}
+  .gpr-pick-row-meta{font-size:.7rem;color:var(--text-muted);white-space:nowrap}
+  .gpr-pick-empty{padding:.6rem;color:var(--text-muted);font-style:italic;font-size:.82rem;text-align:center}
+  .gpr-pick-clear{font-size:.75rem;color:var(--text-muted);cursor:pointer;text-decoration:underline;padding:.4rem .65rem;display:block}
+  .gpr-pick-clear:hover{color:#a03030}
   .gpr-totals{display:flex;gap:1.5rem;padding:.6rem .75rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px;margin-top:.85rem;flex-wrap:wrap}
   .gpr-total-item{display:flex;flex-direction:column;gap:.15rem}
   .gpr-total-label{font-family:\'Cinzel\',serif;font-size:.55rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase}
@@ -775,7 +790,39 @@
   </div>
 </div>
 
+<!-- Gear Plan Slot Edit Modal -->
+<div class="wl-modal-overlay" id="gprEditOverlay">
+  <div class="wl-modal" style="max-width:420px">
+    <div class="wl-modal-title">Edit Slot — <span id="gprEditSlotLabel"></span></div>
+    <input type="text" id="gprEditSearch" class="gpr-pick-search" placeholder="Search items for this slot...">
+    <div id="gprEditClear" class="gpr-pick-clear" onclick="gprEditApplyPick(null)">✕ Clear selection (no upgrade for this slot)</div>
+    <div id="gprEditList" class="gpr-pick-list"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:.75rem">
+      <button class="btn" onclick="gprEditClose()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- Watch List Modal -->
+
+<div class="wl-modal-overlay" id="bwlModalOverlay" style="display:none">
+  <div class="wl-modal">
+    <div class="wl-modal-title">&#128176; Banker Watch List Configuration</div>
+    <div class="wl-modal-input-row">
+      <input type="text" class="wl-modal-input" id="bwlInput" placeholder="Item name (exact match)…">
+      <button class="btn p" onclick="bwlAdd()">Add</button>
+    </div>
+    <div class="wl-shortcut" style="margin-top:.4rem">
+      <div>Quick add:</div>
+      <div class="wl-shortcut-chips" id="bwlShortcuts"></div>
+    </div>
+    <div class="wl-item-list" id="bwlItemList"></div>
+    <div style="display:flex;justify-content:flex-end">
+      <button class="btn" onclick="bwlClose()">Done</button>
+    </div>
+  </div>
+</div>
+
 <div class="wl-modal-overlay" id="wlModalOverlay">
   <div class="wl-modal">
     <div class="wl-modal-title">⚔ Watch List Configuration</div>
@@ -1064,6 +1111,13 @@ const MELEE_DPS_CLASSES=new Set(['Warrior','Monk','Rogue','Ranger','Bard','Palad
 // Classes that get ONE weapon (MH only) — no dual-wield, so SECONDARY is shields/offhands only.
 // weaponDpsScore returns 0 for these classes in the SECONDARY slot.
 const CLASS_NO_DW=new Set(['Paladin','Shadow Knight']);
+// Per-class dual wield skill cap and MaxSkill denominator.
+// DW chance = (PC_Level + DW_Skill) / DW_MAX_SKILL, capped at DW_SKILL_CAP.
+// Values derived from P99 wiki Game Mechanics DW table (lv60 observed chances).
+// Monk 78%=(252+60)/400, Rogue 76.25%=(245+60)/400, Ranger 75%=(240+60)/400,
+// Bard 67.5%=(210+60)/400, Warrior 63.16%=(240+60)/475.
+const DW_SKILL_CAP={'Monk':252,'Rogue':245,'Ranger':240,'Bard':210,'Warrior':240};
+const DW_MAX_SKILL={'Monk':400,'Rogue':400,'Ranger':400,'Bard':400,'Warrior':475};
 // Classes that can equip shields in SECONDARY slot (WAR: shield or weapon; PAL/SHD: shield only).
 const CLASS_SHIELD_OK=new Set(['Warrior','Paladin','Shadow Knight']);
 
@@ -1088,20 +1142,70 @@ const CLASS_WEAPON_SKILLS={
 //        so the planner doesn't over-rank pure ratio over other stats
 //   RNG: full DW melee, weapon matters — same as WAR baseline
 //   BRD: rarely melees in raid context (song twisting); weapon DPS is real but tertiary
-const CLASS_WEAPON_DPS_SCALE={
-  'Warrior':      10.0,
-  'Paladin':       8.0, // hybrid; MH only
-  'Shadow Knight': 8.0, // hybrid; MH only
-  'Monk':         10.0, // full DPS, weapon matters (H2H innate vs weapon is per-item)
-  'Rogue':         9.0, // backstab now modeled — full weight restored
-  'Ranger':       10.0, // full DW melee + hybrid; full weight
-  'Bard':          4.0, // song twisting > melee; proc > ratio for BRD
+// Lucy damage bonus table — source: https://lucy.allakhazam.com/dmgbonus.html
+// Indexed as LUCY_DMG_BONUS[delay][levelIndex] where levelIndex = level-28 (levels 28-65).
+// Delays not explicitly listed use nearest-delay clamping via lucyDmgBonus().
+// 1H weapons (delay < 28, or any non-2H) use the _1h row.
+const LUCY_DMG_BONUS={
+  _1h:[1,1,1,2,2,2,3,3,3,4,4,4,5,5,5,6,6,6,7,7,7,8,8,8,9,9,9,10,10,10,11,11,11,12,12,12,13,13],
+  15:[2,2,2,3,3,3,4,4,4,5,5,5,6,6,6,7,7,7,8,8,8,9,9,9,10,10,10,11,11,11,12,12,12,13,13,13,14,14],
+  20:[2,2,2,3,3,3,4,4,4,5,5,5,6,6,6,7,7,7,8,8,8,9,9,9,10,10,10,11,11,11,12,12,12,13,13,13,14,14],
+  28:[1,1,2,3,3,3,4,5,5,6,6,6,8,8,8,9,9,10,11,11,11,12,13,14,16,17,17,21,21,23,25,26,28,30,31,31,33,35],
+  29:[1,1,2,3,3,3,4,5,5,6,6,6,8,8,8,9,9,10,11,11,11,12,13,14,16,17,17,21,22,23,25,26,29,30,31,32,34,35],
+  30:[1,1,2,3,3,3,4,5,5,6,6,6,8,8,8,9,9,10,11,11,11,12,13,14,16,17,18,21,22,23,25,27,29,31,32,32,34,36],
+  31:[1,1,2,3,3,3,4,5,5,6,6,6,8,8,8,9,9,10,11,11,11,12,13,14,16,17,18,21,22,23,25,27,29,31,32,33,34,36],
+  32:[1,1,2,3,3,3,4,5,5,6,6,6,8,8,8,9,9,10,11,11,11,12,13,14,16,17,18,21,22,24,26,27,30,32,32,33,35,37],
+  33:[1,1,2,3,3,3,4,5,5,6,6,6,8,8,8,9,9,10,11,11,11,12,13,14,16,17,18,21,22,24,26,27,30,32,33,34,35,37],
+  34:[1,1,2,3,3,3,4,5,5,6,6,6,8,8,8,9,9,10,11,11,11,12,13,14,16,17,18,22,22,24,26,28,30,32,33,34,36,38],
+  35:[1,1,2,3,3,3,4,5,5,6,6,6,8,8,8,9,9,10,11,11,11,12,13,14,16,17,18,22,23,24,26,28,31,33,34,34,36,38],
+  36:[1,1,2,3,3,3,4,5,5,6,6,6,8,8,8,9,9,10,11,11,11,12,13,14,16,17,18,22,23,25,27,28,31,33,34,35,37,39],
+  37:[1,1,2,3,3,3,4,5,5,6,6,6,8,8,8,9,9,10,11,11,11,12,13,14,16,17,18,22,23,25,27,29,31,33,34,35,37,39],
+  38:[1,1,2,3,3,3,4,5,5,6,6,6,8,8,8,9,9,10,11,11,11,12,13,14,16,17,18,22,23,25,27,29,32,34,35,36,38,40],
+  39:[1,1,2,3,3,3,4,5,5,6,6,6,8,8,8,9,9,10,11,11,11,12,13,14,16,17,18,22,23,25,27,29,32,34,35,36,38,40],
+  40:[2,2,3,4,4,4,5,6,6,7,7,7,9,9,9,10,10,11,12,12,12,13,14,16,18,19,20,24,25,27,29,31,34,36,37,38,40,42],
+  41:[2,2,3,4,4,4,5,6,6,7,7,7,9,9,9,10,10,11,12,12,12,13,14,16,18,19,20,24,25,27,29,31,34,36,37,38,40,42],
+  42:[2,2,3,4,4,4,5,6,6,7,7,7,9,9,9,10,10,11,12,12,12,13,14,16,18,19,20,24,25,27,29,31,34,36,37,38,40,42],
+  43:[4,4,5,6,6,6,7,8,8,9,9,9,11,11,11,12,12,13,14,14,14,15,16,18,20,21,22,26,27,29,31,33,37,39,40,41,43,45],
+  44:[4,4,5,6,6,6,7,8,8,9,9,9,11,11,11,12,12,13,14,14,14,15,16,18,20,21,22,26,27,29,32,34,37,39,40,41,43,45],
+  45:[5,5,6,7,7,7,8,9,9,10,10,10,12,12,12,13,13,14,15,15,15,16,17,19,21,22,23,27,28,31,33,35,38,40,42,43,45,47],
+  46:[6,6,7,8,8,8,9,10,10,11,11,11,13,13,13,14,14,15,16,16,16,17,18,20,22,23,24,28,30,32,34,36,40,42,43,44,46,48],
+  47:[6,6,7,8,8,8,9,10,10,11,11,11,13,13,13,14,14,15,16,16,16,17,18,20,22,23,24,29,30,32,34,37,40,42,43,44,47,49],
+  48:[6,6,7,8,8,8,9,10,10,11,11,11,13,13,13,14,14,15,16,16,16,17,18,20,22,23,24,29,30,32,35,37,40,43,44,45,47,49],
+  49:[7,7,8,9,9,9,10,11,11,12,12,12,14,14,14,15,15,16,17,17,17,18,19,21,23,24,25,30,31,34,36,38,42,44,45,46,49,51],
+  50:[7,7,8,9,9,9,10,11,11,12,12,12,14,14,14,15,15,16,17,17,17,18,19,21,23,24,26,30,31,34,36,39,42,44,46,47,49,51],
+  51:[7,7,8,9,9,9,10,11,11,12,12,12,14,14,14,15,15,16,17,17,17,18,19,21,23,24,26,30,31,34,36,39,42,45,46,47,49,52],
+  52:[8,8,9,10,10,10,11,12,12,13,13,13,15,15,15,16,16,17,18,18,18,19,20,22,24,25,27,31,33,35,38,40,44,46,47,49,51,53],
+  53:[8,8,9,10,10,10,11,12,12,13,13,13,15,15,15,16,16,17,18,18,18,19,20,22,24,25,27,31,33,35,38,40,44,46,48,49,51,54],
+  54:[8,8,9,10,10,10,11,12,12,13,13,13,15,15,15,16,16,17,18,18,18,19,20,22,24,26,27,32,33,36,38,41,44,47,48,49,52,54],
+  55:[9,9,10,11,11,11,12,13,13,14,14,14,16,16,16,17,17,18,19,19,19,20,21,23,25,27,28,33,34,37,39,42,46,48,50,51,53,56],
+  56:[9,9,10,11,11,11,12,13,13,14,14,14,16,16,16,17,17,18,19,19,19,20,21,23,25,27,28,33,34,37,40,42,46,49,50,51,54,56],
+  57:[9,9,10,11,11,11,12,13,13,14,14,14,16,16,16,17,17,18,19,19,19,20,21,23,25,27,28,33,34,37,40,43,46,49,50,52,54,57],
+  58:[10,10,11,12,12,12,13,14,14,15,15,15,17,17,17,18,18,19,20,20,20,21,22,24,26,28,29,34,36,39,41,44,48,50,52,53,56,58],
+  59:[10,10,11,12,12,12,13,14,14,15,15,15,17,17,17,18,18,19,20,20,20,21,22,24,26,28,29,34,36,39,41,44,48,51,52,54,56,59],
+  60:[10,10,11,12,12,12,13,14,14,15,15,15,17,17,17,18,18,19,20,20,20,21,22,24,27,28,30,35,36,39,42,45,49,51,53,54,57,59],
+  70:[14,14,15,16,16,16,17,18,18,19,19,19,21,21,21,22,22,23,24,24,24,25,26,28,31,33,35,40,42,45,48,52,56,59,61,62,65,68],
+  85:[19,19,20,21,21,21,22,23,23,24,24,24,26,26,26,27,27,28,29,29,29,30,31,34,37,39,41,47,49,54,57,61,66,69,72,74,77,80],
+  95:[22,22,23,24,24,24,25,26,26,27,27,27,29,29,29,30,30,31,32,32,32,33,34,37,40,43,45,52,54,59,62,67,73,76,79,81,84,88],
+  150:[40,40,41,42,42,42,43,44,44,45,45,45,47,47,47,48,48,49,50,50,50,51,52,56,61,65,69,78,82,89,94,102,110,115,119,122,127,132],
 };
+const _LUCY_KEYS=[15,20,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,70,85,95,150];
+function lucyDmgBonus(delay,level){
+  const lv=Math.max(28,Math.min(65,level||60));
+  const li=lv-28;
+  const d=Math.max(0,delay||0);
+  if(LUCY_DMG_BONUS[d]!==undefined)return LUCY_DMG_BONUS[d][li];
+  if(d<15)return LUCY_DMG_BONUS._1h[li];
+  if(d>150)return LUCY_DMG_BONUS[150][li];
+  const best=_LUCY_KEYS.reduce((a,b)=>Math.abs(b-d)<Math.abs(a-d)?b:a);
+  return LUCY_DMG_BONUS[best][li];
+}
 
 // Compute weapon DPS score for a single item in a given slot context.
 // Returns a numeric score suitable for adding to effectiveGain.
 // slot: 'PRIMARY', 'SECONDARY', or 'RANGE'; charClass string; charLevel number
 function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
+  // TWOHANDER is the virtual card slot — treat as PRIMARY for DPS scoring
+  if(slot==='TWOHANDER')slot='PRIMARY';
   const dmg=Number(itemData.dmg||0);
   const delay=Number(itemData.delay||0);
   const lv=Math.min(charLevel||60,60);
@@ -1162,27 +1266,35 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
   const h2hFactor=isH2H?0.9722:1.0;
 
   // Damage bonus (MH only, fires every swing)
-  // 1H: floor((level-25)/3) = 11 at 60
-  // 2H: floor(delay*37/44) — Velious formula
+  // 1H: floor((level-25)/3) — e.g. 11 at lv60
+  // 2H: power-curve fit to two verified P99 wiki data points:
+  //     lv60/delay44 → bonus 37 (SHD wiki example); lv50/delay45 → bonus 17 (doc table).
+  //     Formula: floor(delay * k * (lv-28)^n) where k≈0.000515, n≈2.135.
+  //     This produces 0 at lv28, 17 at lv50/d45, 37 at lv60/d44 — matches both points.
   // OH: no bonus
   let bonus=0;
   if(lv>=28&&slot==='PRIMARY'){
-    bonus=is2h?Math.floor(delay*37/44):Math.floor((lv-25)/3);
+    // Lucy damage bonus table — exact values for all delay/level combos
+    bonus=lucyDmgBonus(delay,lv);
   }
 
   // Proc DPS — MH full rate, OH half rate
   const effect=itemData._effect||'';
   const effectType=itemData._effectType||'';
   const hasCombatProc=effect&&effectType&&effectType.toLowerCase().includes('combat');
-  const procDmg=hasCombatProc?(PROC_DB[effect]||35):0;
+  const procDmg=hasCombatProc?(PROC_DB[effect]!==undefined?PROC_DB[effect]:35):0;
   const dex=Math.min(255,baseTotals&&baseTotals.dex?baseTotals.dex:175);
   const ppm=(dex/170)+0.5;
-  const dwSkill=Math.min((lv+1)*7,252);
-  const dwChance=(dwSkill+lv)/400;
+  // DW chance = (level + skill) / MaxSkill; skill and MaxSkill are class-specific.
+  // Skill cap approximated as min(max_skill_cap, (lv+1)*7) — scales with level.
+  const dwSkillCap=DW_SKILL_CAP[charClass]||252;
+  const dwMaxSkill=DW_MAX_SKILL[charClass]||400;
+  const dwSkill=Math.min((lv+1)*7,dwSkillCap);
+  const dwChance=Math.min((dwSkill+lv)/dwMaxSkill,1.0);
   const procDps=slot==='SECONDARY'?(ppm*0.5*dwChance*procDmg/60):(ppm*procDmg/60);
 
   // Ratio: OH gets no damage bonus; H2H weapons scaled by h2hFactor (~0.9722)
-  const ratio=slot==='SECONDARY'?((2*d)/delay)*h2hFactor*dwChance:(((2*d+bonus)/delay)*h2hFactor);
+  const ratio=slot==='SECONDARY'?(d/delay)*h2hFactor*dwChance:(((d+bonus)/delay)*h2hFactor);
 
   // ── ROG backstab bonus (piercing PRIMARY only) ───────────────────────────────
   // Backstab formula: (Backstab_skill × weapon_dmg) / 50
@@ -1201,8 +1313,6 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
   return ratio+procDps+backstabBonus;
 }
 
-// Flat scale fallback (used if class not in CLASS_WEAPON_DPS_SCALE)
-const WEAPON_DPS_SCALE=10.0;
 
 
 // Base weights per class. Keys match STAT_KEYS_ALL: str/sta/dex/agi/wis/int/cha/svpoison/svmagic/svdisease/svfire/svcold/hpbonus/manabonus
@@ -1211,43 +1321,42 @@ const CLASS_STAT_WEIGHTS = {
   // ── Melee / hybrid classes ──────────────────────────────────────────────────
   // WAR: pure tank — STA and AC dominate; DEX for proc rate; haste near-cap means slightly
   //      less value once gear haste is close to 41% (threshold handles that dynamically)
-  'Warrior':       {str:3.0,   sta:6.0,  dex:1.5,   agi:0.5,   wis:0.0001,int:0.0001,cha:0.0001,ac:5.0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:0.0001,haste:8.0},
-  // PAL: hybrid tank/healer — STA+AC for tanking, WIS for mana/heals, DEX for proc rate;
-  //      no dual wield so OH slot is shield/stat; haste lower than WAR (hybrid spending)
-  'Paladin':       {str:2.5,   sta:5.0,  dex:1.5,   agi:0.0001,wis:3.5,   int:0.0001,cha:0.5,   ac:3.5,  svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.5,  haste:5.0},
+  'Warrior':       {str:3.0,   sta:6.0,  dex:1.5,   agi:0.5,   wis:0.0001,int:0.0001,cha:0.0001,ac:5.0,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:0.0001,haste:8.0,  dmg:10.0},
+  // PAL: hybrid tank — MH only; Flash of Light stun while meleeing; WIS for mana
+  'Paladin':       {str:2.5,   sta:5.0,  dex:1.5,   agi:0.0001,wis:3.5,   int:0.0001,cha:0.5,   ac:3.5,  svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.5,  haste:5.0,  dmg:8.0},
   // MNK: DPS with AC from AGI+gear; H2H/1HB/2HB only; DEX for proc rate; low AC weight
   //      because MNK AC scales heavily with AGI and level (not raw AC on items)
-  'Monk':          {str:3.5,   sta:3.0,  dex:1.5,   agi:2.5,   wis:0.0001,int:0.0001,cha:0.0001,ac:1.5,  svpoison:0.5,svmagic:0.5,svdisease:0.5,svfire:0.5,svcold:0.5,hpbonus:1.5,manabonus:0.0001,haste:7.0},
+  'Monk':          {str:3.5,   sta:3.0,  dex:1.5,   agi:2.5,   wis:0.0001,int:0.0001,cha:0.0001,ac:1.5,  svpoison:0.5,svmagic:0.5,svdisease:0.5,svfire:0.5,svcold:0.5,hpbonus:1.5,manabonus:0.0001,haste:7.0,  dmg:10.0},
   // ROG: pure DPS — STR for damage, DEX for backstab/proc rate, AGI for avoidance; no AC
   //      piercing MH for backstab; weapon scoring partial (no backstab formula yet)
-  'Rogue':         {str:4.0,   sta:3.5,  dex:2.5,   agi:1.5,   wis:0.0001,int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:0.0001,haste:7.0},
+  'Rogue':         {str:4.0,   sta:3.5,  dex:2.5,   agi:1.5,   wis:0.0001,int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:0.0001,haste:7.0,  dmg:9.0},
   // SHD: hybrid tank — INT for lifetap/harm touch mana, AC for survivability, STR for DPS;
-  //      no dual wield; slightly less AC priority than WAR but more than PAL
-  'Shadow Knight': {str:2.5,   sta:5.0,  dex:1.5,   agi:0.5,   wis:0.0001,int:4.0,   cha:0.0001,ac:3.5,  svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.5,  haste:5.0},
-  // RNG: hybrid DPS — STR for melee, WIS for mana (buff/heal utility), DEX for proc+archery;
-  //      full DW; lower AC priority (leather/chain hybrid); archery scored (2× dmg/delay lv50+)
-  'Ranger':        {str:2.5,   sta:3.5,  dex:2.0,   agi:0.5,   wis:3.5,   int:0.0001,cha:0.0001,ac:1.0,  svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.5,  haste:6.0},
+  //      no dual wield; Engulfing Darkness while meleeing
+  'Shadow Knight': {str:4.0,   sta:5.0,  dex:1.5,   agi:0.5,   wis:0.0001,int:4.0,   cha:0.0001,ac:3.5,  svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.5,  haste:5.0,  dmg:9.0},
+  // RNG: hybrid DPS — STR for melee, WIS for mana (utility), DEX for proc+archery;
+  //      full DW; archery also scored separately on RANGE slot (2× dmg/delay lv50+)
+  'Ranger':        {str:2.5,   sta:3.5,  dex:2.0,   agi:0.5,   wis:3.5,   int:0.0001,cha:0.0001,ac:1.0,  svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.5,  haste:6.0,  dmg:9.0},
   // BRD: song twisting > melee; CHA for charm/mez/slow cap; DEX for melee proc rate while
-  //      twisting; instrument mods not scored (future feature); weapon DPS scale = 4.0
-  'Bard':          {str:1.5,   sta:4.0,  dex:2.0,   agi:0.5,   wis:0.0001,int:0.0001,cha:4.0,   ac:1.5,  svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.0001,haste:6.0},
+  //      twisting; instrument mods not scored (future feature)
+  'Bard':          {str:1.5,   sta:4.0,  dex:2.0,   agi:0.5,   wis:0.0001,int:0.0001,cha:4.0,   ac:1.5,  svpoison:0.8,svmagic:0.8,svdisease:0.8,svfire:0.8,svcold:0.8,hpbonus:1.5,manabonus:0.0001,haste:6.0,  dmg:4.0},
   // ── Priest / support classes ─────────────────────────────────────────────────
   // CLR: WIS primary mana stat; plate wearer but rarely hit in raids so AC near-zero;
   //      mana > HP for raid Cleric (CH output > survivability); MR elevated (magic spells dominate)
-  'Cleric':        {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:5.0,   int:0.0001,cha:0.0001,ac:0.25, svpoison:1.0,svmagic:1.5,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.0,manabonus:1.5,  haste:0.0001},
+  'Cleric':        {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:5.0,   int:0.0001,cha:0.0001,ac:0.25, svpoison:1.0,svmagic:1.5,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.0,manabonus:1.5,  haste:0.0001,dmg:0.0001},
   // DRU: WIS primary; leather — AC doesn't matter; resist gear useful (SoV zones)
-  'Druid':         {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:5.0,   int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0,  haste:0.0001},
+  'Druid':         {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:5.0,   int:0.0001,cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0,  haste:0.0001,dmg:0.0001},
   // SHM: WIS primary; STA elevated (slows help survival, SHM solo a lot); chain — modest AC
-  'Shaman':        {str:0.5,   sta:3.5,  dex:0.0001,agi:0.5,   wis:5.0,   int:0.0001,cha:0.0001,ac:0.5,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0,  haste:0.0001},
+  'Shaman':        {str:0.5,   sta:3.5,  dex:0.0001,agi:0.5,   wis:5.0,   int:0.0001,cha:0.0001,ac:0.5,  svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:1.5,manabonus:1.0,  haste:0.0001,dmg:0.0001},
   // ── Int-caster classes ───────────────────────────────────────────────────────
   // ENC: INT for mana, CHA for charm/mez (caps ~205); resists useful (pulls aggro);
   //      CHA threshold applied dynamically via CLASS_STAT_THRESHOLDS
-  'Enchanter':     {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:4.0,   cha:5.0,   ac:0.0001,svpoison:1.2,svmagic:1.2,svdisease:1.2,svfire:1.2,svcold:1.2,hpbonus:2.0,manabonus:1.0,  haste:0.0001},
+  'Enchanter':     {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:4.0,   cha:5.0,   ac:0.0001,svpoison:1.2,svmagic:1.2,svdisease:1.2,svfire:1.2,svcold:1.2,hpbonus:2.0,manabonus:1.0,  haste:0.0001,dmg:0.0001},
   // MAG: INT for mana; pure nuker/summoner — resists for survivability
-  'Magician':      {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:5.0,   cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0,  haste:0.0001},
+  'Magician':      {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:5.0,   cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0,  haste:0.0001,dmg:0.0001},
   // NEC: INT for mana; CHA for undead charming (moderate value on P99 Green)
-  'Necromancer':   {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:5.0,   cha:1.5,   ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0,  haste:0.0001},
+  'Necromancer':   {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:5.0,   cha:1.5,   ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0,  haste:0.0001,dmg:0.0001},
   // WIZ: INT for mana; pure nuker — nothing else matters for gear scoring
-  'Wizard':        {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:5.0,   cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0,  haste:0.0001},
+  'Wizard':        {str:0.0001,sta:2.0,  dex:0.0001,agi:0.0001,wis:0.0001,int:5.0,   cha:0.0001,ac:0.0001,svpoison:1.0,svmagic:1.0,svdisease:1.0,svfire:1.0,svcold:1.0,hpbonus:2.0,manabonus:1.0,  haste:0.0001,dmg:0.0001},
 };
 
 // INT/WIS caster classes — primary stat is the mana stat
@@ -1595,8 +1704,29 @@ const totalSTA=Math.min(255,base.stats[1]+gearSum.stats[1]);const manaKey=WIS_CL
 const statRows=STAT_LABELS.map((lbl,i)=>{const g=gearSum.stats[i],raw=base.stats[i]+g,t=Math.min(255,raw),over=raw>255?raw-255:0,gc=g>0?'pos':g<0?'neg':'zero';const overcapHtml=over>0?`<span style="font-size:.68rem;color:#3a7a3a;font-weight:600;min-width:1.8rem;text-align:left;padding-left:.25rem">(${over})</span>`:'<span style="min-width:1.8rem"></span>';return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${base.stats[i]}</span><span class="val-gear ${gc}">${g>=0?'+':''}${g}</span><span class="val-total">${t}</span>${overcapHtml}</div></div>`;}).join('');
 const resistRows=RESIST_LABELS.map((lbl,i)=>{const g=gearSum.resists[i],t=base.resists[i]+g,gc=g>0?'pos':g<0?'neg':'zero';return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${base.resists[i]}</span><span class="val-gear ${gc}">${g>=0?'+':''}${g}</span><span class="val-total">${t}</span><span style="min-width:1.8rem"></span></div></div>`;}).join('');
 const poolRows=POOL_LABELS.map((lbl,i)=>{if(i===1&&cls&&!MANA_CLASSES.has(cls))return '';const base_v=base.pools?.[i]||0;let gearBonus=i<2?gearSum.bonuses[i]:0;let total;if(i===0&&cls&&level&&HP_RATIOS[cls])total=calcHP(totalSTA,cls,level)+gearBonus;else if(i===1&&cls&&level&&MANA_CLASSES.has(cls))total=calcMana(totalManastat,level)+gearBonus;else total=base_v+gearBonus;const gc=gearBonus>0?'pos':gearBonus<0?'neg':'zero';const dispBase=total===base_v&&gearBonus===0?'&mdash;':base_v;return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${dispBase}</span><span class="val-gear ${gc}">${gearBonus>=0?'+':''}${gearBonus}</span><span class="val-total">${total}</span><span style="min-width:1.8rem"></span></div></div>`;}).join('');
-const hasteRow=`<div class="stat-row"><span class="stat-row-label">Haste</span><div class="stat-row-vals"><span class="val-base">&mdash;</span><span class="val-gear ${gearSum.haste>0?'pos':'zero'}">${gearSum.haste>0?'+'+gearSum.haste+'%':'0%'}</span><span class="val-total">${gearSum.haste}%</span><span style="min-width:1.8rem"></span></div></div>`;const breakdownRows=equipped.map(item=>{const gs=charGear[item.name];if(!gs)return `<tr><td>${esc(item.name)}</td>${STAT_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}${RESIST_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}${BONUS_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}</tr>`;return `<tr><td>${esc(item.name)}</td>${STAT_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}${RESIST_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}${BONUS_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}</tr>`;}).join('');
-return `<div class="stat-grid"><div class="stat-card"><div class="stat-card-title">PRIMARY STATS</div>${statRows}</div><div class="stat-card"><div class="stat-card-title">RESISTANCES</div>${resistRows}</div><div class="stat-card"><div class="stat-card-title">POOLS &amp; COMBAT</div>${poolRows}${hasteRow}</div></div><div class="legend">Base &middot; <span style="color:#3a7a3a">+Gear</span> &middot; <span style="color:var(--gold-light)">Total</span>${cls&&level?' &middot; HP/Mana calculated from stats at level '+level:' <span style="color:#a06020">&mdash; set class &amp; level for calculated HP/Mana</span>'}</div>${equipped.length?`<div class="gear-breakdown"><div class="gear-breakdown-title">GEAR BREAKDOWN</div><div style="overflow-x:auto"><table class="gear-table"><thead><tr><th>Item</th>${STAT_LABELS.map(l=>`<th>${l.slice(0,3)}</th>`).join('')}${RESIST_LABELS.map(l=>`<th>Sv${l.slice(0,2)}</th>`).join('')}<th>+HP</th><th>+Mana</th></tr></thead><tbody>${breakdownRows}</tbody></table></div></div>`:''}`;
+const hasteRow=`<div class="stat-row"><span class="stat-row-label">Haste</span><div class="stat-row-vals"><span class="val-base">&mdash;</span><span class="val-gear ${gearSum.haste>0?'pos':'zero'}">${gearSum.haste>0?'+'+gearSum.haste+'%':'0%'}</span><span class="val-total">${gearSum.haste}%</span><span style="min-width:1.8rem"></span></div></div>`;
+let dpsRows='';
+if(cls&&MELEE_DPS_CLASSES.has(cls)&&level){
+  const _sbMh=equipped.find(i=>{const s=i.location.toUpperCase();return s==='PRIMARY'||s==='WEAPON';});
+  const _sbOh=equipped.find(i=>{const s=i.location.toUpperCase();return s==='SECONDARY';});
+  const _sbBase={};STAT_KEYS.forEach((k,idx)=>{_sbBase[k]=Math.min(255,(base.stats[idx]||0)+gearSum.stats[idx]);});_sbBase.haste=gearSum.haste;
+  const _sbGetItem=name=>{const gs=charGear[name]||{},db=itemDBGet(name)||{};const m={};for(const k of[...Object.keys(db),...Object.keys(gs)]){if(!k.startsWith('_'))m[k]=Number(db[k]||0)||Number(gs[k]||0)||db[k]||gs[k];}Object.assign(m,Object.fromEntries(Object.entries(db).filter(([k])=>k.startsWith('_'))));Object.assign(m,Object.fromEntries(Object.entries(gs).filter(([k])=>k.startsWith('_'))));return m;};
+  const _sbMhD=_sbMh?_sbGetItem(_sbMh.name):null;
+  const _sbOhD=_sbOh?_sbGetItem(_sbOh.name):null;
+  const _sbMhSk=(_sbMhD&&(_sbMhD._skill||_sbMhD._itemType||'')).toLowerCase();
+  const _sbMhIs2h=_sbMhSk.includes('2h')||_sbMhSk.includes('two hand');
+  if(_sbMhD&&(_sbMhD.dmg||_sbMhD.delay)){
+    const _sbSlot=_sbMhIs2h?'TWOHANDER':'PRIMARY';
+    const _sbMhDps=weaponDpsScore(_sbMhD,_sbSlot,cls,level,_sbBase);
+    if(_sbMhDps>0){const _sbLbl=_sbMhIs2h?'2H DPS':'MH DPS';const _sbDisp=(Math.round(_sbMhDps*100)/10).toFixed(1);dpsRows+=`<div class="stat-row"><span class="stat-row-label">${_sbLbl}</span><div class="stat-row-vals"><span class="val-base">&mdash;</span><span class="val-gear zero"></span><span class="val-total">${_sbDisp}</span><span style="min-width:1.8rem"></span></div></div>`;}
+  }
+  if(!_sbMhIs2h&&_sbOhD&&(_sbOhD.dmg||_sbOhD.delay)){
+    const _sbOhDps=weaponDpsScore(_sbOhD,'SECONDARY',cls,level,_sbBase);
+    if(_sbOhDps>0){const _sbDisp=(Math.round(_sbOhDps*100)/10).toFixed(1);dpsRows+=`<div class="stat-row"><span class="stat-row-label">OH DPS</span><div class="stat-row-vals"><span class="val-base">&mdash;</span><span class="val-gear zero"></span><span class="val-total">${_sbDisp}</span><span style="min-width:1.8rem"></span></div></div>`;}
+  }
+}
+const breakdownRows=equipped.map(item=>{const gs=charGear[item.name];if(!gs)return `<tr><td>${esc(item.name)}</td>${STAT_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}${RESIST_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}${BONUS_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}</tr>`;return `<tr><td>${esc(item.name)}</td>${STAT_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}${RESIST_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}${BONUS_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}</tr>`;}).join('');
+return `<div class="stat-grid"><div class="stat-card"><div class="stat-card-title">PRIMARY STATS</div>${statRows}</div><div class="stat-card"><div class="stat-card-title">RESISTANCES</div>${resistRows}</div><div class="stat-card"><div class="stat-card-title">POOLS &amp; COMBAT</div>${poolRows}${hasteRow}${dpsRows}</div></div><div class="legend">Base &middot; <span style="color:#3a7a3a">+Gear</span> &middot; <span style="color:var(--gold-light)">Total</span>${cls&&level?' &middot; HP/Mana calculated from stats at level '+level:' <span style="color:#a06020">&mdash; set class &amp; level for calculated HP/Mana</span>'}</div>${equipped.length?`<div class="gear-breakdown"><div class="gear-breakdown-title">GEAR BREAKDOWN</div><div style="overflow-x:auto"><table class="gear-table"><thead><tr><th>Item</th>${STAT_LABELS.map(l=>`<th>${l.slice(0,3)}</th>`).join('')}${RESIST_LABELS.map(l=>`<th>Sv${l.slice(0,2)}</th>`).join('')}<th>+HP</th><th>+Mana</th></tr></thead><tbody>${breakdownRows}</tbody></table></div></div>`:''}`;
 }
 
 // ─── Gear Planner Panel ───────────────────────────────────────────────────────
@@ -1636,8 +1766,11 @@ function renderUpgradesPanel(){
     const t={};
     t._level = charLevel || 60; // expose level so getStatWeights can use mana formula
     if(base){STAT_KEYS.forEach((k,i)=>{t[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{t[k]=base.resists[i]||0;});if(base.pools)t.ac=base.pools[3]||0;}
+    const _bt2hMode=!!(window['_upgTwoHander_'+name]);
     for(const item of equipped){
       const dbSlot=invSlotToDBSlot(item.location);
+      // In 2H mode: MH and OH are treated as empty — exclude their stats from totals
+      if(_bt2hMode&&(dbSlot==='PRIMARY'||dbSlot==='SECONDARY'))continue;
       const _ov=(overrides&&overrides[dbSlot]),_cg3=charGear[item.name]||{},_db3=itemDBGet(item.name)||{};
       const data=_ov||{};
       for(const k of STAT_KEYS_ALL){const v=_ov?Number(_ov[k]||0):(Number(_db3[k]||0)||Number(_cg3[k]||0));if(v)t[k]=(t[k]||0)+v;}
@@ -1716,16 +1849,14 @@ function renderUpgradesPanel(){
       const effNh=Math.min(otherHaste+nh,hasteThresh);
       if(effNh-effCh)total+=(effNh-effCh)*hasteW;
     }
-    // Weapon DPS scoring — PRIMARY, SECONDARY, and RANGE slots for melee/hybrid classes
-    // Scores ratio + proc DPS delta between candidate and current item.
-    // Per-class scale reflects how much weapon quality matters relative to stats.
-    const wepSlots=new Set(['PRIMARY','SECONDARY','RANGE']);
-    if(MELEE_DPS_CLASSES.has(charClass)&&wepSlots.has(candData._slot)){
-      const slot=candData._slot;
-      const candDps=weaponDpsScore(candData,slot,charClass,charLevel,baseTotals);
-      const curDps=weaponDpsScore(curItemData,slot,charClass,charLevel,baseTotals);
-      const scale=CLASS_WEAPON_DPS_SCALE[charClass]||WEAPON_DPS_SCALE;
-      total+=(candDps-curDps)*scale;
+    // Weapon dmg scoring — dmg weight in CLASS_STAT_WEIGHTS; ratio = (dmg + lucyBonus) / delay
+    // Handled via STAT_KEYS_ALL if dmg is included, but dmg needs special ratio treatment.
+    // Score the delta in effective ratio between candidate and current item.
+    const dmgW=weights.dmg||0;
+    if(dmgW>0&&(candData._slot==='PRIMARY'||candData._slot==='SECONDARY'||candData._slot==='RANGE'||candData._slot==='TWOHANDER')){
+      const candRatio=weaponDpsScore(candData,candData._slot,charClass,charLevel,baseTotals);
+      const curRatio=weaponDpsScore(curItemData,candData._slot,charClass,charLevel,baseTotals);
+      total+=(candRatio-curRatio)*dmgW;
     }
     // Flowing Thought mana regen — only scores for mana classes
     if(MANA_CLASSES.has(charClass)){
@@ -1964,8 +2095,10 @@ function renderUpgradesPanel(){
       const dex=Math.min(255,baselineTotals&&baselineTotals.dex?baselineTotals.dex:175);
       const ppm=(dex/170)+0.5;
       const lv=charLevel||60;
-      const dwSkillP=Math.min((lv+1)*7,252);
-      const dwChanceP=(dwSkillP+lv)/400;
+      const dwSkillCapP=DW_SKILL_CAP[charClass]||252;
+      const dwMaxSkillP=DW_MAX_SKILL[charClass]||400;
+      const dwSkillP=Math.min((lv+1)*7,dwSkillCapP);
+      const dwChanceP=Math.min((dwSkillP+lv)/dwMaxSkillP,1.0);
       const isOH=(slotHint||'').toUpperCase()==='SECONDARY';
       const dps=isOH?Math.round(ppm*0.5*dwChanceP*dmg/60*100)/10:Math.round(ppm*dmg/60*100)/10;
       return{name:eff,dmg,dps,isUtility:dmg===0};
@@ -2022,7 +2155,13 @@ function renderUpgradesPanel(){
   });
 
   // Auto-detect 2H mode: if character currently has a 2H weapon in PRIMARY, enable 2H mode automatically
-  // (only on first render — don't override a manual toggle-off)
+  // Persisted in charMeta[name].twoHander so it survives page reloads.
+  if(window['_upgTwoHander_'+name]===undefined){
+    // Restore from persisted charMeta first
+    if(charMeta[name]&&charMeta[name].twoHander!==undefined){
+      window['_upgTwoHander_'+name]=charMeta[name].twoHander;
+    }
+  }
   if(window['_upgTwoHander_'+name]===undefined){
     const primaryItem=slotResults.find(sr=>sr.dbSlot==='PRIMARY'&&!sr.isEmpty&&!sr.is2hCard);
     if(primaryItem){
@@ -2031,18 +2170,56 @@ function renderUpgradesPanel(){
         window['_upgTwoHander_'+name]=true;
       } else {
         // currentData may lack _skill if item isn't in local baked DB (Supabase-only items).
-        // Fall back: check if the equipped PRIMARY item name appears in the all2h candidates list.
+        // Fallback 1: check if name appears in the 2H card's candidate list (in-DB items).
         const equippedName=primaryItem.item.name;
         const all2hCard=slotResults.find(sr=>sr.is2hCard);
-        const all2hCandidates=all2hCard?all2hCard.candidates:all2h;
-        if(all2hCandidates&&all2hCandidates.some(c=>c.name===equippedName)){
+        if(all2hCard&&all2hCard.candidates.some(c=>c.name===equippedName)){
+          window['_upgTwoHander_'+name]=true;
+        } else if(primaryItem.currentData.dmg&&primaryItem.currentData.delay&&!slotResults.some(sr=>sr.dbSlot==='SECONDARY'&&!sr.isEmpty&&!sr.is2hCard)){
+          // Fallback 2: item has dmg+delay and no OH equipped — likely a 2H (toggle corrects if wrong).
           window['_upgTwoHander_'+name]=true;
         }
       }
     }
   }
 
+  // Persist auto-detected value to charMeta so it survives reload
+  if(window['_upgTwoHander_'+name]!==undefined&&(charMeta[name]||{}).twoHander===undefined){
+    if(!charMeta[name])charMeta[name]={};
+    charMeta[name].twoHander=window['_upgTwoHander_'+name];
+    saveState();
+  }
+
   const is2hMode=!!(window['_upgTwoHander_'+name]);
+
+  // If 2H mode is active and a 2H weapon is equipped in PRIMARY:
+  // - Patch the TWOHANDER card to show the equipped item and score candidates against it.
+  // - Re-score 2H candidates against the equipped item (not bare hands).
+  // - Clear the PRIMARY card to (none) — the MH slot is genuinely empty when using a 2H.
+  if(is2hMode){
+    const _equippedPrimary=slotResults.find(sr=>sr.dbSlot==='PRIMARY'&&!sr.isEmpty&&!sr.is2hCard);
+    const _2hCard=slotResults.find(sr=>sr.is2hCard);
+    if(_equippedPrimary&&_2hCard){
+      const _equippedData=_equippedPrimary.currentData;
+      const _mhSk=((_equippedData._skill||_equippedData._itemType||'')).toLowerCase();
+      const _mhIs2h=_mhSk.includes('2h')||_mhSk.includes('two hand');
+      if(_mhIs2h){
+        // A 2H weapon is actually equipped in PRIMARY — patch the 2H card to show it
+        // and re-score candidates vs it (not vs bare hands).
+        _2hCard.item=_equippedPrimary.item;
+        _2hCard.currentData=_equippedData;
+        _2hCard.isEmpty=false;
+        _2hCard.candidates=_2hCard.candidates
+          .filter(c=>c.name!==_equippedPrimary.item.name)
+          .map(c=>({...c,_effGain:effectiveGain(_equippedData,c,baselineTotals)}))
+          .sort((a,b)=>b._effGain-a._effGain);
+      }
+      // Whether or not PRIMARY is a 2H, MH slot is treated as empty in 2H mode
+      _equippedPrimary.item={name:'(none)',location:'PRIMARY'};
+      _equippedPrimary.currentData={};
+      _equippedPrimary.isEmpty=true;
+    }
+  }
 
   // (2H card already built above — removed from here)
 
@@ -2085,7 +2262,7 @@ function renderUpgradesPanel(){
         label+=' ★ '+[..._chars,..._bnks].join(', ');}
       return `<option value="${i}">${label}</option>`;
     }).join(''):'';
-    const cost=hasBest?[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' · '):'';
+    const cost=hasBest?(best.plat?`${best.plat}k pp`:''):'';
     const equippedDpsVal=(isWepSlotCard&&(currentData.dmg||currentData.delay))?weaponDpsScore(currentData,dbSlot,charClass,charLevel,baselineTotals):0;
     const equippedDpsHtml=equippedDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0;text-align:right">${Math.round(equippedDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)">dps</span></div>`:'';
     cardsHtml+=`<div class="upg-slot-card${isWepDisabled?' upg-wep-disabled':''}" id="upgcard_${cardId}">
@@ -2096,10 +2273,10 @@ function renderUpgradesPanel(){
       <div class="upg-panes">
         <div class="upg-pane">
           <div class="upg-pane-label">Equipped</div>
-          <div class="upg-pane-name">${itemLink(item.name)}</div>
-          ${equippedDpsHtml}
-          <div class="upg-pane-stats">${paneStats(currentData,currentData,false)}</div>
-          ${currentData._from?`<div class="upg-pane-from">${esc(currentData._from)}</div>`:''}
+          <div class="upg-pane-name">${isWepDisabled?'<span style="opacity:.45">(none)</span>':itemLink(item.name)}</div>
+          ${isWepDisabled?'':equippedDpsHtml}
+          <div class="upg-pane-stats">${isWepDisabled?'':paneStats(currentData,currentData,false)}</div>
+          ${(!isWepDisabled&&currentData._from)?`<div class="upg-pane-from">${esc(currentData._from)}</div>`:''}
         </div>
         <div class="upg-pane-divider"></div>
         <div class="upg-pane" id="upgpane_${cardId}">
@@ -2144,13 +2321,15 @@ function renderUpgradesPanel(){
   const saveBar=`<div class="upg-save-bar">
     <span class="upg-save-label">Gear planner \u2014 ${esc(name)}</span>
     <label class="upg-2h-toggle" title="Score 2H weapons; disables MH and OH slots">
-      <input type="checkbox" id="upg2hCheck" ${is2hMode?'checked':''} onchange="window['_upgTwoHander_'+'${name}']=this.checked;renderUpgradesPanel()">
+      <input type="checkbox" id="upg2hCheck" ${is2hMode?'checked':''} onchange="window['_upgTwoHander_'+'${name}']=this.checked;if(!charMeta['${name}'])charMeta['${name}']={};charMeta['${name}'].twoHander=this.checked;saveState();renderUpgradesPanel()">
       <span class="upg-2h-track"><span class="upg-2h-thumb"></span></span>
       <span class="upg-2h-label">2H Mode</span>
     </label>
     <button type="button" class="upg-save-btn" onclick="saveGearPlan()">&#8853; Save plan</button>
   </div>`;
 
+  // ── Class-not-set banner ────────────────────────────────────────────────────
+  const classWarnHtml=charClass?'':`<div style="background:rgba(100,80,20,.18);border:1px solid #7a6a20;border-radius:4px;padding:.5rem .75rem;margin-bottom:.5rem;font-size:.82rem;color:#b09040;">⚠ No class set — stat scoring is disabled. Set your class in <strong>Character Stats</strong> to see score values.</div>`;
   // ── MNK weight banner ──────────────────────────────────────────────────────
   let weightBannerHtml='';
   if(charClass==='Monk'){
@@ -2167,99 +2346,124 @@ function renderUpgradesPanel(){
     }
   }
 
-  // ── Biggest Upgrades section ──────────────────────────────────────────────
+  // ── Biggest Upgrades section ────────────────────────────────────────────
   function buildBiggestUpgradesHtml(){
-    // Gather best candidate per slot, score > 0 only
-    const rows=[];
+    // Gather all eligible slot results — budget tabs filter to tradeable (!_nodrop) candidates
+    const slotRows=[];
     for(const sr of slotResults){
       if(sr.is2hCard&&!is2hMode)continue;
       if((sr.dbSlot==='PRIMARY'||sr.dbSlot==='SECONDARY')&&is2hMode)continue;
-      const best=sr.candidates[0];
-      if(!best||best._effGain<=0)continue;
-      rows.push({sr,best,gain:best._effGain});
+      if(!sr.candidates.length)continue;
+      slotRows.push(sr);
     }
-    rows.sort((a,b)=>b.gain-a.gain);
 
-    // Relative tiers — split sorted rows into thirds so thresholds adapt to
-    // this class's score scale (a CLR scores 300+ per slot; a Monk scores 20).
-    // Top third = Major, middle third = Medium, bottom third = Minor, 5 each max.
-    const total=rows.length;
-    const third=Math.max(1,Math.ceil(total/3));
-    const major=rows.slice(0,third).slice(0,5);
-    const medium=rows.slice(third,third*2).slice(0,5);
-    const minor=rows.slice(third*2).slice(0,5);
-    const topGain=rows.length?rows[0].gain:1;
-
-    // whyStr: top 3 stats WEIGHTED by class — shows what's actually driving the score,
-    // not just the largest raw deltas. Filters out stats with negligible weight for this class.
+    // whyStr: top 3 stats WEIGHTED by class
     const WHY_KEYS=['ac',...STAT_KEYS_ALL,'haste'];
-    const WHY_MIN_WEIGHT=0.1; // ignore stats with weight below this (mana for Monk, etc.)
+    const WHY_MIN_WEIGHT=0.1;
     function whyStr(curData,bestData){
-      const seen=new Set();
-      const parts=[];
+      const seen=new Set();const parts=[];
       for(const k of WHY_KEYS){
-        if(seen.has(k))continue;
-        seen.add(k);
+        if(seen.has(k))continue;seen.add(k);
         const delta=Number(bestData[k]||0)-Number(curData[k]||0);
         if(delta<=0)continue;
-        // Skip stats with negligible weight for this class
         const w=k==='ac'?(weights.ac||0):(weights[k]||0);
         if(w<WHY_MIN_WEIGHT)continue;
         const label=k==='ac'?'AC':(STAT_DISPLAY[k]||k.toUpperCase());
         const suffix=k==='haste'?'%':'';
-        // Use weighted contribution so sort reflects actual score impact
         parts.push({label,delta,suffix,contrib:delta*w});
       }
       parts.sort((a,b)=>b.contrib-a.contrib);
-      return parts.slice(0,3).map(p=>`${p.label} +${p.delta}${p.suffix}`).join(' · ')||'';
+      return parts.slice(0,3).map(p=>`${p.label} +${p.delta}${p.suffix}`).join(' \xb7 ')||'';
     }
 
-    function buildTierRows(tierRows){
-      if(!tierRows.length)return `<tr><td colspan="4" style="padding:.6rem .75rem;color:var(--text-muted);font-style:italic;font-size:.82rem">None found in this range.</td></tr>`;
-      return tierRows.map(({sr,best,gain})=>{
+    if(!slotRows.length)return `<div style="padding:.75rem 0;color:var(--text-muted);font-style:italic;font-size:.85rem;text-align:center">No tradeable upgrade candidates found — load the item database to see suggestions.</div>`;
+
+    // Budget tab definitions — [label, minK, maxK] (plat is stored in thousands)
+    // null bounds = no filter on that side
+    const BUDGET_TABS=[
+      {id:'upg-budget-all',  label:'All',   minK:null, maxK:null},
+      {id:'upg-budget-1',    label:'\u22641k',  minK:null, maxK:1},
+      {id:'upg-budget-2',    label:'\u22642k',  minK:null, maxK:2},
+      {id:'upg-budget-3',    label:'\u22643k',  minK:null, maxK:3},
+      {id:'upg-budget-4',    label:'\u22644k',  minK:null, maxK:4},
+      {id:'upg-budget-5',    label:'\u22645k',  minK:null, maxK:5},
+      {id:'upg-budget-10',   label:'\u226410k', minK:null, maxK:10},
+      {id:'upg-budget-25',   label:'\u226425k', minK:null, maxK:25},
+      {id:'upg-budget-50',   label:'\u226450k', minK:null, maxK:50},
+      {id:'upg-budget-inf',  label:'>10k',  minK:10,   maxK:null},
+    ];
+    // Persist active budget tab per character across re-renders (2H toggle etc.)
+    const budgetKey='_upgBudgetTab_'+name;
+    if(!window[budgetKey])window[budgetKey]='upg-budget-all';
+
+    function platInRange(plat,minK,maxK){
+      // plat=0 or missing means no price data
+      // unpriced items only show in the All tab (minK===null && maxK===null)
+      if(!plat)return (minK===null&&maxK===null);
+      if(minK!==null&&plat<minK)return false;
+      if(maxK!==null&&plat>maxK)return false;
+      return true;
+    }
+
+    function buildTableForTab(tabId){
+      const tab=BUDGET_TABS.find(t=>t.id===tabId)||BUDGET_TABS[0];
+      // For each slot, find the best candidate that fits the budget tab
+      const tabRows=[];
+      for(const sr of slotRows){
+        const best=sr.candidates.find(c=>!c._nodrop&&platInRange(c.plat,tab.minK,tab.maxK)&&c._effGain>0);
+        if(!best)continue;
+        tabRows.push({sr,best,gain:best._effGain});
+      }
+      tabRows.sort((a,b)=>b.gain-a.gain);
+      const topRows=tabRows.slice(0,10);
+      const topGain=topRows.length?topRows[0].gain:1;
+      if(!topRows.length)return `<tr><td colspan="4" style="padding:.75rem;color:var(--text-muted);font-style:italic;font-size:.82rem;text-align:center">No upgrades in this price range.</td></tr>`;
+      return topRows.map(({sr,best,gain},idx)=>{
         const slotLabel=sr.is2hCard?'2H':sr.dbSlot;
         const curName=sr.item.name==='(empty)'?'—':sr.item.name;
         const gainStr='+'+(Math.round(gain*10)/10)+' pts';
-        const cost=[best.plat?`${best.plat}k pp`:'',best.dkp?`${best.dkp} DKP`:''].filter(Boolean).join(' · ')||'—';
+        const cost=best.plat?`${best.plat}k pp`:'\u2014';
         const why=whyStr(sr.currentData,best);
         const barPct=Math.min(100,Math.round((gain/topGain)*100));
-        const tierCls=gain>=rows[third-1]?.gain?'hi':gain>=rows[Math.min(third*2-1,rows.length-1)]?.gain?'mid':'lo';
-        const barColor=tierCls==='hi'?'#4caf7d':tierCls==='mid'?'#c8962a':'#9a9a6a';
+        const barColor=idx===0?'#4caf7d':idx<=2?'#c8962a':idx<=5?'#9a7a3a':'#7a7a5a';
+        const rankLabel=`#${idx+1}`;
         return `<tr onclick="document.getElementById('upgcard_${esc(sr.cardId)}')?.scrollIntoView({behavior:'smooth',block:'center'})" style="cursor:pointer" title="Jump to ${esc(slotLabel)} slot card">
-          <td><span class="upg-big-slot">${esc(slotLabel)}</span><div style="font-size:.72rem;color:var(--text-muted);margin-top:1px">${esc(curName)}</div></td>
+          <td><span style="font-size:.72rem;font-family:'Cinzel',serif;color:var(--text-muted);margin-right:.3rem">${rankLabel}</span><span class="upg-big-slot">${esc(slotLabel)}</span><div style="font-size:.72rem;color:var(--text-muted);margin-top:1px">${esc(curName)}</div></td>
           <td><div class="upg-big-name">${itemLink(best.name)}</div>${why?`<div class="upg-big-why">${esc(why)}</div>`:''}</td>
-          <td><div class="upg-big-gain ${tierCls}">${gainStr}</div><div class="upg-big-bar" style="width:${barPct}%;background:${barColor}"></div></td>
+          <td><div class="upg-big-gain hi" style="color:${barColor}">${gainStr}</div><div class="upg-big-bar" style="width:${barPct}%;background:${barColor}"></div></td>
           <td class="upg-big-cost">${esc(cost)}</td>
         </tr>`;
       }).join('');
     }
 
-    function buildTierSection(title,tierRows,icon){
-      const id='upgTier'+title.replace(/\s/g,'');
-      return `<div class="upg-section-head" style="margin-top:.75rem">
-        <span class="upg-section-title">${icon} ${title}</span>
-        <button type="button" class="upg-section-toggle" onclick="const w=document.getElementById('${id}');w.style.display=w.style.display==='none'?'':'none';this.textContent=w.style.display==='none'?'▼ Show':'▲ Hide'">▲ Hide</button>
-      </div>
-      <div class="upg-section-wrap" id="${id}">
-        <table class="upg-bigtable">
-          <colgroup><col style="width:22%"><col style="width:55%"><col style="width:16%"><col style="width:7%"></colgroup>
-          <thead><tr><th>Slot / Equipped</th><th>Best Upgrade</th><th class="upg-th-right">Gain</th><th class="upg-th-right">Cost</th></tr></thead>
-          <tbody>${buildTierRows(tierRows)}</tbody>
-        </table>
-      </div>`;
+    function switchBudgetTab(tabId){
+      window[budgetKey]=tabId;
+      BUDGET_TABS.forEach(t=>{
+        const btn=document.getElementById(t.id);
+        if(btn)btn.classList.toggle('upg-budget-active',t.id===tabId);
+      });
+      const tbody=document.getElementById('upg-budget-tbody');
+      if(tbody)tbody.innerHTML=buildTableForTab(tabId);
     }
+    window['_upgBudgetSwitch_'+name]=switchBudgetTab;
 
-    if(!rows.length)return `<div style="padding:.75rem 0;color:var(--text-muted);font-style:italic;font-size:.85rem;text-align:center">No upgrade candidates found — load the item database to see suggestions.</div>`;
+    const tabsHtml=BUDGET_TABS.map(t=>`<button id="${t.id}" type="button" class="upg-budget-tab${window[budgetKey]===t.id?' upg-budget-active':''}" onclick="window['_upgBudgetSwitch_'+'${esc(name)}'](this.id)">${t.label}</button>`).join('');
 
-    return `<div style="margin-top:.5rem">
-      <div style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;padding:.5rem 0 .35rem;border-bottom:2px solid var(--border-glow);margin-bottom:.1rem">Upgrade Recommendations — ${esc(charClass)} — Full Item Database</div>
-      ${buildTierSection('Major Upgrades',major,'▲')}
-      ${buildTierSection('Medium Upgrades',medium,'◆')}
-      ${buildTierSection('Minor Upgrades',minor,'▸')}
+    return `<div style="margin-top:.75rem">
+      <div style="display:flex;align-items:center;gap:0;margin-bottom:.4rem;flex-wrap:wrap">
+        <span style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;margin-right:.75rem;white-space:nowrap">Best Farmable Upgrades</span>
+        <div class="upg-budget-tabs">${tabsHtml}</div>
+      </div>
+      <table class="upg-bigtable">
+        <colgroup><col style="width:22%"><col style="width:55%"><col style="width:16%"><col style="width:7%"></colgroup>
+        <thead><tr><th>Slot / Equipped</th><th>Best Upgrade</th><th class="upg-th-right">Score Gain</th><th class="upg-th-right">Cost</th></tr></thead>
+        <tbody id="upg-budget-tbody">${buildTableForTab(window[budgetKey])}</tbody>
+      </table>
     </div>`;
   }
 
-  panel.innerHTML=saveBar+weightBannerHtml+`<div class="upg-layout">
+
+  panel.innerHTML=saveBar+classWarnHtml+weightBannerHtml+`<div class="upg-layout">
     <div class="upg-slots-panel">${cardsHtml||'<div class="upg-none">No equipped items found.</div>'}</div>
     <div class="upg-stat-panel">
       <div class="upg-stat-head">Stat sheet</div>
@@ -2347,7 +2551,7 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
   const {currentData}=sr;
   const paneStats=window._upgPaneStats||(()=>'');
   const statsHtml=paneStats(currentData,cand,'combined');
-  const cost=[cand.plat?`${cand.plat}k pp`:'',cand.dkp?`${cand.dkp} DKP`:''].filter(Boolean).join(' · ');
+  const cost=cand.plat?`${cand.plat}k pp`:'';
   const isWepSlotUpg=sr.dbSlot==='PRIMARY'||sr.dbSlot==='SECONDARY'||sr.dbSlot==='TWOHANDER';
   const charLevel=meta.level||60;
   const candDpsVal=(isWepSlotUpg&&(cand.dmg||cand.delay))?weaponDpsScore(cand,sr.dbSlot,meta.class||'',charLevel,null):0;
@@ -2413,17 +2617,30 @@ window.upgRefreshStatSheet=function(){
   if(base){STAT_KEYS.forEach((k,i)=>{cur[k]=base.stats[i]||0;});RESIST_KEYS.forEach((k,i)=>{cur[k]=base.resists[i]||0;});if(base.pools)cur.ac=base.pools[3]||0;}
   // Build a lookup of equipped item AC so proj.ac delta uses the same source as cur.ac
   const equippedAcBySlot={};
+  // Track per-item haste values so proj.haste can be recomputed as max() after swaps,
+  // not arithmetic — haste is a single-source max, not additive.
+  const equippedHasteByItem={};
   for(const item of equipped){
     const _cg4=charGear[item.name]||{},_db4=itemDBGet(item.name)||{};
+    const dbSlot=invSlotToDBSlot(item.location);
+    // In 2H mode: MH and OH are treated as empty — exclude their stats from cur baseline
+    if(is2hModeSheet&&(dbSlot==='PRIMARY'||dbSlot==='SECONDARY')){
+      equippedAcBySlot[item.name]={ac:0,dbSlot};
+      equippedHasteByItem[item.name]=0;
+      continue;
+    }
     const acv=Number(_db4.ac||0)||Number(_cg4.ac||0);
     if(acv)cur.ac=(cur.ac||0)+acv;
-    const dbSlot=invSlotToDBSlot(item.location);
     equippedAcBySlot[item.name]={ac:acv,dbSlot};
     for(const k of STAT_KEYS_ALL){const v=Number(_db4[k]||_cg4[k]||0);if(v)cur[k]=(cur[k]||0)+v;}
-    const hastev=Number(_db4.haste||_cg4.haste||0);if(hastev)cur.haste=Math.max(cur.haste||0,hastev);
+    const hastev=Number(_db4.haste||_cg4.haste||0);
+    equippedHasteByItem[item.name]=hastev;
+    if(hastev)cur.haste=Math.max(cur.haste||0,hastev);
   }
   // Projected: apply current alt-select choices; also tally costs
   const proj=Object.assign({},cur);
+  // Clone haste map for projection — slots get patched as candidates are applied
+  const projHasteByItem=Object.assign({},equippedHasteByItem);
   const is2hModeSheet=!!(window['_upgTwoHander_'+name]);
   let totalDkp=0,totalPlat=0;
   if(window._upgSlots){
@@ -2439,15 +2656,18 @@ window.upgRefreshStatSheet=function(){
       if(!cand)continue;
       const curData=sr.currentData;
       for(const k of STAT_KEYS_ALL){proj[k]=(proj[k]||0)-Number(curData[k]||0)+Number(cand[k]||0);}
-      proj.haste=(proj.haste||0)-Number(curData.haste||0)+Number(cand.haste||0);
-      // Use the AC that was actually added into cur.ac for this slot (same source as cur build)
+      // Patch this slot's haste in the per-item map; proj.haste recomputed after loop
       const equippedItem=sr.item;
+      projHasteByItem[equippedItem.name]=Number(cand.haste||0);
+      // Use the AC that was actually added into cur.ac for this slot (same source as cur build)
       const curItemAc=equippedAcBySlot[equippedItem.name]?.ac||0;
       proj.ac=(proj.ac||0)-curItemAc+Number(cand.ac||0);
       if(cand.dkp)totalDkp+=Number(cand.dkp);
       if(cand.plat)totalPlat+=Number(cand.plat);
     }
   }
+  // Recompute proj.haste as max across all slots (haste never stacks)
+  proj.haste=Math.max(0,...Object.values(projHasteByItem));
   const manaKey=WIS_CLASSES.has(charClass)?'wis':'int';
   const curHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,cur.sta||0),charClass,charLevel)+(cur.hpbonus||0):null;
   const projHP=charClass&&HP_RATIOS[charClass]?calcHP(Math.min(255,proj.sta||0),charClass,charLevel)+(proj.hpbonus||0):null;
@@ -2550,6 +2770,7 @@ function parseItemDB(csvText,filename){
       _wikiUrlCol:ci('wiki url'),
       _eraCol:ci('era'),
       _nodropCol:ci('no drop'),
+      _notradeCol:ci('no trade'),
       _loreCol:ci('lore item'),
       _categoriesCol:ci('categories'),
       _magicCol:ci('magic item'),
@@ -2571,9 +2792,9 @@ function parseItemDB(csvText,filename){
       atk:ci('atk'),dmg:ci('dmg'),delay:ci('delay'),
     };
   } else {
-    const idxMap={str:7,sta:8,agi:9,dex:10,cha:11,int:12,wis:13,hpbonus:14,manabonus:15,svmagic:16,svfire:17,svcold:18,svpoison:19,svdisease:20,ac:6,stat_val:27,plat:30,dkp:31};
+    const idxMap={str:7,sta:8,agi:9,dex:10,cha:11,int:12,wis:13,hpbonus:14,manabonus:15,svmagic:16,svfire:17,svcold:18,svpoison:19,svdisease:20,ac:6,stat_val:27,dkp:31};
     const col=n=>headers.indexOf(n.toLowerCase());
-    const dynMap={str:col('str'),sta:col('sta'),agi:col('agi'),dex:col('dex'),cha:col('cha'),int:col('int'),wis:col('wis'),hpbonus:col('hp'),manabonus:col('mana'),svmagic:col('mr'),svfire:col('fr'),svcold:col('cr'),svpoison:col('pr'),svdisease:col('dr'),ac:col('ac'),stat_val:col('stat_val'),plat:col('plat(k)'),dkp:col('dkp'),haste:col('haste')};
+    const dynMap={str:col('str'),sta:col('sta'),agi:col('agi'),dex:col('dex'),cha:col('cha'),int:col('int'),wis:col('wis'),hpbonus:col('hp'),manabonus:col('mana'),svmagic:col('mr'),svfire:col('fr'),svcold:col('cr'),svpoison:col('pr'),svdisease:col('dr'),ac:col('ac'),stat_val:col('stat_val'),dkp:col('dkp'),haste:col('haste')};
     const allFound=Object.values(dynMap).filter(v=>v>=0).length>10;
     colMap=allFound?dynMap:idxMap;
     colMap._nameCol=1;colMap._slotCol=0;colMap._classCol=-1;colMap._raceCol=-1;colMap._fromCol=2;
@@ -2585,7 +2806,7 @@ function parseItemDB(csvText,filename){
   function classFromFilename(fn){const low=fn.toLowerCase().replace(/[^a-z_]/g,'');for(const[k,v]of Object.entries(FILE_CLASS_MAP)){if(low.includes(k))return v;}return null;}
   function raceFromFilename(fn){const low=fn.toLowerCase().replace(/[^a-z_]/g,'');for(const[k,v]of Object.entries(FILE_RACE_MAP)){if(low.includes(k))return v;}return null;}
 
-  const STAT_COLS=new Set(['str','sta','agi','dex','wis','int','cha','hpbonus','manabonus','ac','svmagic','svfire','svcold','svdisease','svpoison','atk','dmg','delay','stat_val','plat','dkp','haste']);
+  const STAT_COLS=new Set(['str','sta','agi','dex','wis','int','cha','hpbonus','manabonus','ac','svmagic','svfire','svcold','svdisease','svpoison','atk','dmg','delay','stat_val','dkp','haste']);
 
   let count=0;
   const fileClass=classFromFilename(filename||'');
@@ -2624,7 +2845,7 @@ function parseItemDB(csvText,filename){
       const col=n=>colMap[n]>=0?cols[colMap[n]]?.trim():'';
       const wikiUrlVal=col('_wikiUrlCol');if(wikiUrlVal)stats._wikiUrl=wikiUrlVal;
       const eraVal=col('_eraCol');if(eraVal)stats._era=eraVal;
-      if(col('_nodropCol'))stats._nodrop=true;
+      if(col('_nodropCol')||col('_notradeCol'))stats._nodrop=true;
       if(col('_loreCol'))stats._lore=true;
       const cats=col('_categoriesCol')||'';
       if(cats.includes('Legacy Items'))stats._legacy=true;
@@ -3204,12 +3425,39 @@ function showAuthScreen(){
   if(ce)document.getElementById('loginEmail').value=ce;
 }
 
+// Tracks last login + login count for the admin "Active Users" view.
+// Fire-and-forget by design: a failure here (e.g. table not yet migrated,
+// network blip) must never block or break sign-in.
+async function recordLoginActivity(user){
+  if(!user?.id)return;
+  try{
+    const{data:existing}=await sb.from('user_activity').select('login_count').eq('user_id',user.id).maybeSingle();
+    if(existing){
+      await sb.from('user_activity').update({
+        email:user.email||null,
+        last_login:new Date().toISOString(),
+        login_count:(existing.login_count||0)+1,
+      }).eq('user_id',user.id);
+    } else {
+      await sb.from('user_activity').insert({
+        user_id:user.id,
+        email:user.email||null,
+        last_login:new Date().toISOString(),
+        login_count:1,
+      });
+    }
+  }catch(err){
+    console.warn('[Activity] Failed to record login:',err);
+  }
+}
+
 async function onSignedIn(user){
   currentUser=user;
   document.getElementById('authScreen').style.display='none';
   document.getElementById('userBar').style.display='flex';
   document.getElementById('userEmail').textContent=user.email;
   document.getElementById('topNav').style.display='flex';
+  recordLoginActivity(user); // fire-and-forget — never blocks sign-in
   await loadFromSupabase();
   supabaseLoaded=true;
   // Re-request watcher state now that Supabase is loaded — gets fresh inventory + faction snapshots
@@ -3221,7 +3469,7 @@ async function onSignedIn(user){
 
 function onSignedOut(){
   currentUser=null;
-  chars={};charMeta={};gearStats={};charCoins={};watchList=[];factionData={};skyshrineData={};questData={};dkpLookup={};dkpMeta={};platData=[];platMeta={};platCachedRows=[];platCacheKey='';platTypeFilter='all';raidSessions=[];activeSession=null;sessionsView='new';activeTab=null;creditData=null;charZones={};bankerRegistry=[];
+  chars={};charMeta={};gearStats={};charCoins={};watchList=[];bankerWatchList=[];bwlHiddenBankers=new Set();factionData={};skyshrineData={};questData={};dkpLookup={};dkpMeta={};platData=[];platMeta={};platCachedRows=[];platCacheKey='';platTypeFilter='all';raidSessions=[];activeSession=null;sessionsView='new';activeTab=null;creditData=null;charZones={};bankerRegistry=[];
   {const bp=document.getElementById('bankersPanel');if(bp)bp.innerHTML='';}
   document.getElementById('userBar').style.display='none';
   document.getElementById('topNav').style.display='none';
@@ -3317,7 +3565,7 @@ async function loadFromSupabase(){
           }
         }
         if(row.base_stats?.questData)questData[row.char_name]=row.base_stats.questData;
-        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,...bs}=row.base_stats||{};
+        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,factionValues:_fv,questData:_qd,...bs}=row.base_stats||{};
         const hasRealStats=bs.stats||bs.resists;
         charMeta[row.char_name]={
           class:row.class||'',race:row.race||'',level:row.level||1,
@@ -3325,7 +3573,8 @@ async function loadFromSupabase(){
           nakedStats:row.base_stats?.nakedStats||null,
           currentStats:row.base_stats?.currentStats||null,
           gearFetched:!!row.gear_stats,
-          gearPlans:row.base_stats?.gearPlans||[]
+          gearPlans:row.base_stats?.gearPlans||[],
+          twoHander:row.base_stats?.twoHander??undefined,
         };
         if(row.gear_stats)gearStats[row.char_name]=row.gear_stats;
       }
@@ -3337,8 +3586,8 @@ async function loadFromSupabase(){
       }
     }
     // Load watch list
-    const{data:wlRow}=await sb.from('watch_list').select('items').eq('user_id',currentUser.id).single();
-    if(wlRow)watchList=wlRow.items||[];
+    const{data:wlRow}=await sb.from('watch_list').select('items,banker_items,banker_hidden').eq('user_id',currentUser.id).single();
+    if(wlRow){watchList=wlRow.items||[];bankerWatchList=wlRow.banker_items||[];bwlHiddenBankers=new Set(wlRow.banker_hidden||[]);};
   }catch(e){console.warn('Load error',e);}
 
   // Load kills and DKP before first render so history/DKP tabs aren't blank
@@ -3402,12 +3651,33 @@ async function saveToSupabase(){
       class:charMeta[cn]?.class||null,
       race:charMeta[cn]?.race||null,
       level:charMeta[cn]?.level||1,
-      base_stats:charMeta[cn]?.baseStats?{...charMeta[cn].baseStats,factions:factionData[cn]||{},factionValues:factionValues[cn]||{},nakedStats:charMeta[cn].nakedStats||null,currentStats:charMeta[cn].currentStats||null,skyshrine:skyshrineData[cn]||{},questData:questData[cn]||{},gearPlans:charMeta[cn].gearPlans||[]}:{factions:factionData[cn]||{},factionValues:factionValues[cn]||{},nakedStats:charMeta[cn]?.nakedStats||null,currentStats:charMeta[cn]?.currentStats||null,skyshrine:skyshrineData[cn]||{},questData:questData[cn]||{},gearPlans:charMeta[cn]?.gearPlans||[]},
+      base_stats:(()=>{
+        // Only persist the raw stat arrays from baseStats (stats/resists/pools) — never spread
+        // the whole baseStats object which may contain leaked keys from prior load/save cycles.
+        const _bs=charMeta[cn]?.baseStats;
+        const _statCore=_bs?{stats:_bs.stats,resists:_bs.resists,pools:_bs.pools}:{};
+        return{
+          ..._statCore,
+          factions:factionData[cn]||{},
+          factionValues:factionValues[cn]||{},
+          nakedStats:charMeta[cn]?.nakedStats||null,
+          currentStats:charMeta[cn]?.currentStats||null,
+          skyshrine:skyshrineData[cn]||{},
+          questData:questData[cn]||{},
+          gearPlans:charMeta[cn]?.gearPlans||[],
+          twoHander:charMeta[cn]?.twoHander,
+        };
+      })(),
       gear_stats:gearStats[cn]||null,
       inventory:chars[cn]||[],
       updated_at:new Date().toISOString()
     }));
     if(rows.length){
+      // Payload size guard — warn in devtools if base_stats is bloating (>50KB per char)
+      rows.forEach(r=>{
+        const sz=JSON.stringify(r.base_stats||{}).length;
+        if(sz>50000)console.warn('[Save] base_stats for',r.char_name,'is',Math.round(sz/1024)+'KB — possible bloat');
+      });
       const{error}=await sb.from('characters').upsert(rows,{onConflict:'user_id,char_name'});
       if(error){
         console.error('[Save] Supabase upsert error:',error);
@@ -3426,7 +3696,7 @@ async function saveToSupabase(){
       }
     }
     // Upsert watch list
-    await sb.from('watch_list').upsert({user_id:currentUser.id,items:watchList,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+    await sb.from('watch_list').upsert({user_id:currentUser.id,items:watchList,banker_items:bankerWatchList,banker_hidden:[...bwlHiddenBankers],updated_at:new Date().toISOString()},{onConflict:'user_id'});
     setSyncStatus('saved');
     document.getElementById('_saveErrBanner')?.remove();
   }catch(e){
@@ -3451,11 +3721,20 @@ async function saveItemDBToSupabase(){
   if(!entries.length)return;
   try{
     const rows=entries.map(([item_name,data])=>({item_name,data,updated_at:new Date().toISOString()}));
+    let savedCount=0;
     for(let i=0;i<rows.length;i+=500){
-      await sb.from('item_db').upsert(rows.slice(i,i+500),{onConflict:'item_name'});
+      const batch=rows.slice(i,i+500);
+      const{error}=await sb.from('item_db').upsert(batch,{onConflict:'item_name'});
+      if(error){
+        console.error(`[ItemDB] Save error on batch ${i}-${i+batch.length}:`,error.message,error);
+        // Continue trying remaining batches rather than bailing on first error
+      } else {
+        savedCount+=batch.length;
+      }
     }
-    console.log(`Saved ${rows.length} items to Supabase`);
-  }catch(e){console.warn('Item DB save error',e);}
+    console.log(`[ItemDB] Saved ${savedCount}/${rows.length} items to Supabase`);
+    if(savedCount<rows.length)console.warn(`[ItemDB] ${rows.length-savedCount} items failed to save — possible row limit on item_db table`);
+  }catch(e){console.warn('[ItemDB] Save error',e);}
 }
 
 async function loadItemDBFromSupabase(){
@@ -3463,8 +3742,9 @@ async function loadItemDBFromSupabase(){
   try{
     let allRows=[], from=0, pageSize=1000;
     while(true){
-      const{data,error}=await sb.from('item_db').select('item_name,data').range(from,from+pageSize-1);
-      if(error||!data||!data.length)break;
+      const{data,error}=await sb.from('item_db').select('item_name,data').order('item_name').range(from,from+pageSize-1);
+      if(error){console.warn('[ItemDB] Load page error',error);break;}
+      if(!data||!data.length)break;
       allRows=allRows.concat(data);
       if(data.length<pageSize)break;
       from+=pageSize;
@@ -3472,12 +3752,12 @@ async function loadItemDBFromSupabase(){
     if(allRows.length){
       for(const row of allRows)itemDB[row.item_name]=row.data;
       itemDBSources=['supabase ('+allRows.length+' items)'];
-      console.log(`Loaded ${allRows.length} items from Supabase`);
+      console.log(`[ItemDB] Loaded ${allRows.length} items from Supabase`);
       _rebuildItemDBIndex();
       charNames().forEach(cn=>applyDBToChar(cn));
       return true;
     }
-  }catch(e){console.warn('Item DB load error',e);}
+  }catch(e){console.warn('[ItemDB] Load error',e);}
   return false;
 }
 
@@ -3890,6 +4170,8 @@ const SS_DATA = {
 // Add any item here that shows up in the upgrade planner but can't actually be obtained.
 const UNOBTAINABLE_ITEMS = new Set([
   "The Prime Healer's Bulwark",   // GM reward item, no longer drops
+  "Hammered Golden Hoop",         // no longer drops
+  "Di'Zok Signet of Service",     // faction reward, NO TRADE
 ]);
 
 // Skyshrine custom armor — P99-server-custom items not on live EQ.
@@ -4280,25 +4562,35 @@ function applyDkpToItemDB(){
 
 function applyPlatToItemDB(){
   if(!platData.length)return 0;
-  // Build a lowercase map of itemDB keys for case-insensitive matching
   const lcMap={};
   for(const k of Object.keys(itemDB))lcMap[k.toLowerCase()]=k;
-  let updated=0;
+  // Build WTS lookup first (preferred), then WTB fallback
+  const wtsMap={};  // name.lower -> best WTS price
+  const wtbMap={};  // name.lower -> best WTB price
   for(const r of platData){
-    if(r.t!==0)continue; // WTS only
-    const a60=r.a60;
-    if(a60==null||a60<=0)continue;
-    const rawName=r.n||'';
-    const canonical=lcMap[rawName.toLowerCase()];
+    const rawName=(r.n||'').toLowerCase();
+    if(!rawName)continue;
+    // Best available price: a60 > a90 > a30 > ay (all-time)
+    const best=r.a60>0?r.a60:r.a90>0?r.a90:r.a30>0?r.a30:r.ay>0?r.ay:0;
+    if(best<=0)continue;
+    if(r.t===0){wtsMap[rawName]=best;}
+    else if(r.t===1){wtbMap[rawName]=best;}
+  }
+  let updated=0;
+  const allNames=new Set([...Object.keys(wtsMap),...Object.keys(wtbMap)]);
+  for(const lower of allNames){
+    const canonical=lcMap[lower];
     if(!canonical)continue;
-    // Store in k-plat (same unit the upgrade tab displays as "Xk pp")
-    itemDB[canonical].plat=Math.round(a60/1000*10)/10;
+    // WTS price preferred; fall back to WTB only if no WTS data at all
+    const price=wtsMap[lower]||wtbMap[lower]||0;
+    if(!price)continue;
+    itemDB[canonical].plat=Math.round(price/1000*10)/10;
     itemDB[canonical]._platUpdatedAt=new Date().toISOString();
     updated++;
   }
   if(updated){
     saveItemDB();
-    console.log(`[Bridge] Plat: updated ${updated} items from 60d WTS avg`);
+    console.log(`[Bridge] Plat: updated ${updated} items from PigParse (WTS preferred, WTB fallback)`);
     if(activeSub==='upgrades')renderUpgradesPanel();
   }
   return updated;
@@ -5014,6 +5306,8 @@ window.itemUsableByContext    = function(data, classAbbr, raceAbbr) {
   return true;
 };
 window.CLASS_STAT_WEIGHTS     = CLASS_STAT_WEIGHTS;
+window.lucyDmgBonus      = lucyDmgBonus;
+window.LUCY_DMG_BONUS    = LUCY_DMG_BONUS;
 window.WIS_CLASSES            = WIS_CLASSES;
 window.INT_CLASSES            = INT_CLASSES;
 window.MANA_CLASSES           = MANA_CLASSES;
@@ -6021,7 +6315,7 @@ function renderGearReportsPanel(){
   // Table rows
   const {entries}=active.plan;
   const SLOT_ORDER=['EAR','FINGERS','HEAD','FACE','NECK','SHOULDERS','ARMS','BACK','WRIST','RANGE','HANDS','PRIMARY','SECONDARY','CHEST','LEGS','FEET','WAIST','AMMO'];
-  const sorted=[...entries].sort((a,b)=>{
+  const sorted=entries.map((e,entryIdx)=>({...e,_entryIdx:entryIdx})).sort((a,b)=>{
     const ai=SLOT_ORDER.indexOf(a.slot),bi=SLOT_ORDER.indexOf(b.slot);
     return (ai<0?99:ai)-(bi<0?99:bi);
   });
@@ -6053,7 +6347,7 @@ function renderGearReportsPanel(){
         :'';
       return `<tr>
         <td class="gpr-slot">${esc(slotLabel)}</td>
-        <td><span class="gpr-item">${esc(e.upgradeName)}</span>${_avGprHtml}</td>
+        <td><span class="gpr-item">${esc(e.upgradeName)}</span>${_avGprHtml}<span class="gpr-edit-btn" title="Change item for this slot" onclick="gprEditSlot('${esc(active.key)}',${e._entryIdx})">&#9998;</span></td>
         <td>
           ${e.mob?`<span class="gpr-item" style="font-size:.82rem">${esc(e.mob)}</span><br>`:''}
           <span class="gpr-from">${esc(e.zone||e.from||'—')}</span>
@@ -6064,7 +6358,7 @@ function renderGearReportsPanel(){
     } else {
       return `<tr>
         <td class="gpr-slot">${esc(slotLabel)}</td>
-        <td colspan="4"><span class="gpr-none">— none selected —</span></td>
+        <td colspan="4"><span class="gpr-none">— none selected —</span><span class="gpr-edit-btn" title="Pick an item for this slot" onclick="gprEditSlot('${esc(active.key)}',${e._entryIdx})">&#9998;</span></td>
       </tr>`;
     }
   }).join('');
@@ -6138,6 +6432,94 @@ function renderGearReportsPanel(){
 
 window.gprSelect=function(key){
   gprActiveKey=key;
+  renderGearReportsPanel();
+};
+
+// ─── Gear Plan: edit a saved plan's slot pick ──────────────────────────────────
+// Lets the user swap which item is recorded for a slot in an already-saved plan,
+// without recomputing live upgrade scores (no _effGain — itemDB lookup only).
+let _gprEditCtx=null; // {key, entryIdx, slot}
+window.gprEditSlot=function(key,entryIdx){
+  const [charName,planIdxStr]=key.split('::');
+  const planIdx=parseInt(planIdxStr);
+  const plan=charMeta[charName]&&charMeta[charName].gearPlans&&charMeta[charName].gearPlans[planIdx];
+  const entry=plan&&plan.entries&&plan.entries[entryIdx];
+  if(!entry)return;
+  _gprEditCtx={key,charName,planIdx,entryIdx,slot:entry.slot};
+  document.getElementById('gprEditSlotLabel').textContent=entry.cardId&&entry.cardId!==entry.slot?entry.cardId:entry.slot;
+  document.getElementById('gprEditSearch').value='';
+  gprEditRenderList('');
+  document.getElementById('gprEditOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('gprEditSearch').focus(),50);
+};
+
+window.gprEditClose=function(){
+  document.getElementById('gprEditOverlay').classList.remove('open');
+  _gprEditCtx=null;
+};
+
+function gprEditRenderList(filterText){
+  if(!_gprEditCtx)return;
+  const listEl=document.getElementById('gprEditList');
+  const ft=filterText.trim().toLowerCase();
+  // Pull every itemDB entry whose normalized _slot matches this row's slot.
+  // EAR/FINGERS/WRIST cards share a base slot (e.g. cardId "EAR2" → slot "EAR"),
+  // so we match on the stored base slot, not the card label.
+  const matches=Object.keys(itemDB)
+    .filter(name=>{
+      const it=itemDB[name];
+      if(!it||it._slot!==_gprEditCtx.slot)return false;
+      if(ft&&!name.toLowerCase().includes(ft))return false;
+      return true;
+    })
+    .sort((a,b)=>a.localeCompare(b))
+    .slice(0,200); // cap render — search narrows further
+  if(!matches.length){
+    listEl.innerHTML='<div class="gpr-pick-empty">No items found for this slot.</div>';
+    return;
+  }
+  listEl.innerHTML=matches.map(name=>{
+    const it=itemDB[name];
+    const metaBits=[];
+    if(it.dkp)metaBits.push(it.dkp+' DKP');
+    if(it.plat)metaBits.push(Math.round(Number(it.plat)*100)/100+'k pp');
+    return `<div class="gpr-pick-row" onclick="gprEditApplyPick('${esc(name)}')">
+      <span>${esc(name)}</span>
+      <span class="gpr-pick-row-meta">${esc(metaBits.join(' · '))}</span>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('gprEditSearch')?.addEventListener('input',e=>gprEditRenderList(e.target.value));
+
+window.gprEditApplyPick=function(itemName){
+  if(!_gprEditCtx)return;
+  const{charName,planIdx,entryIdx}=_gprEditCtx;
+  const plan=charMeta[charName]&&charMeta[charName].gearPlans&&charMeta[charName].gearPlans[planIdx];
+  const entry=plan&&plan.entries&&plan.entries[entryIdx];
+  if(!entry)return;
+  if(itemName===null){
+    // Clear selection
+    entry.upgradeName=null;
+    entry.dkp=null;
+    entry.plat=null;
+    entry.from=null;
+    entry.mob=null;
+    entry.zone=null;
+    entry.score=null;
+  } else {
+    const it=itemDBGet(itemName)||{};
+    entry.upgradeName=itemName;
+    entry.dkp=it.dkp||null;
+    entry.plat=it.plat||null;
+    entry.from=it._from||null;
+    entry.mob=it._mob||null;
+    entry.zone=it._zone||null;
+    // No live score — this is a manual pick, not a recomputed upgrade suggestion.
+    entry.score=null;
+  }
+  saveState();
+  gprEditClose();
   renderGearReportsPanel();
 };
 
@@ -7364,6 +7746,17 @@ function renderBankersPanel(){
     <div class="tab-bar" style="border-bottom:none;flex-wrap:wrap;overflow:visible">
       ${list}
     </div>
+    <div class="watchlist-bar" id="bwlBar" style="margin-top:.75rem">
+      <div class="watchlist-bar-header">
+        <div class="watchlist-bar-title">💰 Banker Watch List</div>
+        <div style="display:flex;gap:.35rem">
+          <button class="watchlist-gear-btn" id="bwlCharFilterBtn" title="Filter bankers" onclick="bwlToggleCharFilter()">👤</button>
+          <button class="watchlist-gear-btn" id="bwlGearBtn" title="Configure items" onclick="bwlOpen()">&#9881;</button>
+        </div>
+      </div>
+      <div id="bwlCharFilterRow" style="display:none;padding:.35rem .75rem .4rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.35rem"></div>
+      <div id="bwlRows" class="watchlist-rows"><div class="watchlist-empty">No items — click &#9881; to add.</div></div>
+    </div>
   `;
 
   document.getElementById('bankerAddBtn').addEventListener('click',()=>{
@@ -7381,6 +7774,7 @@ function renderBankersPanel(){
       });
     });
   });
+  renderBankerWatchlistBar();
 }
 
 async function saveCreditDataToSupabase(){
@@ -8735,8 +9129,114 @@ document.getElementById('wlModalOverlay').addEventListener('click',e=>{if(e.targ
 document.getElementById('wlAddBtn').addEventListener('click',wlAdd);
 document.getElementById('wlInput').addEventListener('keydown',e=>{if(e.key==='Enter')wlAdd();});
 
+
+// ─── Banker Watch List ────────────────────────────────────────────────────────
+const BWL_QUICKADD=['Reaper of the Dead','Shiny Brass Idol','Mallet Head','Mallet Hilt','Thex Mallet'];
+
+function saveBankerWatchList(){scheduleSave();}
+
+function renderBankerWatchlistBar(){
+  const container=document.getElementById('bwlRows');
+  if(!container)return;
+  // Case-insensitive chars key lookup for each banker
+  const charsKeyMap={};
+  for(const k of Object.keys(chars))charsKeyMap[k.toLowerCase()]=k;
+  const allBnks=bankerNames().map(n=>{
+    const key=charsKeyMap[n.toLowerCase()]||n;
+    return{label:n,key};
+  }).filter(({key})=>chars[key]);
+  // Render char filter chips
+  const filterRow=document.getElementById('bwlCharFilterRow');
+  if(filterRow){
+    filterRow.innerHTML=allBnks.map(({label})=>{
+      const hidden=bwlHiddenBankers.has(label.toLowerCase());
+      return`<span class="faction-char-chip${hidden?'':' active'}" onclick="(function(){const lo='${esc(label.toLowerCase())}';bwlHiddenBankers.has(lo)?bwlHiddenBankers.delete(lo):bwlHiddenBankers.add(lo);saveBankerWatchList();renderBankerWatchlistBar();})()">${esc(label)}</span>`;
+    }).join('');
+  }
+  const bnks=allBnks.filter(({label})=>!bwlHiddenBankers.has(label.toLowerCase()));
+  if(!bankerWatchList.length){
+    container.innerHTML='<div class="watchlist-empty">No items — click ⚙ to add.</div>';
+    return;
+  }
+  if(!bnks.length){
+    container.innerHTML='<div class="watchlist-empty">No bankers selected — click 👤 to configure.</div>';
+    return;
+  }
+  const norm=s=>s.replace(/[\u2018\u2019]/g,"'").toLowerCase();
+  // Header row: one <th> per item
+  const thItems=bankerWatchList.map(item=>
+    `<th style="padding:.25rem .5rem;font-size:.72rem;font-family:'Cinzel',serif;letter-spacing:.04em;color:var(--gold-light);text-align:center;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis" title="${esc(item)}">
+      <a href="${wikiUrl(item)}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold)">${esc(item)}</a>
+    </th>`
+  ).join('');
+  // One row per visible banker
+  const dataRows=bnks.map(({label,key})=>{
+    const cells=bankerWatchList.map(item=>{
+      const has=(chars[key]||[]).some(i=>norm(i.name).includes(norm(item)));
+      return`<td style="text-align:center;padding:.2rem .5rem"><span class="${has?'rc-check-green':'rc-check-red'}" style="font-size:1.05rem;font-weight:700">${has?'✔':'✘'}</span></td>`;
+    }).join('');
+    return`<tr><td style="padding:.2rem .5rem;white-space:nowrap;font-size:.8rem;color:var(--text-dim);font-weight:600">${esc(label)}</td>${cells}</tr>`;
+  }).join('');
+  container.innerHTML=`<table style="border-collapse:collapse;width:100%">
+    <thead><tr><th style="padding:.25rem .5rem"></th>${thItems}</tr></thead>
+    <tbody>${dataRows}</tbody>
+  </table>`;
+}
+
+function bwlToggleCharFilter(){
+  const row=document.getElementById('bwlCharFilterRow');
+  if(!row)return;
+  row.style.display=row.style.display==='none'?'flex':'none';
+}
+
+function renderBwlModal(){
+  document.getElementById('bwlItemList').innerHTML=bankerWatchList.length
+    ?bankerWatchList.map((item,i)=>
+        `<div class="wl-item-row"><span>${esc(item)}</span><button type="button" class="wl-item-remove" onclick="bwlRemove(${i})">&#10005;</button></div>`
+      ).join('')
+    :'<div style="color:var(--text-muted);font-size:.82rem;font-style:italic">No items yet.</div>';
+  document.getElementById('bwlShortcuts').innerHTML=BWL_QUICKADD.map(name=>
+    `<span class="wl-shortcut-chip" onclick="bwlQuickAdd('${esc(name)}')">${esc(name)}</span>`
+  ).join('');
+}
+
+function bwlOpen(){
+  renderBwlModal();
+  document.getElementById('bwlModalOverlay').style.display='flex';
+  document.getElementById('bwlInput').focus();
+}
+function bwlClose(){
+  document.getElementById('bwlModalOverlay').style.display='none';
+}
+function bwlAdd(){
+  const inp=document.getElementById('bwlInput');
+  const name=inp.value.trim();
+  if(!name)return;
+  if(!bankerWatchList.includes(name))bankerWatchList.push(name);
+  inp.value='';
+  renderBwlModal();
+  renderBankerWatchlistBar();
+  saveBankerWatchList();
+}
+function bwlRemove(i){
+  bankerWatchList.splice(i,1);
+  renderBwlModal();
+  renderBankerWatchlistBar();
+  saveBankerWatchList();
+}
+function bwlQuickAdd(name){
+  if(!bankerWatchList.includes(name))bankerWatchList.push(name);
+  renderBwlModal();
+  renderBankerWatchlistBar();
+  saveBankerWatchList();
+}
+
 initAuth();
 
+document.getElementById('bwlInput').addEventListener('keydown',e=>{if(e.key==='Enter')bwlAdd();});
+document.getElementById('bwlModalOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('bwlModalOverlay'))bwlClose();});
+
 </script>
+
 </body>
 </html>

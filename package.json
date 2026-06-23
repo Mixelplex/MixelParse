@@ -1,6 +1,6 @@
 {
   "name": "mixelparse",
-  "version": "1.1.4",
+  "version": "1.1.8",
   "description": "EverQuest P99 Guild Management Tool",
   "main": "electron/main.js",
   "author": "mixelplex",
@@ -11,6 +11,7 @@
     "build:ci": "electron-builder --win --publish always"
   },
   "dependencies": {
+    "build": "^0.1.4",
     "chokidar": "^3.6.0",
     "electron-updater": "^6.1.7"
   },
