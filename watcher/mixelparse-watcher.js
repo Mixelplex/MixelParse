@@ -847,6 +847,14 @@ function parseConLine(charName, line) {
 const RE_SLAIN_BY   = /^\[.+?\] (.+?) has been slain by /i;
 const RE_YOU_SLAIN  = /^\[.+?\] You have slain (.+?)!/i;
 
+// ── Session tracker regexes ──────────────────────────────────────────────────
+const RE_SESSION_LOGIN  = /Welcome to EverQuest!/;
+const RE_SESSION_XP     = /You gain experience!!/;
+const RE_SESSION_LOOT   = /--You have looted (?:a |an )?(.+?)\.--/i;
+const RE_SESSION_VENDOR = /\] You receive (.+?) from .+? for the .+?\(s\)\./;
+const RE_SESSION_COIN   = /\] You receive (.+?) from the corpse\./;
+const RE_SESSION_CAMP   = /It will take you about 30 seconds to prepare your camp\./;
+
 function parseSlainLine(charName, line) {
   let mobName = null;
   const m1 = line.match(RE_SLAIN_BY);
@@ -983,6 +991,17 @@ function parseFactionLine(charName, line) {
     value: newVal,
     level: levelName,
   };
+}
+
+// ── Parse a plat amount string into decimal platinum ─────────────────────────
+// Handles: "148 platinum 6 copper", "3 gold", "1 platinum 1 gold 8 silver 4 copper"
+function parsePlatAmount(str) {
+  let total = 0;
+  const pp = str.match(/(\d+)\s+platinum/i); if (pp) total += parseInt(pp[1]);
+  const gp = str.match(/(\d+)\s+gold/i);     if (gp) total += parseInt(gp[1]) * 0.1;
+  const sp = str.match(/(\d+)\s+silver/i);   if (sp) total += parseInt(sp[1]) * 0.01;
+  const cp = str.match(/(\d+)\s+copper/i);   if (cp) total += parseInt(cp[1]) * 0.001;
+  return Math.round(total * 100) / 100;
 }
 
 // ── Extract character name from log filename ─────────────────────────────────
@@ -1144,14 +1163,13 @@ function savePositions() {
   try { fs.writeFileSync(_posFile, JSON.stringify(logPositions)); } catch (e) {}
 }
 
-function processLogLines(charName, lines) {
+function processLogLines(charName, lines, isLive = false) {
   const updates = [];
   for (const line of lines) {
     const trimmed = line.trim();
     const slainResults = parseSlainLine(charName, trimmed);
     if (slainResults) {
       for (const r of slainResults) updates.push(r);
-      continue;
     }
     const result = parseFactionLine(charName, trimmed) || parseConLine(charName, trimmed);
     if (result) updates.push(result);
@@ -1159,6 +1177,39 @@ function processLogLines(charName, lines) {
     if (zoneResult) {
       broadcast({ type: 'zoneUpdate', charName, zone: zoneResult.zone, timestamp: zoneResult.timestamp });
       console.log(`[ZONE] ${charName} → ${zoneResult.zone}`);
+    }
+
+    // ── Session events (live tail only — not replayed from log history) ──────
+    if (isLive) {
+      if (RE_SESSION_LOGIN.test(trimmed)) {
+        broadcast({ type: 'sessionLogin', charName });
+        console.log(`[SESSION] ${charName} login detected`);
+      }
+      if (RE_SESSION_XP.test(trimmed)) {
+        broadcast({ type: 'sessionXP', charName });
+      }
+      const killM = trimmed.match(RE_YOU_SLAIN);
+      if (killM) {
+        broadcast({ type: 'sessionKill', charName, mob: killM[1].trim() });
+      }
+      const lootM = trimmed.match(RE_SESSION_LOOT);
+      if (lootM) {
+        broadcast({ type: 'sessionLoot', charName, item: lootM[1].trim() });
+      }
+      const vendorM = trimmed.match(RE_SESSION_VENDOR);
+      if (vendorM) {
+        const plat = parsePlatAmount(vendorM[1]);
+        if (plat > 0) broadcast({ type: 'sessionPlat', charName, plat, source: 'vendor' });
+      }
+      const coinM = trimmed.match(RE_SESSION_COIN);
+      if (coinM) {
+        const plat = parsePlatAmount(coinM[1]);
+        if (plat > 0) broadcast({ type: 'sessionPlat', charName, plat, source: 'coin' });
+      }
+      if (RE_SESSION_CAMP.test(trimmed)) {
+        broadcast({ type: 'sessionCamp', charName });
+        console.log(`[SESSION] ${charName} camp-out detected`);
+      }
     }
   }
   if (updates.length) {
@@ -1223,7 +1274,7 @@ function tailLogFile(filepath) {
       stream.on('data', chunk => { buffer += chunk; });
       stream.on('end', () => {
         const lines = buffer.split('\n');
-        processLogLines(charName, lines);
+        processLogLines(charName, lines, true); // isLive=true — fires session events
         logPositions[filepath] = fileSize;
         savePositions();
       });

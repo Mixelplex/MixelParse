@@ -30,6 +30,7 @@ const BASE_CHAR_PATH = path.join(app.getPath('userData'), 'baseChar.ini');
 let mainWindow    = null;
 let adminWindow   = null;
 let setupWindow   = null;
+let sessionWindow = null;
 let tray          = null;
 let config        = null;
 let watcherModule = null;
@@ -164,7 +165,47 @@ function createAdminWindow() {
   adminWindow.on('closed', () => { adminWindow = null; });
 }
 
-// ─── Tray ─────────────────────────────────────────────────────────────────────
+// ─── Session Overlay Window ───────────────────────────────────────────────────
+function createSessionWindow() {
+  if (sessionWindow && !sessionWindow.isDestroyed()) {
+    sessionWindow.show();
+    return;
+  }
+  sessionWindow = new BrowserWindow({
+    width:     390,
+    height:    600,
+    minWidth:  300,
+    minHeight: 260,
+    resizable: true,
+    frame:     false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    title: 'Session — MixelParse',
+    icon: ICON_PATH,
+    backgroundColor: '#ede6d6',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
+    },
+  });
+  sessionWindow.loadFile(path.join(ROOT, 'src', 'session.html'));
+  // When session window is ready, ask main window to push current state
+  sessionWindow.webContents.once('dom-ready', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('session-window-ready');
+    }
+  });
+  sessionWindow.on('closed', () => {
+    sessionWindow = null;
+    // Notify main window the session overlay closed
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('session-window-closed');
+    }
+  });
+}
+
+
 function createTray() {
   tray = new Tray(fs.existsSync(ICON_PATH) ? ICON_PATH : nativeImage.createEmpty());
   tray.setToolTip('MixelParse');
@@ -259,6 +300,30 @@ ipcMain.handle('setup:save', (e, data) => {
 ipcMain.handle('config:get',    ()        => config);
 ipcMain.handle('config:save',   (e, data) => saveConfig(data));
 ipcMain.handle('admin:open',    ()        => { createAdminWindow(); });
+
+// ── Session overlay ──────────────────────────────────────────────────────────
+ipcMain.handle('session:toggle', () => {
+  if (sessionWindow && !sessionWindow.isDestroyed()) {
+    sessionWindow.isVisible() ? sessionWindow.hide() : sessionWindow.show();
+  } else {
+    createSessionWindow();
+  }
+});
+ipcMain.handle('session:close', () => {
+  if (sessionWindow && !sessionWindow.isDestroyed()) sessionWindow.close();
+});
+// Main window pushes session state → session window renders it
+ipcMain.on('session:push-state', (event, state) => {
+  if (sessionWindow && !sessionWindow.isDestroyed()) {
+    sessionWindow.webContents.send('session-state', state);
+  }
+});
+// Session window sends commands (mark1pct, end) → main window executes them
+ipcMain.on('session:command', (event, cmd) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('session-command', cmd);
+  }
+});
 
 ipcMain.handle('watcher:command', (e, cmd, args) => {
   if (watcherModule && watcherModule.command) {

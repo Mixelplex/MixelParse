@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Session — MixelParse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#ede6d6;--surface:#e4dbc8;--border:#c8b890;--border-glow:#a08050;
+  --gold:#7a5010;--gold-dim:#a07030;--text:#1a1008;--text-dim:#4a3a1a;--text-muted:#8a7050;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Crimson Pro',Georgia,serif;font-size:15px;overflow:hidden;user-select:none}
+
+/* ── Window chrome ── */
+.win{display:flex;flex-direction:column;height:100vh;border:1px solid var(--border-glow)}
+.titlebar{display:flex;align-items:center;gap:.45rem;padding:.45rem .7rem;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;-webkit-app-region:drag;cursor:grab}
+.titlebar:active{cursor:grabbing}
+.tb-dot{width:8px;height:8px;border-radius:50%;background:var(--border-glow);flex-shrink:0;-webkit-app-region:no-drag}
+.tb-dot.live{background:#4caf50;animation:pulse 2.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.tb-title{font-family:'Cinzel',serif;font-size:.64rem;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;flex:1;pointer-events:none}
+.tb-timer{font-family:monospace;font-size:.82rem;color:var(--text-dim);flex-shrink:0;-webkit-app-region:no-drag}
+.tb-btns{display:flex;gap:.2rem;flex-shrink:0;-webkit-app-region:no-drag}
+.tb-btn{background:none;border:none;color:var(--text-muted);font-size:.95rem;cursor:pointer;line-height:1;padding:0 .25rem;-webkit-app-region:no-drag}
+.tb-btn:hover{color:var(--text)}
+
+/* ── Scrollable body ── */
+.body{flex:1;overflow-y:auto;padding:.5rem .75rem .7rem}
+
+/* ── Char bar ── */
+.char-bar{display:flex;align-items:baseline;gap:.45rem;margin-bottom:.5rem;padding-bottom:.4rem;border-bottom:1px solid var(--border)}
+.char-name{font-family:'Cinzel',serif;font-size:.8rem;color:var(--gold);letter-spacing:.05em}
+.char-zone{font-size:.8rem;color:var(--text-muted)}
+
+/* ── Metrics ── */
+.metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:4px;margin-bottom:.6rem;overflow:hidden}
+.metric{background:var(--surface);padding:.45rem .55rem}
+.metric-lbl{font-family:'Cinzel',serif;font-size:.53rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;margin-bottom:.14rem}
+.metric-val{font-size:1.1rem;font-weight:600;color:var(--text);line-height:1.1;font-family:'Cinzel',serif}
+.metric-sub{font-size:.67rem;color:var(--text-muted);margin-top:.1rem}
+
+/* ── Sections ── */
+.section{border-top:1px solid var(--border)}
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;padding:.38rem .05rem;cursor:pointer}
+.sec-hdr:hover .sec-title{color:var(--gold-dim)}
+.sec-title{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;transition:color .12s}
+.sec-right{display:flex;align-items:center;gap:.5rem}
+.sec-meta{font-size:.7rem;color:var(--text-muted)}
+.chevron{font-size:.6rem;color:var(--text-muted);transition:transform .15s}
+.sec-body{padding:.05rem 0 .5rem}
+
+/* ── XP ── */
+.xp-bar-wrap{height:5px;background:var(--surface);border-radius:3px;margin:.3rem 0 .4rem;overflow:hidden;border:1px solid var(--border)}
+.xp-bar-fill{height:100%;background:var(--gold-dim);border-radius:3px;transition:width .5s ease}
+.xp-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.xp-cal{font-size:.72rem;color:var(--text-muted)}
+.mark-btn{font-family:'Cinzel',serif;font-size:.57rem;letter-spacing:.05em;padding:.25rem .55rem;border:1px solid var(--border-glow);border-radius:3px;background:var(--surface);color:var(--gold-dim);cursor:pointer;white-space:nowrap;flex-shrink:0}
+.mark-btn:hover{background:var(--border);color:var(--gold)}
+.marks-list{margin-top:.35rem}
+.mark-row{font-size:.7rem;color:var(--text-muted);font-family:monospace;padding:.1rem 0;border-bottom:1px solid var(--border)}
+.mark-row:last-child{border-bottom:none}
+
+/* ── Mobs ── */
+.mob-list{max-height:140px;overflow-y:auto}
+.mob-row{display:flex;align-items:center;padding:.22rem 0;border-bottom:1px solid var(--border)}
+.mob-row:last-child{border-bottom:none}
+.mob-name{font-size:.78rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mob-bar-wrap{width:55px;height:3px;background:var(--surface);border-radius:2px;margin:0 .5rem;flex-shrink:0;overflow:hidden}
+.mob-bar-fill{height:100%;background:var(--gold-dim);border-radius:2px}
+.mob-count{font-size:.78rem;font-weight:600;color:var(--text-muted);font-family:monospace;min-width:26px;text-align:right;flex-shrink:0}
+
+/* ── Loot ── */
+.loot-list{max-height:140px;overflow-y:auto}
+.loot-row{display:flex;align-items:center;gap:.35rem;padding:.25rem 0;border-bottom:1px solid var(--border)}
+.loot-row:last-child{border-bottom:none}
+.loot-name{font-size:.8rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.loot-val{font-size:.7rem;color:var(--text-muted);font-family:monospace;white-space:nowrap;flex-shrink:0}
+.badge-q{font-size:.58rem;font-weight:700;padding:.1rem .3rem;border-radius:2px;background:#3a2800;color:#c8960c;border:1px solid #6a4a00;white-space:nowrap;flex-shrink:0}
+.badge-w{font-size:.58rem;font-weight:700;padding:.1rem .3rem;border-radius:2px;background:#1a1a3a;color:#8888dd;border:1px solid #3a3a7a;white-space:nowrap;flex-shrink:0}
+
+/* ── Footer ── */
+.footer{display:flex;align-items:center;gap:.6rem;padding:.45rem .05rem 0;border-top:1px solid var(--border);margin-top:.4rem;flex-wrap:wrap}
+.plat-item{font-size:.75rem;color:var(--text-muted);flex:1}
+.plat-item strong{color:var(--text-dim)}
+.foot-btn{font-family:'Cinzel',serif;font-size:.57rem;letter-spacing:.05em;padding:.22rem .48rem;border:1px solid var(--border);border-radius:3px;background:none;color:var(--text-muted);cursor:pointer;white-space:nowrap;flex-shrink:0}
+.foot-btn:hover{border-color:var(--border-glow);color:var(--gold-dim)}
+.foot-btn.danger:hover{border-color:#c0392b;color:#c0392b}
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="titlebar" id="titlebar">
+    <div class="tb-dot" id="tbDot"></div>
+    <span class="tb-title">Active Session</span>
+    <span class="tb-timer" id="tbTimer">0:00:00</span>
+    <div class="tb-btns">
+      <button class="tb-btn" id="collapseBtn" title="Minimise" onclick="toggleBody()">&#8722;</button>
+      <button class="tb-btn" title="Close" onclick="window.MixelParseApp.closeSession()">&#215;</button>
+    </div>
+  </div>
+
+  <div class="body" id="panelBody">
+    <div class="char-bar">
+      <span class="char-name" id="sChar">&#8212;</span>
+      <span class="char-zone" id="sZone"></span>
+    </div>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-lbl">XP Ticks</div>
+        <div class="metric-val" id="sXpTicks">0</div>
+        <div class="metric-sub" id="sXpPct">&#8212;</div>
+      </div>
+      <div class="metric">
+        <div class="metric-lbl">Plat Earned</div>
+        <div class="metric-val" id="sPlat">0</div>
+        <div class="metric-sub" id="sPlatSub">&#8212;</div>
+      </div>
+      <div class="metric">
+        <div class="metric-lbl">Kills</div>
+        <div class="metric-val" id="sKills">0</div>
+        <div class="metric-sub" id="sKillSub">&#8212;</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-hdr" onclick="toggle('xp')">
+        <span class="sec-title">&#9733; XP</span>
+        <div class="sec-right">
+          <span class="sec-meta" id="sXpMeta"></span>
+          <span class="chevron" id="cXp">&#9660;</span>
+        </div>
+      </div>
+      <div id="bXp" class="sec-body">
+        <div class="xp-bar-wrap"><div class="xp-bar-fill" id="sXpBar" style="width:0%"></div></div>
+        <div class="xp-row">
+          <span class="xp-cal" id="sXpCal">No marks yet</span>
+          <button class="mark-btn" id="markBtn" onclick="sendCmd('mark1pct')">Mark 1%</button>
+        </div>
+        <div id="sMarksList" class="marks-list"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-hdr" onclick="toggle('kills')">
+        <span class="sec-title">&#9876; Kills</span>
+        <div class="sec-right">
+          <span class="sec-meta" id="sKillMeta"></span>
+          <span class="chevron" id="cKills" style="transform:rotate(-90deg)">&#9660;</span>
+        </div>
+      </div>
+      <div id="bKills" class="sec-body" style="display:none">
+        <div id="sMobList" class="mob-list"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-hdr" onclick="toggle('loot')">
+        <span class="sec-title">&#128230; Loot</span>
+        <div class="sec-right">
+          <span class="sec-meta" id="sLootMeta"></span>
+          <span class="chevron" id="cLoot" style="transform:rotate(-90deg)">&#9660;</span>
+        </div>
+      </div>
+      <div id="bLoot" class="sec-body" style="display:none">
+        <div id="sLootList" class="loot-list"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span class="plat-item">Vendor <strong id="sPlatV">0p</strong></span>
+      <span class="plat-item">Coin <strong id="sPlatC">0p</strong></span>
+      <button class="foot-btn danger" onclick="sendCmd('end')">End &amp; Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+let _state = null;
+let _timerInterval = null;
+let _bodyOpen = true;
+let _markCount = 0;
+
+function pad(n){ return String(n).padStart(2,'0'); }
+
+function startTimer(startTime) {
+  if (_timerInterval) clearInterval(_timerInterval);
+  _timerInterval = setInterval(() => {
+    const secs = Math.floor((Date.now() - startTime) / 1000);
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    const el = document.getElementById('tbTimer');
+    if (el) el.textContent = h + ':' + pad(m) + ':' + pad(s);
+  }, 1000);
+}
+
+function toggle(id) {
+  const ids = { xp: ['bXp','cXp'], kills: ['bKills','cKills'], loot: ['bLoot','cLoot'] };
+  const [bodyId, chevId] = ids[id];
+  const body = document.getElementById(bodyId);
+  const chev = document.getElementById(chevId);
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (chev) chev.style.transform = open ? 'rotate(-90deg)' : 'rotate(0deg)';
+}
+
+function toggleBody() {
+  const body = document.getElementById('panelBody');
+  const btn  = document.getElementById('collapseBtn');
+  if (!body) return;
+  _bodyOpen = !_bodyOpen;
+  body.style.display = _bodyOpen ? 'block' : 'none';
+  if (btn) btn.textContent = _bodyOpen ? '\u2212' : '+';
+}
+
+function sendCmd(cmd) {
+  if (window.MixelParseApp && window.MixelParseApp.sendSessionCommand) {
+    window.MixelParseApp.sendSessionCommand(cmd);
+  }
+}
+
+function totalKills(kills) {
+  return Object.values(kills || {}).reduce((a,b)=>a+b,0);
+}
+
+function render(s) {
+  if (!s) return;
+  _state = s;
+
+  const dot = document.getElementById('tbDot');
+  if (dot) dot.classList.toggle('live', !!s.active);
+
+  const charEl = document.getElementById('sChar');
+  if (charEl) charEl.textContent = s.charName || '—';
+  const zoneEl = document.getElementById('sZone');
+  if (zoneEl) zoneEl.textContent = s.zone ? '· ' + s.zone : '';
+
+  const tot = totalKills(s.kills);
+  const mobTypes = Object.keys(s.kills || {}).length;
+  const plat = Math.round(((s.platVendor || 0) + (s.platCoin || 0)) * 100) / 100;
+
+  setText('sXpTicks', (s.xpTicks || 0).toLocaleString());
+  setText('sPlat', Math.round(plat) + 'p');
+  setText('sKills', tot.toLocaleString());
+  setText('sKillSub', mobTypes + ' mob type' + (mobTypes===1?'':'s'));
+  setText('sPlatV', Math.round(s.platVendor||0) + 'p');
+  setText('sPlatC', Math.round(s.platCoin||0) + 'p');
+
+  // XP estimate
+  const marks = s.marks || [];
+  if (marks.length > 0) {
+    const avg = marks.reduce((a,b)=>a+b.killsSinceLast,0) / marks.length;
+    const pct = avg > 0 ? Math.min(99.9, tot / avg) : 0;
+    setText('sXpPct', '~' + pct.toFixed(1) + '% est.');
+    setText('sXpMeta', '~' + pct.toFixed(1) + '%');
+    setText('sXpCal', avg.toFixed(1) + ' kills/1% (' + marks.length + ' mark' + (marks.length===1?'':'s') + ')');
+    const bar = document.getElementById('sXpBar');
+    if (bar) bar.style.width = Math.min(99.9, pct) + '%';
+    // Render new marks
+    if (marks.length > _markCount) {
+      const ml = document.getElementById('sMarksList');
+      for (let i = _markCount; i < marks.length; i++) {
+        const m = marks[i];
+        if (ml) ml.innerHTML += '<div class="mark-row">mark ' + (i+1) + ' &nbsp;@ ' + m.totalKills + ' kills &nbsp;&#183; ' + m.killsSinceLast + '/1%</div>';
+      }
+      _markCount = marks.length;
+    }
+  } else {
+    setText('sXpPct', '—');
+    setText('sXpMeta', '');
+    setText('sXpCal', 'No marks yet');
+  }
+
+  setText('sKillMeta', tot.toLocaleString() + ' total');
+  setText('sLootMeta', (s.loot||[]).length + ' item' + ((s.loot||[]).length===1?'':'s'));
+  setText('sPlatSub', (plat > 0 ? 'vendor + coin' : '—'));
+
+  // Mobs
+  const mobList = document.getElementById('sMobList');
+  if (mobList) {
+    const sorted = Object.entries(s.kills || {}).sort((a,b)=>b[1]-a[1]);
+    const maxC = sorted.length ? sorted[0][1] : 1;
+    mobList.innerHTML = sorted.map(([mob,n]) =>
+      '<div class="mob-row"><span class="mob-name" title="' + mob + '">' + mob + '</span>'
+      + '<div class="mob-bar-wrap"><div class="mob-bar-fill" style="width:' + Math.round(n/maxC*100) + '%"></div></div>'
+      + '<span class="mob-count">' + n + '</span></div>'
+    ).join('');
+  }
+
+  // Loot
+  const lootList = document.getElementById('sLootList');
+  if (lootList) {
+    lootList.innerHTML = (s.loot||[]).slice().reverse().map(l => {
+      const val = l.price ? '<span class="loot-val">~' + l.price + 'k</span>' : '';
+      const bq  = l.isQuest ? '<span class="badge-q">quest</span>' : '';
+      const bw  = l.isWatch ? '<span class="badge-w">watch</span>' : '';
+      return '<div class="loot-row"><span class="loot-name" title="' + (l.item||'') + '">' + (l.item||'') + '</span>' + val + bq + bw + '</div>';
+    }).join('');
+  }
+
+  // Timer
+  if (s.active && s.startTime) startTimer(s.startTime);
+  else if (!s.active && _timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+}
+
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+// ── IPC ──────────────────────────────────────────────────────────────────────
+if (window.MixelParseApp && window.MixelParseApp.onSessionState) {
+  window.MixelParseApp.onSessionState(state => render(state));
+}
+</script>
+</body>
+</html>

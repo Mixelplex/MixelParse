@@ -19,6 +19,16 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   // ── Windows ────────────────────────────────────────────────────────────────
   openAdmin:    ()         => ipcRenderer.invoke('admin:open'),
 
+  // ── Session overlay window ─────────────────────────────────────────────────
+  toggleSession:      ()        => ipcRenderer.invoke('session:toggle'),
+  closeSession:       ()        => ipcRenderer.invoke('session:close'),
+  pushSessionState:   (state)   => ipcRenderer.send('session:push-state', state),
+  onSessionState:     (cb)      => ipcRenderer.on('session-state',      (_, d) => cb(d)),
+  sendSessionCommand: (cmd)     => ipcRenderer.send('session:command', cmd),
+  onSessionCommand:   (cb)      => ipcRenderer.on('session-command',   (_, d) => cb(d)),
+  onSessionWindowReady: (cb)    => ipcRenderer.on('session-window-ready', () => cb()),
+  onSessionWindowClosed: (cb)   => ipcRenderer.on('session-window-closed', () => cb()),
+
   // ── Watcher events (main → renderer) ──────────────────────────────────────
   onWatcherEvent: (cb)     => {
     ipcRenderer.on('watcher-event', (e, data) => cb(data));

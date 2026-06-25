@@ -2330,8 +2330,13 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
   const INT_CLASSES = A2?.INT_CLASSES || new Set(['Enchanter','Magician','Necromancer','Wizard','Shadow Knight','Bard']);
   const _manaKey = WIS_CLASSES.has(cls) ? 'wis' : INT_CLASSES.has(cls) ? 'int' : null;
   if (_manaKey && weights[_manaKey] >= 2.0 && (baseTotals[_manaKey] || 0) <= 255) NO_CAP.add(_manaKey);
+  // Hybrid classes: 2H weapons score ratio-only — stats and AC skipped, haste always scores.
+  const HYBRID_2H_CLASSES_gc = A2?.HYBRID_2H_CLASSES || new Set(['Paladin','Shadow Knight','Bard','Ranger']);
+  const gcItype = (itemData._skill || itemData._itemType || '').toLowerCase();
+  const gcIs2h = gcItype.includes('2h') || gcItype.includes('two');
+  const skipStats = gcIs2h && HYBRID_2H_CLASSES_gc.has(cls);
   let total = 0;
-  for (const k of STAT_KEYS_ALL) {
+  if (!skipStats) for (const k of STAT_KEYS_ALL) {
     const v = Number(itemData[k] || 0); if (!v) continue;
     if (k === 'sta' && hpPerSta > 0) {
       const curSta = Math.min(255, baseTotals.sta || 0);
@@ -2347,8 +2352,8 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
       const soft  = Math.max(0, Math.min(v - below, HARDCAP - Math.max(ct, SOFTCAP)));
       total += below * w + soft * w * SOFTCAP_MULT;
     } else { total += v * w; }
-  }
-  if (weights.ac && itemData.ac) total += Number(itemData.ac) * weights.ac;
+  } // end if (!skipStats) stat loop
+  if (!skipStats && weights.ac && itemData.ac) total += Number(itemData.ac) * weights.ac;
   if (weights.haste && itemData.haste) {
     const hasteVal = Number(itemData.haste || 0);
     const CLASS_STAT_THRESHOLDS_gc = A2?.CLASS_STAT_THRESHOLDS || {};

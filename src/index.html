@@ -603,6 +603,100 @@
   .fetch-bar{padding:.5rem .75rem;gap:.5rem}
   .panel{padding:.75rem .5rem}
 }
+
+  /* ── Session Window (floating, draggable) ──────────────────────────────── */
+  .session-panel{position:fixed;top:90px;right:22px;width:370px;background:var(--surface);border:1px solid var(--border-glow);border-radius:7px;z-index:9100;font-family:'Crimson Pro',serif;user-select:none;min-width:280px}
+  .session-titlebar{display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border);border-radius:7px 7px 0 0;cursor:grab}
+  .session-titlebar:active{cursor:grabbing}
+  .session-dot{width:8px;height:8px;border-radius:50%;background:var(--border-glow);flex-shrink:0}
+  .session-dot.live{background:#4caf50;box-shadow:0 0 5px #4caf5066;animation:session-pulse 2.5s ease-in-out infinite}
+  @keyframes session-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .session-title-text{font-family:'Cinzel',serif;font-size:.67rem;letter-spacing:.09em;color:var(--gold);text-transform:uppercase;flex:1;pointer-events:none}
+  .session-timer-display{font-family:monospace;font-size:.82rem;color:var(--text-dim);flex-shrink:0}
+  .session-tb-btns{display:flex;align-items:center;gap:.3rem;flex-shrink:0}
+  .session-tb-btn{background:none;border:none;color:var(--text-muted);font-size:.9rem;cursor:pointer;line-height:1;padding:0 .2rem}
+  .session-tb-btn:hover{color:var(--text)}
+  .session-body{padding:.55rem .8rem .7rem}
+  .session-char-bar{display:flex;align-items:baseline;gap:.45rem;margin-bottom:.55rem;padding-bottom:.4rem;border-bottom:1px solid var(--border)}
+  .session-char-name{font-family:'Cinzel',serif;font-size:.8rem;color:var(--gold);letter-spacing:.05em}
+  .session-char-zone{font-size:.8rem;color:var(--text-muted)}
+  .session-metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:4px;margin-bottom:.65rem;overflow:hidden}
+  .session-metric{background:var(--surface2);padding:.45rem .55rem}
+  .session-metric-lbl{font-family:'Cinzel',serif;font-size:.54rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;margin-bottom:.15rem}
+  .session-metric-val{font-size:1.1rem;font-weight:700;color:var(--text);line-height:1.1;font-family:'Cinzel',serif}
+  .session-metric-sub{font-size:.68rem;color:var(--text-muted);margin-top:.1rem}
+  .session-section{border-top:1px solid var(--border)}
+  .session-sec-hdr{display:flex;align-items:center;justify-content:space-between;padding:.38rem .05rem;cursor:pointer}
+  .session-sec-hdr:hover .session-sec-hdr-title{color:var(--gold-dim)}
+  .session-sec-hdr-title{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;display:flex;align-items:center;gap:.35rem;transition:color .12s}
+  .session-sec-hdr-right{display:flex;align-items:center;gap:.5rem}
+  .session-sec-hdr-meta{font-size:.7rem;color:var(--text-muted)}
+  .session-chevron{font-size:.6rem;color:var(--text-muted);transition:transform .15s}
+  .session-sec-body{padding:.05rem 0 .5rem}
+  .session-xp-bar-wrap{height:5px;background:var(--surface2);border-radius:3px;margin:.3rem 0 .4rem;overflow:hidden;border:1px solid var(--border)}
+  .session-xp-bar-fill{height:100%;background:var(--gold-dim);border-radius:3px;transition:width .5s ease}
+  .session-xp-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+  .session-xp-cal{font-size:.72rem;color:var(--text-muted)}
+  .session-mark-btn{font-family:'Cinzel',serif;font-size:.57rem;letter-spacing:.05em;padding:.25rem .55rem;border:1px solid var(--border-glow);border-radius:3px;background:var(--surface2);color:var(--gold-dim);cursor:pointer;white-space:nowrap;flex-shrink:0}
+  .session-mark-btn:hover{background:var(--border);color:var(--gold)}
+  .session-marks-list{margin-top:.35rem}
+  .session-mark-row{font-size:.7rem;color:var(--text-muted);font-family:monospace;padding:.1rem 0;border-bottom:1px solid var(--border)}
+  .session-mark-row:last-child{border-bottom:none}
+  .session-mob-list{max-height:150px;overflow-y:auto}
+  .session-mob-row{display:flex;align-items:center;padding:.22rem 0;border-bottom:1px solid var(--border)}
+  .session-mob-row:last-child{border-bottom:none}
+  .session-mob-name{font-size:.78rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .session-mob-bar-wrap{width:60px;height:3px;background:var(--surface2);border-radius:2px;margin:0 .5rem;flex-shrink:0;overflow:hidden}
+  .session-mob-bar-fill{height:100%;background:var(--gold-dim);border-radius:2px}
+  .session-mob-count{font-size:.78rem;font-weight:700;color:var(--text-muted);font-family:monospace;min-width:26px;text-align:right;flex-shrink:0}
+  .session-loot-list{max-height:150px;overflow-y:auto}
+  .session-loot-row{display:flex;align-items:center;gap:.35rem;padding:.25rem 0;border-bottom:1px solid var(--border)}
+  .session-loot-row:last-child{border-bottom:none}
+  .session-loot-name{font-size:.8rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .session-loot-val{font-size:.7rem;color:var(--text-muted);font-family:monospace;white-space:nowrap;flex-shrink:0}
+  .session-badge-q{font-size:.58rem;font-weight:700;padding:.1rem .3rem;border-radius:2px;background:#3a2800;color:#c8960c;border:1px solid #6a4a00;white-space:nowrap;flex-shrink:0}
+  .session-badge-w{font-size:.58rem;font-weight:700;padding:.1rem .3rem;border-radius:2px;background:#1a1a3a;color:#8888dd;border:1px solid #3a3a7a;white-space:nowrap;flex-shrink:0}
+  .session-footer{display:flex;align-items:center;gap:.6rem;padding:.45rem .05rem 0;border-top:1px solid var(--border);margin-top:.4rem;flex-wrap:wrap}
+  .session-plat-item{font-size:.75rem;color:var(--text-muted);flex:1}
+  .session-plat-item strong{color:var(--text-dim)}
+  .session-footer-btn{font-family:'Cinzel',serif;font-size:.57rem;letter-spacing:.05em;padding:.22rem .48rem;border:1px solid var(--border);border-radius:3px;background:none;color:var(--text-muted);cursor:pointer;white-space:nowrap;flex-shrink:0}
+  .session-footer-btn:hover{border-color:var(--border-glow);color:var(--gold-dim)}
+  .session-footer-btn.danger:hover{border-color:#c0392b;color:#c0392b}
+  .session-trigger-btn{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.06em}
+
+  /* ── Session History Modal ──────────────────────────────────────────────── */
+  .sh-modal{background:var(--surface);border:1px solid var(--border-glow);border-radius:8px;width:min(700px,95vw);max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
+  .sh-modal-header{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.1rem;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0}
+  .sh-modal-title{font-family:'Cinzel',serif;font-size:.85rem;letter-spacing:.1em;color:var(--gold)}
+  .sh-modal-body{overflow-y:auto;flex:1;padding:.75rem 1rem}
+  .sh-empty{text-align:center;color:var(--text-muted);font-size:.85rem;padding:2rem}
+  .sh-sess-card{border:1px solid var(--border);border-radius:5px;margin-bottom:.6rem;overflow:hidden}
+  .sh-sess-hdr{display:flex;align-items:center;gap:.75rem;padding:.5rem .75rem;background:var(--surface2);cursor:pointer;user-select:none}
+  .sh-sess-hdr:hover{background:var(--border)}
+  .sh-sess-date{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.07em;color:var(--gold-dim);min-width:120px;flex-shrink:0}
+  .sh-sess-char{font-size:.82rem;font-weight:700;color:var(--text-dim);min-width:90px;flex-shrink:0}
+  .sh-sess-zone{font-size:.8rem;color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sh-sess-stats{display:flex;gap:.9rem;flex-shrink:0}
+  .sh-sess-stat{font-size:.75rem;color:var(--text-muted);white-space:nowrap}
+  .sh-sess-stat strong{color:var(--text-dim)}
+  .sh-sess-chevron{font-size:.65rem;color:var(--text-muted);transition:transform .15s;flex-shrink:0}
+  .sh-sess-body{padding:.6rem .75rem;border-top:1px solid var(--border);display:none}
+  .sh-sess-body.open{display:block}
+  .sh-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem .75rem;margin-bottom:.6rem}
+  .sh-detail-section{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.09em;color:var(--text-muted);text-transform:uppercase;margin:.5rem 0 .25rem;padding-bottom:.2rem;border-bottom:1px solid var(--border)}
+  .sh-mob-row{display:flex;justify-content:space-between;font-size:.78rem;color:var(--text-dim);padding:.15rem 0;border-bottom:1px solid var(--border)}
+  .sh-mob-row:last-child{border-bottom:none}
+  .sh-loot-row{display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--text-dim);padding:.15rem 0;border-bottom:1px solid var(--border)}
+  .sh-loot-row:last-child{border-bottom:none}
+  .sh-loot-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sh-loot-val{font-size:.72rem;color:var(--text-muted);font-family:monospace;flex-shrink:0}
+  .sh-badge-q{font-size:.58rem;font-weight:700;padding:.1rem .3rem;border-radius:2px;background:#3a2800;color:#c8960c;border:1px solid #6a4a00;flex-shrink:0}
+  .sh-badge-w{font-size:.58rem;font-weight:700;padding:.1rem .3rem;border-radius:2px;background:#1a1a3a;color:#8888dd;border:1px solid #3a3a7a;flex-shrink:0}
+  /* add History button to session panel */
+  .session-history-btn{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.06em;padding:.2rem .5rem;border:1px solid var(--border);border-radius:3px;background:none;color:var(--text-muted);cursor:pointer;white-space:nowrap}
+  .session-history-btn:hover{color:var(--gold-dim);border-color:var(--border-glow)}
+  .session-end-btn{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.06em;padding:.2rem .5rem;border:1px solid var(--border);border-radius:3px;background:none;color:var(--text-muted);cursor:pointer}
+  .session-end-btn:hover{color:#c0392b;border-color:#c0392b}
 </style>
 </head>
 <body>
@@ -648,6 +742,7 @@
         <button class="btn primary" id="itemDbBtn" style="font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.06em">&#128230; Item Database</button>
         <button class="btn" id="uiCopyBtn" style="font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.06em">&#128196; UI Copy Tool</button>
         <button class="btn" id="gearReportsBtn" style="font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.06em">&#128202; Gear Planner Reports</button>
+        <button class="btn session-trigger-btn" id="sessionPanelBtn" onclick="sessionToggleOverlay()" title="Active Session">&#9876; Session</button>
       </div>
     </div>
   </div>
@@ -1089,12 +1184,15 @@ const STAT_KEYS_ALL=[...STAT_KEYS,...RESIST_KEYS,...BONUS_KEYS];
 const STAT_DISPLAY={str:'STR',sta:'STA',dex:'DEX',agi:'AGI',wis:'WIS',int:'INT',cha:'CHA',hpbonus:'+HP',manabonus:'+Mana',svpoison:'SvPo',svmagic:'SvMa',svdisease:'SvDi',svfire:'SvFi',svcold:'SvCo',haste:'Haste'};
 const HP_RATIOS={'Warrior':[4.5,6.0],'Shadow Knight':[3.8,5.2],'Paladin':[3.8,5.2],'Ranger':[3.3,4.2],'Bard':[3.0,4.0],'Monk':[3.0,4.0],'Rogue':[3.0,4.0],'Cleric':[2.5,3.0],'Druid':[2.5,3.0],'Shaman':[2.5,3.0],'Enchanter':[2.0,2.4],'Magician':[2.0,2.4],'Necromancer':[2.0,2.4],'Wizard':[2.0,2.4]};
 const WIS_CLASSES=new Set(['Cleric','Druid','Paladin','Ranger','Shaman']);
+// Hybrid melee classes: 2H weapon scoring is ratio-only (no stat contribution).
+// Stats on 1H weapons still score normally for these classes.
+const HYBRID_2H_CLASSES=new Set(['Paladin','Shadow Knight','Bard','Ranger']);
 
 // ─── Weapon DPS Scoring (Velious era, level 60) ──────────────────────────────
 // Proc damage values sourced from p1999 wiki — 242 entries covering all combat procs.
 // DoT procs use total duration damage at level 60.
 // Utility procs (stun/snare/haste/buff) = 0.
-const PROC_DB={"Affliction":0,"Anarchy":40,"Avatar":0,"Banish Summoned":0,"Banish Undead":0,"Berserker Madness I":0,"Berserker Madness II":0,"Berserker Madness III":0,"Berserker Madness IV":0,"Berserker Strength":0,"Blessing of Nature":0,"Blessing of the Theurgist":0,"Blaze":50,"Blinding Poison I":0,"Blinding Poison II":0,"Blinding Poison III":0,"Blood Claw":50,"Boil Blood":96,"Bone Melt":75,"Boneshear":30,"Braid of Golden Hair":0,"Breath of the Sea":60,"Brittle Haste I":0,"Brittle Haste II":0,"Brittle Haste III":0,"Brittle Haste IV":0,"Burn":40,"Burst of Flame":25,"Call of Bones":0,"Cancel Magic":0,"Cannibalize II":0,"Careless Lightning":96,"Chaos Flux":60,"Chant of Battle":0,"Chill Sight":0,"Choke":0,"Choking":0,"Clockwork Poison":0,"Color Shift":0,"Combust":182,"Conflagration":150,"Contact Poison I":0,"Contact Poison II":0,"Contact Poison III":0,"Contact Poison IV":0,"Curse of the Garou":0,"Dance of the Blade":0,"Dawncall":0,"Deadly Poison":190,"Disease":15,"Disease Cloud":0,"Dismiss Summoned":0,"Dismiss Undead":0,"Dizzy I":0,"Dizzy II":0,"Dizzy III":0,"Dizzy IV":0,"Dooming Darkness":0,"Drones of Doom":0,"Drowsy":0,"Earthcall":50,"Earthquake":80,"Energy Sap":40,"Engulfing Darkness":0,"Engulfing Roots":0,"Ensnare":0,"Ensnaring Roots":0,"Envenomed Breath":100,"Essence Tap":60,"Expel Undead":0,"Fear":0,"Feeble Mind I":0,"Feeble Mind II":0,"Feeble Mind III":0,"Feeble Mind IV":0,"Feet like Cat":0,"Fellspine":67,"Fingers of Fire":55,"Firestrike":70,"Flame Shock":60,"Flamesong":80,"Fleeting Fury":0,"Flesh Rot I":30,"Flesh Rot II":60,"Flesh Rot III":90,"Force":55,"Force Shock":88,"Froglok Poison":0,"Frost Shards":620,"Frost Shock":178,"Frost Strike":149,"Frostbite":60,"Gale of Poison":0,"Garzicor's Vengeance":120,"Glamour":0,"Greater Wolf Form":0,"Greenmist":0,"Guard":0,"Haste":0,"Holy Shock":80,"Hungry Earth":0,"Ice Rend":30,"Ignite":50,"Ikatiar's Revenge":69,"Incapacitate":0,"Infectious Cloud":0,"Inferno Shock":120,"Injected Poison I":0,"Injected Poison II":0,"Injected Poison III":0,"Injected Poison IV":0,"Injected Poison V":0,"Insidious Fever":40,"Invoke Fear":0,"Jolt":40,"Judgment of Ice":150,"Knight's Blessing":0,"Leech":20,"Lifedraw":45,"Lifespike":11,"Lifetap":4,"Lightning Strike":173,"Lightning Storm":100,"Liquid Silver I":40,"Liquid Silver II":60,"Liquid Silver III":80,"Lower Resists I":0,"Lower Resists II":0,"Lower Resists III":0,"Lower Resists IV":0,"Major Shielding":0,"Malaisement":0,"Mana Sink":0,"Melodious Befuddlement":0,"Mistwalker":0,"Muscle Lock I":0,"Muscle Lock II":0,"Muscle Lock III":0,"Muscle Lock IV":0,"Nature's Holy Wrath":150,"Nature's Wrath":100,"Neutralize Magic":0,"Obsidian Shatter":90,"One Hundred Blows":0,"Overthere":0,"Pain":60,"Paralyzing Earth":0,"Paralyzing Poison I":0,"Paralyzing Poison II":0,"Paralyzing Poison III":0,"Poison":30,"Poison Animal I":0,"Poison Animal II":0,"Poison Animal III":0,"Poison Summoned I":0,"Poison Summoned II":0,"Poison Summoned III":0,"Poisonous Chill":50,"Project Lightning":80,"Rage of Vallon":0,"Rage of Xyzith":0,"Rage of Zek":0,"Rain of Fire":100,"Rain of Swords":100,"Rampage":0,"Reckless Strength":0,"Root":0,"Rune III":0,"Scourge":0,"Screaming Mace":0,"Sebilite Pox":110,"Shadow":0,"Shadow Vortex":0,"Shards of Sorrow":80,"Shield of Brambles":50,"Shield of Thistles":0,"Shiftless Deeds":0,"Shock of Flame":88,"Shock of Frost":60,"Shock of Ice":88,"Shock of Spikes":60,"Shrieking Howl":40,"Sicken":0,"Siphon":80,"Smite":55,"Smolder":80,"Snare":0,"Soul Bond":40,"Soul Consumption":100,"Soul Leech":60,"Specter Lifetap":21,"Spirit Armor":0,"Spirit Strike":85,"Spirit Tap":141,"Static Strike":70,"Steal Strength":0,"Steelskin":0,"Storm Strike":80,"Strike of Thunder":250,"Strike of the Chosen":80,"Strong Disease":0,"Strong Poison":0,"Stun":0,"Stunning Blow":0,"Suffocate":50,"Summon Bandages":0,"Swarming Pain":200,"Symphonic Harmony":0,"System Shock I":40,"System Shock II":60,"System Shock III":80,"System Shock IV":100,"System Shock V":120,"Tagar's Insects":0,"Tashani":0,"Tashania":0,"Tepid Deeds":0,"Thunder Strike":90,"Tishan\'s Clash":60,"Torment":60,"Velium Shards":12,"Venom":50,"Walking Sleep":0,"Waves of the Deep Sea":65,"Weak Poison":20,"Weaken":0,"Weakening Poison I":0,"Weakening Poison II":0,"Weakening Poison III":0,"Weakening Poison IV":0,"Whirlwind":70,"Winter's Roar":80,"Word of Pain":50,"Word of Shadow":0,"Yaulp":0,"Yaulp II":0,"Yaulp III":0,"Yaulp IV":0,"Ykesha":70,"Flame of the Efreeti":100,"Rage of the Sky":179,"Boiling Blood":648,"Essence Drain":0,"Feast of Blood":90,"Shock of Fire":97}
+const PROC_DB={"Affliction":0,"Anarchy":40,"Avatar":0,"Banish Summoned":0,"Banish Undead":0,"Berserker Madness I":0,"Berserker Madness II":0,"Berserker Madness III":0,"Berserker Madness IV":0,"Berserker Strength":0,"Blessing of Nature":0,"Blessing of the Theurgist":0,"Blaze":50,"Blinding Poison I":0,"Blinding Poison II":0,"Blinding Poison III":0,"Blood Claw":50,"Boil Blood":96,"Bone Melt":75,"Boneshear":30,"Bone Shatter":0,"Braid of Golden Hair":0,"Breath of the Sea":60,"Brittle Haste I":0,"Brittle Haste II":0,"Brittle Haste III":0,"Brittle Haste IV":0,"Burn":40,"Burst of Flame":25,"Call of Bones":0,"Cancel Magic":0,"Cannibalize II":0,"Careless Lightning":96,"Chaos Flux":60,"Chant of Battle":0,"Chill Sight":0,"Choke":0,"Choking":0,"Clockwork Poison":0,"Color Shift":0,"Combust":182,"Conflagration":150,"Contact Poison I":0,"Contact Poison II":0,"Contact Poison III":0,"Contact Poison IV":0,"Curse of the Garou":0,"Dance of the Blade":0,"Dawncall":0,"Deadly Poison":190,"Disease":15,"Disease Cloud":0,"Dismiss Summoned":0,"Dismiss Undead":0,"Doljon's Rage":140,"Dizzy I":0,"Dizzy II":0,"Dizzy III":0,"Dizzy IV":0,"Dooming Darkness":0,"Drones of Doom":0,"Drowsy":0,"Earthcall":50,"Earthquake":80,"Energy Sap":40,"Engulfing Darkness":0,"Engulfing Roots":0,"Ensnare":0,"Ensnaring Roots":0,"Envenomed Breath":100,"Essence Tap":60,"Expel Undead":0,"Fear":0,"Feeble Mind I":0,"Feeble Mind II":0,"Feeble Mind III":0,"Feeble Mind IV":0,"Feet like Cat":0,"Fire Bolt":48,"Flames of Ro":400,"Fellspine":67,"Fingers of Fire":55,"Firestrike":70,"Flame Shock":60,"Flamesong":80,"Fleeting Fury":0,"Flesh Rot I":30,"Flesh Rot II":60,"Flesh Rot III":90,"Force":55,"Force Shock":88,"Froglok Poison":0,"Frost Shards":620,"Frost Shock":178,"Frost Strike":149,"Frostbite":60,"Gale of Poison":0,"Garzicor's Vengeance":120,"Glamour":0,"Greater Wolf Form":0,"Greenmist":0,"Guard":0,"Haste":0,"Heat Blood":17,"Holy Might":60,"Holy Shock":80,"Hungry Earth":0,"Ice Rend":30,"Ignite":50,"Ikatiar's Revenge":69,"Incapacitate":0,"Infectious Cloud":0,"Inferno Shock":120,"Injected Poison I":0,"Injected Poison II":0,"Injected Poison III":0,"Injected Poison IV":0,"Injected Poison V":0,"Insidious Fever":40,"Invoke Fear":0,"Jolt":40,"Judgment of Ice":150,"Knight's Blessing":0,"Leech":20,"Lifedraw":45,"Lifespike":11,"Lifetap":4,"Lightning Strike":173,"Lightning Storm":100,"Liquid Silver I":40,"Liquid Silver II":60,"Liquid Silver III":80,"Lower Resists I":0,"Lower Resists II":0,"Lower Resists III":0,"Lower Resists IV":0,"Major Shielding":0,"Malaisement":0,"Mana Sink":0,"Melodious Befuddlement":0,"Mistwalker":0,"Muscle Lock I":0,"Muscle Lock II":0,"Muscle Lock III":0,"Muscle Lock IV":0,"Nature's Holy Wrath":150,"Nature's Wrath":100,"Neutralize Magic":0,"Obsidian Shatter":90,"One Hundred Blows":0,"Overthere":0,"Pain":60,"Paralyzing Earth":0,"Paralyzing Poison I":0,"Paralyzing Poison II":0,"Paralyzing Poison III":0,"Poison":30,"Poison Animal I":0,"Poison Animal II":0,"Poison Animal III":0,"Poison Summoned I":0,"Poison Summoned II":0,"Poison Summoned III":0,"Poisonous Chill":50,"Project Lightning":80,"Rage of Vallon":0,"Rage of Xyzith":0,"Rage of Zek":0,"Rain of Fire":100,"Rain of Swords":100,"Rampage":0,"Reckless Strength":0,"Root":0,"Rune III":0,"Scourge":0,"Sear":1,"Screaming Mace":0,"Sebilite Pox":110,"Shadow":0,"Shadow Vortex":0,"Shards of Sorrow":80,"Shield of Brambles":50,"Shield of Thistles":0,"Shiftless Deeds":0,"Shock of Flame":88,"Shock of Frost":60,"Shock of Ice":88,"Shock of Spikes":60,"Shrieking Howl":40,"Sicken":0,"Siphon":80,"Smite":55,"Smolder":80,"Snare":0,"Soul Bond":40,"Soul Consumption":100,"Soul Leech":60,"Specter Lifetap":21,"Spirit Armor":0,"Spirit Strike":85,"Spirit Tap":141,"Static Strike":70,"Steal Strength":0,"Steelskin":0,"Storm Strike":80,"Strike of Thunder":125,"Strike of the Chosen":80,"Strong Disease":0,"Strong Poison":0,"Stun":0,"Stunning Blow":0,"Suffocate":50,"Summon Bandages":0,"Swarming Pain":50,"Symphonic Harmony":0,"System Shock I":40,"System Shock II":60,"System Shock III":80,"System Shock IV":100,"System Shock V":120,"Tagar's Insects":0,"Tashani":0,"Tashania":0,"Tepid Deeds":0,"Thunder Strike":90,"Tishan\'s Clash":60,"Torment":60,"Velium Shards":12,"Venom":50,"Walking Sleep":0,"Waves of the Deep Sea":65,"Weak Poison":20,"Weaken":0,"Weakening Poison I":0,"Weakening Poison II":0,"Weakening Poison III":0,"Weakening Poison IV":0,"Whirlwind":70,"Winter's Roar":80,"Word of Pain":50,"Word of Shadow":0,"Yaulp":0,"Yaulp II":0,"Yaulp III":0,"Yaulp IV":0,"Ykesha":70,"Flame of the Efreeti":100,"Rage of the Sky":179,"Boiling Blood":36,"Essence Drain":0,"Feast of Blood":90,"Shock of Fire":97}
 
 // Monk weight limits by level (Velious/post-April-2001 P1999 values)
 const MNK_WEIGHT_LIMIT={1:14.9,15:15.9,30:16.9,45:17.9,51:18.9,55:20.9,60:24.9};
@@ -1508,6 +1606,7 @@ function buildTabs(){const bar=document.getElementById('tabBar');bar.querySelect
 function makeTab(charKey,label){const t=document.createElement('div');t.className='tab';t.dataset.char=charKey;const span=document.createElement('span');span.innerHTML=label;t.appendChild(span);if(charKey!=='__all__'){const status=getOverallStatus(charKey);const dot=document.createElement('span');dot.className='tab-rc-dot';dot.title='Raid Consumes: '+(status==='green'?'Ready':status==='yellow'?'Mostly Ready':'Not Ready');dot.style.cssText='font-size:.7rem;line-height:1;margin-left:.1rem;';dot.textContent=status==='green'?'✔':status==='yellow'?'◐':'✘';dot.style.color=status==='green'?'#3a7a3a':status==='yellow'?'#b07800':'#a03030';t.appendChild(dot);const reload=document.createElement('span');reload.className='remove-char';reload.textContent='↻';reload.title='Refresh inventory';reload.style.cssText='font-size:.9rem;';reload.addEventListener('click',e=>{e.stopPropagation();const inp=document.getElementById('charRefreshInput');inp.dataset.charkey=charKey;inp.click();});t.appendChild(reload);const x=document.createElement('span');x.className='remove-char';x.textContent='✕';x.addEventListener('click',e=>{e.stopPropagation();confirmAction('Remove '+charKey+'?',async()=>{delete chars[charKey];delete charMeta[charKey];delete gearStats[charKey];if(activeTab===charKey)activeTab=charNames()[0]||null;refresh();if(currentUser){try{await sb.from('characters').delete().eq('user_id',currentUser.id).eq('char_name',charKey);}catch(err){console.warn('Failed to delete character from Supabase:',err);}}});});t.appendChild(x);}t.addEventListener('click',()=>{activeTab=charKey;localStorage.setItem('mp_activeTab',charKey);if(charKey==='__all__')activeSub='inventory';buildTabs();renderView();});return t;}
 // ── Top Nav ──
 let activeTopView='characters';
+function switchTopView(view){const item=document.querySelector('.top-nav-item[data-view="'+view+'"]');if(item)item.click();}
 document.querySelectorAll('.top-nav-item').forEach(item=>{
   item.addEventListener('click',()=>{
     activeTopView=item.dataset.view;
@@ -1797,8 +1896,13 @@ function renderUpgradesPanel(){
   const hpPerSta = HP_RATIOS[charClass] ? staRatio(charClass, charLevel) : 0;
 
   function effectiveGain(curItemData,candData,baseTotals){
+    // For hybrid classes, 2H weapons score ratio-only — stats ignored.
+    // 1H weapons on hybrid classes still score stats normally.
+    const candItype=(candData._skill||candData._itemType||'').toLowerCase();
+    const candIs2h=candItype.includes('2h')||candItype.includes('two');
+    const skipStats=candIs2h&&HYBRID_2H_CLASSES.has(charClass);
     let total=0;
-    for(const k of STAT_KEYS_ALL){
+    if(!skipStats) for(const k of STAT_KEYS_ALL){
       const cur=Number(curItemData[k]||0),nxt=Number(candData[k]||0),raw=nxt-cur;
       if(!raw)continue;
 
@@ -1833,17 +1937,16 @@ function renderUpgradesPanel(){
           total+=raw*w;
         }
       }
-    }
+    } // end if(!skipStats) stat loop
+    if(!skipStats){
     const acW=weights.ac||0;
     if(acW){const ca=Number(curItemData.ac||0),na=Number(candData.ac||0);if(na-ca)total+=(na-ca)*acW;}
+    } // end if(!skipStats) ac block
+    // Haste always scored regardless of skipStats
     const hasteW=weights.haste||0;
     if(hasteW){
       const ch=Number(curItemData.haste||0),nh=Number(candData.haste||0);
       const hasteThresh=(CLASS_STAT_THRESHOLDS[charClass]||{}).haste||41;
-      // EQ haste only applies from a single item (no stacking).
-      // baseTotals.haste = highest haste item currently equipped (Math.max across all slots).
-      // If current item IS the haste source, other slots contribute 0.
-      // If current item is NOT the haste source, other slots already supply baseTotals.haste.
       const otherHaste=(ch>0&&ch>=(baseTotals.haste||0))?0:(baseTotals.haste||0);
       const effCh=Math.min(otherHaste+ch,hasteThresh);
       const effNh=Math.min(otherHaste+nh,hasteThresh);
@@ -2620,6 +2723,7 @@ window.upgRefreshStatSheet=function(){
   // Track per-item haste values so proj.haste can be recomputed as max() after swaps,
   // not arithmetic — haste is a single-source max, not additive.
   const equippedHasteByItem={};
+  const is2hModeSheet=!!(window['_upgTwoHander_'+name]);
   for(const item of equipped){
     const _cg4=charGear[item.name]||{},_db4=itemDBGet(item.name)||{};
     const dbSlot=invSlotToDBSlot(item.location);
@@ -2641,7 +2745,6 @@ window.upgRefreshStatSheet=function(){
   const proj=Object.assign({},cur);
   // Clone haste map for projection — slots get patched as candidates are applied
   const projHasteByItem=Object.assign({},equippedHasteByItem);
-  const is2hModeSheet=!!(window['_upgTwoHander_'+name]);
   let totalDkp=0,totalPlat=0;
   if(window._upgSlots){
     for(const sr of window._upgSlots){
@@ -3469,7 +3572,7 @@ async function onSignedIn(user){
 
 function onSignedOut(){
   currentUser=null;
-  chars={};charMeta={};gearStats={};charCoins={};watchList=[];bankerWatchList=[];bwlHiddenBankers=new Set();factionData={};skyshrineData={};questData={};dkpLookup={};dkpMeta={};platData=[];platMeta={};platCachedRows=[];platCacheKey='';platTypeFilter='all';raidSessions=[];activeSession=null;sessionsView='new';activeTab=null;creditData=null;charZones={};bankerRegistry=[];
+  chars={};charMeta={};gearStats={};charCoins={};watchList=[];bankerWatchList=[];bwlHiddenBankers=new Set();factionData={};skyshrineData={};questData={};dkpLookup={};dkpMeta={};platData=[];platMeta={};platCachedRows=[];platCacheKey='';platTypeFilter='all';raidSessions=[];activeSession=null;sessionsView='new';activeTab=null;creditData=null;charZones={};bankerRegistry=[];playSessions=[];
   {const bp=document.getElementById('bankersPanel');if(bp)bp.innerHTML='';}
   document.getElementById('userBar').style.display='none';
   document.getElementById('topNav').style.display='none';
@@ -3596,6 +3699,7 @@ async function loadFromSupabase(){
   await loadZonesFromSupabase();
   await loadBankerRegistryFromSupabase();
   await loadPriceExclusionsFromSupabase();
+  await loadPlaySessionsFromSupabase();
   applyDkpToItemDB();
   applyPlatToItemDB();
   fetchPlatData(); // auto-fetch Pigparse on load — runs in background, no await
@@ -4888,7 +4992,9 @@ window.applyDBToChar    = applyDBToChar;
           scheduleZonePrune();
           saveZonesToSupabase();
           renderZoneBar();
+          handleSessionMsg(msg);
         }
+        if(msg.type==='sessionLogin'||msg.type==='sessionXP'||msg.type==='sessionKill'||msg.type==='sessionLoot'||msg.type==='sessionPlat'||msg.type==='sessionCamp') handleSessionMsg(msg);
       } catch{}
     };
 
@@ -5019,7 +5125,9 @@ window.applyDBToChar    = applyDBToChar;
           scheduleZonePrune();
           saveZonesToSupabase();
           renderZoneBar();
+          handleSessionMsg(msg);
         }
+        if(msg.type==='sessionLogin'||msg.type==='sessionXP'||msg.type==='sessionKill'||msg.type==='sessionLoot'||msg.type==='sessionPlat'||msg.type==='sessionCamp') handleSessionMsg(msg);
       } catch(err){ console.warn('[IPC] watcher-event error', err); }
     });
 
@@ -5222,7 +5330,7 @@ function todAddToSession(killState){
   }
   saveSessionsToSupabase();
   _todAdvance();
-  switchTab('__kills__');
+  switchTopView('kills');
   showWatcherToast(`${killState==='failtick'?'💀':'⚔'} ${target} ${killState==='failtick'?'failtick':'marked as killed'}`);
 }
 
@@ -5241,7 +5349,7 @@ function todStartNewSession(killState){
   activeSession = session;
   saveSessionsToSupabase();
   _todAdvance();
-  switchTab('__kills__');
+  switchTopView('kills');
   showWatcherToast(`${killState==='failtick'?'💀':'⚔'} New session — ${target} ${killState==='failtick'?'failtick':'killed'}`);
 }
 
@@ -9231,12 +9339,614 @@ function bwlQuickAdd(name){
   saveBankerWatchList();
 }
 
+
+// ── Active Session Tracker ────────────────────────────────────────────────────
+let _sess = {
+  active: false,
+  charName: null,
+  startTime: null,
+  xpTicks: 0,
+  kills: {},         // { mobName: count }
+  loot: [],          // [{ item, ts, price, isQuest, isWatch }]
+  platVendor: 0,
+  platCoin: 0,
+  marks: [],         // [{ totalKills, killsSinceLast }]
+  lastMarkKills: 0,
+  timerInterval: null,
+  bodyVisible: true,
+};
+
+function sessionStart(charName) {
+  if (_sess.timerInterval) clearInterval(_sess.timerInterval);
+  _sess = {
+    active: true,
+    charName,
+    startTime: Date.now(),
+    xpTicks: 0,
+    kills: {},
+    loot: [],
+    platVendor: 0,
+    platCoin: 0,
+    marks: [],
+    lastMarkKills: 0,
+    timerInterval: null,
+    bodyVisible: true,
+  };
+  _sess.timerInterval = setInterval(sessionTickTimer, 1000);
+  sessionPanelOpen();
+  sessionRender();
+}
+
+function sessionTickTimer() {
+  if (!_sess.active) return;
+  const secs = Math.floor((Date.now() - _sess.startTime) / 1000);
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  const el = document.getElementById('sessionTimerDisplay');
+  if (el) el.textContent = h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+function sessionTotalKills() {
+  return Object.values(_sess.kills).reduce((a,b)=>a+b, 0);
+}
+
+function sessionTotalPlat() {
+  return Math.round((_sess.platVendor + _sess.platCoin) * 100) / 100;
+}
+
+function sessionGetItemPrice(itemName) {
+  const entry = typeof itemDBGet === 'function' ? itemDBGet(itemName) : null;
+  if (entry && entry.plat) return entry.plat; // plat is in thousands
+  return null;
+}
+
+function sessionIsWatch(itemName) {
+  if (!Array.isArray(watchList)) return false;
+  return watchList.some(r => r.item && r.item.toLowerCase() === itemName.toLowerCase());
+}
+
+function sessionRenderMobs() {
+  const el = document.getElementById('sMobList');
+  if (!el) return;
+  const sorted = Object.entries(_sess.kills).sort((a,b)=>b[1]-a[1]);
+  const maxCount = sorted.length ? sorted[0][1] : 1;
+  el.innerHTML = sorted.map(([mob, count]) => {
+    const pct = Math.round((count / maxCount) * 100);
+    return '<div class="session-mob-row">'
+      + '<span class="session-mob-name">' + mob + '</span>'
+      + '<div class="session-mob-bar-wrap"><div class="session-mob-bar-fill" style="width:' + pct + '%"></div></div>'
+      + '<span class="session-mob-count">' + count + '</span>'
+      + '</div>';
+  }).join('');
+}
+
+function sessionRenderLoot() {
+  const el = document.getElementById('sLootList');
+  if (!el) return;
+  el.innerHTML = _sess.loot.slice().reverse().map(l => {
+    let right = '';
+    if (l.price) right += '<span class="session-loot-val">~' + l.price + 'k pp</span>';
+    if (l.isQuest) right += '<span class="session-badge-q">quest</span>';
+    if (l.isWatch) right += '<span class="session-badge-w">watchlist</span>';
+    return '<div class="session-loot-row">'
+      + '<span class="session-loot-name" title="' + l.item + '">' + l.item + '</span>'
+      + right
+      + '</div>';
+  }).join('');
+}
+
+function sessionRender() {
+  if (!_sess.active) return;
+  const totalKills = sessionTotalKills();
+  const totalPlat  = sessionTotalPlat();
+  const mobTypes   = Object.keys(_sess.kills).length;
+
+  // Dot + start button
+  const dot = document.getElementById('sessionDot');
+  if (dot) dot.classList.toggle('live', _sess.active);
+  const startBtn = document.getElementById('sessionStartBtn');
+  if (startBtn) startBtn.style.display = _sess.active ? 'none' : 'inline-block';
+
+  // Char/zone
+  const charEl = document.getElementById('sessionCharName');
+  if (charEl) charEl.textContent = _sess.charName || '—';
+  const zoneEl = document.getElementById('sessionZoneDisplay');
+  if (zoneEl) {
+    const z = charZones && _sess.charName ? (charZones[_sess.charName] || {}).zone : null;
+    zoneEl.textContent = z ? '· ' + z : '';
+  }
+
+  // Metrics
+  const xpEl = document.getElementById('sXpTicks');
+  if (xpEl) xpEl.textContent = _sess.xpTicks.toLocaleString();
+
+  // XP % estimate
+  let xpPctStr = '—';
+  if (_sess.marks.length > 0) {
+    const avgKillsPer1 = _sess.marks.reduce((a,b)=>a+b.killsSinceLast,0) / _sess.marks.length;
+    const pct = avgKillsPer1 > 0 ? Math.min(99.9, totalKills / avgKillsPer1) : 0;
+    xpPctStr = '~' + pct.toFixed(1) + '% est.';
+    const barEl = document.getElementById('sXpBar');
+    if (barEl) barEl.style.width = Math.min(99.9, pct) + '%';
+    const calEl = document.getElementById('sXpCal');
+    if (calEl) calEl.textContent = avgKillsPer1.toFixed(1) + ' kills/1% (' + _sess.marks.length + ' mark' + (_sess.marks.length===1?'':'s') + ')';
+    const metaEl = document.getElementById('sXpMeta');
+    if (metaEl) metaEl.textContent = xpPctStr;
+  }
+  const xpPctEl = document.getElementById('sXpPct');
+  if (xpPctEl) xpPctEl.textContent = xpPctStr;
+
+  // Plat
+  const platEl = document.getElementById('sPlatTotal');
+  if (platEl) platEl.textContent = totalPlat.toFixed(0) + 'p';
+  const platSubEl = document.getElementById('sPlatSub');
+  if (platSubEl) platSubEl.textContent = (_sess.platVendor > 0 || _sess.platCoin > 0) ? 'vendor + coin' : '—';
+  const platVEl = document.getElementById('sPlatVendor');
+  if (platVEl) platVEl.textContent = _sess.platVendor.toFixed(0) + 'p';
+  const platCEl = document.getElementById('sPlatCoin');
+  if (platCEl) platCEl.textContent = _sess.platCoin.toFixed(0) + 'p';
+
+  // Kills
+  const killEl = document.getElementById('sKillTotal');
+  if (killEl) killEl.textContent = totalKills.toLocaleString();
+  const killTypeEl = document.getElementById('sKillTypes');
+  if (killTypeEl) killTypeEl.textContent = mobTypes + ' mob type' + (mobTypes===1?'':'s');
+  const killMetaEl = document.getElementById('sKillMeta');
+  if (killMetaEl) killMetaEl.textContent = totalKills.toLocaleString() + ' total';
+
+  // Loot
+  const lootMetaEl = document.getElementById('sLootMeta');
+  if (lootMetaEl) lootMetaEl.textContent = _sess.loot.length + ' item' + (_sess.loot.length===1?'':'s');
+
+  sessionRenderMobs();
+  sessionRenderLoot();
+  // Push to dedicated session overlay window if open
+  sessionPushState();
+}
+
+function sessionToggleOverlay() {
+  // In Electron: open the dedicated always-on-top session window
+  if (window.MixelParseApp && window.MixelParseApp.toggleSession) {
+    window.MixelParseApp.toggleSession();
+    // Start a session if not already active
+    if (!_sess.active) sessionManualStart();
+    return;
+  }
+  // Fallback for web version: in-app floating panel
+  sessionPanelOpen();
+}
+
+function sessionBuildPushState() {
+  return {
+    active:      _sess.active,
+    charName:    _sess.charName,
+    startTime:   _sess.startTime,
+    zone:        (_sess.charName && charZones[_sess.charName]) ? charZones[_sess.charName].zone : null,
+    xpTicks:     _sess.xpTicks,
+    kills:       Object.assign({}, _sess.kills),
+    loot:        _sess.loot.slice(),
+    platVendor:  _sess.platVendor,
+    platCoin:    _sess.platCoin,
+    marks:       _sess.marks.slice(),
+    lastMarkKills: _sess.lastMarkKills,
+  };
+}
+
+function sessionPushState() {
+  if (window.MixelParseApp && window.MixelParseApp.pushSessionState) {
+    window.MixelParseApp.pushSessionState(sessionBuildPushState());
+  }
+}
+
+// Wire up IPC listeners (called once on load)
+function sessionInitIPC() {
+  if (!window.MixelParseApp) return;
+  // When session window opens, immediately push current state
+  if (window.MixelParseApp.onSessionWindowReady) {
+    window.MixelParseApp.onSessionWindowReady(() => sessionPushState());
+  }
+  // Handle commands from session window
+  if (window.MixelParseApp.onSessionCommand) {
+    window.MixelParseApp.onSessionCommand(cmd => {
+      if (cmd === 'mark1pct') sessionMark1Pct();
+      else if (cmd === 'end')  sessionEndManual();
+    });
+  }
+}
+sessionInitIPC();
+
+function sessionManualStart() {
+  const char = (activeTab && activeTab !== '__all__') ? activeTab
+             : (charNames && charNames().length ? charNames()[0] : null)
+             || 'Unknown';
+  sessionStart(char);
+}
+
+function sessionMark1Pct() {
+  if (!_sess.active) {
+    sessionManualStart();
+    return;
+  }
+  const totalKills = sessionTotalKills();
+  const sinceLast  = totalKills - _sess.lastMarkKills;
+  if (sinceLast < 1) {
+    const btn = document.querySelector('.session-mark-btn');
+    if (btn) { btn.textContent = 'Need kills first'; setTimeout(() => { btn.textContent = 'Mark 1%'; }, 1500); }
+    return;
+  }
+  _sess.marks.push({ totalKills, killsSinceLast: sinceLast });
+  _sess.lastMarkKills = totalKills;
+  const marksEl = document.getElementById('sMarksList');
+  if (marksEl) {
+    const n = _sess.marks.length;
+    marksEl.innerHTML += '<div class="session-mark-row">mark ' + n + ' &nbsp;@ ' + totalKills + ' kills &nbsp;&#183; ' + sinceLast + ' kills/1%</div>';
+  }
+  const btn = document.querySelector('.session-mark-btn');
+  if (btn) { btn.textContent = '&#10003; Marked!'; setTimeout(() => { btn.textContent = 'Mark 1%'; }, 1200); }
+  sessionRender();
+}
+
+function sessionToggleSec(id) {
+  const body = document.getElementById('sSecXp'.replace('xp', id === 'xp' ? 'xp' : id === 'kills' ? 'Kills' : 'Loot'));
+  const bodyId = id === 'xp' ? 'sSecXp' : id === 'kills' ? 'sSecKills' : 'sSecLoot';
+  const chevId = id === 'xp' ? 'sChevXp' : id === 'kills' ? 'sChevKills' : 'sChevLoot';
+  const bodyEl = document.getElementById(bodyId);
+  const chevEl = document.getElementById(chevId);
+  if (!bodyEl) return;
+  const open = bodyEl.style.display !== 'none';
+  bodyEl.style.display = open ? 'none' : 'block';
+  if (chevEl) chevEl.style.transform = open ? 'rotate(-90deg)' : 'rotate(0deg)';
+}
+
+function sessionPanelOpen() {
+  const el = document.getElementById('sessionPanel');
+  if (!el) return;
+  el.style.display = 'block';
+  sessionInitDrag(el);
+  // Auto-start if no session is running — infer char from active tab or first known char
+  if (!_sess.active) {
+    const char = (activeTab && activeTab !== '__all__') ? activeTab
+               : (charNames && charNames().length ? charNames()[0] : null)
+               || 'Unknown';
+    sessionStart(char);
+  }
+}
+
+function sessionPanelClose() {
+  const el = document.getElementById('sessionPanel');
+  if (el) el.style.display = 'none';
+}
+
+function sessionPanelToggleBody() {
+  const body = document.getElementById('sessionPanelBody');
+  const btn  = document.getElementById('sessionCollapseBtn');
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (btn) btn.textContent = open ? '+' : '\u2212';
+}
+
+function sessionInitDrag(panel) {
+  const bar = document.getElementById('sessionTitlebar');
+  if (!bar || bar._dragInit) return;
+  bar._dragInit = true;
+  let dragging = false, ox, oy, startL, startT;
+  bar.addEventListener('mousedown', e => {
+    if (e.target.closest('.session-tb-btn')) return;
+    dragging = true;
+    ox = e.clientX; oy = e.clientY;
+    const r = panel.getBoundingClientRect();
+    startL = r.left; startT = r.top;
+    panel.style.right = 'auto'; panel.style.bottom = 'auto';
+    panel.style.left = startL + 'px'; panel.style.top = startT + 'px';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    e.preventDefault();
+  });
+  function onMove(e) {
+    if (!dragging) return;
+    panel.style.left = (startL + e.clientX - ox) + 'px';
+    panel.style.top  = (startT + e.clientY - oy) + 'px';
+  }
+  function onUp() {
+    dragging = false;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }
+}
+
+// ── WS session event handlers (called from ws.onmessage) ────────────────────
+function handleSessionMsg(msg) {
+  if (msg.type === 'sessionLogin') {
+    // If a session is already active, save it before starting the new one
+    if (_sess.active) sessionEnd('login').then(() => sessionStart(msg.charName));
+    else sessionStart(msg.charName);
+  } else if (msg.type === 'sessionCamp') {
+    // Camp-out detected — save the session (keep it active until confirmed login)
+    if (_sess.active) savePlaySession().then(() => showWatcherToast('Session auto-saved (camp).'));
+  } else if (msg.type === 'sessionXP') {
+    if (!_sess.active) return;
+    _sess.xpTicks++;
+    sessionRender();
+  } else if (msg.type === 'sessionKill') {
+    if (!_sess.active) return;
+    const mob = msg.mob || 'unknown';
+    _sess.kills[mob] = (_sess.kills[mob] || 0) + 1;
+    sessionRender();
+  } else if (msg.type === 'sessionLoot') {
+    if (!_sess.active) return;
+    const item  = msg.item || '';
+    const price = sessionGetItemPrice(item);
+    const isQuest = false; // TODO: hook into quest item DB when built
+    const isWatch = sessionIsWatch(item);
+    _sess.loot.push({ item, ts: Date.now(), price, isQuest, isWatch });
+    sessionRender();
+  } else if (msg.type === 'sessionPlat') {
+    if (!_sess.active) return;
+    const amt = msg.plat || 0;
+    if (msg.source === 'vendor') _sess.platVendor = Math.round((_sess.platVendor + amt) * 100) / 100;
+    else                         _sess.platCoin   = Math.round((_sess.platCoin   + amt) * 100) / 100;
+    sessionRender();
+  }
+  // Also update zone display on zone updates
+  if (msg.type === 'zoneUpdate' && _sess.active && msg.charName === _sess.charName) {
+    const zoneEl = document.getElementById('sessionZoneDisplay');
+    if (zoneEl) zoneEl.textContent = msg.zone ? '· ' + msg.zone : '';
+  }
+}
+
+
+// ── Session History — Supabase persistence ────────────────────────────────────
+// NOTE: Requires `play_sessions JSONB` column on guild_data table:
+//   ALTER TABLE guild_data ADD COLUMN IF NOT EXISTS play_sessions JSONB;
+
+let playSessions = [];   // array of saved session objects, newest first
+
+function sessionCalcEstPct() {
+  if (!_sess.marks.length) return null;
+  const avg = _sess.marks.reduce((a,b) => a + b.killsSinceLast, 0) / _sess.marks.length;
+  if (!avg) return null;
+  return Math.round((sessionTotalKills() / avg) * 10) / 10;
+}
+
+function sessionPrimaryZone() {
+  if (!_sess.charName || !charZones[_sess.charName]) return null;
+  return charZones[_sess.charName].zone || null;
+}
+
+function sessionBuildSaveObj() {
+  return {
+    id:       _sess.startTime,
+    char:     _sess.charName,
+    start:    _sess.startTime,
+    end:      Date.now(),
+    zone:     sessionPrimaryZone(),
+    xp:       _sess.xpTicks,
+    xpPct:    sessionCalcEstPct(),
+    kills:    Object.assign({}, _sess.kills),
+    killTotal: sessionTotalKills(),
+    loot:     _sess.loot.map(l => ({ item: l.item, price: l.price || null })),
+    plat:     Math.round((sessionTotalPlat()) * 100) / 100,
+    platV:    Math.round(_sess.platVendor * 100) / 100,
+    platC:    Math.round(_sess.platCoin   * 100) / 100,
+  };
+}
+
+async function savePlaySession() {
+  if (!currentUser || !_sess.active) return;
+  if (_sess.xpTicks === 0 && sessionTotalKills() === 0 && _sess.loot.length === 0) return; // nothing happened
+  const saved = sessionBuildSaveObj();
+  // Deduplicate — replace if same start time already saved
+  playSessions = [saved, ...playSessions.filter(s => s.id !== saved.id)];
+  if (playSessions.length > 100) playSessions.length = 100;
+  try {
+    const { data: existing } = await sb.from('guild_data').select('pool').eq('pool','SoV').eq('user_id', currentUser.id).maybeSingle();
+    if (existing) {
+      await sb.from('guild_data').update({ play_sessions: playSessions, updated_at: new Date().toISOString() }).eq('pool','SoV').eq('user_id', currentUser.id);
+    } else {
+      await sb.from('guild_data').insert({ pool:'SoV', user_id: currentUser.id, play_sessions: playSessions, updated_at: new Date().toISOString() });
+    }
+    console.log('[SESSION] Saved session to Supabase');
+  } catch(e) {
+    console.warn('[SESSION] Save error', e);
+  }
+}
+
+async function loadPlaySessionsFromSupabase() {
+  if (!currentUser) return;
+  try {
+    const { data } = await sb.from('guild_data').select('play_sessions').eq('pool','SoV').eq('user_id', currentUser.id).maybeSingle();
+    if (data?.play_sessions) {
+      playSessions = data.play_sessions;
+      console.log(`[SESSION] Loaded ${playSessions.length} saved session(s)`);
+    }
+  } catch(e) {
+    console.warn('[SESSION] Load error', e);
+  }
+}
+
+async function sessionEnd(trigger) {
+  if (!_sess.active) return;
+  console.log(`[SESSION] Ending session (trigger: ${trigger})`);
+  await savePlaySession();
+}
+
+async function sessionEndManual() {
+  await sessionEnd('manual');
+  _sess.active = false;
+  if (_sess.timerInterval) { clearInterval(_sess.timerInterval); _sess.timerInterval = null; }
+  const dot = document.getElementById('sessionDot');
+  if (dot) dot.classList.remove('live');
+  showWatcherToast('Session saved.');
+}
+
+// ── Session History Modal ────────────────────────────────────────────────────
+function openSessionHistory() {
+  const el = document.getElementById('sessionHistoryOverlay');
+  if (el) { el.style.display = 'flex'; renderSessionHistoryModal(); }
+}
+
+function closeSessionHistory() {
+  const el = document.getElementById('sessionHistoryOverlay');
+  if (el) el.style.display = 'none';
+}
+
+function fmtDuration(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) return h + 'h ' + m + 'm';
+  return m + 'm';
+}
+
+function fmtDate(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-US', { month:'short', day:'numeric' }) + ' ' +
+         d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+}
+
+function renderSessionHistoryModal() {
+  const body = document.getElementById('shModalBody');
+  if (!body) return;
+  if (!playSessions.length) { body.innerHTML = '<div class="sh-empty">No saved sessions yet.</div>'; return; }
+  body.innerHTML = playSessions.map((s, i) => {
+    const dur = fmtDuration((s.end || s.start + 3600000) - s.start);
+    const date = fmtDate(s.start);
+    const topKills = s.kills ? Object.entries(s.kills).sort((a,b)=>b[1]-a[1]).slice(0,8) : [];
+    const mobRows = topKills.map(([mob, n]) =>
+      '<div class="sh-mob-row"><span>' + mob + '</span><strong>' + n + '</strong></div>'
+    ).join('');
+    const lootRows = (s.loot || []).map(l => {
+      const val = l.price ? '<span class="sh-loot-val">~' + l.price + 'k pp</span>' : '';
+      const isW = watchList.some(r => r.item && r.item.toLowerCase() === (l.item||'').toLowerCase());
+      const wb = isW ? '<span class="sh-badge-w">watch</span>' : '';
+      return '<div class="sh-loot-row"><span class="sh-loot-name" title="' + (l.item||'') + '">' + (l.item||'') + '</span>' + val + wb + '</div>';
+    }).join('');
+    return '<div class="sh-sess-card" id="shCard' + i + '">'
+      + '<div class="sh-sess-hdr" onclick="shToggle(' + i + ')">'
+      + '<span class="sh-sess-date">' + date + '</span>'
+      + '<span class="sh-sess-char">' + (s.char || '?') + '</span>'
+      + '<span class="sh-sess-zone">' + (s.zone || '—') + '</span>'
+      + '<div class="sh-sess-stats">'
+      + '<span class="sh-sess-stat"><strong>' + dur + '</strong></span>'
+      + '<span class="sh-sess-stat">kills: <strong>' + (s.killTotal || 0) + '</strong></span>'
+      + '<span class="sh-sess-stat">plat: <strong>' + Math.round(s.plat || 0) + 'p</strong></span>'
+      + (s.xpPct != null ? '<span class="sh-sess-stat">xp: <strong>~' + s.xpPct + '%</strong></span>' : '')
+      + '</div>'
+      + '<span class="sh-sess-chevron" id="shChev' + i + '">&#9660;</span>'
+      + '</div>'
+      + '<div class="sh-sess-body" id="shBody' + i + '">'
+      + (topKills.length ? '<div class="sh-detail-section">Kill Breakdown</div>' + mobRows : '')
+      + (lootRows ? '<div class="sh-detail-section">Loot</div>' + lootRows : '')
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function shToggle(i) {
+  const body = document.getElementById('shBody' + i);
+  const chev = document.getElementById('shChev' + i);
+  if (!body) return;
+  const open = body.classList.toggle('open');
+  if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+
 initAuth();
 
 document.getElementById('bwlInput').addEventListener('keydown',e=>{if(e.key==='Enter')bwlAdd();});
 document.getElementById('bwlModalOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('bwlModalOverlay'))bwlClose();});
 
 </script>
+
+
+<!-- ── Active Session Panel ──────────────────────────────────────────────── -->
+<div id="sessionPanel" class="session-panel" style="display:none">
+  <div class="session-titlebar" id="sessionTitlebar">
+    <div class="session-dot" id="sessionDot"></div>
+    <span class="session-title-text">Active Session</span>
+    <span class="session-timer-display" id="sessionTimerDisplay">0:00:00</span>
+    <div class="session-tb-btns">
+      <button class="session-tb-btn" id="sessionCollapseBtn" onclick="event.stopPropagation();sessionPanelToggleBody()" title="Minimise">&#8722;</button>
+      <button class="session-tb-btn" onclick="event.stopPropagation();sessionPanelClose()" title="Close">&times;</button>
+    </div>
+  </div>
+  <div id="sessionPanelBody">
+    <div class="session-body">
+      <div class="session-char-bar">
+        <span class="session-char-name" id="sessionCharName">&#8212;</span>
+        <span class="session-char-zone" id="sessionZoneDisplay"></span>
+        <button id="sessionStartBtn" class="session-mark-btn" style="margin-left:auto;display:none" onclick="sessionManualStart()">&#9654; Start</button>
+      </div>
+      <div class="session-metrics">
+        <div class="session-metric">
+          <div class="session-metric-lbl">XP Ticks</div>
+          <div class="session-metric-val" id="sXpTicks">0</div>
+          <div class="session-metric-sub" id="sXpPct">&#8212;</div>
+        </div>
+        <div class="session-metric">
+          <div class="session-metric-lbl">Plat Earned</div>
+          <div class="session-metric-val" id="sPlatTotal">0</div>
+          <div class="session-metric-sub" id="sPlatSub">&#8212;</div>
+        </div>
+        <div class="session-metric">
+          <div class="session-metric-lbl">Kills</div>
+          <div class="session-metric-val" id="sKillTotal">0</div>
+          <div class="session-metric-sub" id="sKillTypes">&#8212;</div>
+        </div>
+      </div>
+      <div class="session-section">
+        <div class="session-sec-hdr" onclick="sessionToggleSec('xp')">
+          <span class="session-sec-hdr-title">&#9733; XP</span>
+          <div class="session-sec-hdr-right">
+            <span class="session-sec-hdr-meta" id="sXpMeta"></span>
+            <span class="session-chevron" id="sChevXp">&#9660;</span>
+          </div>
+        </div>
+        <div id="sSecXp" class="session-sec-body">
+          <div class="session-xp-bar-wrap"><div class="session-xp-bar-fill" id="sXpBar" style="width:0%"></div></div>
+          <div class="session-xp-row">
+            <span class="session-xp-cal" id="sXpCal">No marks yet</span>
+            <button class="session-mark-btn" onclick="sessionMark1Pct()">Mark 1%</button>
+          </div>
+          <div id="sMarksList" class="session-marks-list"></div>
+        </div>
+      </div>
+      <div class="session-section">
+        <div class="session-sec-hdr" onclick="sessionToggleSec('kills')">
+          <span class="session-sec-hdr-title">&#9876; Kills</span>
+          <div class="session-sec-hdr-right">
+            <span class="session-sec-hdr-meta" id="sKillMeta"></span>
+            <span class="session-chevron" id="sChevKills" style="transform:rotate(-90deg)">&#9660;</span>
+          </div>
+        </div>
+        <div id="sSecKills" class="session-sec-body" style="display:none">
+          <div id="sMobList" class="session-mob-list"></div>
+        </div>
+      </div>
+      <div class="session-section">
+        <div class="session-sec-hdr" onclick="sessionToggleSec('loot')">
+          <span class="session-sec-hdr-title">&#128230; Loot</span>
+          <div class="session-sec-hdr-right">
+            <span class="session-sec-hdr-meta" id="sLootMeta"></span>
+            <span class="session-chevron" id="sChevLoot" style="transform:rotate(-90deg)">&#9660;</span>
+          </div>
+        </div>
+        <div id="sSecLoot" class="session-sec-body" style="display:none">
+          <div id="sLootList" class="session-loot-list"></div>
+        </div>
+      </div>
+      <div class="session-footer">
+        <span class="session-plat-item">Vendor <strong id="sPlatVendor">0p</strong></span>
+        <span class="session-plat-item">Coin <strong id="sPlatCoin">0p</strong></span>
+        <button class="session-footer-btn" onclick="openSessionHistory()">History</button>
+        <button class="session-footer-btn danger" onclick="sessionEndManual()">End &amp; Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 
 </body>
 </html>
