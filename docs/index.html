@@ -642,6 +642,27 @@
   /* ── General ── */
   .fetch-bar{padding:.5rem .75rem;gap:.5rem}
   .panel{padding:.75rem .5rem}
+
+  /* ── Mobile layout polish ─────────────────────────────────────── */
+  /* Kill the phantom horizontal scroll / empty right margin */
+  body{overflow-x:hidden;max-width:100vw}
+
+  /* Header: networth flows inline instead of absolute-overlapping the buttons;
+     hide the desktop-only kill strip that pins to left:58% */
+  #networthDisplay{position:static!important;left:auto!important;top:auto!important;transform:none!important;margin:.4rem 0 .1rem;text-align:left}
+  .nw-header-value{font-size:1.05rem}
+  #ktKillStrip{display:none!important}
+
+  /* City panels (Skyshrine / Kael / Thurgadin): stack vertically, full width */
+  #factionBarsRow{flex-direction:column!important;align-items:stretch!important;gap:.5rem!important}
+  #factionBarsRow .watchlist-bar{width:100%!important}
+
+  /* Wide matrices (main Watch List + per-city rows) scroll inside their own card */
+  #watchlistBar{overflow-x:auto}
+  .watchlist-rows{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+  /* Combined inventory table: edge-to-edge; it already scrolls internally */
+  .table-wrap{margin-left:0;margin-right:0}
 }
 
   /* ── Session Window (floating, draggable) ──────────────────────────────── */
