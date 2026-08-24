@@ -849,11 +849,36 @@ const RE_YOU_SLAIN  = /^\[.+?\] You have slain (.+?)!/i;
 
 // ── Session tracker regexes ──────────────────────────────────────────────────
 const RE_SESSION_LOGIN  = /Welcome to EverQuest!/;
-const RE_SESSION_XP     = /You gain experience!!/;
+const RE_SESSION_XP     = /You gain (?:party )?experience!!/;
 const RE_SESSION_LOOT   = /--You have looted (?:a |an )?(.+?)\.--/i;
 const RE_SESSION_VENDOR = /\] You receive (.+?) from .+? for the .+?\(s\)\./;
 const RE_SESSION_COIN   = /\] You receive (.+?) from the corpse\./;
 const RE_SESSION_CAMP   = /It will take you about 30 seconds to prepare your camp\./;
+
+// ── Charm-kill tracking (Enchanter/pet-class charmed-pet kills) ───────────────
+// On P99 there is NO charm-landing log line.  The only signal is the cast line.
+// Strategy: when a charm spell is cast, set a per-character flag with a 15-min
+// TTL.  Any RE_SLAIN_BY kill (mob killed by a third party) while the flag is
+// active is credited to the session as a charmed-pet kill.
+// Full ENC charm line for P99 Velious:
+//   Charm (L12) · Beguile (L24) · Cajoling Whispers (L39) · Allure (L49) ·
+//   Boltran's Agacerie (L53 Kun) · Dictate (L60 Kun)
+const CHARM_SPELL_NAMES = new Set([
+  'Charm', 'Beguile', 'Cajoling Whispers', 'Allure',
+  "Boltran's Agacerie", 'Dictate'
+]);
+const RE_CHARM_CAST    = /^\[.+?\] You begin casting (.+?)\./;
+const RE_SLAIN_BY_FULL = /^\[.+?\] (.+?) has been slain by (.+?)!/i;
+const RE_PET_ATTACK    = /^\[.+?\] (.+?) says?,? '?Attacking (.+?) Master\.?'?/i;
+const RE_LOC           = /Your Location is ([\d.-]+),\s*([\d.-]+),\s*([\d.-]+)/;
+const RE_CHARM_BROKE   = /Your charm spell has worn off\./;
+const CHARM_TTL_MS     = 15 * 60 * 1000;   // 15 min — charm never lasts this long
+const CHARM_CONFIRM_MS = 5 * 1000;          // XP must arrive within 5s of slain line
+const _charmLastCast   = {};                // { [charName]: timestamp }
+const _pendingCharmKill = {};               // { [charName]: { mob, ts } } — awaiting XP confirm
+const _lastLocByChar   = {};               // { [charName]: { x, y, z } }
+const _activePetByChar = {};               // { [charName]: { petType, loc } }
+const _charmBrokeByChar= {};               // { [charName]: boolean }
 
 function parseSlainLine(charName, line) {
   let mobName = null;
@@ -1013,6 +1038,183 @@ function charNameFromLog(filename) {
 }
 
 // ── WebSocket server ─────────────────────────────────────────────────────────
+// ── Historic kill count scan ──────────────────────────────────────────────────
+// Replays the SAME kill-detection rules as the live tail (direct kills,
+// in-range charm kills via pet identity, XP-confirmed out-of-range kills,
+// login state resets) over entire log files from line one. TTL windows use
+// LOG timestamps instead of wall clock. Broadcasts progress + a final result
+// set; index.html owns persistence (wipe & rebuild in Supabase).
+// Keep the rule blocks below in lockstep with the live handlers above.
+let _killScanRunning = false;
+
+const _KS_MONTHS = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+const RE_LOG_TS = /^\[\w{3} (\w{3}) ([ \d]?\d) (\d{2}):(\d{2}):(\d{2}) (\d{4})\]/;
+function _ksParseTs(line) {
+  const m = line.match(RE_LOG_TS);
+  if (!m) return 0;
+  const mon = _KS_MONTHS[m[1]];
+  if (mon === undefined) return 0;
+  return new Date(+m[6], mon, +m[2], +m[3], +m[4], +m[5]).getTime();
+}
+
+function _ksCharFromPath(fp) {
+  const m = path.basename(fp).match(/^eqlog_(.+?)_P1999Green\.txt$/i);
+  return m ? m[1] : null;
+}
+
+function scanOneLogForKills(fp, fileIdx, totalFiles) {
+  return new Promise((resolve) => {
+    const charName = _ksCharFromPath(fp) || path.basename(fp);
+    let fileSize = 1;
+    try { fileSize = Math.max(1, fs.statSync(fp).size); } catch(e) {}
+    const counts = {};          // zoneLongName → mob → { count, firstTs, lastTs }
+    let currentZone  = '';
+    let killCredited = false;   // mirrors _killCredited
+    let pendingSlain = null;    // mirrors _pendingSlainMob { mob, t }
+    let petLastTarget = null;   // mirrors _petLastTarget
+    const charmedPets = new Set();
+    let activePet   = null;     // mirrors _activePetByChar { petType }
+    let charmBroke  = false;    // mirrors _charmBrokeByChar
+    let lineTs = 0, lineCount = 0, totalKills = 0;
+
+    const credit = (mob) => {
+      const z = currentZone || '';
+      if (!counts[z]) counts[z] = {};
+      let c = counts[z][mob];
+      if (!c) c = counts[z][mob] = { count: 0, firstTs: lineTs, lastTs: lineTs };
+      c.count++;
+      if (lineTs) { c.lastTs = lineTs; if (!c.firstTs) c.firstTs = lineTs; }
+      totalKills++;
+    };
+
+    const stream = fs.createReadStream(fp, { encoding: 'utf8' });
+    const rl = require('readline').createInterface({ input: stream, crlfDelay: Infinity });
+
+    rl.on('line', (line) => {
+      lineCount++;
+      const ts = _ksParseTs(line);
+      if (ts) lineTs = ts;
+      if (lineCount % 250000 === 0) {
+        broadcast({ type: 'killScanProgress', charName, fileIdx, totalFiles,
+                    pct: Math.min(99, Math.round(stream.bytesRead / fileSize * 100)) });
+      }
+
+      // Zone tracking
+      const zm = line.match(/You have entered (.+)\./);
+      if (zm) { currentZone = zm[1].trim(); return; }
+
+      // Login → state reset (mirrors live sessionLogin block)
+      if (RE_SESSION_LOGIN.test(line)) {
+        killCredited = false; pendingSlain = null; petLastTarget = null;
+        charmedPets.clear(); activePet = null; charmBroke = false;
+        return;
+      }
+
+      // XP tick (mirrors live: credited flag suppresses double-count;
+      // otherwise pending slain-by within TTL, else pet's last target)
+      if (RE_SESSION_XP.test(line)) {
+        if (killCredited) {
+          killCredited = false;
+        } else {
+          const mobName = (pendingSlain && (lineTs - pendingSlain.t) < CHARM_CONFIRM_MS)
+            ? pendingSlain.mob
+            : (petLastTarget || 'unknown');
+          credit(mobName);
+          pendingSlain = null; petLastTarget = null;
+        }
+      }
+
+      // Direct kill
+      const killM = line.match(RE_YOU_SLAIN);
+      if (killM) {
+        const mob = killM[1].trim();
+        credit(mob);
+        killCredited = true;
+        if (activePet && mob.toLowerCase() === activePet.petType && charmBroke) {
+          activePet = null; charmBroke = false;
+        }
+      }
+
+      // Pet attack tell
+      const petAtkM = line.match(RE_PET_ATTACK);
+      if (petAtkM) {
+        const petName = petAtkM[1].trim().toLowerCase();
+        charmedPets.add(petName);
+        petLastTarget = petAtkM[2].trim();
+        if (!activePet || activePet.petType !== petName) {
+          activePet = { petType: petName };
+          charmBroke = false;
+        }
+      }
+
+      // Charm broke
+      if (RE_CHARM_BROKE.test(line)) charmBroke = true;
+
+      // Slain-by (mirrors live: known pet → credit; unknown slayer → pending
+      // unless it's our own pet dying; own pet death clears charm state)
+      const slainByM = line.match(RE_SLAIN_BY_FULL);
+      if (slainByM) {
+        const slainMob  = slainByM[1].trim();
+        const slayerRaw = slainByM[2].trim().toLowerCase();
+        const isOwnPet  = !!(activePet && slainMob.toLowerCase() === activePet.petType);
+        if (charmedPets.has(slayerRaw)) {
+          credit(slainMob);
+          killCredited = true;
+          petLastTarget = null; pendingSlain = null;
+        } else if (!isOwnPet) {
+          pendingSlain = { mob: slainMob, t: lineTs };
+        }
+        if (isOwnPet && !charmedPets.has(slayerRaw)) {
+          activePet = null; charmBroke = false;
+        }
+      }
+    });
+
+    rl.on('close', () => resolve({ charName, counts, totalKills, lines: lineCount }));
+    stream.on('error', (e) => resolve({ charName, counts, totalKills, lines: lineCount, error: e.message }));
+  });
+}
+
+async function scanKillCountsAllLogs(charFilter) {
+  if (_killScanRunning) {
+    broadcast({ type: 'killScanResult', error: 'A scan is already running' });
+    return;
+  }
+  // Only scan logs for roster characters (Characters tab), when provided
+  const wanted = Array.isArray(charFilter) && charFilter.length
+    ? new Set(charFilter.map(c => String(c).toLowerCase()))
+    : null;
+  if (false || !CONFIG.LOG_DIR) {
+    broadcast({ type: 'killScanResult', error: 'No log directory configured' });
+    return;
+  }
+  _killScanRunning = true;
+  try {
+    const files = fs.readdirSync(CONFIG.LOG_DIR)
+      .filter(f => /^eqlog_.+_P1999Green\.txt$/i.test(f))
+      .filter(f => { if (!wanted) return true; const c = _ksCharFromPath(f); return !!(c && wanted.has(c.toLowerCase())); })
+      .map(f => path.join(CONFIG.LOG_DIR, f));
+    if (!files.length) {
+      broadcast({ type: 'killScanResult', error: 'No P1999Green log files found' });
+      return;
+    }
+    console.log(`[KILLSCAN] Scanning ${files.length} log file(s)…`);
+    const results = [];
+    for (let i = 0; i < files.length; i++) {
+      broadcast({ type: 'killScanProgress', charName: _ksCharFromPath(files[i]), fileIdx: i + 1, totalFiles: files.length, pct: 0 });
+      const r = await scanOneLogForKills(files[i], i + 1, files.length);
+      console.log(`[KILLSCAN] ${r.charName}: ${r.totalKills} kill(s) across ${r.lines} line(s)${r.error ? ' (ERROR: ' + r.error + ')' : ''}`);
+      results.push(r);
+    }
+    broadcast({ type: 'killScanResult', results });
+  } catch(e) {
+    console.error('[KILLSCAN]', e.message);
+    broadcast({ type: 'killScanResult', error: e.message });
+  } finally {
+    _killScanRunning = false;
+  }
+}
+
 const wss = new WebSocketServer({ port: CONFIG.WS_PORT, host: '127.0.0.1' });
 const clients = new Set();
 
@@ -1083,6 +1285,7 @@ wss.on('connection', (ws) => {
         }
       }
       if (msg.type === 'pong') { /* keepalive */ }
+      if (msg.type === 'scanKillCounts') { scanKillCountsAllLogs(msg.chars); }
     } catch {}
   });
 
@@ -1117,11 +1320,15 @@ function loadInvFile(filepath) {
   }
 }
 
+// Corpse inventory dumps ("Mixelmedic's corpse1652-Inventory.txt") are not
+// characters — /outputfile inventory with a corpse window open creates these.
+const RE_CORPSE_INV = /'s corpse\d*-Inventory\.txt$/i;
+
 // Initial scan — read all existing inventory files immediately on startup
 function initialInvScan() {
   try {
     const files = fs.readdirSync(CONFIG.INV_DIR);
-    const invFiles = files.filter(f => f.endsWith('-Inventory.txt'));
+    const invFiles = files.filter(f => f.endsWith('-Inventory.txt') && !RE_CORPSE_INV.test(f));
     console.log(`[INV] Found ${invFiles.length} inventory file(s) on startup`);
     for (const f of invFiles) {
       loadInvFile(path.join(CONFIG.INV_DIR, f));
@@ -1143,8 +1350,8 @@ const invWatcher = chokidar.watch(CONFIG.INV_DIR, {
   depth: 0,
 });
 
-invWatcher.on('add', fp => { if (path.basename(fp).endsWith('-Inventory.txt')) loadInvFile(fp); });
-invWatcher.on('change', fp => { if (path.basename(fp).endsWith('-Inventory.txt')) loadInvFile(fp); });
+invWatcher.on('add', fp => { const b = path.basename(fp); if (b.endsWith('-Inventory.txt') && !RE_CORPSE_INV.test(b)) loadInvFile(fp); });
+invWatcher.on('change', fp => { const b = path.basename(fp); if (b.endsWith('-Inventory.txt') && !RE_CORPSE_INV.test(b)) loadInvFile(fp); });
 invWatcher.on('error', e => console.error('[INV] Watcher error:', e));
 
 // ── EQ Log watcher ────────────────────────────────────────────────────────────
@@ -1176,21 +1383,91 @@ function processLogLines(charName, lines, isLive = false) {
     const zoneResult = parseZoneLine(charName, trimmed);
     if (zoneResult) {
       broadcast({ type: 'zoneUpdate', charName, zone: zoneResult.zone, timestamp: zoneResult.timestamp });
+      // Clear charm state on zone change
+      delete _activePetByChar[charName];
+      delete _charmBrokeByChar[charName];
       console.log(`[ZONE] ${charName} → ${zoneResult.zone}`);
+    }
+
+    // Location tracking
+    const locM = trimmed.match(RE_LOC);
+    if (locM) {
+      const loc = { x: parseFloat(locM[1]), y: parseFloat(locM[2]), z: parseFloat(locM[3]) };
+      _lastLocByChar[charName] = loc;
+      if (isLive) broadcast({ type: 'locUpdate', charName, x: loc.x, y: loc.y, z: loc.z });
     }
 
     // ── Session events (live tail only — not replayed from log history) ──────
     if (isLive) {
       if (RE_SESSION_LOGIN.test(trimmed)) {
         broadcast({ type: 'sessionLogin', charName });
+        delete _charmLastCast[charName];
+        delete _pendingCharmKill[charName];
+        delete _activePetByChar[charName];
+        delete _charmBrokeByChar[charName];
         console.log(`[SESSION] ${charName} login detected`);
       }
       if (RE_SESSION_XP.test(trimmed)) {
         broadcast({ type: 'sessionXP', charName });
+        // XP confirmation — if a charmed-pet kill is pending within 5 s, credit it now
+        const pending = _pendingCharmKill[charName];
+        if (pending && (Date.now() - pending.ts) < CHARM_CONFIRM_MS) {
+          broadcast({ type: 'sessionKill', charName, mob: pending.mob, loc: _lastLocByChar[charName] || null });
+        }
+        delete _pendingCharmKill[charName];
       }
       const killM = trimmed.match(RE_YOU_SLAIN);
       if (killM) {
-        broadcast({ type: 'sessionKill', charName, mob: killM[1].trim() });
+        const mob = killM[1].trim();
+        const loc  = _lastLocByChar[charName] || null;
+        broadcast({ type: 'sessionKill', charName, mob, loc });
+        // Spawn: pet death — player killed the former charm pet after charm broke
+        const activePet = _activePetByChar[charName];
+        if (activePet && mob.toLowerCase() === activePet.petType && _charmBrokeByChar[charName]) {
+          broadcast({ type: 'charmPetDied', charName, petType: activePet.petType, killedByUser: true });
+          delete _activePetByChar[charName];
+          delete _charmBrokeByChar[charName];
+        }
+      }
+      // Pet attack message → charm acquisition signal
+      const petAtkM = trimmed.match(RE_PET_ATTACK);
+      if (petAtkM) {
+        const petName = petAtkM[1].trim().toLowerCase();
+        const prev = _activePetByChar[charName];
+        if (!prev || prev.petType !== petName) {
+          const loc = _lastLocByChar[charName] || null;
+          _activePetByChar[charName] = { petType: petName, loc };
+          _charmBrokeByChar[charName] = false;
+          broadcast({ type: 'charmAcquired', charName, petType: petName, loc });
+        }
+      }
+      // Charm broke
+      if (RE_CHARM_BROKE.test(trimmed)) {
+        _charmBrokeByChar[charName] = true;
+        broadcast({ type: 'charmBroke', charName });
+      }
+      // Charm-cast tracking
+      const charmCastM = trimmed.match(RE_CHARM_CAST);
+      if (charmCastM && CHARM_SPELL_NAMES.has(charmCastM[1])) {
+        _charmLastCast[charName] = Date.now();
+        console.log(`[SESSION] ${charName} charm cast: ${charmCastM[1]}`);
+      }
+      // Charmed-pet kill — set pending; XP line confirms and credits it
+      const slainByM = trimmed.match(RE_SLAIN_BY_FULL);
+      if (slainByM) {
+        const slainMob  = slainByM[1].trim();
+        const slayerRaw = slainByM[2].trim().toLowerCase();
+        const activePet = _activePetByChar[charName];
+        const isOwnPet  = !!(activePet && slainMob.toLowerCase() === activePet.petType);
+        // Own pet's death is not a session kill — don't stash it, or a nearby
+        // XP tick within the confirm window would credit it as a kill.
+        if (!isOwnPet) _pendingCharmKill[charName] = { mob: slainMob, ts: Date.now() };
+        // Spawn: detect pet death — slain mob IS the active pet
+        if (isOwnPet && slayerRaw !== charName.toLowerCase()) {
+          broadcast({ type: 'charmPetDied', charName, petType: activePet.petType, killedByUser: false });
+          delete _activePetByChar[charName];
+          delete _charmBrokeByChar[charName];
+        }
       }
       const lootM = trimmed.match(RE_SESSION_LOOT);
       if (lootM) {
@@ -1208,6 +1485,10 @@ function processLogLines(charName, lines, isLive = false) {
       }
       if (RE_SESSION_CAMP.test(trimmed)) {
         broadcast({ type: 'sessionCamp', charName });
+        delete _charmLastCast[charName];
+        delete _pendingCharmKill[charName];
+        delete _activePetByChar[charName];
+        delete _charmBrokeByChar[charName];
         console.log(`[SESSION] ${charName} camp-out detected`);
       }
     }
@@ -1295,7 +1576,7 @@ function getMyChars() {
   try {
     const files = fs.readdirSync(CONFIG.INV_DIR);
     const chars = files
-      .filter(f => f.endsWith('-Inventory.txt'))
+      .filter(f => f.endsWith('-Inventory.txt') && !RE_CORPSE_INV.test(f))
       .map(f => f.replace(/-Inventory\.txt$/i, '').toLowerCase());
     return new Set(chars);
   } catch (e) {
@@ -1513,6 +1794,26 @@ function processNotesLines(lines) {
     if (!m) continue;
     const timestamp = m[1];
     const text = m[2];
+
+    // ── Spawn pin placement: "/note set AA" or "/note set AA 22:00" ──────────
+    const setM = text.match(/^set\s+([A-Za-z0-9]{1,8})(?:\s+(\d+:\d+))?$/i);
+    if (setM) {
+      const pin      = setM[1].toUpperCase();
+      const timerStr = setM[2] || null;
+      const locVals  = Object.values(_lastLocByChar);
+      const loc      = locVals.length > 0 ? locVals[locVals.length - 1] : null;
+      broadcast({ type: 'spawnPinSet', pin, timerStr, loc, timestamp });
+      console.log(`[SPAWN] Pin set: ${pin}${timerStr ? ' ('+timerStr+')' : ''}`);
+      continue;
+    }
+
+    // ── Zone timer update: "/note timer 22:00" ───────────────────────────────
+    const timerM = text.match(/^timer\s+(\d+:\d+)$/i);
+    if (timerM) {
+      broadcast({ type: 'zoneTimerSet', timerStr: timerM[1], timestamp });
+      console.log(`[SPAWN] Zone timer set: ${timerM[1]}`);
+      continue;
+    }
     const boss = fuzzyMatchBoss(text);
     if (boss) {
       console.log(`[NOTES] TOD detected: "${text}" → ${boss.target} (${boss.full})`);

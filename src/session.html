@@ -5,109 +5,232 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Session — MixelParse</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#ede6d6;--surface:#e4dbc8;--border:#c8b890;--border-glow:#a08050;
-  --gold:#7a5010;--gold-dim:#a07030;--text:#1a1008;--text-dim:#4a3a1a;--text-muted:#8a7050;
+  --bg:#22222e;
+  --surface:#2a2a38;
+  --surface2:#343448;
+  --surface3:#3a3a52;
+  --border:#252532;
+  --border-soft:#343448;
+  --text:#e2ddd4;
+  --text-dim:#a09c94;
+  --text-muted:#565468;
+  --gold:#c8a040;
+  --gold-dim:#8c7030;
+  --live:#4caf72;
+  --danger:#c0392b;
+  --c1:#5b8fc7;
+  --c2:#6cb87e;
+  --c3:#c07858;
+  --c4:#9068c0;
+  --c5:#c0c050;
 }
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Crimson Pro',Georgia,serif;font-size:15px;overflow:hidden;user-select:none}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sans-serif;font-size:13px;overflow:hidden;user-select:none}
 
-/* ── Window chrome ── */
-.win{display:flex;flex-direction:column;height:100vh;border:1px solid var(--border-glow)}
-.titlebar{display:flex;align-items:center;gap:.45rem;padding:.45rem .7rem;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;-webkit-app-region:drag;cursor:grab}
-.titlebar:active{cursor:grabbing}
-.tb-dot{width:8px;height:8px;border-radius:50%;background:var(--border-glow);flex-shrink:0;-webkit-app-region:no-drag}
-.tb-dot.live{background:#4caf50;animation:pulse 2.5s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.tb-title{font-family:'Cinzel',serif;font-size:.64rem;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;flex:1;pointer-events:none}
-.tb-timer{font-family:monospace;font-size:.82rem;color:var(--text-dim);flex-shrink:0;-webkit-app-region:no-drag}
-.tb-btns{display:flex;gap:.2rem;flex-shrink:0;-webkit-app-region:no-drag}
-.tb-btn{background:none;border:none;color:var(--text-muted);font-size:.95rem;cursor:pointer;line-height:1;padding:0 .25rem;-webkit-app-region:no-drag}
-.tb-btn:hover{color:var(--text)}
+/* ── Window ── */
+.win{display:flex;flex-direction:column;height:100vh;border:1px solid var(--border-soft);border-radius:14px;overflow:hidden}
+
+/* ── Titlebar ── */
+.titlebar{display:flex;align-items:center;gap:.4rem;padding:.38rem .6rem;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;-webkit-app-region:drag;height:36px}
+.tb-dot{width:7px;height:7px;border-radius:50%;background:var(--border-soft);flex-shrink:0;-webkit-app-region:no-drag}
+.tb-dot.live{background:var(--live);box-shadow:0 0 5px var(--live);animation:livepulse 2.5s ease-in-out infinite}
+@keyframes livepulse{0%,100%{opacity:1}50%{opacity:.3}}
+.tb-lbl{font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);flex:1;pointer-events:none}
+.tb-timer-sm{font-size:.75rem;font-weight:500;color:var(--text-dim);letter-spacing:.02em;font-variant-numeric:tabular-nums;flex-shrink:0;-webkit-app-region:no-drag}
+.tb-btns{display:flex;gap:.05rem;flex-shrink:0;-webkit-app-region:no-drag}
+.tb-btn{background:none;border:none;color:var(--text-muted);font-size:.95rem;cursor:pointer;padding:.08rem .3rem;line-height:1;border-radius:3px;-webkit-app-region:no-drag}
+.tb-btn:hover{background:var(--surface3);color:var(--text)}
+
+/* ── Active header ── */
+.active-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;padding:.65rem .8rem .6rem;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.ah-left{flex:1;min-width:0}
+.ah-name{font-size:1.3rem;font-weight:600;color:var(--text);letter-spacing:-.015em;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ah-sub{font-size:.7rem;color:var(--text-muted);margin-top:.22rem;letter-spacing:.01em}
+.ah-right{text-align:right;flex-shrink:0}
+.ah-time-lbl{font-size:.58rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.14rem}
+.ah-time{font-size:1.45rem;font-weight:300;color:var(--text);letter-spacing:.04em;font-variant-numeric:tabular-nums;line-height:1}
+
+/* ── Inactive header ── */
+.inactive-hdr{display:flex;align-items:center;gap:.5rem;padding:.55rem .8rem;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.char-sel{flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border-soft);border-radius:7px;color:var(--text);font-family:inherit;font-size:.8rem;padding:.3rem .45rem;cursor:pointer;-webkit-app-region:no-drag}
+.char-sel:focus{outline:none;border-color:var(--gold-dim)}
+.start-btn{font-size:.68rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:.3rem .65rem;border:1px solid var(--gold-dim);border-radius:7px;background:none;color:var(--gold);cursor:pointer;flex-shrink:0;white-space:nowrap;-webkit-app-region:no-drag}
+.start-btn:hover{background:var(--gold-dim);color:#fff}
 
 /* ── Scrollable body ── */
-.body{flex:1;overflow-y:auto;padding:.5rem .75rem .7rem}
+.body{flex:1;overflow-y:auto;background:var(--bg)}
+.body::-webkit-scrollbar{width:3px}
+.body::-webkit-scrollbar-track{background:transparent}
+.body::-webkit-scrollbar-thumb{background:var(--border-soft);border-radius:2px}
 
-/* ── Char bar ── */
-.char-bar{display:flex;align-items:baseline;gap:.45rem;margin-bottom:.5rem;padding-bottom:.4rem;border-bottom:1px solid var(--border)}
-.char-name{font-family:'Cinzel',serif;font-size:.8rem;color:var(--gold);letter-spacing:.05em}
-.char-zone{font-size:.8rem;color:var(--text-muted)}
-
-/* ── Metrics ── */
-.metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:4px;margin-bottom:.6rem;overflow:hidden}
-.metric{background:var(--surface);padding:.45rem .55rem}
-.metric-lbl{font-family:'Cinzel',serif;font-size:.53rem;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;margin-bottom:.14rem}
-.metric-val{font-size:1.1rem;font-weight:600;color:var(--text);line-height:1.1;font-family:'Cinzel',serif}
-.metric-sub{font-size:.67rem;color:var(--text-muted);margin-top:.1rem}
+/* ── Metrics row ── */
+.metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
+.metric{background:var(--bg);padding:.5rem .65rem .48rem}
+.metric-lbl{font-size:.58rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.2rem}
+.metric-val{font-size:1.1rem;font-weight:600;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
+.metric-sub{font-size:.65rem;color:var(--text-muted);margin-top:.15rem}
 
 /* ── Sections ── */
-.section{border-top:1px solid var(--border)}
-.sec-hdr{display:flex;align-items:center;justify-content:space-between;padding:.38rem .05rem;cursor:pointer}
-.sec-hdr:hover .sec-title{color:var(--gold-dim)}
-.sec-title{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;transition:color .12s}
-.sec-right{display:flex;align-items:center;gap:.5rem}
-.sec-meta{font-size:.7rem;color:var(--text-muted)}
-.chevron{font-size:.6rem;color:var(--text-muted);transition:transform .15s}
-.sec-body{padding:.05rem 0 .5rem}
+.section{border-bottom:1px solid var(--border)}
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;padding:.38rem .75rem .36rem;cursor:pointer;background:var(--surface);-webkit-app-region:no-drag}
+.sec-hdr:hover{background:var(--surface2)}
+.sec-hdr-l{display:flex;align-items:center;gap:.38rem}
+.sec-icon{font-size:.75rem}
+.sec-title{font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim)}
+.sec-hdr-r{display:flex;align-items:center;gap:.55rem}
+.sec-meta{font-size:.68rem;color:var(--text-muted)}
+.chev{font-size:.58rem;color:var(--text-muted);transition:transform .14s;display:inline-block;line-height:1}
+.chev.closed{transform:rotate(-90deg)}
+.sec-body{padding:.42rem .75rem .58rem}
 
-/* ── XP ── */
-.xp-bar-wrap{height:5px;background:var(--surface);border-radius:3px;margin:.3rem 0 .4rem;overflow:hidden;border:1px solid var(--border)}
-.xp-bar-fill{height:100%;background:var(--gold-dim);border-radius:3px;transition:width .5s ease}
-.xp-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
-.xp-cal{font-size:.72rem;color:var(--text-muted)}
-.mark-btn{font-family:'Cinzel',serif;font-size:.57rem;letter-spacing:.05em;padding:.25rem .55rem;border:1px solid var(--border-glow);border-radius:3px;background:var(--surface);color:var(--gold-dim);cursor:pointer;white-space:nowrap;flex-shrink:0}
-.mark-btn:hover{background:var(--border);color:var(--gold)}
-.marks-list{margin-top:.35rem}
-.mark-row{font-size:.7rem;color:var(--text-muted);font-family:monospace;padding:.1rem 0;border-bottom:1px solid var(--border)}
-.mark-row:last-child{border-bottom:none}
+/* ── XP section ── */
+.xp-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.3rem}
+.xp-avg{font-size:.75rem;color:var(--text-dim)}
+.mark-btn{font-size:.62rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:.24rem .55rem;border:1px solid var(--border-soft);border-radius:7px;background:none;color:var(--text-muted);cursor:pointer;white-space:nowrap;flex-shrink:0;-webkit-app-region:no-drag}
+.mark-btn:hover{border-color:var(--gold-dim);color:var(--gold)}
+.marks-list{display:flex;flex-direction:column;gap:.15rem;margin-top:.28rem}
+.mark-row{display:grid;grid-template-columns:3.2rem 1fr auto;align-items:center;gap:.3rem;padding:.22rem .42rem;background:var(--surface2);border-radius:7px;font-size:.7rem}
+.mark-n{color:var(--text-muted);font-size:.65rem}
+.mark-kills{color:var(--text-dim)}
+.mark-rate{color:var(--text-muted);font-variant-numeric:tabular-nums;text-align:right}
 
-/* ── Mobs ── */
-.mob-list{max-height:140px;overflow-y:auto}
-.mob-row{display:flex;align-items:center;padding:.22rem 0;border-bottom:1px solid var(--border)}
-.mob-row:last-child{border-bottom:none}
+/* ── Kill section ── */
+.mob-list{display:flex;flex-direction:column}
+.mob-row{padding:.28rem 0}
+.mob-row+.mob-row{border-top:1px solid var(--border)}
+.mob-row-top{display:flex;justify-content:space-between;align-items:baseline;gap:.4rem}
 .mob-name{font-size:.78rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mob-bar-wrap{width:55px;height:3px;background:var(--surface);border-radius:2px;margin:0 .5rem;flex-shrink:0;overflow:hidden}
-.mob-bar-fill{height:100%;background:var(--gold-dim);border-radius:2px}
-.mob-count{font-size:.78rem;font-weight:600;color:var(--text-muted);font-family:monospace;min-width:26px;text-align:right;flex-shrink:0}
+.mob-count{font-size:.78rem;color:var(--text-dim);font-variant-numeric:tabular-nums;flex-shrink:0;font-weight:500}
+.mob-bar-wrap{height:2px;margin-top:.18rem;background:var(--border);border-radius:1px;overflow:hidden}
+.mob-bar-fill{height:100%;border-radius:1px}
 
-/* ── Loot ── */
-.loot-list{max-height:140px;overflow-y:auto}
-.loot-row{display:flex;align-items:center;gap:.35rem;padding:.25rem 0;border-bottom:1px solid var(--border)}
-.loot-row:last-child{border-bottom:none}
-.loot-name{font-size:.8rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.loot-val{font-size:.7rem;color:var(--text-muted);font-family:monospace;white-space:nowrap;flex-shrink:0}
-.badge-q{font-size:.58rem;font-weight:700;padding:.1rem .3rem;border-radius:2px;background:#3a2800;color:#c8960c;border:1px solid #6a4a00;white-space:nowrap;flex-shrink:0}
-.badge-w{font-size:.58rem;font-weight:700;padding:.1rem .3rem;border-radius:2px;background:#1a1a3a;color:#8888dd;border:1px solid #3a3a7a;white-space:nowrap;flex-shrink:0}
+/* ── Loot section ── */
+.loot-list{display:flex;flex-direction:column}
+.loot-row{display:flex;align-items:center;gap:.38rem;padding:.26rem 0}
+.loot-row+.loot-row{border-top:1px solid var(--border)}
+.loot-name{font-size:.78rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.loot-price{font-size:.7rem;color:var(--text-muted);white-space:nowrap;flex-shrink:0;font-variant-numeric:tabular-nums}
+.pill{font-size:.6rem;font-weight:600;padding:.09rem .32rem;border-radius:8px;white-space:nowrap;flex-shrink:0;letter-spacing:.03em}
+.pill-q{background:#2e2000;color:#d4a833;border:1px solid #5a3e00}
+.pill-w{background:#00222e;color:#44c0d0;border:1px solid #00445a}
 
 /* ── Footer ── */
-.footer{display:flex;align-items:center;gap:.6rem;padding:.45rem .05rem 0;border-top:1px solid var(--border);margin-top:.4rem;flex-wrap:wrap}
-.plat-item{font-size:.75rem;color:var(--text-muted);flex:1}
-.plat-item strong{color:var(--text-dim)}
-.foot-btn{font-family:'Cinzel',serif;font-size:.57rem;letter-spacing:.05em;padding:.22rem .48rem;border:1px solid var(--border);border-radius:3px;background:none;color:var(--text-muted);cursor:pointer;white-space:nowrap;flex-shrink:0}
-.foot-btn:hover{border-color:var(--border-glow);color:var(--gold-dim)}
-.foot-btn.danger:hover{border-color:#c0392b;color:#c0392b}
+.footer{display:flex;align-items:center;justify-content:flex-end;gap:.42rem;padding:.42rem .75rem;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0}
+.foot-btn{font-size:.62rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:.27rem .58rem;border:1px solid var(--border-soft);border-radius:7px;background:none;color:var(--text-muted);cursor:pointer;-webkit-app-region:no-drag}
+.foot-btn:hover{background:var(--surface2);color:var(--text)}
+.foot-btn.danger:hover{border-color:var(--danger);color:var(--danger)}
+
+/* ── XP% start input ── */
+.xp-start-wrap{display:flex;align-items:center;gap:3px;background:var(--surface2);border:1px solid var(--border-soft);border-radius:7px;padding:2px 6px;flex-shrink:0;-webkit-app-region:no-drag}
+.xp-start-lbl{font-size:.6rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
+.xp-start-inp{width:30px;background:none;border:none;color:var(--text);font-family:inherit;font-size:.82rem;font-weight:600;padding:0;outline:none;font-variant-numeric:tabular-nums;-webkit-app-region:no-drag}
+.xp-start-inp::placeholder{color:var(--text-muted)}
+
+/* ── XP stat tiles ── */
+.xp-tiles{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:.35rem}
+.xp-tile{background:var(--surface2);border-radius:5px;padding:.28rem .4rem}
+.xp-tile-lbl{font-size:.58rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.18rem}
+.xp-tile-val{font-size:.82rem;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;line-height:1}
+.xp-tile-val.live{color:var(--live)}
+.xp-tile-val.gold{color:var(--gold)}
+
+/* ── History panel ── */
+.hist-panel{flex:1;overflow-y:auto;display:flex;flex-direction:column;background:var(--bg)}
+.hist-panel::-webkit-scrollbar{width:3px}
+.hist-panel::-webkit-scrollbar-thumb{background:var(--border-soft);border-radius:2px}
+.hist-hdr{display:flex;align-items:center;gap:.55rem;padding:.55rem .8rem .5rem;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;-webkit-app-region:no-drag}
+.hist-back{font-size:.62rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:.22rem .52rem;border:1px solid var(--border-soft);border-radius:7px;background:none;color:var(--text-muted);cursor:pointer}
+.hist-back:hover{background:var(--surface2);color:var(--text)}
+.hist-title{font-size:.68rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted)}
+.hist-list{padding:.3rem .8rem .6rem;overflow-y:auto;flex:1}
+.hist-row{padding:.42rem 0;border-bottom:1px solid var(--border)}
+.hist-row:last-child{border-bottom:none}
+.hist-char{font-size:.8rem;font-weight:600;color:var(--text)}
+.hist-zone{font-size:.78rem;color:var(--text-muted)}
+.hist-detail{font-size:.7rem;color:var(--text-muted);margin-top:.14rem}
+.hist-empty{font-size:.78rem;color:var(--text-muted);padding:.6rem 0}
+/* ── Last session summary bar ── */
+.last-sess-bar{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.4rem .8rem;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.lsb-left{flex:1;min-width:0}
+.lsb-lbl{font-size:.58rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.12rem}
+.lsb-detail{font-size:.7rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lsb-xp{font-size:.95rem;font-weight:600;flex-shrink:0;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* ── Spawn Timers section ── */
+.spawn-row{display:flex;align-items:center;gap:.38rem;padding:.3rem .65rem;border-bottom:1px solid var(--border)}
+.spawn-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:background .4s,box-shadow .4s}
+.spawn-row.ready   .spawn-dot{background:var(--live);box-shadow:0 0 5px var(--live)}
+.spawn-row.ticking .spawn-dot{background:var(--gold)}
+.spawn-row.urgent  .spawn-dot{background:var(--danger)}
+.spawn-row.idle    .spawn-dot{background:var(--border-soft)}
+.spawn-label{font-size:.68rem;font-weight:700;letter-spacing:.05em;min-width:28px;flex-shrink:0}
+.spawn-row.ready   .spawn-label{color:var(--live)}
+.spawn-row.ticking .spawn-label{color:var(--text-muted)}
+.spawn-row.urgent  .spawn-label{color:var(--danger)}
+.spawn-row.idle    .spawn-label{color:var(--text-dim)}
+.spawn-bar-wrap{flex:1;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;min-width:24px}
+.spawn-bar-fill{height:100%;border-radius:2px;transition:width 1s linear,background .4s}
+.spawn-time{font-size:.7rem;font-weight:600;font-variant-numeric:tabular-nums;flex-shrink:0;min-width:42px;text-align:right}
+.spawn-row.ready  .spawn-time{color:var(--live);font-weight:700}
+.spawn-row.urgent .spawn-time{color:var(--danger)}
+.spawn-cancel{background:none;border:none;color:var(--text-muted);font-size:.82rem;cursor:pointer;padding:.06rem .22rem;line-height:1;border-radius:3px;-webkit-app-region:no-drag;flex-shrink:0;opacity:.5}
+.spawn-cancel:hover{color:var(--danger);opacity:1;background:var(--surface2)}
 </style>
 </head>
 <body>
 <div class="win">
-  <div class="titlebar" id="titlebar">
+
+  <!-- ── Titlebar ─────────────────────────────────────────────────────── -->
+  <div class="titlebar">
     <div class="tb-dot" id="tbDot"></div>
-    <span class="tb-title">Active Session</span>
-    <span class="tb-timer" id="tbTimer">0:00:00</span>
+    <span class="tb-lbl">Active Session</span>
+    <span class="tb-timer-sm" id="tbTimerSm" style="display:none">0:00:00</span>
     <div class="tb-btns">
-      <button class="tb-btn" id="collapseBtn" title="Minimise" onclick="toggleBody()">&#8722;</button>
-      <button class="tb-btn" title="Close" onclick="window.MixelParseApp.closeSession()">&#215;</button>
+      <button class="tb-btn" id="collapseBtn" onclick="window.MixelParseApp&&window.MixelParseApp.minimizeSession&&window.MixelParseApp.minimizeSession()" title="Minimize">&#8722;</button>
+      <button class="tb-btn" onclick="window.MixelParseApp.closeSession()" title="Close">&#215;</button>
     </div>
   </div>
 
-  <div class="body" id="panelBody">
-    <div class="char-bar">
-      <span class="char-name" id="sChar">&#8212;</span>
-      <span class="char-zone" id="sZone"></span>
+  <!-- ── Active header (char + timer) ─────────────────────────────────── -->
+  <div class="active-hdr" id="activeHdr" style="display:none">
+    <div class="ah-left">
+      <div class="ah-name" id="hdrName">&#8212;</div>
+      <div class="ah-sub" id="hdrSub"></div>
     </div>
+    <div class="ah-right">
+      <div class="ah-time-lbl">Session Time</div>
+      <div class="ah-time" id="tbTimer">0:00:00</div>
+    </div>
+  </div>
 
+  <!-- ── Inactive header (char selector) ──────────────────────────────── -->
+  <div class="inactive-hdr" id="inactiveHdr">
+    <select class="char-sel" id="sCharSel">
+      <option value="">&#8212; Select character &#8212;</option>
+    </select>
+    <div class="xp-start-wrap">
+      <span class="xp-start-lbl">XP%</span>
+      <input type="number" class="xp-start-inp" id="sStartXp" min="0" max="99" placeholder="0">
+    </div>
+    <button class="start-btn" onclick="startSession()">&#9654; Start</button>
+  </div>
+
+  <!-- ── Last session summary bar ──────────────────────────────────────── -->
+  <div class="last-sess-bar" id="lastSessBar" style="display:none">
+    <div class="lsb-left">
+      <div class="lsb-lbl">Last Session</div>
+      <div class="lsb-detail" id="lsbDetail"></div>
+    </div>
+    <div class="lsb-xp" id="lsbXp"></div>
+  </div>
+
+  <!-- ── Scrollable body ───────────────────────────────────────────────── -->
+  <div class="body" id="panelBody">
+
+    <!-- Metrics -->
     <div class="metrics">
       <div class="metric">
         <div class="metric-lbl">XP Ticks</div>
@@ -116,7 +239,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Crimso
       </div>
       <div class="metric">
         <div class="metric-lbl">Plat Earned</div>
-        <div class="metric-val" id="sPlat">0</div>
+        <div class="metric-val" id="sPlat">0p</div>
         <div class="metric-sub" id="sPlatSub">&#8212;</div>
       </div>
       <div class="metric">
@@ -126,198 +249,535 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Crimso
       </div>
     </div>
 
+    <!-- XP Tracker section -->
     <div class="section">
       <div class="sec-hdr" onclick="toggle('xp')">
-        <span class="sec-title">&#9733; XP</span>
-        <div class="sec-right">
+        <div class="sec-hdr-l">
+          <span class="sec-icon">&#9889;</span>
+          <span class="sec-title">XP Tracker</span>
+        </div>
+        <div class="sec-hdr-r">
           <span class="sec-meta" id="sXpMeta"></span>
-          <span class="chevron" id="cXp">&#9660;</span>
+          <span class="chev" id="cXp">&#9662;</span>
         </div>
       </div>
-      <div id="bXp" class="sec-body">
-        <div class="xp-bar-wrap"><div class="xp-bar-fill" id="sXpBar" style="width:0%"></div></div>
-        <div class="xp-row">
-          <span class="xp-cal" id="sXpCal">No marks yet</span>
-          <button class="mark-btn" id="markBtn" onclick="sendCmd('mark1pct')">Mark 1%</button>
+      <div class="sec-body" id="bXp">
+        <div class="xp-tiles" id="sXpTiles">
+          <div class="xp-tile">
+            <div class="xp-tile-lbl">Started</div>
+            <div class="xp-tile-val" id="sXpStart">&#8212;</div>
+          </div>
+          <div class="xp-tile">
+            <div class="xp-tile-lbl">Est. now</div>
+            <div class="xp-tile-val live" id="sXpNow">&#8212;</div>
+          </div>
+          <div class="xp-tile">
+            <div class="xp-tile-lbl">Kills / 1%</div>
+            <div class="xp-tile-val" id="sXpK1">&#8212;</div>
+          </div>
+          <div class="xp-tile">
+            <div class="xp-tile-lbl">To level</div>
+            <div class="xp-tile-val gold" id="sXpToLvl">&#8212;</div>
+          </div>
         </div>
-        <div id="sMarksList" class="marks-list"></div>
+        <div class="xp-row">
+          <span class="xp-avg" id="sXpCal">No marks yet</span>
+          <button class="mark-btn" onclick="sendCmd('mark1pct')">&#9873; Mark 1%</button>
+        </div>
+        <div class="marks-list" id="sMarksList"></div>
       </div>
     </div>
 
+    <!-- Kill Breakdown section -->
     <div class="section">
       <div class="sec-hdr" onclick="toggle('kills')">
-        <span class="sec-title">&#9876; Kills</span>
-        <div class="sec-right">
+        <div class="sec-hdr-l">
+          <span class="sec-icon">&#9876;</span>
+          <span class="sec-title">Kill Breakdown</span>
+        </div>
+        <div class="sec-hdr-r">
           <span class="sec-meta" id="sKillMeta"></span>
-          <span class="chevron" id="cKills" style="transform:rotate(-90deg)">&#9660;</span>
+          <span class="chev closed" id="cKills">&#9662;</span>
         </div>
       </div>
-      <div id="bKills" class="sec-body" style="display:none">
-        <div id="sMobList" class="mob-list"></div>
+      <div class="sec-body" id="bKills" style="display:none">
+        <div class="mob-list" id="sMobList"></div>
       </div>
     </div>
 
+    <!-- Loot section -->
     <div class="section">
       <div class="sec-hdr" onclick="toggle('loot')">
-        <span class="sec-title">&#128230; Loot</span>
-        <div class="sec-right">
+        <div class="sec-hdr-l">
+          <span class="sec-icon">&#x1FA99;</span>
+          <span class="sec-title">Loot</span>
+        </div>
+        <div class="sec-hdr-r">
           <span class="sec-meta" id="sLootMeta"></span>
-          <span class="chevron" id="cLoot" style="transform:rotate(-90deg)">&#9660;</span>
+          <span class="chev closed" id="cLoot">&#9662;</span>
         </div>
       </div>
-      <div id="bLoot" class="sec-body" style="display:none">
-        <div id="sLootList" class="loot-list"></div>
+      <div class="sec-body" id="bLoot" style="display:none">
+        <div class="loot-list" id="sLootList"></div>
       </div>
     </div>
 
-    <div class="footer">
-      <span class="plat-item">Vendor <strong id="sPlatV">0p</strong></span>
-      <span class="plat-item">Coin <strong id="sPlatC">0p</strong></span>
-      <button class="foot-btn danger" onclick="sendCmd('end')">End &amp; Save</button>
+    <!-- Spawn Timers section -->
+    <div class="section" id="sSpawnSection" style="display:none">
+      <div class="sec-hdr" onclick="toggle('spawn')">
+        <div class="sec-hdr-l">
+          <span class="sec-icon">&#9711;</span>
+          <span class="sec-title">Spawn Timers</span>
+        </div>
+        <div class="sec-hdr-r">
+          <span class="sec-meta" id="sSpawnMeta"></span>
+          <span class="chev closed" id="cSpawn">&#9662;</span>
+        </div>
+      </div>
+      <div class="sec-body" id="bSpawn" style="display:none">
+        <div class="spawn-list" id="sSpawnList"></div>
+      </div>
     </div>
+
+  </div><!-- /.body -->
+
+  <!-- ── Footer ───────────────────────────────────────────────────────── -->
+  <div class="footer" id="footerBar">
+    <button class="foot-btn" onclick="window.MixelParseApp&&window.MixelParseApp.toggleMap&&window.MixelParseApp.toggleMap()" title="Toggle map window">Map</button>
+    <button class="foot-btn" onclick="sendCmd('history')">History</button>
+    <button class="foot-btn danger" onclick="showEndPrompt()">End &amp; Save</button>
   </div>
-</div>
+
+  <!-- ── History panel (replaces body when showHistory) ───────────────── -->
+  <div class="hist-panel" id="historyPanel" style="display:none">
+    <div class="hist-hdr">
+      <button class="hist-back" onclick="sendCmd('historyClose')">&#8592; Back</button>
+      <span class="hist-title">Session History</span>
+    </div>
+    <div class="hist-list" id="historyList"></div>
+  </div>
+
+</div><!-- /.win -->
 
 <script>
 'use strict';
 
-let _state = null;
-let _timerInterval = null;
-let _bodyOpen = true;
-let _markCount = 0;
+var _state      = null;
+var _timerIv    = null;
+var _markCount  = 0;
+var _bodyOpen   = true;
+var _expandedH  = 0;
+var _spawnIv       = null;   // 1s interval for spawn countdown ticks
+var _readyAlerted  = {};     // { [pin_label]: true } — pins that have fired the ready tone
+var _lastSpawnZone = null;   // zone string when _readyAlerted was last reset
 
-function pad(n){ return String(n).padStart(2,'0'); }
+var MOB_COLORS = ['#5b8fc7','#6cb87e','#c07858','#9068c0','#c0c050'];
 
-function startTimer(startTime) {
-  if (_timerInterval) clearInterval(_timerInterval);
-  _timerInterval = setInterval(() => {
-    const secs = Math.floor((Date.now() - startTime) / 1000);
-    const h = Math.floor(secs / 3600);
-    const m = Math.floor((secs % 3600) / 60);
-    const s = secs % 60;
-    const el = document.getElementById('tbTimer');
-    if (el) el.textContent = h + ':' + pad(m) + ':' + pad(s);
-  }, 1000);
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+function esc(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function toggle(id) {
-  const ids = { xp: ['bXp','cXp'], kills: ['bKills','cKills'], loot: ['bLoot','cLoot'] };
-  const [bodyId, chevId] = ids[id];
-  const body = document.getElementById(bodyId);
-  const chev = document.getElementById(chevId);
-  if (!body) return;
-  const open = body.style.display !== 'none';
-  body.style.display = open ? 'none' : 'block';
-  if (chev) chev.style.transform = open ? 'rotate(-90deg)' : 'rotate(0deg)';
+function setText(id,val){
+  var el=document.getElementById(id);
+  if(el) el.textContent=val;
 }
 
-function toggleBody() {
-  const body = document.getElementById('panelBody');
-  const btn  = document.getElementById('collapseBtn');
-  if (!body) return;
-  _bodyOpen = !_bodyOpen;
-  body.style.display = _bodyOpen ? 'block' : 'none';
-  if (btn) btn.textContent = _bodyOpen ? '\u2212' : '+';
+function totalKills(kills){
+  return Object.values(kills||{}).reduce(function(a,b){return a+b;},0);
 }
 
-function sendCmd(cmd) {
-  if (window.MixelParseApp && window.MixelParseApp.sendSessionCommand) {
+// ── Timer ────────────────────────────────────────────────────────────────────
+function startTimer(startTime){
+  if(_timerIv) clearInterval(_timerIv);
+  _timerIv=setInterval(function(){
+    var secs=Math.floor((Date.now()-startTime)/1000);
+    var h=Math.floor(secs/3600);
+    var m=Math.floor((secs%3600)/60);
+    var s=secs%60;
+    var ts=h+':'+pad2(m)+':'+pad2(s);
+    setText('tbTimer',ts);
+    setText('tbTimerSm',ts);
+  },1000);
+}
+
+// ── Section toggle ───────────────────────────────────────────────────────────
+function toggle(id){
+  var map={xp:['bXp','cXp'],kills:['bKills','cKills'],loot:['bLoot','cLoot'],spawn:['bSpawn','cSpawn']};
+  var pair=map[id]; if(!pair) return;
+  var body=document.getElementById(pair[0]);
+  var chev=document.getElementById(pair[1]);
+  if(!body) return;
+  var open=body.style.display!=='none';
+  body.style.display=open?'none':'';
+  if(chev) chev.classList.toggle('closed',open);
+}
+
+// ── Cancel spawn timer ────────────────────────────────────────────────────────
+function cancelTimer(pinLabel){
+  sendCmd({type:'cancelTimer',pinLabel:pinLabel});
+}
+
+// ── Collapse window ───────────────────────────────────────────────────────────
+function toggleBody(){
+  var btn=document.getElementById('collapseBtn');
+  _bodyOpen=!_bodyOpen;
+  if(btn) btn.textContent=_bodyOpen?'\u2212':'+';
+  if(_state) render(_state);
+  if(window.MixelParseApp&&window.MixelParseApp.resizeSession){
+    if(_bodyOpen){
+      window.MixelParseApp.resizeSession(_expandedH||600);
+    } else {
+      _expandedH=window.outerHeight||600;
+      window.MixelParseApp.resizeSession(36);
+    }
+  }
+}
+
+// ── IPC command ───────────────────────────────────────────────────────────────
+function sendCmd(cmd){
+  if(window.MixelParseApp&&window.MixelParseApp.sendSessionCommand){
     window.MixelParseApp.sendSessionCommand(cmd);
   }
 }
 
-function totalKills(kills) {
-  return Object.values(kills || {}).reduce((a,b)=>a+b,0);
+// ── Start session ─────────────────────────────────────────────────────────────
+function startSession(){
+  var sel=document.getElementById('sCharSel');
+  if(!sel||!sel.value){
+    if(sel){sel.style.outline='2px solid #c0392b';setTimeout(function(){sel.style.outline='';},800);}
+    return;
+  }
+  var xpInp=document.getElementById('sStartXp');
+  var startXpPct=(xpInp&&xpInp.value!=='')?parseInt(xpInp.value,10):null;
+  sendCmd({type:'start',charName:sel.value,startXpPct:startXpPct});
 }
 
-function render(s) {
-  if (!s) return;
-  _state = s;
+// ── Spawn timer helpers ───────────────────────────────────────────────────────
+function playReadyTone(){
+  try{
+    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    var osc=ctx.createOscillator(); var gain=ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type='sine';
+    osc.frequency.setValueAtTime(660,ctx.currentTime);
+    osc.frequency.setValueAtTime(880,ctx.currentTime+0.12);
+    gain.gain.setValueAtTime(0.22,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.55);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.55);
+  }catch(e){}
+}
 
-  const dot = document.getElementById('tbDot');
-  if (dot) dot.classList.toggle('live', !!s.active);
+function startSpawnIv(){
+  if(_spawnIv) return;
+  _spawnIv=setInterval(function(){ if(_state) renderSpawnSection(_state); },1000);
+}
 
-  const charEl = document.getElementById('sChar');
-  if (charEl) charEl.textContent = s.charName || '—';
-  const zoneEl = document.getElementById('sZone');
-  if (zoneEl) zoneEl.textContent = s.zone ? '· ' + s.zone : '';
+function stopSpawnIv(){
+  if(_spawnIv){ clearInterval(_spawnIv); _spawnIv=null; }
+}
 
-  const tot = totalKills(s.kills);
-  const mobTypes = Object.keys(s.kills || {}).length;
-  const plat = Math.round(((s.platVendor || 0) + (s.platCoin || 0)) * 100) / 100;
+function renderSpawnSection(s){
+  var pins=s.spawnPins||[], timers=s.spawnTimers||[];
+  var sect=document.getElementById('sSpawnSection');
+  var list=document.getElementById('sSpawnList');
+  if(sect) sect.style.display=pins.length?'':'none';
+  if(!list||!pins.length) return;
 
-  setText('sXpTicks', (s.xpTicks || 0).toLocaleString());
-  setText('sPlat', Math.round(plat) + 'p');
-  setText('sKills', tot.toLocaleString());
-  setText('sKillSub', mobTypes + ' mob type' + (mobTypes===1?'':'s'));
-  setText('sPlatV', Math.round(s.platVendor||0) + 'p');
-  setText('sPlatC', Math.round(s.platCoin||0) + 'p');
+  // Reset ready alerts on zone change
+  var curZone=s.zone||'';
+  if(curZone!==_lastSpawnZone){ _readyAlerted={}; _lastSpawnZone=curZone; }
 
-  // XP estimate
-  const marks = s.marks || [];
-  if (marks.length > 0) {
-    const avg = marks.reduce((a,b)=>a+b.killsSinceLast,0) / marks.length;
-    const pct = avg > 0 ? Math.min(99.9, tot / avg) : 0;
-    setText('sXpPct', '~' + pct.toFixed(1) + '% est.');
-    setText('sXpMeta', '~' + pct.toFixed(1) + '%');
-    setText('sXpCal', avg.toFixed(1) + ' kills/1% (' + marks.length + ' mark' + (marks.length===1?'':'s') + ')');
-    const bar = document.getElementById('sXpBar');
-    if (bar) bar.style.width = Math.min(99.9, pct) + '%';
-    // Render new marks
-    if (marks.length > _markCount) {
-      const ml = document.getElementById('sMarksList');
-      for (let i = _markCount; i < marks.length; i++) {
-        const m = marks[i];
-        if (ml) ml.innerHTML += '<div class="mark-row">mark ' + (i+1) + ' &nbsp;@ ' + m.totalKills + ' kills &nbsp;&#183; ' + m.killsSinceLast + '/1%</div>';
+  var now=Date.now();
+  var timerMap={};
+  timers.forEach(function(t){ timerMap[t.pin_label]=t; });
+
+  var rows=pins.map(function(pin){
+    var t=timerMap[pin.pin_label];
+    var remaining=t?Math.max(0,Math.round((t.triggered_at+t.timer_sec*1000-now)/1000)):-1;
+    var hasTimer=remaining>=0, isReady=hasTimer&&remaining===0;
+    return { pin:pin, remaining:remaining, hasTimer:hasTimer, isReady:isReady };
+  });
+
+  // Fire audio for newly-ready pins
+  rows.forEach(function(r){
+    if(r.isReady&&!_readyAlerted[r.pin.pin_label]){
+      _readyAlerted[r.pin.pin_label]=true; playReadyTone();
+    }
+    if(!r.isReady&&r.hasTimer&&_readyAlerted[r.pin.pin_label]){
+      delete _readyAlerted[r.pin.pin_label];
+    }
+  });
+
+  rows.sort(function(a,b){
+    if(a.isReady&&!b.isReady) return -1;
+    if(!a.isReady&&b.isReady) return 1;
+    if(a.hasTimer&&b.hasTimer) return a.remaining-b.remaining;
+    if(a.hasTimer&&!b.hasTimer) return -1;
+    if(!a.hasTimer&&b.hasTimer) return 1;
+    return a.pin.pin_label.localeCompare(b.pin.pin_label);
+  });
+
+  var readyCount=rows.filter(function(r){return r.isReady;}).length;
+  var activeCount=rows.filter(function(r){return r.hasTimer&&!r.isReady;}).length;
+  setText('sSpawnMeta',readyCount?readyCount+' ready':activeCount?activeCount+' active':'');
+
+  list.innerHTML=rows.map(function(r){
+    var pin=r.pin, rem=r.remaining;
+    var rowCls, timeStr, barPct, barClr;
+    if(!r.hasTimer){
+      rowCls='spawn-row idle'; timeStr='\u2014'; barPct=0; barClr='var(--border-soft)';
+    } else if(r.isReady){
+      rowCls='spawn-row ready'; timeStr='READY'; barPct=100; barClr='var(--live)';
+    } else {
+      var urgent=rem<120;
+      rowCls='spawn-row '+(urgent?'urgent':'ticking');
+      timeStr=Math.floor(rem/60)+':'+pad2(rem%60);
+      barPct=Math.round((pin.timer_sec-rem)/pin.timer_sec*100);
+      barClr=urgent?'var(--danger)':(rem<300?'var(--gold)':'var(--live)');
+    }
+    var displayLabel=esc(pin.display_name||pin.pin_label);
+    var cancelBtn=r.hasTimer
+      ?'<button class="spawn-cancel" onclick="cancelTimer('+JSON.stringify(pin.pin_label)+')" title="Cancel timer">\u00d7</button>'
+      :'';
+    return '<div class="'+rowCls+'">'
+      +'<div class="spawn-dot"></div>'
+      +'<span class="spawn-label">'+displayLabel+'</span>'
+      +'<div class="spawn-bar-wrap"><div class="spawn-bar-fill" style="width:'+barPct+'%;background:'+barClr+'"></div></div>'
+      +'<span class="spawn-time">'+timeStr+'</span>'
+      +cancelBtn
+      +'</div>';
+  }).join('');
+}
+
+// ── End-session report (opens in separate window via main.js) ────────────────
+function showEndPrompt(){
+  if(!_state) return;
+  sendCmd({type:'openEndReport', data:{
+    startTime:  _state.startTime,
+    startXpPct: _state.startXpPct,
+    kills:      _state.kills,
+    xpStats:    _state.xpStats,
+  }});
+}
+
+// ── History render ────────────────────────────────────────────────────────────
+function fmtDur(ms){
+  var s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60);
+  return h>0?(h+'h '+m+'m'):(m+'m');
+}
+
+function fmtDate(ts){
+  var d=new Date(ts);
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+}
+
+function renderHistory(sessions){
+  var list=document.getElementById('historyList');
+  if(!list) return;
+  if(!sessions||sessions.length===0){
+    list.innerHTML='<div class="hist-empty">No saved sessions yet.</div>';
+    return;
+  }
+  list.innerHTML=sessions.map(function(s){
+    var dur=s.end&&s.start?fmtDur(s.end-s.start):'&mdash;';
+    var date=s.start?fmtDate(s.start):'&mdash;';
+    var plat=s.plat?Math.round(s.plat)+'p':'0p';
+    return '<div class="hist-row">'
+      +'<span class="hist-char">'+esc(s.char||'&mdash;')+'</span>'
+      +' <span class="hist-zone">&middot; '+esc(s.zone||'unknown zone')+'</span>'
+      +'<div class="hist-detail">'+date+' &nbsp;&middot;&nbsp; '+dur
+      +' &nbsp;&middot;&nbsp; '+(s.xp||0)+' XP ticks'
+      +' &nbsp;&middot;&nbsp; '+(s.killTotal||0)+' kills'
+      +' &nbsp;&middot;&nbsp; '+esc(plat)
+      +'</div></div>';
+  }).join('');
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+function render(s){
+  if(!s) return;
+  _state=s;
+
+  var histPanel   =document.getElementById('historyPanel');
+  var panelBody   =document.getElementById('panelBody');
+  var footerBar   =document.getElementById('footerBar');
+  var activeHdr   =document.getElementById('activeHdr');
+  var inactiveHdr =document.getElementById('inactiveHdr');
+  var tbTimerSm   =document.getElementById('tbTimerSm');
+
+  // ── History panel takes over everything ──
+  if(s.showHistory){
+    if(histPanel)   histPanel.style.display='';
+    if(panelBody)   panelBody.style.display='none';
+    if(footerBar)   footerBar.style.display='none';
+    if(activeHdr)   activeHdr.style.display='none';
+    if(inactiveHdr) inactiveHdr.style.display='none';
+    var lsb=document.getElementById('lastSessBar'); if(lsb) lsb.style.display='none';
+    renderHistory(s.recentSessions);
+    return;
+  }
+  if(histPanel) histPanel.style.display='none';
+
+  // ── Body / header visibility when collapsed ──
+  var bodyShow=_bodyOpen?'':'none';
+  if(panelBody)   panelBody.style.display=bodyShow;
+  if(footerBar)   footerBar.style.display=bodyShow;
+  if(activeHdr)   activeHdr.style.display=(_bodyOpen&&s.active)?'':'none';
+  if(inactiveHdr) inactiveHdr.style.display=(_bodyOpen&&!s.active)?'':'none';
+
+  // ── Last session summary bar ──
+  var lastSessBar=document.getElementById('lastSessBar');
+  if(lastSessBar){
+    var ls=s.lastSession;
+    if(_bodyOpen&&!s.active&&ls){
+      lastSessBar.style.display='';
+      // Detail: char · duration · kills · plat
+      var durH=Math.floor(ls.duration/3600000);
+      var durM=Math.floor((ls.duration%3600000)/60000);
+      var durStr=durH>0?(durH+'h '+durM+'m'):(durM>0?durM+'m':'<1m');
+      var detail=(ls.char||'')+(durStr?' \u00b7 '+durStr:'');
+      if(ls.kills) detail+=' \u00b7 '+ls.kills+' kill'+(ls.kills===1?'':'s');
+      if(ls.plat>0) detail+=' \u00b7 '+Math.round(ls.plat)+'p';
+      setText('lsbDetail',detail);
+      // XP gain — right-aligned, green for positive
+      var xpEl=document.getElementById('lsbXp');
+      if(xpEl){
+        if(ls.xpGained!==null&&ls.xpGained!==undefined){
+          xpEl.textContent=(ls.xpGained>=0?'+':'')+ls.xpGained+'%';
+          xpEl.style.color=ls.xpGained>=0?'var(--live)':'var(--danger)';
+        } else {
+          xpEl.textContent='';
+        }
       }
-      _markCount = marks.length;
+    } else {
+      lastSessBar.style.display='none';
+    }
+  }
+
+  // ── Live dot ──
+  var dot=document.getElementById('tbDot');
+  if(dot) dot.classList.toggle('live',!!s.active);
+
+  // ── Compact timer in titlebar (visible when active, always) ──
+  if(tbTimerSm) tbTimerSm.style.display=s.active?'':'none';
+
+  // ── Active header content ──
+  if(s.active){
+    setText('hdrName',s.charName||'\u2014');
+    var parts=[];
+    if(s.charClass) parts.push(s.charClass);
+    if(s.charLevel) parts.push('Lv '+s.charLevel);
+    if(s.zone)      parts.push(s.zone);
+    setText('hdrSub',parts.join(' \u00b7 '));
+  } else {
+    // ── Char selector ──
+    var charSel=document.getElementById('sCharSel');
+    if(charSel&&s.charList&&s.charList.length){
+      var cur=charSel.value||s.recentChar||'';
+      charSel.innerHTML=s.charList.map(function(n){
+        return '<option value="'+esc(n)+'"'+(n===cur?' selected':'')+'>'+esc(n)+'</option>';
+      }).join('');
+    }
+  }
+
+  // ── Metrics ──
+  var tot=totalKills(s.kills);
+  var mobTypes=Object.keys(s.kills||{}).length;
+  var platTotal=Math.round((s.platVendor||0)+(s.platCoin||0));
+
+  setText('sXpTicks',(s.xpTicks||0).toLocaleString());
+  setText('sPlat',platTotal.toLocaleString()+'p');
+  setText('sKills',tot.toLocaleString());
+  setText('sKillSub',mobTypes+' mob type'+(mobTypes===1?'':'s'));
+
+  // XP % estimate (from pre-computed field)
+  setText('sXpPct',s.xpPctEst!=null?('\u007e'+s.xpPctEst.toFixed(1)+'% est.'):'\u2014');
+
+  // Plat sources
+  var src=s.platSources||0;
+  setText('sPlatSub',src>0?(src+' source'+(src===1?'':'s')):'\u2014');
+
+  // ── XP section ──
+  var marks=s.marks||[];
+  var xs=s.xpStats||{};
+  // Stat tiles
+  setText('sXpStart', s.startXpPct!==null&&s.startXpPct!==undefined ? s.startXpPct+'%' : '\u2014');
+  setText('sXpNow',   xs.estNow!==null&&xs.estNow!==undefined ? '\u007e'+xs.estNow+'%' : '\u2014');
+  setText('sXpK1',    xs.killsPer1!==null&&xs.killsPer1!==undefined ? xs.killsPer1 : '\u2014');
+  setText('sXpToLvl', xs.toLevel!==null&&xs.toLevel!==undefined ? '\u007e'+xs.toLevel.toLocaleString() : '\u2014');
+  if(marks.length>0){
+    var avg=marks.reduce(function(a,b){return a+b.killsSinceLast;},0)/marks.length;
+    setText('sXpCal','avg '+avg.toFixed(1)+' kills / 1%  \u00b7  '+marks.length+' mark'+(marks.length===1?'':'s'));
+    setText('sXpMeta','\u007e'+((s.xpPctEst!=null)?s.xpPctEst.toFixed(1)+'%':''));
+    if(marks.length>_markCount){
+      var ml=document.getElementById('sMarksList');
+      for(var i=_markCount;i<marks.length;i++){
+        var m=marks[i];
+        var row=document.createElement('div');
+        row.className='mark-row';
+        row.innerHTML='<span class="mark-n">mark '+(i+1)+'</span>'
+          +'<span class="mark-kills">@ '+m.totalKills+' kills</span>'
+          +'<span class="mark-rate">'+m.killsSinceLast+'/1%</span>';
+        if(ml) ml.appendChild(row);
+      }
+      _markCount=marks.length;
     }
   } else {
-    setText('sXpPct', '—');
-    setText('sXpMeta', '');
-    setText('sXpCal', 'No marks yet');
+    setText('sXpCal','No marks yet');
+    setText('sXpMeta','');
   }
 
-  setText('sKillMeta', tot.toLocaleString() + ' total');
-  setText('sLootMeta', (s.loot||[]).length + ' item' + ((s.loot||[]).length===1?'':'s'));
-  setText('sPlatSub', (plat > 0 ? 'vendor + coin' : '—'));
-
-  // Mobs
-  const mobList = document.getElementById('sMobList');
-  if (mobList) {
-    const sorted = Object.entries(s.kills || {}).sort((a,b)=>b[1]-a[1]);
-    const maxC = sorted.length ? sorted[0][1] : 1;
-    mobList.innerHTML = sorted.map(([mob,n]) =>
-      '<div class="mob-row"><span class="mob-name" title="' + mob + '">' + mob + '</span>'
-      + '<div class="mob-bar-wrap"><div class="mob-bar-fill" style="width:' + Math.round(n/maxC*100) + '%"></div></div>'
-      + '<span class="mob-count">' + n + '</span></div>'
-    ).join('');
-  }
-
-  // Loot
-  const lootList = document.getElementById('sLootList');
-  if (lootList) {
-    lootList.innerHTML = (s.loot||[]).slice().reverse().map(l => {
-      const val = l.price ? '<span class="loot-val">~' + l.price + 'k</span>' : '';
-      const bq  = l.isQuest ? '<span class="badge-q">quest</span>' : '';
-      const bw  = l.isWatch ? '<span class="badge-w">watch</span>' : '';
-      return '<div class="loot-row"><span class="loot-name" title="' + (l.item||'') + '">' + (l.item||'') + '</span>' + val + bq + bw + '</div>';
+  // ── Kill section ──
+  setText('sKillMeta',tot.toLocaleString()+' total');
+  var mobList=document.getElementById('sMobList');
+  if(mobList){
+    var sorted=Object.entries(s.kills||{}).sort(function(a,b){return b[1]-a[1];});
+    var maxC=sorted.length?sorted[0][1]:1;
+    mobList.innerHTML=sorted.map(function(pair,idx){
+      var mob=pair[0],n=pair[1];
+      var color=MOB_COLORS[idx%MOB_COLORS.length];
+      var pct=Math.round(n/maxC*100);
+      return '<div class="mob-row">'
+        +'<div class="mob-row-top">'
+        +'<span class="mob-name" title="'+esc(mob)+'">'+esc(mob)+'</span>'
+        +'<span class="mob-count">'+n+'</span>'
+        +'</div>'
+        +'<div class="mob-bar-wrap"><div class="mob-bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div>'
+        +'</div>';
     }).join('');
   }
 
-  // Timer
-  if (s.active && s.startTime) startTimer(s.startTime);
-  else if (!s.active && _timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+  // ── Loot section ──
+  var lootArr=s.loot||[];
+  var lootPp=s.lootPpEst?('\u007e'+Math.round(s.lootPpEst*1000).toLocaleString()+'pp'):'';
+  setText('sLootMeta',lootArr.length+' item'+(lootArr.length===1?'':'s')+(lootPp?' \u00b7 '+lootPp:''));
+  var lootList=document.getElementById('sLootList');
+  if(lootList){
+    lootList.innerHTML=lootArr.slice().reverse().map(function(l){
+      var pp=l.price?('<span class="loot-price">\u007e'+Math.round(l.price*1000).toLocaleString()+'pp</span>'):'';
+      var bq=l.isQuest?'<span class="pill pill-q">quest</span>':'';
+      var bw=l.isWatch?'<span class="pill pill-w">watch</span>':'';
+      return '<div class="loot-row">'
+        +'<span class="loot-name" title="'+esc(l.item||'')+'">'+esc(l.item||'')+'</span>'
+        +pp+bq+bw+'</div>';
+    }).join('');
+  }
+
+  // ── Spawn Timers section ──
+  renderSpawnSection(s);
+  if((s.spawnPins||[]).length>0) startSpawnIv(); else stopSpawnIv();
+
+  // ── Timer ──
+  if(s.active&&s.startTime) startTimer(s.startTime);
+  else if(!s.active&&_timerIv){ clearInterval(_timerIv); _timerIv=null; }
 }
 
-function setText(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = val;
-}
-
-// ── IPC ──────────────────────────────────────────────────────────────────────
-if (window.MixelParseApp && window.MixelParseApp.onSessionState) {
-  window.MixelParseApp.onSessionState(state => render(state));
+// ── IPC wiring ────────────────────────────────────────────────────────────────
+if(window.MixelParseApp&&window.MixelParseApp.onSessionState){
+  window.MixelParseApp.onSessionState(function(state){ render(state); });
 }
 </script>
 </body>

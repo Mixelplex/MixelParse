@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Session Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#1a1a1f;
+      --surface:#1f1f26;
+      --surface2:#26262f;
+      --border:rgba(255,255,255,.08);
+      --border-soft:rgba(255,255,255,.12);
+      --text:#e0e0e8;
+      --text-muted:#888899;
+      --text-dim:#666677;
+      --gold:#c8a84b;
+      --gold-dim:rgba(200,168,75,.35);
+      --live:#4caf72;
+      --danger:#c0392b;
+    }
+    html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+      font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+
+    /* ── Window shell ── */
+    #win{display:flex;flex-direction:column;height:100vh;
+      border:1px solid var(--border-soft);border-radius:10px;overflow:hidden}
+
+    /* ── Title bar (drag region) ── */
+    .titlebar{
+      height:36px;display:flex;align-items:center;justify-content:space-between;
+      padding:0 .75rem;background:var(--surface);border-bottom:1px solid var(--border);
+      flex-shrink:0;-webkit-app-region:drag;user-select:none
+    }
+    .tb-lbl{font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted)}
+    .tb-dur{font-size:.9rem;font-weight:500;color:var(--text-dim);font-variant-numeric:tabular-nums;letter-spacing:.04em}
+
+    /* ── XP input block ── */
+    .xp-block{padding:.62rem .8rem .58rem;background:var(--surface);border-bottom:1px solid var(--border);
+      flex-shrink:0;-webkit-app-region:no-drag}
+    .xp-lbl{font-size:.58rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+      color:var(--text-muted);margin-bottom:.36rem}
+    .xp-row{display:flex;align-items:center;gap:.5rem}
+    .xp-inp{flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border-soft);
+      border-radius:7px;color:var(--text);font-family:inherit;font-size:1.35rem;font-weight:600;
+      padding:.3rem .5rem;outline:none;font-variant-numeric:tabular-nums}
+    .xp-inp:focus{border-color:var(--gold-dim)}
+    .save-btn{font-size:.67rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+      padding:.42rem .8rem;border:1px solid var(--gold-dim);border-radius:7px;
+      background:none;color:var(--gold);cursor:pointer;flex-shrink:0;white-space:nowrap;
+      -webkit-app-region:no-drag}
+    .save-btn:hover{background:var(--gold-dim);color:#fff}
+
+    /* ── Stats table ── */
+    .stats{flex:1;overflow-y:auto}
+    .stat-row{display:flex;align-items:center;justify-content:space-between;
+      padding:.4rem .8rem;border-bottom:1px solid var(--border)}
+    .stat-lbl{font-size:.78rem;color:var(--text-muted)}
+    .stat-val{font-size:.82rem;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}
+    .stat-val.pos{color:var(--live)}
+    .stat-val.neg{color:var(--danger)}
+
+    /* ── Skip row ── */
+    .skip-row{padding:.45rem .8rem;display:flex;justify-content:flex-end;flex-shrink:0;
+      background:var(--surface);border-top:1px solid var(--border);-webkit-app-region:no-drag}
+    .skip-btn{font-size:.62rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+      padding:.24rem .55rem;border:1px solid var(--border-soft);border-radius:7px;
+      background:none;color:var(--text-muted);cursor:pointer}
+    .skip-btn:hover{background:var(--surface2);color:var(--text)}
+  </style>
+</head>
+<body>
+<div id="win">
+
+  <!-- ── Title bar ── -->
+  <div class="titlebar">
+    <span class="tb-lbl">Session Complete</span>
+    <span class="tb-dur" id="hdrDur">0:00:00</span>
+  </div>
+
+  <!-- ── Ending XP input ── -->
+  <div class="xp-block">
+    <div class="xp-lbl">Enter Ending XP %</div>
+    <div class="xp-row">
+      <input type="number" class="xp-inp" id="endXpInp" min="0" max="99" placeholder="31" oninput="epCalc()">
+      <button class="save-btn" onclick="confirmEnd()">Save &#8629;</button>
+    </div>
+  </div>
+
+  <!-- ── Live stat breakdown ── -->
+  <div class="stats">
+    <div class="stat-row">
+      <span class="stat-lbl">XP gained</span>
+      <span class="stat-val" id="epXpGain">&#8212;</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-lbl">Total kills</span>
+      <span class="stat-val" id="epKills">&#8212;</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-lbl">Kills / 1%</span>
+      <span class="stat-val" id="epK1">&#8212;</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-lbl">% / hour</span>
+      <span class="stat-val" id="epPctHr">&#8212;</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-lbl">Est. time to level</span>
+      <span class="stat-val" id="epTtl">&#8212;</span>
+    </div>
+  </div>
+
+  <!-- ── Skip ── -->
+  <div class="skip-row">
+    <button class="skip-btn" onclick="skipEnd()">Skip</button>
+  </div>
+
+</div>
+<script>
+'use strict';
+
+var _data = null; // populated via IPC report-data event
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+function setText(id, val){
+  var el = document.getElementById(id);
+  if(el) el.textContent = val;
+}
+
+function totalKills(kills){
+  return Object.values(kills||{}).reduce(function(a,b){ return a+b; }, 0);
+}
+
+function fmtTtl(hours){
+  if(!hours || !isFinite(hours) || hours <= 0) return '\u2014';
+  var h = Math.floor(hours);
+  var m = Math.round((hours - h) * 60);
+  if(h > 0) return h + 'h ' + m + 'm';
+  return m + 'm';
+}
+
+// ── Live stat calculation ─────────────────────────────────────────────────────
+function epCalc(){
+  if(!_data) return;
+  var inp     = document.getElementById('endXpInp');
+  var endPct  = (inp && inp.value !== '') ? parseInt(inp.value, 10) : null;
+  var startPct = _data.startXpPct != null ? _data.startXpPct : null;
+  var kills    = totalKills(_data.kills);
+  var xs       = _data.xpStats || {};
+  var elapsed  = _data.startTime ? (Date.now() - _data.startTime) : 0;
+  var elapsedH = elapsed / 3600000;
+
+  // XP gained
+  var xpGained = (startPct !== null && endPct !== null)
+    ? Math.round((endPct - startPct) * 10) / 10 : null;
+
+  // Kills / 1% — prefer mark-calibrated; derive from actuals if available
+  var k1 = xs.killsPer1 != null ? xs.killsPer1 : null;
+  if(k1 === null && xpGained && xpGained > 0 && kills > 0){
+    k1 = Math.round(kills / xpGained * 10) / 10;
+  }
+
+  // % / hour and est. time to level
+  var pctPerHour = null, ttl = null;
+  if(xpGained !== null && xpGained > 0 && elapsedH > 0){
+    pctPerHour = Math.round(xpGained / elapsedH * 10) / 10;
+    if(endPct !== null && pctPerHour > 0){
+      ttl = fmtTtl((100 - endPct) / pctPerHour);
+    }
+  }
+
+  // ── Update DOM ──
+  var xpEl = document.getElementById('epXpGain');
+  if(xpEl){
+    if(xpGained !== null){
+      xpEl.textContent = (xpGained >= 0 ? '+' : '') + xpGained + '%';
+      xpEl.className   = 'stat-val ' + (xpGained >= 0 ? 'pos' : 'neg');
+    } else {
+      xpEl.textContent = '\u2014';
+      xpEl.className   = 'stat-val';
+    }
+  }
+  setText('epKills',  kills       ? kills.toLocaleString()  : '\u2014');
+  setText('epK1',     k1 !== null ? k1                      : '\u2014');
+  setText('epPctHr',  pctPerHour !== null ? pctPerHour + '%' : '\u2014');
+  setText('epTtl',    ttl || '\u2014');
+}
+
+// ── Button handlers ───────────────────────────────────────────────────────────
+function confirmEnd(){
+  var inp = document.getElementById('endXpInp');
+  var endXpPct = (inp && inp.value !== '') ? parseInt(inp.value, 10) : null;
+  if(window.MixelParseApp && window.MixelParseApp.sendSessionCommand){
+    window.MixelParseApp.sendSessionCommand({type: 'endWithXp', endXpPct: endXpPct});
+  }
+  // main.js closes this window automatically after forwarding the command
+}
+
+function skipEnd(){
+  if(window.MixelParseApp && window.MixelParseApp.sendSessionCommand){
+    window.MixelParseApp.sendSessionCommand('end');
+  }
+}
+
+// ── Init from IPC data ────────────────────────────────────────────────────────
+function init(data){
+  _data = data;
+  // Freeze duration at the moment End & Save was clicked
+  var elapsed = data.startTime ? (Date.now() - data.startTime) : 0;
+  var eh = Math.floor(elapsed / 3600000);
+  var em = Math.floor((elapsed % 3600000) / 60000);
+  var es = Math.floor((elapsed % 60000) / 1000);
+  setText('hdrDur', eh + ':' + pad2(em) + ':' + pad2(es));
+  // Pre-fill kills row (no end% yet, other stats need input)
+  epCalc();
+  // Focus XP input
+  var inp = document.getElementById('endXpInp');
+  if(inp) setTimeout(function(){ inp.focus(); }, 80);
+}
+
+// ── IPC wiring ────────────────────────────────────────────────────────────────
+if(window.MixelParseApp && window.MixelParseApp.onReportData){
+  window.MixelParseApp.onReportData(function(data){ init(data); });
+}
+</script>
+</body>
+</html>

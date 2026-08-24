@@ -1,4 +1,20 @@
+$candidates = @(
+    "src\index.html",
+    "src\admin.html",
+    "src\setup.html",
+    "src\session.html",
+    "src\map.html",
+    "electron\main.js",
+    "electron\preload.js",
+    "electron\ipc\watcher.js",
+    "watcher\mixelparse-watcher.js",
+    "package.json",
+    "build-map-db.js"
+);
 
-cd C:\Users\Owner\Desktop\MixelParse-Source\MixelParse
+$h = Get-ChildItem -Filter "HANDOFF_v*.md" | Sort-Object Name | Select-Object -Last 1;
+if ($h) { $candidates += $h.Name }
 
-$files = @("src\index.html","src\admin.html","src\setup.html","electron\main.js","electron\preload.js","electron\ipc\watcher.js","watcher\mixelparse-watcher.js","package.json"); $h = Get-ChildItem -Filter "HANDOFF_v*.md" | Sort-Object Name | Select-Object -Last 1; if ($h) { $files += $h.Name }; Compress-Archive -Path $files -DestinationPath "session-upload.zip" -Force; Write-Host "Done"
+$files = $candidates | Where-Object { Test-Path $_ };
+Compress-Archive -Path $files -DestinationPath "session-upload.zip" -Force;
+Write-Host "Done — $($files.Count) files"

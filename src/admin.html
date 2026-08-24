@@ -177,6 +177,11 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
     Upgrade Scoring
     <span class="sb-badge skip" id="badge-upgrades">—</span>
   </div>
+  <div class="sb-item" data-suite="customweights" onclick="showSuite('customweights',this)">
+    <div class="sb-dot skip" id="dot-customweights"></div>
+    Custom Weights
+    <span class="sb-badge skip" id="badge-customweights">—</span>
+  </div>
   <div class="sb-item" data-suite="weapondps" onclick="showSuite('weapondps',this)">
     <div class="sb-dot skip" id="dot-weapondps"></div>
     Weapon DPS Scoring
@@ -279,7 +284,10 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
       <div class="h-title">DIAGNOSTIC PANEL</div>
       <div class="h-meta" id="hMeta">Not connected to app — open from MixelParse window</div>
     </div>
-    <button class="run-all-btn" onclick="runAll()">&#9658; RUN ALL SUITES</button>
+    <div style="display:flex;gap:.5rem;align-items:center">
+      <button class="btn" onclick="rotateEqLogsUI()" title="Archive EQ logs over 50 MB as .old (rename only — nothing is ever deleted; auto-rotation handles &ge;250 MB idle logs on its own)">&#129529; Rotate EQ Logs</button>
+      <button class="run-all-btn" onclick="runAll()">&#9658; RUN ALL SUITES</button>
+    </div>
   </div>
   <div class="main-content" id="mainContent">
 
@@ -340,6 +348,13 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
       <div class="suite-desc">Tests effectiveGain() logic, cap clamping at 255, stat delta calculation, and candidate sorting for the Upgrades tab.</div>
       <div class="suite-actions"><button class="btn primary" onclick="runSuite('upgrades')">&#9658; Run Suite</button></div>
       <div id="results-upgrades"></div>
+    </div>
+
+    <div id="suite-customweights" class="suite">
+      <div class="suite-title">CUSTOM STAT WEIGHTS</div>
+      <div class="suite-desc">Validates that per-character custom stat weights (Character Stats → Custom Weights) are resolved and fed into the app's gear scoring. Inspects the live app via window.opener.</div>
+      <div class="suite-actions"><button class="btn primary" onclick="runSuite('customweights')">&#9658; Run Suite</button></div>
+      <div id="results-customweights"></div>
     </div>
 
     <!-- WEAPON DPS SUITE -->
@@ -670,6 +685,27 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
 </div><!-- main -->
 </div><!-- shell -->
 
+<script>
+// ── EQ log rotation (v1.3.5) — manual trigger, admin panel. Auto-rotation
+// (250 MB + 10 min idle) runs in the main process regardless of this button.
+window.rotateEqLogsUI=async function(){
+  // The admin panel is usually opened via window.open from index.html, which
+  // gets NO preload in Electron — so reach the bridge through the opener,
+  // falling back to our own window for the tray-opened (createAdminWindow) path.
+  const bridge=(window.opener&&window.opener.MixelParseApp)||window.MixelParseApp||null;
+  if(!(bridge&&bridge.rotateLogs)){alert('Log rotation requires the desktop app.\nOpen the Admin panel from inside MixelParse (\u2699 Admin button).');return;}
+  if(!confirm('Rotate EQ log files now?\n\nEvery eqlog_*.txt over 50 MB gets renamed to eqlog_<char>.<YYYY-MM>.old in the same folder. Rename only — nothing is truncated or deleted, and the kill-count scanner still reads .old archives.\n\nA file EQ currently holds open is skipped safely.'))return;
+  try{
+    const r=await bridge.rotateLogs({minMB:50});
+    const lines=[
+      ...r.rotated.map(x=>'\u2705 '+x.file+' ('+x.mb+' MB) \u2192 '+x.to),
+      ...r.skipped.map(x=>'\u00b7 '+x.file+' ('+x.mb+' MB) \u2014 '+x.reason),
+      ...r.errors.map(x=>'\u26a0 '+x),
+    ];
+    alert('Log rotation ('+r.rotated.length+' rotated):\n\n'+(lines.join('\n')||'No eqlog files found.'));
+  }catch(e){alert('Rotation failed: '+(e&&e.message||e));}
+};
+</script>
 <script>
 // ── APP REFERENCE ──
 const A = window.opener || {};
@@ -1064,6 +1100,14 @@ SUITES.upgrades = [
     if(cls==='Rogue'&&slot==='PRIMARY'&&itype.includes('piercing')){
       const bsAvg=Math.max(90,(225*d)/50);
       bs=(bsAvg/delay)*0.6;
+    }
+    // ROG non-piercing PRIMARY penalty — mirrors index.html weaponDpsScore.
+    // A rogue main-hand blunt/slash forfeits backstab; subtract the backstab a
+    // comparable piercer would give, floored at 0, so it ranks strictly below
+    // any real piercer. Off-hand and non-weapons unaffected.
+    if(cls==='Rogue'&&slot==='PRIMARY'&&dmg&&delay&&!itype.includes('piercing')){
+      const foregoneBs=(Math.max(90,(225*d)/50)/delay)*0.6;
+      return Math.max(0, ratio+procDps-foregoneBs);
     }
     return ratio+procDps+bs;
   }
@@ -1964,7 +2008,82 @@ SUITES['creditcheck'] = [
 ];
 
 // ── RUNNER ──
-const SUITE_IDS = ['parsing','itemdb','wikiparse','calcs','upgrades','weapondps','bridge','dkp','plat','consumes','factions','skyshrine','quests','supabase','creditcheck','state','utils'];
+// CUSTOM STAT WEIGHTS
+SUITES.customweights = [
+  makeTest('App resolver + charMeta exposed', () => {
+    const A2 = gcGetApp();
+    return { asserts: [
+      assert('window.opener present', !!A2, A2 ? 'yes' : 'no'),
+      assert('effectiveBaseWeights is a function', typeof A2?.effectiveBaseWeights === 'function'),
+      assert('getStatWeights is a function', typeof A2?.getStatWeights === 'function'),
+      assert('charMeta object present', !!A2?.charMeta && typeof A2.charMeta === 'object'),
+      assert('CLASS_STAT_WEIGHTS present', !!A2?.CLASS_STAT_WEIGHTS),
+    ] };
+  }),
+  makeTest('Override merges over defaults; disable falls back', () => {
+    const A2 = gcGetApp();
+    if (!A2 || typeof A2.effectiveBaseWeights !== 'function') return { asserts: [assert('resolver available', false)] };
+    const cls = 'Enchanter';
+    const def = A2.CLASS_STAT_WEIGHTS[cls] || {};
+    const KEY = '__cwvalidate__';
+    const asserts = [];
+    try {
+      A2.charMeta[KEY] = { class: cls, customWeights: { enabled: true, weights: { cha: 9.9 } } };
+      const eff = A2.effectiveBaseWeights(KEY, cls);
+      asserts.push(assertEq('cha overridden to 9.9', eff.cha, 9.9));
+      asserts.push(assertEq('int inherits default', eff.int, def.int));
+      A2.charMeta[KEY].customWeights.enabled = false;
+      asserts.push(assertEq('disabled -> cha back to default', A2.effectiveBaseWeights(KEY, cls).cha, def.cha));
+    } finally { delete A2.charMeta[KEY]; }
+    return { asserts, msg: 'Uses a throwaway charMeta key, cleaned up after.' };
+  }),
+  makeTest('Scorer input weights reflect custom (getStatWeights)', () => {
+    const A2 = gcGetApp();
+    if (!A2 || typeof A2.getStatWeights !== 'function') return { asserts: [assert('getStatWeights available', false)] };
+    const cls = 'Enchanter';
+    const totals = { int: 100, _level: 60 };
+    const def = A2.CLASS_STAT_WEIGHTS[cls] || {};
+    const custBase = Object.assign({}, def, { svmagic: 5.0 });   // svmagic: no ENC threshold, clean signal
+    const wDef = A2.getStatWeights(cls, totals);
+    const wCust = A2.getStatWeights(cls, totals, custBase);       // exact call renderUpgradesPanel makes
+    return { asserts: [
+      assertEq('default svmagic weight', wDef.svmagic, def.svmagic),
+      assertEq('custom svmagic weight -> 5.0', wCust.svmagic, 5.0),
+      assert('weights the Upgrades scorer consumes changed', wCust.svmagic !== wDef.svmagic, (wDef.svmagic) + ' -> ' + (wCust.svmagic)),
+    ], msg: 'getStatWeights(cls, totals, effectiveBaseWeights(...)) is the exact weight object the app effectiveGain multiplies stat deltas by.' };
+  }),
+  makeTest('Live characters — custom weights in effect', () => {
+    const A2 = gcGetApp();
+    if (!A2 || !A2.charMeta) return { asserts: [assert('charMeta available', false)] };
+    const cmeta = A2.charMeta, CSW = A2.CLASS_STAT_WEIGHTS || {};
+    const KEYS = A2.WEIGHT_KEYS || ['str','sta','dex','agi','wis','int','cha','ac','svpoison','svmagic','svdisease','svfire','svcold','hpbonus','manabonus','haste','dmg'];
+    const names = Object.keys(cmeta).filter(n => cmeta[n] && cmeta[n].class && CSW[cmeta[n].class]);
+    let activeCount = 0, rows = '';
+    for (const n of names) {
+      const m = cmeta[n], cls = m.class, cw = m.customWeights || null, on = !!(cw && cw.enabled);
+      const def = CSW[cls] || {};
+      const eff = A2.effectiveBaseWeights ? A2.effectiveBaseWeights(n, cls) : def;
+      if (on) {
+        activeCount++;
+        const diffs = KEYS.filter(k => Number(eff[k] || 0) !== Number(def[k] || 0));
+        const detail = diffs.length ? diffs.map(k => k + ': ' + (def[k] || 0) + '->' + (eff[k] || 0)).join(', ') : '(custom on, values match defaults)';
+        rows += n.padEnd(12) + ' ' + String(cls).padEnd(14) + ' CUSTOM   ' + detail + '\n';
+      } else {
+        rows += n.padEnd(12) + ' ' + String(cls).padEnd(14) + ' defaults\n';
+      }
+    }
+    return {
+      asserts: [
+        assert('characters inspected', names.length > 0, names.length),
+        warn('at least one toon uses custom weights', activeCount === 0, activeCount + ' active'),
+      ],
+      output: names.length ? rows : '(no classed characters loaded)',
+      msg: activeCount + ' of ' + names.length + ' classed toon(s) have custom weights enabled. Effective = what the app scorer uses.',
+    };
+  }),
+];
+
+const SUITE_IDS = ['parsing','itemdb','wikiparse','calcs','upgrades','customweights','weapondps','bridge','dkp','plat','consumes','factions','skyshrine','quests','supabase','creditcheck','state','utils'];
 const SUITE_LABELS = {
   parsing:'Inventory Parser', itemdb:'Item DB / CSV', wikiparse:'Wiki Stat Parser',
   calcs:'HP / Mana Calcs', upgrades:'Upgrade Scoring', bridge:'Price Bridge',
@@ -1976,7 +2095,7 @@ const SUITE_LABELS = {
 let allResults = {};
 
 // Suites that require window.opener (i.e. the live app)
-const REQUIRES_OPENER = new Set(['itemdb','calcs','upgrades','bridge','dkp','plat','consumes','factions','skyshrine','quests','supabase','creditcheck','state','parsing']);
+const REQUIRES_OPENER = new Set(['itemdb','calcs','upgrades','customweights','bridge','dkp','plat','consumes','factions','skyshrine','quests','supabase','creditcheck','state','parsing']);
 
 async function runSuite(id) {
   const tests = SUITES[id];
@@ -2314,6 +2433,18 @@ function gcBuildBaseTotals(charName) {
       if (hasteVal) t.haste = Math.max(t.haste||0, hasteVal); // single-item haste — no stacking
     }
   }
+  // Parked buffs (mirrors planner Buffed mode): fold into totals when the char's
+  // planBuffed resolves ON (explicit flag wins; default ON when parked buffs exist),
+  // and expose the buff sums so scorers can shift class stat caps into the buffed frame.
+  const _bfOn = A2.planBuffedFor ? A2.planBuffedFor(charName) : false;
+  const _bsum = (_bfOn && A2.buffSumFor) ? A2.buffSumFor(charName) : {};
+  if (_bfOn) {
+    for (const [bk, bv] of Object.entries(_bsum)) {
+      if (!bv || bk === 'haste') continue;
+      t[bk] = (t[bk] || 0) + Number(bv);
+    }
+  }
+  t._buffFx = _bfOn ? _bsum : {};
   t._level = parseInt(document.getElementById('gc-level')?.value) || 60;
   return t;
 }
@@ -2344,6 +2475,21 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
       total += (newSta - curSta) * hpPerSta * (weights.hpbonus || 1.5);
       continue;
     }
+    // Class stat caps ("205 at all times") — mirrors index.html effectiveGain: full base
+    // weight up to the cap (threshold + parked buff in buffed frame, clamped 255), zero
+    // past it, negative stats charged for every point below it. Mana stats excluded.
+    const _thrS = (A2?.CLASS_STAT_THRESHOLDS || {})[cls] || {};
+    if (_thrS[k] !== undefined && k !== 'haste' && k !== _manaKey) {
+      const _bfxS = baseTotals._buffFx || {};
+      const capK = Math.min(_thrS[k] + Number(_bfxS[k] || 0), HARDCAP);
+      const wc = ((A2?.CLASS_STAT_WEIGHTS || {})[cls] || {})[k] || 0;
+      if (wc) {
+        const ct = baseTotals[k] || 0;
+        // CAP_STAT_MULT mirror (index.html): below-cap class-capped points at 5× urgency
+        total += (Math.min(ct + v, capK) - Math.min(ct, capK)) * wc * 5;
+      }
+      continue;
+    }
     const w = weights[k] || 0; if (!w) continue;
     if (NO_CAP.has(k)) { total += v * w; }
     else if (v > 0) {
@@ -2366,7 +2512,9 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
     const slotHaste = curSlotHaste != null ? Number(curSlotHaste) : curBestHaste;
     const baseHasteWithoutSlot = (slotHaste >= curBestHaste) ? 0 : curBestHaste;
     const otherHaste = (hasteVal > 0 && hasteVal > baseHasteWithoutSlot) ? 0 : baseHasteWithoutSlot;
-    const cappedHaste = Math.min(otherHaste + hasteVal, hasteThresh) - Math.min(otherHaste, hasteThresh);
+    // v1.3.19: MAX semantics, not additive-then-cap — worn haste does not stack on
+    // P99, only the highest source applies. Mirrors index.html effectiveGain().
+    const cappedHaste = Math.min(Math.max(otherHaste, hasteVal), hasteThresh) - Math.min(otherHaste, hasteThresh);
     total += cappedHaste * weights.haste;
   }
   // ── Flowing Thought mana regen scoring (mirrors index.html effectiveGain) ──
@@ -2375,10 +2523,19 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
     const FT_MANA_PER_TIER = A2?.FT_MANA_PER_TIER || 75;
     total += Number(itemData._ft) * FT_MANA_PER_TIER * (weights.manabonus || 1.0);
   }
+  // ── Pure-DPS weapon-slot stat suppression — mirrors index.html effectiveGain ──
+  // ROG/MNK judge a weapon slot on DPS, not the stats a stat-stick carries. Scale
+  // the stat total (everything accumulated so far) down before adding DPS below.
+  const _PURE_DPS_GC = new Set(['Rogue','Monk']);
+  const _PURE_DPS_WEP_STAT_MULT_GC = 0.15;
+  const WEP_SLOTS_GC = new Set(['PRIMARY','SECONDARY','RANGE','TWOHANDER']);
+  const _STAT_SLOTS_GC = new Set(['PRIMARY','SECONDARY','TWOHANDER']);
+  if (slot && _STAT_SLOTS_GC.has(slot) && _PURE_DPS_GC.has(cls)) {
+    total *= _PURE_DPS_WEP_STAT_MULT_GC;
+  }
   // ── Weapon dmg scoring — uses dmg weight from CLASS_STAT_WEIGHTS via getStatWeights ──
   // Mirrors index.html effectiveGain: ratio = weaponDpsScore() result, scaled by weights.dmg
   const dmgW = weights.dmg || 0;
-  const WEP_SLOTS_GC = new Set(['PRIMARY','SECONDARY','RANGE','TWOHANDER']);
   if (dmgW > 0 && slot && WEP_SLOTS_GC.has(slot) && window._wdpsScore) {
     const effSlot = slot === 'TWOHANDER' ? 'PRIMARY' : slot;
     const ratio = window._wdpsScore(itemData, effSlot, cls, level || 60, dex || (baseTotals.dex || 175));
@@ -2837,6 +2994,18 @@ function gcCompare() {
           const curSta = Math.min(255, baseTotals.sta || 0);
           return (Math.min(255, curSta + v) - curSta) * hpPerSta * (weights.hpbonus || 1.5);
         }
+        // Class stat caps — mirrors index.html effectiveGain (see gcScoreItem)
+        if (k !== 'haste' && k !== 'ac') {
+          const _thrC = (A2?.CLASS_STAT_THRESHOLDS || {})[cls] || {};
+          if (_thrC[k] !== undefined && k !== _gcManaKey) {
+            const _bfxC = baseTotals._buffFx || {};
+            const capC = Math.min(_thrC[k] + Number(_bfxC[k] || 0), HARDCAP);
+            const wcC = ((A2?.CLASS_STAT_WEIGHTS || {})[cls] || {})[k] || 0;
+            const ctC = baseTotals[k] || 0;
+            // CAP_STAT_MULT mirror (index.html): below-cap class-capped points at 5× urgency
+            return (Math.min(ctC + v, capC) - Math.min(ctC, capC)) * wcC * 5;
+          }
+        }
         if (!w) return 0;
         if (k === 'haste') {
           // EQ haste only applies from a single item — must account for char's
@@ -3281,70 +3450,69 @@ function resetDropScrape() {
 
 // ── Feedback Viewer ──────────────────────────────────────────────────
 function esc2(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function _nwDiag(a){
+  const num=n=>Math.round(n).toLocaleString();
+  const th='style="text-align:left;font-family:var(--cinzel);font-size:.58rem;letter-spacing:.08em;padding:.35rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)"';
+  const thR='style="text-align:right;font-family:var(--cinzel);font-size:.58rem;letter-spacing:.08em;padding:.35rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)"';
+  const td='style="padding:.28rem .6rem;font-size:.76rem;border-bottom:1px solid var(--border2)"';
+  const tdR='style="text-align:right;padding:.28rem .6rem;font-size:.76rem;border-bottom:1px solid var(--border2)"';
+  const box=inner=>`<div style="border:1px solid var(--border2);border-radius:4px;overflow-y:auto;max-height:300px;margin-bottom:.5rem"><table style="width:100%;border-collapse:collapse"><thead style="position:sticky;top:0;background:var(--bg)">${inner}</table></div>`;
+  const S=(label,color,html)=>`<div style="font-family:var(--cinzel);font-size:.62rem;letter-spacing:.1em;color:${color};margin:1.3rem 0 .4rem">${label}</div>${html}`;
+  let h='<div style="margin-top:1.75rem;border-top:2px solid var(--border2);padding-top:1rem">';
+  h+='<div style="font-family:var(--cinzel);font-size:.72rem;letter-spacing:.1em;color:var(--gold-l);margin-bottom:.5rem">&#9878; AUDIT DIAGNOSTICS</div>';
+  h+=`<div style="font-size:.78rem;color:${a.reconciled?'var(--pass)':'#c0392b'};margin-bottom:.4rem">${a.reconciled?'\u2714':'\u2718'} Reconciled \u2014 ${a.totalItems} items = ${a.counts.priced} priced + ${a.counts.nodrop} no-drop + ${a.counts.excluded} excluded + ${a.counts.nowts} unpriced</div>`;
+  if(a.nowtsNorm.length){
+    const rows=a.nowtsNorm.slice(0,40).map(r=>`<tr><td ${td}>${esc2(r.name)}</td><td ${td} style="color:var(--text-m)">${esc2(r.char)}</td><td ${tdR}>x${r.count}</td><td ${tdR}>${num(r.wouldUnit)} pp</td><td ${tdR} style="color:var(--gold-l);font-weight:600">${num(r.wouldTotal)} pp</td><td ${td} style="color:var(--text-m)">\u201c${esc2(r.matched)}\u201d</td></tr>`).join('');
+    h+=S(`NAME-MATCH UNDERCOUNT \u2014 ${a.nowtsNorm.length} items, ~${num(a.wouldAddPP)} pp missed`, '#c98a3a', box(`<tr><th ${th}>Item</th><th ${th}>Char</th><th ${thR}>Qty</th><th ${thR}>Unit</th><th ${thR}>Would add</th><th ${th}>Matches plat</th></tr></thead><tbody>${rows}</tbody>`));
+    h+=`<div style="font-size:.72rem;color:var(--text-m);font-style:italic;margin:-.25rem 0 .3rem">Unpriced only due to backtick/apostrophe/spacing/case drift. Read-only \u2014 the live total is unchanged.</div>`;
+  }
+  if(a.overrideFlags.length){
+    const rows=a.overrideFlags.slice(0,20).map(f=>`<tr><td ${td}>${esc2(f.name)}</td><td ${tdR} style="color:var(--text-m)">${num(f.prev)} pp (${f.prevSource})</td><td ${tdR} style="color:var(--gold-l)">${num(f.chosen)} pp (${f.source})</td></tr>`).join('');
+    h+=S(`PRICE OVERRIDES \u2014 ${a.overrideFlags.length} (max-across-rows beat a lower window)`, '#c98a3a', box(`<tr><th ${th}>Item</th><th ${thR}>Lower option</th><th ${thR}>Chosen</th></tr></thead><tbody>${rows}</tbody>`));
+  }
+  if(a.highPrice.length){
+    const rows=a.highPrice.slice(0,20).map(x=>`<tr><td ${td}>${esc2(x.name)}</td><td ${tdR} style="color:var(--gold-l)">${num(x.unit)} pp</td><td ${td} style="color:var(--text-m)">${x.source} \u00b7 ${x.tx} tx \u00b7 ${x.nWindows} win</td></tr>`).join('');
+    h+=S(`HIGH UNIT PRICE \u2014 \u2265 ${num(a.hiThresh)} pp (median ${num(a.median)})`, '#c98a3a', box(`<tr><th ${th}>Item</th><th ${thR}>Unit</th><th ${th}>Source</th></tr></thead><tbody>${rows}</tbody>`));
+  }
+  if(a.excludedChars.length){
+    const rows=a.excludedChars.map(e=>`<tr><td ${td}>${esc2(e.char)}</td><td ${tdR}>${e.items} items</td><td ${tdR}>${e.pricedItems} priced</td><td ${tdR} style="color:var(--gold-l)">${num(e.wouldPP)} pp hidden</td></tr>`).join('');
+    h+=S(`EXCLUDED CHARACTERS \u2014 ${a.excludedChars.length} (skipped from total)`, '#a05030', box(`<tr><th ${th}>Char</th><th ${thR}>Items</th><th ${thR}>Priced</th><th ${thR}>Would add</th></tr></thead><tbody>${rows}</tbody>`));
+  }
+  if(a.duplicates.length){
+    const rows=a.duplicates.slice(0,20).map(d=>`<tr><td ${td}>${esc2(d.name)}</td><td ${tdR}>${num(d.unit)} pp</td><td ${td} style="color:var(--text-m)">${esc2(d.chars.join(', '))}</td></tr>`).join('');
+    h+=S(`DUPLICATE NAMES ACROSS TOONS \u2014 ${a.duplicates.length} (double-count risk)`, '#c98a3a', box(`<tr><th ${th}>Item</th><th ${thR}>Unit</th><th ${th}>On toons</th></tr></thead><tbody>${rows}</tbody>`));
+  }
+  if(a.divisorItems.length){
+    const rows=a.divisorItems.slice(0,20).map(d=>`<tr><td ${td}>${esc2(d.name)}</td><td ${tdR}>${num(d.unit)} pp</td><td ${tdR}>\u00f7${d.divisor}</td></tr>`).join('');
+    h+=S(`STACK DIVISORS \u2014 ${a.divisorItems.length}`, 'var(--text-m)', box(`<tr><th ${th}>Item</th><th ${thR}>Per-unit</th><th ${thR}>Divisor</th></tr></thead><tbody>${rows}</tbody>`));
+  }
+  const coin=a.coins.byChar.length
+    ? `<div style="font-size:.76rem;color:var(--text-m)">Total ${num(a.coins.total)} pp across ${a.coins.byChar.length} toons \u2014 <b>not</b> in Est. Market Value (items only). ${a.coins.byChar.slice(0,8).map(c=>esc2(c.char)+': '+num(c.pp)).join(' \u00b7 ')}</div>`
+    : `<div style="font-size:.76rem;color:var(--text-m)">No coin parsed.</div>`;
+  h+=S('COINS (informational)', 'var(--text-m)', coin);
+  h+='</div>';
+  return h;
+}
 function loadNetworth(){
   const el=document.getElementById('networth-content');
   const sumEl=document.getElementById('networth-summary');
   if(!el)return;
 
-  const chars=A.chars||{};
-  const platData=A.platData||[];
-  const itemDB=A.itemDB||{};
-  const priceExclusions=A.priceExclusions||[];
-  const exclusionSet=new Set(priceExclusions.map(n=>n.toLowerCase()));
-
-  if(!Object.keys(chars).length){
-    el.innerHTML='<div style="color:var(--text-m);font-size:.8rem;padding:.5rem 0">No characters loaded — load inventory files in MixelParse first.</div>';
+  // Drive the panel off the app's nwAudit(): it runs in the app scope and reads the
+  // live chars/platData directly. They are NOT on window.opener (declared with let,
+  // not var), which is why reading A.chars here returned nothing before. nwAudit
+  // mirrors the LIVE buildNetworthData exactly (stack divisors, excluded chars,
+  // troll defenses) and adds the diagnostics rendered by _nwDiag.
+  if(typeof A.nwAudit!=='function'){
+    el.innerHTML='<div style="color:#c0392b;font-size:.8rem;padding:.5rem 0">Open via the \u2699 Admin button in MixelParse and reload \u2014 nwAudit() not found on the app (older build?).</div>';
     return;
   }
-  if(!platData.length){
-    el.innerHTML='<div style="color:var(--text-m);font-size:.8rem;padding:.5rem 0">No plat data — fetch Plat Prices in MixelParse first.</div>';
+  const audit=A.nwAudit();
+  if(!audit || !audit.totalItems){
+    el.innerHTML='<div style="color:var(--text-m);font-size:.8rem;padding:.5rem 0">No inventory loaded — load inventory files (and fetch Plat Prices) in MixelParse first.</div>';
     return;
   }
-
-  // Build WTS price lookup — same t≥2 troll defense as index.html
-  const priceLookup={};
-  for(const r of platData){
-    if(r.t!==0)continue;
-    if(!r.n)continue;
-    const candidates=[
-      [r.a30??-1, r.t30??0],
-      [r.a60??-1, r.t60??0],
-      [r.a90??-1, r.t90??0],
-    ].filter(([price,cnt])=>price>0&&cnt>=2).map(([price])=>price);
-    if(!candidates.length)continue;
-    const price=Math.min(...candidates);
-    const key=r.n.toLowerCase();
-    if(!priceLookup[key]||price>priceLookup[key])priceLookup[key]=price;
-  }
-
-  // Categorize every item across all chars
-  const priced=[];
-  const nodrop=[];
-  const nowts=[];
-  const excluded=[];
-
-  for(const[cn,items]of Object.entries(chars)){
-    for(const item of items){
-      const dbEntry=itemDB[item.name];
-      if(dbEntry&&dbEntry._nodrop){
-        nodrop.push({char:cn,name:item.name,count:item.count||1});
-        continue;
-      }
-      if(exclusionSet.has(item.name.toLowerCase())){
-        excluded.push({char:cn,name:item.name,count:item.count||1});
-        continue;
-      }
-      const price=priceLookup[item.name.toLowerCase()];
-      if(!price){
-        nowts.push({char:cn,name:item.name,count:item.count||1});
-        continue;
-      }
-      priced.push({char:cn,name:item.name,count:item.count||1,unitPrice:price,total:price*(item.count||1)});
-    }
-  }
-
-  priced.sort((a,b)=>b.total-a.total);
-  const totalPP=Math.floor(priced.reduce((s,r)=>s+r.total,0));
+  const {priced,nodrop,nowts,excluded,totalPP}=audit;
   if(sumEl)sumEl.textContent=`${totalPP.toLocaleString()} pp · ${priced.length} priced · ${excluded.length} excluded`;
 
   const thStyle='style="text-align:left;font-family:var(--cinzel);font-size:.6rem;letter-spacing:.08em;padding:.4rem .6rem;border-bottom:1px solid var(--border2);color:var(--text-m)"';
@@ -3466,6 +3634,7 @@ function loadNetworth(){
         <tbody>${nowtsRows}</tbody>
       </table>
     </div>`;
+  el.innerHTML += _nwDiag(audit);
 }
 
 async function adminExcludeFromNetworth(name){

@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, net } = require('electron');
 const { autoUpdater } = require('electron-updater');
 // Explicitly set update behaviour — download silently, install on next quit.
 // This ensures users on a broken renderer still get fixes automatically.
@@ -8,6 +8,12 @@ autoUpdater.autoDownload        = true;
 autoUpdater.autoInstallOnAppQuit = true;
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
+const { StringDecoder } = require('string_decoder');
+
+// Machine identity for multi-machine kill count tagging. Synchronous because
+// preload exposes it as a constant at bridge setup.
+ipcMain.on('app:hostname', (e) => { e.returnValue = os.hostname(); });
 
 // ─── Root path (repo root) ────────────────────────────────────────────────────
 const ROOT = app.getAppPath();
@@ -31,6 +37,8 @@ let mainWindow    = null;
 let adminWindow   = null;
 let setupWindow   = null;
 let sessionWindow = null;
+let reportWindow  = null;
+let mapWindow     = null;
 let tray          = null;
 let config        = null;
 let watcherModule = null;
@@ -119,6 +127,13 @@ function createMainWindow() {
 
   mainWindow.loadFile(path.join(ROOT, 'src', 'index.html'));
 
+  // Open external links (wiki, etc.) in the user's default browser rather than
+  // an uncontrolled in-app Chromium popup.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) { shell.openExternal(url); return { action: 'deny' }; }
+    return { action: 'allow' };
+  });
+
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
@@ -169,6 +184,8 @@ function createAdminWindow() {
 function createSessionWindow() {
   if (sessionWindow && !sessionWindow.isDestroyed()) {
     sessionWindow.show();
+    // Re-assert overlay level — some full-screen apps demote it on focus change
+    sessionWindow.setAlwaysOnTop(true, 'screen-saver');
     return;
   }
   sessionWindow = new BrowserWindow({
@@ -189,6 +206,18 @@ function createSessionWindow() {
       preload: path.join(__dirname, 'preload.js'),
     },
   });
+
+  // 'screen-saver' level keeps the overlay above full-screen and borderless-
+  // windowed EQ — the default alwaysOnTop level gets buried under full-screen apps.
+  sessionWindow.setAlwaysOnTop(true, 'screen-saver');
+
+  // Windows demotes alwaysOnTop level across minimize/restore — re-assert it
+  sessionWindow.on('restore', () => {
+    if (sessionWindow && !sessionWindow.isDestroyed()) {
+      sessionWindow.setAlwaysOnTop(true, 'screen-saver');
+    }
+  });
+
   sessionWindow.loadFile(path.join(ROOT, 'src', 'session.html'));
   // When session window is ready, ask main window to push current state
   sessionWindow.webContents.once('dom-ready', () => {
@@ -201,6 +230,56 @@ function createSessionWindow() {
     // Notify main window the session overlay closed
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('session-window-closed');
+    }
+  });
+}
+
+// ─── Map Window ───────────────────────────────────────────────────────────────
+function createMapWindow() {
+  if (mapWindow && !mapWindow.isDestroyed()) {
+    mapWindow.show();
+    mapWindow.setAlwaysOnTop(true, 'screen-saver');
+    // Re-trigger state push so map gets current data on re-show
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('map-window-ready');
+    }
+    return;
+  }
+  mapWindow = new BrowserWindow({
+    width:     560,
+    height:    600,
+    minWidth:  320,
+    minHeight: 320,
+    resizable: true,
+    frame:     false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    title: 'Map — MixelParse',
+    icon: ICON_PATH,
+    backgroundColor: '#1a1a24',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
+    },
+  });
+  mapWindow.setAlwaysOnTop(true, 'screen-saver');
+  // Windows demotes alwaysOnTop level across minimize/restore — re-assert it
+  mapWindow.on('restore', () => {
+    if (mapWindow && !mapWindow.isDestroyed()) {
+      mapWindow.setAlwaysOnTop(true, 'screen-saver');
+    }
+  });
+  mapWindow.loadFile(path.join(ROOT, 'src', 'map.html'));
+  mapWindow.webContents.once('dom-ready', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('map-window-ready');
+    }
+  });
+  mapWindow.on('closed', () => {
+    mapWindow = null;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('map-window-closed');
     }
   });
 }
@@ -257,6 +336,10 @@ function startWatcher() {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('watcher-event', { type, ...payload });
         }
+        // Forward locUpdate directly to map window for real-time player position
+        if (type === 'locUpdate' && mapWindow && !mapWindow.isDestroyed()) {
+          mapWindow.webContents.send('map-loc-update', payload);
+        }
       }
     });
     console.log('[Watcher] Started');
@@ -266,6 +349,127 @@ function startWatcher() {
 }
 
 // ─── IPC Handlers ─────────────────────────────────────────────────────────────
+
+// ── EQ log rotation (v1.3.5) ────────────────────────────────────────────────
+// Agreed spec (2026-07-05): automatic + manual, and NEVER lose data.
+// Guarantees: rename-only (no truncation/deletion code path exists); locked
+// files skip cleanly and retry next cycle; collision-proof .old naming means
+// an existing archive can never be overwritten.
+// Auto: on launch (+30s) and every 6h — rotates logs ≥ 250 MB that have been
+// idle ≥ 10 min (never mid-farm). Manual button uses a 50 MB threshold, no
+// idle requirement (a file EQ holds open just fails the rename harmlessly).
+// The kill-count scanner reads .old archives too (see watcher.js), so a full
+// historic re-import still sees everything ever logged.
+function rotateEqLogs(minMB, idleMinutes) {
+  const threshold = (typeof minMB === 'number' && minMB >= 0) ? minMB : 250;
+  const idleMs = (typeof idleMinutes === 'number' ? idleMinutes : 0) * 60000;
+  const out = { rotated: [], skipped: [], errors: [], threshold };
+  const dir = config && config.logDir;
+  if (!dir || !fs.existsSync(dir)) { out.errors.push('EQ log directory not configured (run Setup)'); return out; }
+  const now = Date.now();
+  const d = new Date();
+  const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  for (const f of fs.readdirSync(dir)) {
+    if (!/^eqlog_.+\.txt$/i.test(f)) continue;
+    const fp = path.join(dir, f);
+    let st; try { st = fs.statSync(fp); } catch { continue; }
+    const mb = st.size / 1048576;
+    if (mb < threshold) { out.skipped.push({ file: f, mb: +mb.toFixed(1), reason: 'under ' + threshold + ' MB' }); continue; }
+    if (idleMs && (now - st.mtimeMs) < idleMs) { out.skipped.push({ file: f, mb: +mb.toFixed(1), reason: 'active in last ' + idleMinutes + ' min' }); continue; }
+    let target = fp.replace(/\.txt$/i, '.' + ym + '.old');
+    let n = 2;
+    while (fs.existsSync(target)) target = fp.replace(/\.txt$/i, '.' + ym + '-' + (n++) + '.old');
+    try {
+      fs.renameSync(fp, target);
+      out.rotated.push({ file: f, mb: +mb.toFixed(1), to: path.basename(target) });
+    } catch (e) {
+      out.errors.push(f + ': ' + ((e.code === 'EBUSY' || e.code === 'EPERM')
+        ? 'file in use — will retry next cycle (or log out and use the manual button)'
+        : (e.message || String(e))));
+    }
+  }
+  return out;
+}
+ipcMain.handle('logs:rotate', (e, opts) => rotateEqLogs((opts && opts.minMB) != null ? opts.minMB : 50, 0));
+
+function autoRotateLogs() {
+  try {
+    const r = rotateEqLogs(250, 10);
+    for (const x of r.rotated) {
+      console.log('[LOGROTATE] ' + x.file + ' (' + x.mb + ' MB) -> ' + x.to);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('watcher-event', { type: 'logRotated', file: x.file, mb: x.mb, to: x.to });
+      }
+    }
+  } catch (e) { console.error('[LOGROTATE]', e && e.message || e); }
+}
+setTimeout(autoRotateLogs, 30000);
+setInterval(autoRotateLogs, 6 * 3600 * 1000);
+
+// ── Farm Targets wiki crawler (v1.3.5) ──────────────────────────────────────
+// Fetches P99 wiki pages from the main process (no CORS). Parsing happens in
+// the renderer; this only downloads and trims. Polite: sequential, 1 req/sec.
+// Uses Electron's net module (Chromium network stack) instead of Node's https.
+// The P99 wiki serves an incomplete cert chain (leaf without the intermediate);
+// Node https rejects it with UNABLE_TO_VERIFY_LEAF_SIGNATURE ("unable to verify
+// the first certificate"), while Chromium fetches the missing intermediate via
+// AIA the same way a browser does. net.request also follows redirects natively
+// (redirect:'follow'), so the manual hop loop is gone. StringDecoder keeps
+// multibyte UTF-8 intact across chunk boundaries (parity with setEncoding).
+function ftFetchPage(pageName){
+  return new Promise((resolve) => {
+    const url = 'https://wiki.project1999.com/' + encodeURI(pageName.replace(/ /g, '_'));
+    let settled = false;
+    const done = (v) => { if (settled) return; settled = true; resolve(v); };
+
+    let req;
+    try {
+      req = net.request({ method: 'GET', url, redirect: 'follow' });
+    } catch (err) {
+      return done({ page: pageName, ok: false, error: String(err && err.message || err) });
+    }
+    req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36');
+    req.setHeader('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8');
+    req.setHeader('Accept-Language', 'en-US,en;q=0.9');
+
+    const timer = setTimeout(() => { try { req.abort(); } catch {} done({ page: pageName, ok: false, error: 'timeout' }); }, 15000);
+
+    req.on('response', (res) => {
+      if (res.statusCode !== 200) {
+        clearTimeout(timer);
+        try { req.abort(); } catch {}
+        return done({ page: pageName, ok: false, error: 'HTTP ' + res.statusCode });
+      }
+      const decoder = new StringDecoder('utf8');
+      let body = '';
+      res.on('data', (c) => {
+        body += decoder.write(c);
+        if (body.length > 800000) {
+          clearTimeout(timer);
+          try { req.abort(); } catch {}
+          done({ page: pageName, ok: true, html: body.slice(0, 800000) });
+        }
+      });
+      res.on('end', () => { body += decoder.end(); clearTimeout(timer); done({ page: pageName, ok: true, html: body.slice(0, 800000) }); });
+      res.on('error', (err) => { clearTimeout(timer); done({ page: pageName, ok: false, error: String(err && err.message || err) }); });
+    });
+    req.on('error', (err) => { clearTimeout(timer); done({ page: pageName, ok: false, error: String(err && err.message || err) }); });
+    req.on('abort', () => { clearTimeout(timer); done({ page: pageName, ok: false, error: 'aborted' }); });
+    req.end();
+  });
+}
+
+ipcMain.handle('farm:crawl', async (e, pages) => {
+  const results = [];
+  const list = Array.isArray(pages) ? pages.slice(0, 205) : [];  // 200 targets + Removed Items + 3 skill pages
+  for (let i = 0; i < list.length; i++) {
+    const r = await ftFetchPage(list[i]);
+    results.push(r);
+    try { e.sender.send('farm:progress', { done: i + 1, total: list.length, page: list[i], ok: r.ok }); } catch {}
+    if (i < list.length - 1) await new Promise((res) => setTimeout(res, 1000)); // 1 req/sec
+  }
+  return results;
+});
 
 ipcMain.handle('setup:detect-paths', () => detectEQPaths());
 
@@ -301,10 +505,34 @@ ipcMain.handle('config:get',    ()        => config);
 ipcMain.handle('config:save',   (e, data) => saveConfig(data));
 ipcMain.handle('admin:open',    ()        => { createAdminWindow(); });
 
+// ToD popup screen-priority: float the main window above full-screen EQ while a
+// /note ToD prompt is pending, without stealing keyboard focus. Released on handle.
+ipcMain.handle('tod:surface', () => {
+  if(!mainWindow) return;
+  if(mainWindow.isMinimized()) mainWindow.restore();
+  if(!mainWindow.isVisible()) mainWindow.showInactive();
+  mainWindow.setAlwaysOnTop(true, 'screen-saver');   // same level sessionWindow/mapWindow use
+  try { mainWindow.flashFrame(true); } catch(e){}
+});
+ipcMain.handle('tod:release', () => {
+  if(!mainWindow) return;
+  mainWindow.setAlwaysOnTop(false);
+  try { mainWindow.flashFrame(false); } catch(e){}
+});
+
 // ── Session overlay ──────────────────────────────────────────────────────────
 ipcMain.handle('session:toggle', () => {
   if (sessionWindow && !sessionWindow.isDestroyed()) {
-    sessionWindow.isVisible() ? sessionWindow.hide() : sessionWindow.show();
+    if (sessionWindow.isVisible()) {
+      sessionWindow.hide();
+    } else {
+      sessionWindow.show();
+      sessionWindow.setAlwaysOnTop(true, 'screen-saver');
+      // dom-ready won't fire again on re-show — signal main window to push fresh state
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('session-window-ready');
+      }
+    }
   } else {
     createSessionWindow();
   }
@@ -312,16 +540,152 @@ ipcMain.handle('session:toggle', () => {
 ipcMain.handle('session:close', () => {
   if (sessionWindow && !sessionWindow.isDestroyed()) sessionWindow.close();
 });
+ipcMain.handle('session:minimize', () => {
+  if (sessionWindow && !sessionWindow.isDestroyed()) sessionWindow.minimize();
+});
 // Main window pushes session state → session window renders it
 ipcMain.on('session:push-state', (event, state) => {
   if (sessionWindow && !sessionWindow.isDestroyed()) {
     sessionWindow.webContents.send('session-state', state);
   }
+  // Map window gets the same state (uses spawnPins, spawnTimers, zoneShortname)
+  if (mapWindow && !mapWindow.isDestroyed()) {
+    mapWindow.webContents.send('map-state', state);
+  }
 });
-// Session window sends commands (mark1pct, end) → main window executes them
+
+// ── Map window IPC ───────────────────────────────────────────────────────────
+// Map window → main window (save/select/delete camp views; main window owns Supabase auth)
+ipcMain.on('map:command', (event, cmd) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('map-command', cmd);
+  }
+});
+
+ipcMain.handle('map:toggle', () => {
+  if (mapWindow && !mapWindow.isDestroyed()) {
+    if (mapWindow.isVisible()) {
+      mapWindow.hide();
+    } else {
+      mapWindow.show();
+      mapWindow.setAlwaysOnTop(true, 'screen-saver');
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('map-window-ready');
+      }
+    }
+  } else {
+    createMapWindow();
+  }
+});
+
+ipcMain.handle('map:close', () => {
+  if (mapWindow && !mapWindow.isDestroyed()) mapWindow.close();
+});
+ipcMain.handle('map:minimize', () => {
+  if (mapWindow && !mapWindow.isDestroyed()) mapWindow.minimize();
+});
+
+ipcMain.handle('map:list-files', () => {
+  if (!config || !config.eqDir) return { error: 'No EQ directory configured.' };
+  try {
+    const mapsDir = path.join(config.eqDir, 'maps');
+    if (!fs.existsSync(mapsDir)) {
+      return { error: `maps folder not found at: ${mapsDir}`, dir: mapsDir };
+    }
+    const files = fs.readdirSync(mapsDir)
+      .filter(f => f.toLowerCase().endsWith('.txt'))
+      .filter(f => {
+        // Skip empty placeholder files (EQ client creates 0-byte _1/_2/_3 on zone entry)
+        try { return fs.statSync(path.join(mapsDir, f)).size > 0; } catch { return false; }
+      })
+      .sort();
+    return { files, dir: mapsDir };
+  } catch (e) {
+    return { error: e.message };
+  }
+});
+
+ipcMain.handle('map:read-file', (e, filename) => {
+  if (!config || !config.eqDir) return { error: 'No EQ directory configured.' };
+  try {
+    const mapsDir = path.join(config.eqDir, 'maps');
+    // Security: only allow plain filenames (no path separators)
+    const safeName = path.basename(String(filename || ''));
+    if (!safeName.toLowerCase().endsWith('.txt')) return { error: 'Invalid file type.' };
+    const filePath = path.join(mapsDir, safeName);
+    if (!fs.existsSync(filePath)) return { error: `File not found: ${safeName}` };
+    return { content: fs.readFileSync(filePath, 'utf8'), filename: safeName };
+  } catch (e) {
+    return { error: e.message };
+  }
+});
+// Session window sends commands → main window, except openEndReport which opens a new window
 ipcMain.on('session:command', (event, cmd) => {
+  const sender = BrowserWindow.fromWebContents(event.sender);
+  // ── Report-window commands close the window then forward to main ──
+  if (sender && reportWindow && !reportWindow.isDestroyed() && sender.id === reportWindow.id) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('session-command', cmd);
+    }
+    reportWindow.close();
+    reportWindow = null;
+    return;
+  }
+  // ── openEndReport: spawn the SESSION COMPLETE window ──
+  if (cmd && typeof cmd === 'object' && cmd.type === 'openEndReport') {
+    openReportWindow(cmd.data);
+    return;
+  }
+  // ── All other commands forward to main window ──
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('session-command', cmd);
+  }
+});
+
+function openReportWindow(data) {
+  // Focus existing window instead of opening a second one
+  if (reportWindow && !reportWindow.isDestroyed()) {
+    reportWindow.focus();
+    return;
+  }
+  // Match the current session overlay size
+  let width = 300, height = 400;
+  if (sessionWindow && !sessionWindow.isDestroyed()) {
+    [width, height] = sessionWindow.getSize();
+  }
+  reportWindow = new BrowserWindow({
+    width,
+    height,
+    minWidth: 260,
+    minHeight: 300,
+    frame: false,
+    transparent: false,
+    alwaysOnTop: true,
+    resizable: true,
+    skipTaskbar: true,
+    title: 'Session Report',
+    webPreferences: {
+      preload: path.join(ROOT, 'electron', 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  reportWindow.loadFile(path.join(ROOT, 'src', 'session-report.html'));
+  reportWindow.setAlwaysOnTop(true, 'screen-saver');
+  reportWindow.webContents.once('did-finish-load', () => {
+    if (reportWindow && !reportWindow.isDestroyed()) {
+      reportWindow.webContents.send('report-data', data || {});
+    }
+  });
+  reportWindow.on('closed', () => { reportWindow = null; });
+}
+// Collapse button resizes session window to title-bar height (or restores)
+ipcMain.on('session:resize', (event, height) => {
+  if (sessionWindow && !sessionWindow.isDestroyed()) {
+    const [w] = sessionWindow.getSize();
+    sessionWindow.setSize(w, Math.max(36, Math.round(height)));
+    // Re-assert overlay level after resize — Windows can demote it
+    sessionWindow.setAlwaysOnTop(true, 'screen-saver');
   }
 });
 
