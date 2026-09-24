@@ -8,6 +8,11 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    # Creating the GitHub release needs write access — the default GITHUB_TOKEN is
+    # read-only. (Earlier releases were created locally with a personal token, so
+    # CI only ever uploaded into an existing release and never needed this.)
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
