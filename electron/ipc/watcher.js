@@ -261,13 +261,16 @@ function handleSpellbookFile(fp) {
 // ── Log watcher ───────────────────────────────────────────────────────────────
 function startLogWatcher() {
   if (!_config || !_config.logDir) return;
-  const myChars = getMyChars();
-  if (!myChars.length) { log('No characters found in EQ dir — log watcher idle.'); return; }
+  // Inventory-file chars only scope the startup zone scan (keeps the zone bar to
+  // real characters). Live tailing covers EVERY log that grows: a log only grows
+  // while that character is being played, and gating on *-Inventory.txt meant a
+  // fresh PC (or a toon that never ran /output inventory there) got no login/XP/
+  // kill/loot events at all — so sessions never auto-started. The list was also
+  // frozen at startup, missing inventory files created mid-run.
+  const myChars = getMyChars().map(c => c.toLowerCase());
+  log('Log watcher started; startup zone scan for:', myChars.join(', ') || '(none)');
 
-  log('Log watcher started for chars:', myChars.join(', '));
-
-  // Poll log files for changes via mtime — chokidar unreliable in Electron main process
-  const logMtimes = {};
+  // Poll log files for changes via size — chokidar unreliable in Electron main process
   const t = setInterval(() => {
     try {
       const files = fs.readdirSync(_config.logDir);
@@ -275,11 +278,12 @@ function startLogWatcher() {
         if (!/^eqlog_.+_P1999Green\.txt$/i.test(f)) continue;
         const charName = extractCharFromLog(f);
         if (!charName) continue;
-        if (!myChars.map(c => c.toLowerCase()).includes(charName.toLowerCase())) continue;
         const fp = path.join(_config.logDir, f);
         try {
           const stat = fs.statSync(fp);
           const key  = resolveCharKey(charName);
+          // Every log present at startup was seeded to EOF below, so an unknown key
+          // here is a log created after startup (new toon) — read it from the top.
           const pos  = logPositions[key] || 0;
           if (stat.size > pos) tailLogFile(fp, charName);
         } catch {}
@@ -290,18 +294,18 @@ function startLogWatcher() {
   }, 2000);
   _timers.push(t);
 
-  // Startup zone scan — don't rely on chokidar 'add' events (may be delayed with large dirs)
+  // Startup: seed EVERY live log to EOF (live-only — no backlog replay), then
+  // zone-scan just the inventory-file characters.
   try {
     const files = fs.readdirSync(_config.logDir);
     for (const f of files) {
       if (!/^eqlog_.+_P1999Green\.txt$/i.test(f)) continue;
       const charName = extractCharFromLog(f);
       if (!charName) continue;
-      if (!myChars.map(c => c.toLowerCase()).includes(charName.toLowerCase())) continue;
       const fp = path.join(_config.logDir, f);
       const key = resolveCharKey(charName);
       try { logPositions[key] = fs.statSync(fp).size; } catch {}
-      scanLastZoneFromLog(fp, charName);
+      if (myChars.includes(charName.toLowerCase())) scanLastZoneFromLog(fp, charName);
     }
     saveLogPositions();
   } catch (e) {
