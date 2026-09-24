@@ -916,7 +916,39 @@ function parsePlatAmount(str) {
 
 // ── Log line processor ────────────────────────────────────────────────────────
 // Handles faction/zone/con AND all session tracking events.
+// ── Raid kill auto-detect evidence (WATCH-ONLY) ──────────────────────────────
+// Forwards raw raid signals; the renderer owns the kill-tracker roster and does
+// the attribution (RAIDTICK anchor + boss evidence). Nothing is recorded here.
+// Landing text per P99 spell pages: Tashanian/Wind of Tishanian "glances nervously
+// about", Malo/Malosini "looks very uncomfortable", Turgur's "yawns", Forlorn "slows down".
+const RE_RT_TICK     = /^\[.+?\] (\w+) (tells the guild|says out of character|tells the raid|shouts), '\s*RAIDTICK\b(.*)'$/i;
+const RE_RT_ENRAGE   = /^\[.+?\] (.+?) has become ENRAGED\.$/;
+const RE_RT_SLAIN    = /^\[.+?\] (.+?) has been slain by .+!$/;
+const RE_RT_YOUSLAIN = /^\[.+?\] You have slain (.+)!$/;
+const RE_RT_LAND     = /^\[.+?\] (.+?) (glances nervously about|looks very uncomfortable|yawns|slows down)\.$/;
+const RE_RT_CALL     = /^\[.+?\] (\w+) (tells the guild|says out of character|tells the raid|shouts|says), '(.*)'$/;
+const RE_RT_CALLKIND = /<\s*(tash|malo|slow|brd slow)\s*>|\b(tashed|malo|slowed)\b/i;
+const RT_LAND_KIND   = { 'glances nervously about':'tash', 'looks very uncomfortable':'malo', 'yawns':'slow', 'slows down':'slow' };
+const _rtGeneric     = name => /^(a|an) /i.test(name);   // "a fiery watcher" — never a roster boss
+const RT_MON = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+// The log line's own timestamp — ToD and the evidence window stay exact even when a
+// burst of lines is read late. Falls back to now if the line has no stamp.
+function _rtLineTs(line) {
+  const m = /^\[\w{3} (\w{3}) +(\d+) (\d\d):(\d\d):(\d\d) (\d{4})\]/.exec(line);
+  return m ? new Date(+m[6], RT_MON[m[1]], +m[2], +m[3], +m[4], +m[5]).getTime() : Date.now();
+}
+function raidEvidence(line, charName) {
+  if (!/RAIDTICK|ENRAGED|slain|nervously|uncomfortable|yawns\.|slows down\.|tash|malo|slow/i.test(line)) return;   // cheap pre-filter
+  let m; const ts = _rtLineTs(line);
+  if ((m = RE_RT_TICK.exec(line)))   { broadcast({ type:'raidTick', charName, poster:m[1], channel:m[2], text:m[3].trim(), ts }); return; }
+  if ((m = RE_RT_ENRAGE.exec(line))) { if (!_rtGeneric(m[1])) broadcast({ type:'raidEvidence', charName, kind:'enrage', mob:m[1], ts }); return; }
+  if ((m = RE_RT_SLAIN.exec(line)) || (m = RE_RT_YOUSLAIN.exec(line))) { if (!_rtGeneric(m[1])) broadcast({ type:'raidEvidence', charName, kind:'slain', mob:m[1], ts }); return; }
+  if ((m = RE_RT_LAND.exec(line)))   { if (!_rtGeneric(m[1])) broadcast({ type:'raidEvidence', charName, kind:'land', sub:RT_LAND_KIND[m[2]], mob:m[1], ts }); return; }
+  if ((m = RE_RT_CALL.exec(line)) && RE_RT_CALLKIND.test(m[3])) broadcast({ type:'raidEvidence', charName, kind:'call', text:m[3], poster:m[1], channel:m[2], ts });
+}
+
 function processLogLine(line, charName) {
+  raidEvidence(line, charName);
 
   // Concealment transitions (hide / sneak / invis) — tracked for CON suppression.
   // Cheap tests first; these lines carry nothing else we track, so return early.

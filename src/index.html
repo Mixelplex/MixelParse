@@ -7136,6 +7136,8 @@ window.applyDBToChar    = applyDBToChar;
         // Any per-char watcher traffic counts as activity for the idle-gap auto-close
         if(_sess && _sess.active && msg.charName && msg.charName === _sess.charName) _sess.lastActivity = Date.now();
         if(msg.type==='sessionLogin'||msg.type==='sessionXP'||msg.type==='sessionKill'||msg.type==='sessionLoot'||msg.type==='sessionPlat'||msg.type==='sessionCamp') handleSessionMsg(msg);
+        if(msg.type==='raidTick') rkdOnTick(msg);
+        if(msg.type==='raidEvidence') rkdOnEvidence(msg);
         if(msg.type==='killScanProgress'||msg.type==='killScanResult') handleKillScanMsg(msg);
         if(msg.type==='sessScanProgress'||msg.type==='sessScanResult') handleSessScanMsg(msg);
         if(msg.type==='logRotated') showWatcherToast('🧹 Auto-rotated '+msg.file+' ('+msg.mb+' MB) → '+msg.to);
@@ -9627,7 +9629,9 @@ const BOSS_RESPAWN = {
 // Sessions: [{id, date, kills:[target,...], roles:[{desc,value,qty},...], note}] [{id, date, kills:[target,...], roles:[{desc,value,qty},...], note}]
 let raidSessions=[];
 let activeSession=null;
-let sessionsView='new'; // 'new' | 'history' | 'creditcheck'
+let sessionsView='new'; // 'new' | 'history' | 'creditcheck' | 'autodetect'
+// Raid kill auto-detect (WATCH-ONLY) results — declared early: the tab label reads it.
+let rkdLog=(function(){try{const a=JSON.parse(localStorage.getItem('mp_rkd_log'));return Array.isArray(a)?a:[];}catch(e){return [];}})();
 let ktExpanded={}; // {target: true} — which boss role panels are open
 let _loadedSessionId=null; // set by ktLoadSession; non-null = working copy of a saved session
 let creditData=null; // parsed ODKP details CSV: {charName→{date→Set<normalizedBoss>}}
@@ -10653,10 +10657,11 @@ function renderKillsPanel(){
       <div class="kt-view-tab${sessionsView==='new'?' active':''}" onclick="ktSetView('new')">⚔ New Session</div>
       <div class="kt-view-tab${sessionsView==='history'?' active':''}" onclick="ktSetView('history')">📜 History (${raidSessions.length})</div>
       <div class="kt-view-tab${sessionsView==='creditcheck'?' active':''}" onclick="ktSetView('creditcheck')">🔍 Credit Check</div>
+      <div class="kt-view-tab${sessionsView==='autodetect'?' active':''}" onclick="ktSetView('autodetect')">🎯 Auto-Detect${rkdLog.filter(r=>r.tier==='strong'||r.tier==='weak'||r.tier==='ambiguous').length?` (${rkdLog.filter(r=>r.tier==='strong'||r.tier==='weak'||r.tier==='ambiguous').length})`:''}</div>
       <div style="margin-left:auto;display:flex;align-items:center;padding:0 .6rem"><button class="watchlist-gear-btn" onclick="toggleNoteRef()" title="/note keyword reference" style="font-size:.72rem;font-family:'Cinzel',serif;letter-spacing:.04em;padding:.2rem .5rem;border:1px solid var(--border);border-radius:3px">/note INFO</button></div>
     </div>
     <div id="ktNoteRef" style="display:none">${buildNoteRefHtml()}</div>
-    ${sessionsView==='creditcheck'?renderCreditCheckPanel():sessionsView==='history'?`<div style="padding:.5rem 0">${histHtml}</div>`:`
+    ${sessionsView==='autodetect'?renderAutoDetectPanel():sessionsView==='creditcheck'?renderCreditCheckPanel():sessionsView==='history'?`<div style="padding:.5rem 0">${histHtml}</div>`:`
       <div style="display:flex;gap:.75rem;padding:.6rem 1rem;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap;background:var(--surface2)">
         <div style="display:flex;align-items:center;gap:.4rem">
           <label style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted)">DATE</label>
@@ -11142,6 +11147,119 @@ window.ktDeleteSession=function(id){
 };
 
 window.ktSetView=function(v){sessionsView=v;renderKillsPanel();};
+
+// ── Raid kill auto-detect (WATCH-ONLY, v1.5.8) ───────────────────────────────
+// A RAIDTICK (guild/OOC, any poster) is the anchor — no tick, no suggestion. The
+// boss comes from evidence in the window before it, ranked: slain > enrage >
+// in-range landing (tash/malo/slow) > debuff callout. Callouts only count when the
+// tick was also seen in OOC (poster in your zone). Evidence before the previous
+// tick belongs to that tick. Backtested vs Mixelmedic logs + recorded sessions:
+// strong tier 65/66 matched, weak tier 12/20. Records only — never touches sessions.
+const RKD_WIN_BEFORE=10*60e3, RKD_WIN_AFTER=2*60e3, RKD_TICK_DEDUPE=90e3, RKD_EVIDENCE_KEEP=15*60e3, RKD_LOG_MAX=300;
+const RKD_RANK={slain:4,enrage:3,land:2,call:1};
+let _rkdEvidence=[];      // {ts, kind, sub, boss, raw, sameZoneOnly}
+let _rkdOpenTicks=[];     // ticks awaiting their post-tick evidence window
+let _rkdLastTickTs=null;  // previous tick — evidence before it is already spent
+// Game names carry a leading "The" the tracker omits ("The Avatar of War") and use ` for '.
+function _rkdNorm(s){return String(s||'').toLowerCase().replace(/[`’']/g,"'").replace(/\s+/g,' ').trim().replace(/^the /,'');}
+function _rkdBossByMob(mob){const n=_rkdNorm(mob);return BOSS_ROSTER.find(b=>_rkdNorm(b.full)===n||_rkdNorm(b.target)===n)||null;}
+function _rkdWordRx(n){return new RegExp("(^|[^a-z'])"+n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+"($|[^a-z'])");}
+// Whole-word only ("Fright" must not match "a frightfinger"); short tracker names
+// (Koi/TFA/Prog) are too collision-prone for free chat, so targets need 5+ chars.
+function _rkdBossInText(text){
+  const t=_rkdNorm(text);
+  return BOSS_ROSTER.find(b=>_rkdWordRx(_rkdNorm(b.full)).test(t))
+      || BOSS_ROSTER.find(b=>b.target.length>=5&&_rkdWordRx(_rkdNorm(b.target)).test(t)) || null;
+}
+function rkdSave(){try{localStorage.setItem('mp_rkd_log',JSON.stringify(rkdLog.slice(-RKD_LOG_MAX)));}catch(e){}}
+function rkdOnEvidence(msg){
+  const b=msg.kind==='call'?_rkdBossInText(msg.text):_rkdBossByMob(msg.mob);
+  if(!b)return;
+  const raw=msg.kind==='call'?`${msg.poster}: ${msg.text}`:msg.kind==='land'?`${msg.mob} (${msg.sub})`:`${msg.mob} ${msg.kind==='slain'?'slain':'ENRAGED'}`;
+  _rkdEvidence.push({ts:msg.ts||Date.now(),kind:msg.kind,sub:msg.sub||null,boss:b.target,raw,char:msg.charName});
+  const cut=Date.now()-RKD_EVIDENCE_KEEP; _rkdEvidence=_rkdEvidence.filter(e=>e.ts>=cut);
+}
+function rkdOnTick(msg){
+  const ts=msg.ts||Date.now();
+  const sameZone=/out of character|shouts/.test(msg.channel||'');
+  // Same tick posted to OOC and guild — one tick, merged channels.
+  const open=_rkdOpenTicks.find(t=>Math.abs(ts-t.ts)<=RKD_TICK_DEDUPE);
+  if(open){open.sameZone=open.sameZone||sameZone;if(!open.channels.includes(msg.channel))open.channels.push(msg.channel);return;}
+  const t={id:'rkd_'+ts,ts,char:msg.charName,poster:msg.poster,text:msg.text||'',channels:[msg.channel],sameZone,prevTickTs:_rkdLastTickTs};
+  _rkdLastTickTs=ts;
+  _rkdOpenTicks.push(t);
+  setTimeout(()=>rkdFinalize(t),RKD_WIN_AFTER);
+}
+function rkdAttribute(t){
+  const from=Math.max(t.ts-RKD_WIN_BEFORE,t.prevTickTs!=null?t.prevTickTs+1:-Infinity);
+  const win=_rkdEvidence.filter(e=>e.ts>=from&&e.ts<=t.ts+RKD_WIN_AFTER&&(e.kind!=='call'||t.sameZone));
+  const per={};
+  for(const e of win){const p=per[e.boss]||(per[e.boss]={boss:e.boss,best:0,events:[]});p.best=Math.max(p.best,RKD_RANK[e.kind]);p.events.push(e);}
+  const lastTs=c=>Math.max(...c.events.map(e=>e.ts));
+  const cands=Object.values(per).sort((a,b)=>b.best-a.best||lastTs(b)-lastTs(a));
+  if(!cands.length)return{tier:'none'};
+  if(cands.length>1&&cands[1].best===cands[0].best)return{tier:'ambiguous',cands:cands.filter(c=>c.best===cands[0].best).map(c=>c.boss),events:win};
+  const top=cands[0],slain=top.events.find(e=>e.kind==='slain');
+  return{tier:top.best>=3?'strong':'weak',boss:top.boss,basis:['','call','land','enrage','slain'][top.best],
+         tod:slain?slain.ts:t.ts,todSource:slain?'slain':'tick',events:top.events};
+}
+function rkdFinalize(t){
+  _rkdOpenTicks=_rkdOpenTicks.filter(x=>x!==t);
+  const a=rkdAttribute(t);
+  rkdLog.push({id:t.id,ts:t.ts,char:t.char,poster:t.poster,channels:t.channels,sameZone:t.sameZone,text:t.text,
+    tier:a.tier,boss:a.boss||null,cands:a.cands||null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,
+    evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw}))});
+  if(rkdLog.length>RKD_LOG_MAX)rkdLog=rkdLog.slice(-RKD_LOG_MAX);
+  rkdSave();
+  if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
+}
+// Was this boss marked killed/failtick in a session around the suggestion? (watch-only comparison)
+function _rkdRecorded(boss,ts){
+  const all=(raidSessions||[]).slice();
+  if(activeSession&&!all.some(s=>s.id===activeSession.id))all.push(activeSession);
+  return all.some(s=>{
+    if(!(s.killState||{})[boss])return false;
+    const st=Date.parse(s.startedAt||s.date||0),end=Date.parse(s.lastKillAt||s.startedAt||s.date||0);
+    return ts>=st-3600e3&&ts<=Math.max(end,st)+12*3600e3;
+  });
+}
+window.rkdToggleNoise=function(v){try{localStorage.setItem('mp_rkd_noise',v?'1':'0');}catch(e){}renderKillsPanel();};
+window.rkdClearLog=function(){if(!confirm('Clear the auto-detect log?'))return;rkdLog=[];rkdSave();renderKillsPanel();};
+function renderAutoDetectPanel(){
+  let showNoise=false;try{showNoise=localStorage.getItem('mp_rkd_noise')==='1';}catch(e){}
+  const rows=rkdLog.slice().reverse().filter(r=>showNoise||r.tier!=='none'||r.sameZone);
+  const fmt=ts=>ts?new Date(ts).toLocaleString([], {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';
+  const TIER={strong:['Strong','#4caf7d'],weak:['Weak','#c9a84c'],ambiguous:['Pick','#6ab4c4'],none:['No boss','var(--text-muted)']};
+  const counts={strong:0,weak:0,ambiguous:0,none:0};rkdLog.forEach(r=>counts[r.tier]=(counts[r.tier]||0)+1);
+  const body=rows.map(r=>{
+    const [tl,tc]=TIER[r.tier]||TIER.none;
+    const who=r.tier==='ambiguous'?(r.cands||[]).map(esc).join(' / '):r.boss?esc(r.boss):'<span style="color:var(--text-muted)">—</span>';
+    const rec=r.boss?(_rkdRecorded(r.boss,r.tod||r.ts)?'<span style="color:#4caf7d" title="Marked in the kill tracker">✓ in tracker</span>':'<span style="color:var(--text-muted)">not recorded</span>')
+             :r.tier==='ambiguous'?(r.cands||[]).map(b=>_rkdRecorded(b,r.ts)?'✓':'·').join(' / '):'';
+    const ev=(r.evidence||[]).map(e=>`<div>${fmt(e.ts).split(', ').pop()} <b>${esc(e.kind)}</b> ${esc(e.raw)}</div>`).join('');
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:.3rem .5rem;white-space:nowrap">${fmt(r.ts)}</td>
+      <td style="padding:.3rem .5rem">${esc(r.char||'')}</td>
+      <td style="padding:.3rem .5rem;font-weight:600">${who}</td>
+      <td style="padding:.3rem .5rem;color:${tc};white-space:nowrap">${tl}${r.basis?` <span style="font-size:.7rem;color:var(--text-muted)">(${esc(r.basis)})</span>`:''}</td>
+      <td style="padding:.3rem .5rem;white-space:nowrap">${r.tod?fmt(r.tod).split(', ').pop()+` <span style="font-size:.68rem;color:var(--text-muted)">${esc(r.todSource||'')}</span>`:'—'}</td>
+      <td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted)">${r.sameZone?'OOC+':''}${esc(r.poster||'')}<div style="font-size:.68rem">${ev}</div></td>
+      <td style="padding:.3rem .5rem;white-space:nowrap;font-size:.75rem">${rec}</td>
+    </tr>`;
+  }).join('');
+  return `<div style="padding:.6rem 1rem;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+      <span style="font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.06em;color:var(--gold-light)">WATCH-ONLY</span>
+      <span style="font-size:.75rem;color:var(--text-muted)">Suggested kills from RAIDTICK + enrage/slain/tash/malo/slow. Nothing is added to your sessions.</span>
+      <span style="font-size:.75rem">Strong ${counts.strong} · Weak ${counts.weak} · Pick ${counts.ambiguous} · No boss ${counts.none}</span>
+      <label style="font-size:.72rem;color:var(--text-muted);margin-left:auto;cursor:pointer"><input type="checkbox" ${showNoise?'checked':''} onchange="rkdToggleNoise(this.checked)"> show guild-only ticks with no boss</label>
+      <button class="kt-undo-btn" onclick="rkdClearLog()">Clear log</button>
+    </div>
+    <div style="overflow:auto;max-height:72vh">${rows.length?`<table style="width:100%;border-collapse:collapse;font-size:.8rem">
+      <thead><tr style="text-align:left;font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.06em;color:var(--text-muted)">
+        <th style="padding:.35rem .5rem">TICK</th><th style="padding:.35rem .5rem">CHAR</th><th style="padding:.35rem .5rem">SUGGESTED</th><th style="padding:.35rem .5rem">CONFIDENCE</th><th style="padding:.35rem .5rem">ToD</th><th style="padding:.35rem .5rem">EVIDENCE</th><th style="padding:.35rem .5rem">TRACKER</th>
+      </tr></thead><tbody>${body}</tbody></table>`
+      :`<div style="padding:1.2rem;color:var(--text-muted);font-style:italic">No raid ticks seen yet. Suggestions appear here about 2 minutes after each RAIDTICK while MixelParse is running.</div>`}</div>`;
+}
 
 // ── ODKP alias map: normalizes ODKP source labels → tracker target names ──
 const ODKP_ALIAS={
