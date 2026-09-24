@@ -1034,6 +1034,11 @@ function processLogLine(line, charName) {
   // Prev-line turn-in classification (v1.4.18)
   const _wasTurnin = _prevFactionSaysByChar[charName] === true;
   _prevFactionSaysByChar[charName] = (/^\[.+?\] Your faction standing/.test(line) || /^\[.+?\] [A-Z][a-zA-Z`' ]+ says,/.test(line));
+  // Level-up ding: "You have gained a level! Welcome to level N!"
+  const _lvlUp = line.match(/Welcome to level (\d+)!/);
+  if (_lvlUp) {
+    broadcast({ type: 'levelUp', charName, level: parseInt(_lvlUp[1], 10) });
+  }
   if (RE_SESSION_XP.test(line)) {
     broadcast({ type: 'sessionXP', charName });
     if (_killCredited[charName]) {

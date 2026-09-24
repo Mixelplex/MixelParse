@@ -430,6 +430,9 @@
   .ss-check-green{color:#3a7a3a}
   .ss-check-red{color:#a03030}
   .ss-check-na{color:var(--text-muted)}
+  .ss-check-amber{color:#c98a3a}
+  .ss-hold{vertical-align:top;text-align:left;padding:.3rem .5rem;min-width:130px}
+  .ss-holders{font-size:.7rem;color:var(--text-muted);margin-top:.2rem;line-height:1.35;font-style:normal}
   .ss-done-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:.15rem .5rem;font-size:.75rem;cursor:pointer;font-family:\'Cinzel\',serif;color:var(--text-muted);transition:all .15s;white-space:nowrap}
   .ss-done-btn:hover{border-color:var(--gold);color:var(--gold)}
   .ss-done-btn.done{border-color:#5a9a5a;color:#1a5a1a;background:rgba(58,122,58,.1)}
@@ -2176,24 +2179,24 @@ const _PR8={str:8,sta:8,dex:8,agi:8,wis:8,int:8,cha:8,svpoison:8,svmagic:8,svdis
 const _DW=['PRIMARY','SECONDARY'];
 const ITEM_STAT_OVERRIDES={
   // ── Priceless Velium Weapons ──
-  'Priceless Velium Reinforced Bow':{..._PV5,ac:5,dmg:33,delay:35,_slot:'RANGE'},
-  'Priceless Velium Warsword':{..._PV5,ac:5,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW},
-  'Priceless Velium Spear':{..._PV5,ac:5,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW},
-  'Priceless Velium Battlehammer':{..._PV5,ac:5,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW},
-  'Priceless Velium Battle Axe':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY'},
-  'Priceless Velium Claidhmore':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY'},
-  'Priceless Velium Brawl Stick':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY'},
-  'Priceless Velium War Lance':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY'},
+  'Priceless Velium Reinforced Bow':{..._PV5,ac:5,dmg:33,delay:35,_slot:'RANGE',_skill:'Archery'},
+  'Priceless Velium Warsword':{..._PV5,ac:5,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW,_skill:'1H Slashing'},
+  'Priceless Velium Spear':{..._PV5,ac:5,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW,_skill:'Piercing'},
+  'Priceless Velium Battlehammer':{..._PV5,ac:5,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW,_skill:'1H Blunt'},
+  'Priceless Velium Battle Axe':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Slashing'},
+  'Priceless Velium Claidhmore':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Slashing'},
+  'Priceless Velium Brawl Stick':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Blunt'},
+  'Priceless Velium War Lance':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Piercing'},
   // ── Primal Velium Weapons (Avatar proc; not modeled) ──
-  'Primal Velium Reinforced Bow':{..._PR5,ac:10,dmg:33,delay:35,_slot:'RANGE'},
-  'Primal Velium Warsword':{..._PR5,ac:10,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW},
-  'Primal Velium Spear':{..._PR5,ac:10,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW},
-  'Primal Velium Battlehammer':{..._PR5,ac:10,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW},
-  "Primal Velium Knight's Sword":{..._PR5,ac:10,dmg:20,delay:20,_slot:'PRIMARY'},
-  'Primal Velium Battle Axe':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY'},
-  'Primal Velium Claidhmore':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY'},
-  'Primal Velium Brawl Stick':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY'},
-  'Primal Velium War Lance':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY'},
+  'Primal Velium Reinforced Bow':{..._PR5,ac:10,dmg:33,delay:35,_slot:'RANGE',_skill:'Archery'},
+  'Primal Velium Warsword':{..._PR5,ac:10,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW,_skill:'1H Slashing'},
+  'Primal Velium Spear':{..._PR5,ac:10,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW,_skill:'Piercing'},
+  'Primal Velium Battlehammer':{..._PR5,ac:10,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW,_skill:'1H Blunt'},
+  "Primal Velium Knight's Sword":{..._PR5,ac:10,dmg:20,delay:20,_slot:'PRIMARY',_skill:'1H Slashing'},
+  'Primal Velium Battle Axe':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Slashing'},
+  'Primal Velium Claidhmore':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Slashing'},
+  'Primal Velium Brawl Stick':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Blunt'},
+  'Primal Velium War Lance':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Piercing'},
 };
 // Creates the DB entry if the crawler never captured it; otherwise fills only the
 // missing fields (won't clobber a good existing weapon's dmg/delay).
@@ -6056,6 +6059,47 @@ function questCostFor(itemName){
   };
 }
 
+// Account-wide item holdings for the Skyshrine tracker: how many, who, and where
+// across EVERY loaded inventory (mains + bankers). Same smart-quote match as
+// charHasItem; buckets via locationType. `need` colors the cell (green >= need,
+// amber if some, red if none).
+function ssBucket(loc){const t=locationType(loc);return t==='equipped'?'Equipped':t==='bank'?'Bank':'Bag';}
+function itemHoldings(itemNames){
+  const norm=s=>String(s==null?'':s).replace(/[\u2018\u2019]/g,"'");
+  const targets=(Array.isArray(itemNames)?itemNames:[itemNames]).map(norm);
+  const holders=[]; let total=0;
+  for(const [cn,items] of Object.entries(chars)){
+    if(isExcludedChar(cn)) continue;   // excluded toons never count toward holdings
+    const wheres={}; let cnt=0;
+    for(const it of items){
+      if(targets.includes(norm(it.name))){
+        const c=it.count||1; cnt+=c;
+        const b=ssBucket(it.location); wheres[b]=(wheres[b]||0)+c;
+      }
+    }
+    if(cnt>0){ total+=cnt; holders.push({char:cn,count:cnt,wheres}); }
+  }
+  holders.sort((a,b)=>b.count-a.count);
+  return {total,holders};
+}
+function ssHoldCell(itemNames, need, budget){
+  const h=itemHoldings(itemNames);
+  // Shared pool: rows needing the same item (e.g. both wrists) draw from one
+  // budget. Earlier rows claim their share; later rows see only what's left.
+  const bkey=Array.isArray(itemNames)?itemNames.join('|'):String(itemNames);
+  const used=budget?(budget[bkey]||0):0;
+  const avail=h.total-used;
+  if(budget) budget[bkey]=used+Math.max(0,Math.min(avail,need));
+  if(avail<=0) return '<span class="ss-check-red">\u2718</span><div class="ss-holders">0 left</div>';
+  const enough=avail>=need;
+  const cls=enough?'ss-check-green':'ss-check-amber';
+  const mark=enough?'\u2714':'\u25d0';
+  const who=h.holders.map(hd=>{
+    const w=Object.entries(hd.wheres).map(([b,c])=>b+' \u00d7'+c).join(', ');
+    return esc(hd.char)+' ('+w+')';
+  }).join('; ');
+  return '<div><span class="'+cls+'" style="font-weight:700">'+mark+' \u00d7'+avail+'</span></div><div class="ss-holders">'+who+'</div>';
+}
 function renderSkyshrinePanel(){
   const panel=document.getElementById('skyshrinePanel');
   if(!panel)return;
@@ -6076,6 +6120,7 @@ function renderSkyshrinePanel(){
   for(let i=0;i<7;i++){if(getSSDone(name,i))done++;}
   if(getSSDone(name,'wrist2'))done++;
 
+  const ssBudget={}; // shared mat pool across the 8 rows (both wrists share one pool)
   let rows='';
   for(let i=0;i<7;i++){
     const rewardName=classData.items[i];
@@ -6095,9 +6140,9 @@ function renderSkyshrinePanel(){
       <td><div class="ss-item-name">${rewardLink}</div><div class="ss-sub">${esc(SS_SLOT_LABELS[i])}</div>${wristNote}</td>
       <td><div class="ss-sub">${tattLink}</div></td>
       <td><div class="ss-sub">${gemLink} ×3</div></td>
-      <td class="ss-check">${hasReward?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-      <td class="ss-check">${hasTattered?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-      <td class="ss-check">${hasGem?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
+      <td class="ss-check">${(charHasItem(name,rewardName)||charHasItem(name,rewardAlias))?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
+      <td class="ss-hold">${ssHoldCell(tattered,1,ssBudget)}</td>
+      <td class="ss-hold">${ssHoldCell(gem.gem,3,ssBudget)}</td>
       <td class="ss-th-center"><button type="button" class="ss-done-btn ${isDone?'done':''}" onclick="setSSDone('${esc(name)}',${i},${!isDone})">${isDone?'✔ Done':'Mark Done'}</button></td>
     </tr>`;
 
@@ -6111,9 +6156,9 @@ function renderSkyshrinePanel(){
         <td><div class="ss-item-name">${rewardLink}</div><div class="ss-sub">Wrist 2</div></td>
         <td><div class="ss-sub">${tattLink}</div></td>
         <td><div class="ss-sub">${gemLink} ×3</div></td>
-        <td class="ss-check">${hasReward2?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-        <td class="ss-check">${hasTattered2?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-        <td class="ss-check">${hasGem2?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
+        <td class="ss-check">${(charHasItem(name,rewardName)||charHasItem(name,rewardAlias))?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
+        <td class="ss-hold">${ssHoldCell(tattered,1,ssBudget)}</td>
+        <td class="ss-hold">${ssHoldCell(gem.gem,3,ssBudget)}</td>
         <td class="ss-th-center"><button type="button" class="ss-done-btn ${isDone2?'done':''}" onclick="setSSDone('${esc(name)}','wrist2',${!isDone2})">${isDone2?'✔ Done':'Mark Done'}</button></td>
       </tr>`;
     }

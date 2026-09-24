@@ -23,6 +23,7 @@
   header h1{font-family:\'Cinzel\',serif;font-size:clamp(1.3rem,5vw,1.9rem);color:var(--gold-light);letter-spacing:.12em;text-shadow:0 0 30px rgba(201,146,42,.4)}
   header p{margin-top:.3rem;color:var(--text-dim);font-size:.85rem;font-style:italic}
   .version-badge{position:absolute;bottom:.5rem;right:1rem;font-family:\'Cinzel\',serif;font-size:.65rem;color:var(--text-muted);letter-spacing:.06em}
+  .spell-wiki-link:hover{text-decoration:underline;color:var(--gold-light)}
   #networthDisplay{position:absolute;left:62%;top:50%;transform:translateY(-50%);text-align:left;line-height:1.5;display:none;cursor:pointer}
   #btParkWarn{background:var(--surface2);border-bottom:1px solid var(--border);padding:.4rem .9rem;max-height:150px;overflow-y:auto}
   #btParkWarn:empty{display:none}
@@ -325,7 +326,7 @@
   .auth-signout:hover{border-color:#a03030;color:#a03030}
   /* ── Watch List Banner ── */
   .watchlist-bar{background:var(--surface);border:1px solid var(--border);border-radius:5px;margin:.5rem 0;overflow:hidden}
-  .watchlist-bar-header{display:flex;align-items:center;justify-content:space-between;padding:.45rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border)}
+  .watchlist-bar-header{display:flex;align-items:center;justify-content:space-between;padding:.45rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border);user-select:none}
   .watchlist-bar-title{font-family:\'Cinzel\',serif;font-size:.72rem;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;font-weight:700}
   .watchlist-gear-btn{background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:.1rem .3rem;line-height:1;border-radius:3px;transition:all .15s}
   .watchlist-gear-btn:hover{color:var(--gold);background:rgba(122,80,16,.1)}
@@ -430,6 +431,9 @@
   .ss-check-green{color:#3a7a3a}
   .ss-check-red{color:#a03030}
   .ss-check-na{color:var(--text-muted)}
+  .ss-check-amber{color:#c98a3a}
+  .ss-hold{vertical-align:top;text-align:left;padding:.3rem .5rem;min-width:130px}
+  .ss-holders{font-size:.7rem;color:var(--text-muted);margin-top:.2rem;line-height:1.35;font-style:normal}
   .ss-done-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:.15rem .5rem;font-size:.75rem;cursor:pointer;font-family:\'Cinzel\',serif;color:var(--text-muted);transition:all .15s;white-space:nowrap}
   .ss-done-btn:hover{border-color:var(--gold);color:var(--gold)}
   .ss-done-btn.done{border-color:#5a9a5a;color:#1a5a1a;background:rgba(58,122,58,.1)}
@@ -654,8 +658,8 @@
   #ktKillStrip{display:none!important}
 
   /* City panels (Skyshrine / Kael / Thurgadin): stack vertically, full width */
-  #factionBarsRow{flex-direction:column!important;align-items:stretch!important;gap:.5rem!important}
-  #factionBarsRow .watchlist-bar{width:100%!important}
+  #dashboardPanelsRow{flex-direction:column!important;align-items:stretch!important;gap:.5rem!important}
+  #dashboardPanelsRow .watchlist-bar{width:100%!important}
 
   /* Wide matrices (main Watch List + per-city rows) scroll inside their own card */
   #watchlistBar{overflow-x:auto}
@@ -942,6 +946,7 @@
   <div class="top-nav-item" data-view="timers">Spawn Timers</div>
   <div class="top-nav-item" data-view="farm">Farm Targets</div>
   <div class="top-nav-item" data-view="bankers">Bankers</div>
+  <div class="top-nav-item" data-view="consolidate">Consolidate</div>
   <div id="syncIndicator" title="Click to save now" onclick="forceSaveNow()" style="margin-left:auto;cursor:pointer;font-size:.65rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:4px;transition:background .15s">
     <span id="syncDot" style="width:7px;height:7px;border-radius:50%;background:#888;display:inline-block;transition:background .3s"></span>
     <span id="syncLabel">saved</span>
@@ -982,6 +987,10 @@
 
 <div id="bankersView" style="display:none">
   <div class="rc-panel" id="bankersPanel"></div>
+</div>
+
+<div id="consolidateView" style="display:none">
+  <div class="rc-panel" id="consolidatePanel"></div>
 </div>
 
 <div class="tab-bar" id="tabBar">
@@ -1109,6 +1118,7 @@
     <div class="subtab" data-sub="stats">Character Stats</div>
     <div class="subtab" data-sub="upgrades">Gear Planner</div>
     <div class="subtab" data-sub="outfitter">Outfitter</div>
+    <div class="subtab" data-sub="leveling">Leveling</div>
     <div class="subtab" data-sub="consumes">Raid Consumes</div>
     <div class="subtab" data-sub="factions">Factions</div>
     <div class="subtab" data-sub="skyshrine">Skyshrine</div>
@@ -1118,30 +1128,54 @@
   </div>
 
   <div id="subInventory">
-    <div id="factionBarsRow" style="display:flex;gap:.75rem;align-items:flex-start;margin-bottom:.5rem">
-    <div class="watchlist-bar" id="cityBar_skyshrine" style="flex:1;min-width:0">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:.4rem">
+      <button class="watchlist-gear-btn" id="panelCustomizeBtn" title="Show/hide and reorder panels" onclick="togglePanelCustomize()" style="width:auto;padding:.25rem .6rem;font-size:.7rem;display:flex;align-items:center;gap:.3rem">⚙ Customize panels</button>
+    </div>
+    <div id="panelCustomizePopover" style="display:none;border:1px solid var(--border);border-radius:6px;background:var(--surface2);padding:.5rem .6rem;margin-bottom:.5rem"></div>
+    <div id="dashboardPanelsRow" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:.75rem;align-items:flex-start;margin-bottom:.5rem;padding-bottom:.3rem">
+    <div class="watchlist-bar" id="cityBar_skyshrine" style="flex:1;min-width:280px">
       <div class="watchlist-bar-header">
-        <div class="watchlist-bar-title">🌀 Skyshrine</div>
-        <button class="watchlist-gear-btn" title="Configure characters" onclick="toggleCityConfig('skyshrine')">⚙</button>
+        <div class="watchlist-bar-title"><span style="opacity:.5;cursor:grab;margin-right:.15rem" title="Drag to reorder panels">⠿</span> 🌀 Skyshrine</div>
+        <div style="display:flex;gap:.3rem">
+          <button class="watchlist-gear-btn" title="Configure characters" onclick="toggleCityConfig('skyshrine')">⚙</button>
+          <button class="watchlist-gear-btn" title="Remove this panel (bring it back via Customize panels)" onclick="togglePanelVisible('skyshrine')">✕</button>
+        </div>
       </div>
       <div id="cityConfigRow_skyshrine" style="display:none;padding:.35rem .75rem .4rem;border-bottom:1px solid var(--border)"></div>
       <div id="cityRows_skyshrine" class="watchlist-rows"><div class="watchlist-empty">No characters loaded.</div></div>
     </div>
-    <div class="watchlist-bar" id="cityBar_kael" style="flex:1;min-width:0">
+    <div class="watchlist-bar" id="cityBar_kael" style="flex:1;min-width:280px">
       <div class="watchlist-bar-header">
-        <div class="watchlist-bar-title">⚔ Kael Drakkel</div>
-        <button class="watchlist-gear-btn" title="Configure characters" onclick="toggleCityConfig('kael')">⚙</button>
+        <div class="watchlist-bar-title"><span style="opacity:.5;cursor:grab;margin-right:.15rem" title="Drag to reorder panels">⠿</span> ⚔ Kael Drakkel</div>
+        <div style="display:flex;gap:.3rem">
+          <button class="watchlist-gear-btn" title="Configure characters" onclick="toggleCityConfig('kael')">⚙</button>
+          <button class="watchlist-gear-btn" title="Remove this panel (bring it back via Customize panels)" onclick="togglePanelVisible('kael')">✕</button>
+        </div>
       </div>
       <div id="cityConfigRow_kael" style="display:none;padding:.35rem .75rem .4rem;border-bottom:1px solid var(--border)"></div>
       <div id="cityRows_kael" class="watchlist-rows"><div class="watchlist-empty">No characters loaded.</div></div>
     </div>
-    <div class="watchlist-bar" id="cityBar_thurgadin" style="flex:1;min-width:0">
+    <div class="watchlist-bar" id="cityBar_thurgadin" style="flex:1;min-width:280px">
       <div class="watchlist-bar-header">
-        <div class="watchlist-bar-title">🏔 Thurgadin</div>
-        <button class="watchlist-gear-btn" title="Configure characters" onclick="toggleCityConfig('thurgadin')">⚙</button>
+        <div class="watchlist-bar-title"><span style="opacity:.5;cursor:grab;margin-right:.15rem" title="Drag to reorder panels">⠿</span> 🏔 Thurgadin</div>
+        <div style="display:flex;gap:.3rem">
+          <button class="watchlist-gear-btn" title="Configure characters" onclick="toggleCityConfig('thurgadin')">⚙</button>
+          <button class="watchlist-gear-btn" title="Remove this panel (bring it back via Customize panels)" onclick="togglePanelVisible('thurgadin')">✕</button>
+        </div>
       </div>
       <div id="cityConfigRow_thurgadin" style="display:none;padding:.35rem .75rem .4rem;border-bottom:1px solid var(--border)"></div>
       <div id="cityRows_thurgadin" class="watchlist-rows"><div class="watchlist-empty">No characters loaded.</div></div>
+    </div>
+    <div class="watchlist-bar" id="foodDrinkBar" style="flex:1;min-width:280px">
+      <div class="watchlist-bar-header">
+        <div class="watchlist-bar-title"><span style="opacity:.5;cursor:grab;margin-right:.15rem" title="Drag to reorder panels">⠿</span> 🍞 Food &amp; Drink</div>
+        <div style="display:flex;gap:.3rem">
+          <button class="watchlist-gear-btn" id="fdGearBtn" title="Configure characters" onclick="toggleFoodDrinkConfig()">⚙</button>
+          <button class="watchlist-gear-btn" title="Remove this panel (bring it back via Customize panels)" onclick="togglePanelVisible('fooddrink')">✕</button>
+        </div>
+      </div>
+      <div id="fdConfigRow" style="display:none;padding:.35rem .75rem .4rem;border-bottom:1px solid var(--border)"></div>
+      <div id="fdRows" class="watchlist-rows"><div class="watchlist-empty">No characters loaded.</div></div>
     </div>
     </div>
     <div class="watchlist-bar" id="watchlistBar">
@@ -1238,6 +1272,10 @@
 
   <div id="subOutfitter" style="display:none">
     <div class="rc-panel" id="outfitterPanel"></div>
+  </div>
+
+  <div id="subLeveling" style="display:none">
+    <div class="rc-panel" id="levelingPanel"></div>
   </div>
 
   <div id="subConsumes" style="display:none">
@@ -2155,6 +2193,17 @@ function upgEnhanceCombos(root){
 
 const ITEM_EFFECT_OVERRIDES={
   'Fungus Covered Scale Tunic':{_effect:'Fungal Regrowth',_effectType:'Worn'},
+  // Combat procs the item-DB crawler left blank on these raid weapons, so their
+  // biggest DPS source scored 0 (weaponDpsScore needs _effect + _effectType~'combat').
+  // Fill-only; apply skips names not in itemDB, so both punctuation variants
+  // (backtick vs apostrophe) are listed harmlessly — the matching one lands.
+  'Massive Heartwood Thorn':{_effect:'Combust',_effectType:'Combat'},
+  'Mrylokar`s Dagger of Vengeance':{_effect:'Feast of Blood',_effectType:'Combat'},
+  "Mrylokar's Dagger of Vengeance":{_effect:'Feast of Blood',_effectType:'Combat'},
+  'Mrylokar`s Dagger of Blood':{_effect:'Feast of Blood',_effectType:'Combat'},
+  "Mrylokar's Dagger of Blood":{_effect:'Feast of Blood',_effectType:'Combat'},
+  'Zeriphra`s Dagger of Blood':{_effect:'Feast of Blood',_effectType:'Combat'},
+  "Zeriphra's Dagger of Blood":{_effect:'Feast of Blood',_effectType:'Combat'},
 };
 function applyItemEffectOverrides(){
   for(const [name,ov] of Object.entries(ITEM_EFFECT_OVERRIDES)){
@@ -2176,24 +2225,28 @@ const _PR8={str:8,sta:8,dex:8,agi:8,wis:8,int:8,cha:8,svpoison:8,svmagic:8,svdis
 const _DW=['PRIMARY','SECONDARY'];
 const ITEM_STAT_OVERRIDES={
   // ── Priceless Velium Weapons ──
-  'Priceless Velium Reinforced Bow':{..._PV5,ac:5,dmg:33,delay:35,_slot:'RANGE'},
-  'Priceless Velium Warsword':{..._PV5,ac:5,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW},
-  'Priceless Velium Spear':{..._PV5,ac:5,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW},
-  'Priceless Velium Battlehammer':{..._PV5,ac:5,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW},
-  'Priceless Velium Battle Axe':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY'},
-  'Priceless Velium Claidhmore':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY'},
-  'Priceless Velium Brawl Stick':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY'},
-  'Priceless Velium War Lance':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY'},
+  // _classes: P99-wiki-verified per-item class lists (dev-picked, not derivable
+  // from weapon-skill rules alone — e.g. Spear excludes PAL despite PAL being
+  // able to use Piercing generally, but includes SHM). Fixes classes with no
+  // _classes data defaulting to 'ALL' in the gear planner's classOk() check.
+  'Priceless Velium Reinforced Bow':{..._PV5,ac:5,dmg:33,delay:35,_slot:'RANGE',_skill:'Archery',_classes:'WAR PAL RNG SHD ROG'},
+  'Priceless Velium Warsword':{..._PV5,ac:5,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW,_skill:'1H Slashing',_classes:'WAR PAL RNG SHD BRD ROG'},
+  'Priceless Velium Spear':{..._PV5,ac:5,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW,_skill:'Piercing',_classes:'WAR RNG SHD BRD ROG SHM'},
+  'Priceless Velium Battlehammer':{..._PV5,ac:5,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW,_skill:'1H Blunt',_classes:'ALL EXCEPT NEC WIZ MAG ENC'},
+  'Priceless Velium Battle Axe':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Slashing',_classes:'WAR PAL RNG SHD'},
+  'Priceless Velium Claidhmore':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Slashing',_classes:'WAR PAL RNG SHD'},
+  'Priceless Velium Brawl Stick':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Blunt',_classes:'ALL EXCEPT BRD ROG'},
+  'Priceless Velium War Lance':{..._PV7,ac:12,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Piercing',_classes:'WAR PAL SHD'},
   // ── Primal Velium Weapons (Avatar proc; not modeled) ──
-  'Primal Velium Reinforced Bow':{..._PR5,ac:10,dmg:33,delay:35,_slot:'RANGE'},
-  'Primal Velium Warsword':{..._PR5,ac:10,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW},
-  'Primal Velium Spear':{..._PR5,ac:10,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW},
-  'Primal Velium Battlehammer':{..._PR5,ac:10,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW},
-  "Primal Velium Knight's Sword":{..._PR5,ac:10,dmg:20,delay:20,_slot:'PRIMARY'},
-  'Primal Velium Battle Axe':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY'},
-  'Primal Velium Claidhmore':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY'},
-  'Primal Velium Brawl Stick':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY'},
-  'Primal Velium War Lance':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY'},
+  'Primal Velium Reinforced Bow':{..._PR5,ac:10,dmg:33,delay:35,_slot:'RANGE',_skill:'Archery',_classes:'WAR PAL RNG SHD ROG'},
+  'Primal Velium Warsword':{..._PR5,ac:10,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW,_skill:'1H Slashing',_classes:'WAR PAL RNG SHD BRD ROG'},
+  'Primal Velium Spear':{..._PR5,ac:10,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW,_skill:'Piercing',_classes:'WAR RNG SHD BRD ROG SHM'},
+  'Primal Velium Battlehammer':{..._PR5,ac:10,dmg:13,delay:20,_slot:'PRIMARY',_slots:_DW,_skill:'1H Blunt',_classes:'ALL EXCEPT NEC WIZ MAG ENC'},
+  "Primal Velium Knight's Sword":{..._PR5,ac:10,dmg:20,delay:20,_slot:'PRIMARY',_skill:'1H Slashing',_classes:'PAL SHD'},
+  'Primal Velium Battle Axe':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Slashing',_classes:'WAR PAL RNG SHD'},
+  'Primal Velium Claidhmore':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Slashing',_classes:'WAR PAL RNG SHD'},
+  'Primal Velium Brawl Stick':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Blunt',_classes:'ALL EXCEPT BRD ROG'},
+  'Primal Velium War Lance':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Piercing',_classes:'WAR PAL SHD'},
 };
 // Creates the DB entry if the crawler never captured it; otherwise fills only the
 // missing fields (won't clobber a good existing weapon's dmg/delay).
@@ -2202,10 +2255,40 @@ function applyItemStatOverrides(){
     let key = itemDB[name] ? name : (_itemDBLower||{})[name.toLowerCase()];
     if(!key){ itemDB[name]={}; _itemDBLower[name.toLowerCase()]=name; key=name; }
     const it=itemDB[key];
-    for(const [k,v] of Object.entries(ov)) if(!it[k]) it[k]=v;
+    for(const [k,v] of Object.entries(ov)){
+      // _classes is wiki-verified in this table and always wins — the CSV
+      // parser stamps every row with _classes (defaulting to 'ALL' when its
+      // class column is blank), so a truthy-but-wrong 'ALL' from the crawler
+      // would otherwise pass the fill-only check below and never get fixed.
+      if(k==='_classes'){ it[k]=v; continue; }
+      if(!it[k]) it[k]=v;
+    }
   }
 }
 
+// User-directed hardcode (P99-wiki-verified): the whole Priceless / Primal
+// Velium set (Sleeper's Tomb) is NO DROP, and LORE too — EXCEPT the Fist Wraps,
+// which are NOT LORE (monks dual-wield two, so a LORE flag would block the pair).
+// The source CSV omits these flags on this set, so this is a SET pass, not
+// fill-only. Runs after the stat overrides so override-created entries (e.g.
+// Priceless Velium Spear) exist to be flagged. admin.html shares this in-memory
+// itemDB, so its outfitter/Networth/budget filters inherit the flags.
+// Specific quest-reward items the source CSV leaves unflagged but are NO DROP
+// (P99-verified; user-directed hardcode). Matched by normalized name so
+// backtick/apostrophe and case variants all catch. NO DROP only — LORE left
+// to whatever the CSV carries (e.g. Di'Zok Signet already imports as LORE).
+const _HARDCODE_NODROP=new Set(['dizok signet of service','regal band of bathezid','spirit wracked cord']);
+function _normItemNm(n){return String(n||'').toLowerCase().replace(/[`'\u2019]/g,'').replace(/\s+/g,' ').trim();}
+function applyPricelessPrimalFlags(){
+  for(const name of Object.keys(itemDB)){
+    const d=itemDB[name];
+    if(!d||typeof d!=='object')continue;
+    if(_HARDCODE_NODROP.has(_normItemNm(name)))d._nodrop=true;
+    if(!/^(priceless|primal) velium\b/i.test(name))continue;
+    d._nodrop=true;
+    if(/fist\s*wraps?/i.test(name))delete d._lore; else d._lore=true;
+  }
+}
 function _rebuildItemDBIndex(){
   _itemDBLower={};
   for(const k of Object.keys(itemDB)){
@@ -2226,6 +2309,7 @@ function _rebuildItemDBIndex(){
   }
   applyItemEffectOverrides();
   applyItemStatOverrides();
+  applyPricelessPrimalFlags();
 }
 function itemDBGet(name){ return itemDB[name] || itemDB[_itemDBLower[name?.toLowerCase()]] || undefined; }
 _rebuildItemDBIndex();
@@ -2382,7 +2466,7 @@ function renderSpellsPanel(){
       html+='<div style="flex:1;display:flex;flex-wrap:wrap;gap:.35rem">';
       for(const m of byLvl.get(l)){
         html+='<span style="display:inline-flex;align-items:center;gap:.3rem;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:.12rem .5rem;font-size:.8rem">'
-            + _spellEsc(m.act)
+            + '<a href="'+wikiUrl(m.act)+'" target="_blank" rel="noopener" title="View on P99 wiki" class="spell-wiki-link" style="color:inherit;text-decoration:none">'+_spellEsc(m.act)+'</a>'
             + '<button class="spell-ignore" data-key="'+_spellEsc(m.key)+'" title="Ignore this spell" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;padding:0 0 0 .1rem">\u00d7</button>'
             + '</span>';
       }
@@ -2399,7 +2483,8 @@ function renderSpellsPanel(){
     html+='<div style="display:flex;flex-wrap:wrap;gap:.35rem">';
     for(const m of ignored.sort((a,b)=>a.lvl-b.lvl)){
       html+='<span style="display:inline-flex;align-items:center;gap:.3rem;background:transparent;border:1px dashed var(--border);border-radius:12px;padding:.12rem .5rem;font-size:.8rem;color:var(--text-muted)">'
-          + 'L'+m.lvl+' '+_spellEsc(m.act)
+          + 'L'+m.lvl+' '
+          + '<a href="'+wikiUrl(m.act)+'" target="_blank" rel="noopener" title="View on P99 wiki" class="spell-wiki-link" style="color:inherit;text-decoration:none">'+_spellEsc(m.act)+'</a>'
           + '<button class="spell-unignore" data-key="'+_spellEsc(m.key)+'" title="Un-ignore" style="background:none;border:none;color:var(--gold-dim);cursor:pointer;font-size:.9rem;line-height:1;padding:0 0 0 .1rem">\u21ba</button>'
           + '</span>';
     }
@@ -2511,10 +2596,12 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     const isTimers=activeTopView==='timers';
     const isGearReports=activeTopView==='gearreports';
     const isBankers=activeTopView==='bankers';
+    const isConsolidate=activeTopView==='consolidate';
     document.getElementById('tabBar').style.display=isChars?'flex':'none';
     
     document.getElementById('watchlistBar').style.display=isChars?'':'none';
-    const fbr=document.getElementById('factionBarsRow');if(fbr)fbr.style.display=isChars?'flex':'none';
+    const fbr=document.getElementById('dashboardPanelsRow');if(fbr)fbr.style.display=isChars?'flex':'none';
+    const wlb=document.getElementById('watchlistBar');if(wlb)wlb.style.display=isChars?'':'none';
     ['thurgadin','kael','skyshrine'].forEach(id=>{const el=document.getElementById('cityBar_'+id);if(el)el.style.display=isChars?'':'none';});
     document.getElementById('dropzone').style.display='none';
     document.getElementById('mainView').style.display='none';
@@ -2526,6 +2613,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     document.getElementById('timersView').style.display=isTimers?'block':'none';
     document.getElementById('gearReportsView').style.display=isGearReports?'block':'none';
     document.getElementById('bankersView').style.display=isBankers?'block':'none';
+    document.getElementById('consolidateView').style.display=isConsolidate?'block':'none';
     if(isDkp){renderDkpPanel();}
     else if(isPlat){renderPlatPanel();if(!platData.length)fetchPlatData();}
     else if(isFarm){renderFarmPanel();if(!platData.length)fetchPlatData();}
@@ -2534,14 +2622,15 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     else if(isTimers){renderTimersPanel();}
     else if(isGearReports){renderGearReportsPanel();}
     else if(isBankers){renderBankersPanel();}
+    else if(isConsolidate){renderConsolidatePanel();}
     else{renderView();}
     maybeShowHelp(activeTopView);
   });
 });
-document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='outfitter')renderOutfitterPanel();maybeShowHelp('sub_'+activeSub);});});
+document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();maybeShowHelp('sub_'+activeSub);});});
 function refresh(){buildTabs();renderView();saveState();renderNetworthBar();if(typeof activeTopView!=='undefined'&&activeTopView==='parking'&&typeof renderParkingPanel==='function')renderParkingPanel();}
 function renderOnly(){buildTabs();renderView();}
-function renderView(){if(activeTopView&&activeTopView!=='characters')return;const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderCityBars();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='outfitter')renderOutfitterPanel();}
+function renderView(){if(activeTopView&&activeTopView!=='characters')return;const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderCityBars();renderFoodDrinkPanel();applyPanelLayout();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();}
 
 // ─── Inventory Table ──────────────────────────────────────────────────────────
 function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const classFilter=document.getElementById('classFilter').value;const slotFilter=document.getElementById('slotFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.entries(chars).filter(([_cn])=>!isExcludedChar(_cn)).flatMap(([,_it])=>_it):(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;let mc=true;if(classFilter||slotFilter){const db=itemDBGet(item.name);if(!db||(db._slot||'NONE')==='NONE'){mc=false;}else{if(classFilter){const cls=(db._classes||'ALL').toUpperCase();if(cls!=='ALL'&&!cls.split(/\s+/).includes(classFilter))mc=false;}if(slotFilter&&mc){const slots=db._slots||[db._slot];if(!slots.includes(slotFilter))mc=false;}}}return ms&&ml&&mc;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=source.reduce((s,i)=>s+i.count,0);const unique=new Set(source.map(i=>i.id)).size;const stacks=source.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span><span class="stat">Bankers <span class="stat-val">'+bankerNames().length+'</span></span>':'');}
@@ -2921,8 +3010,13 @@ function renderUpgradesPanel(){
     const acW=weights.ac||0;
     if(acW){const ca=Number(curItemData.ac||0),na=Number(candData.ac||0);if(na-ca)total+=(na-ca)*acW;}
     } // end if(!skipStats) ac block
-    // Haste always scored regardless of skipStats
+    // Haste always scored regardless of skipStats. Held OUT of `total` so the
+    // pure-DPS suppression below never scales it: effective haste (up to the 41%
+    // cap) is real DPS, not a survivability stat, so it counts at full weight.
+    // Over-cap haste already scores 0 via the effNh/effCh clamp — that is the
+    // "suppressed only past 41%" behaviour. Mirror in admin.html gcScoreItem.
     const hasteW=weights.haste||0;
+    let hastePts=0;
     if(hasteW){
       const ch=Number(curItemData.haste||0),nh=Number(candData.haste||0);
       const hasteThresh=(CLASS_STAT_THRESHOLDS[charClass]||{}).haste||41;
@@ -2935,11 +3029,12 @@ function renderUpgradesPanel(){
       // Mirrored in admin.html gcScoreItem — keep both in sync.
       const effCh=Math.min(Math.max(otherHaste,ch),hasteThresh);
       const effNh=Math.min(Math.max(otherHaste,nh),hasteThresh);
-      if(effNh-effCh)total+=(effNh-effCh)*hasteW;
+      if(effNh-effCh)hastePts=(effNh-effCh)*hasteW;
     }
     // ── Pure-DPS weapon-slot stat suppression ────────────────────────────────────
     // For ROG/MNK evaluating a weapon slot, everything accumulated so far is STAT
-    // value (stats, AC, haste, FT). Scale it down so the weapon is judged on DPS,
+    // value (stats, AC, FT — NOT haste, which is added at full weight below).
+    // Scale it down so the weapon is judged on DPS,
     // not on the survivability stats a stat-stick happens to carry. The DPS delta
     // added just below stays at full weight. Non-weapon slots and other classes
     // are untouched. Mirror in admin.html.
@@ -2947,6 +3042,10 @@ function renderUpgradesPanel(){
     if(_isWepSlotEG&&PURE_DPS_CLASSES.has(charClass)){
       total*=PURE_DPS_WEP_STAT_MULT;
     }
+    // Effective haste added at FULL weight, AFTER suppression: haste up to the 41%
+    // cap is a DPS multiplier, not a stat-stick perk. (Over-cap haste already
+    // contributed 0 via the clamp above.)
+    total+=hastePts;
     // Weapon dmg scoring — dmg weight in CLASS_STAT_WEIGHTS; ratio = (dmg + lucyBonus) / delay
     // Handled via STAT_KEYS_ALL if dmg is included, but dmg needs special ratio treatment.
     // Score the delta in effective ratio between candidate and current item.
@@ -4513,7 +4612,7 @@ document.getElementById('gearReportsBtn').addEventListener('click',()=>{
   
   document.getElementById('watchlistBar').style.display='none';
   ['thurgadin','kael','skyshrine'].forEach(id=>{const el=document.getElementById('cityBar_'+id);if(el)el.style.display='none';});
-  const fbr=document.getElementById('factionBarsRow');if(fbr)fbr.style.display='none';
+  const fbr=document.getElementById('dashboardPanelsRow');if(fbr)fbr.style.display='none';
   document.getElementById('dropzone').style.display='none';
   document.getElementById('mainView').style.display='none';
   document.getElementById('dkpView').style.display='none';
@@ -4716,6 +4815,12 @@ const HELP_CONTENT={
     'Re-binds are caught live too: when Bind Affinity lands on you (\u201cYou feel yourself bind to the area\u201d), your current zone is recorded as the new bind point.',
     'Binds sync across your machines. Hover a bind to see when it was set and where it came from \u2014 anything not confirmed in 30+ days dims so you know to refresh it with a quick /char.',
     'Heads-up: the watcher can only read binds that happen while it\u2019s running \u2014 it can\u2019t recover old binds from log history. Do a one-time /char pass across your toons to seed them all.',
+  ]},
+  panel_customize_intro:{title:'Customize panels',sub:'New in 1.5.7',tips:[
+    'The Skyshrine, Kael Drakkel, Thurgadin, Food & Drink, and Watch List panels above the inventory table can now be shown, hidden, and reordered.',
+    'Click <strong>\u2699 Customize panels</strong> to show or hide any panel, or click the <strong>\u2715</strong> on a panel\'s own title bar to remove just that one \u2014 removed panels come back anytime via Customize panels.',
+    'Drag a panel\'s title bar and drop it onto another panel to reorder them \u2014 panels dropped next to each other share a row.',
+    'All Characters and individual character tabs each remember their own panel layout independently.',
   ]},
 };
 
@@ -4995,6 +5100,8 @@ async function onSignedIn(user){
     // One-time intro for the 1.5.2 bind-location feature. Deferred so it never
     // clobbers the first-run 'characters' help (only one modal shows at a time).
     if(!document.getElementById('helpModalOverlay').classList.contains('open')) maybeShowHelp('bind_intro');
+    // One-time intro for the 1.5.7 panel customize/reorder feature — same guard.
+    if(!document.getElementById('helpModalOverlay').classList.contains('open')) maybeShowHelp('panel_customize_intro');
   }, 900);
 }
 
@@ -5162,6 +5269,8 @@ async function loadFromSupabase(){
   await loadZonesFromSupabase();
   await loadBankerRegistryFromSupabase();
   await loadExcludedCharsFromSupabase();
+  await loadConsolExclFromSupabase();
+  await loadConsolBankerExclFromSupabase();
   await loadRaidMulesFromSupabase();
   await loadParkIgnoresFromSupabase();
   await loadBindDataFromSupabase();
@@ -5693,6 +5802,173 @@ const CITY_FACTIONS={
 };
 function getCityHidden(key){try{return new Set(JSON.parse(localStorage.getItem(key)||'[]'));}catch{return new Set();}}
 function setCityHidden(key,s){localStorage.setItem(key,JSON.stringify([...s]));}
+
+// ── Food & Drink tracker (P99 wiki: Food_and_drink) ────────────────────────────
+// Fast-consuming races run the Halfling-scale timers (half the real-time per
+// duration unit); everyone else uses the Human-scale rate. 1 duration unit =
+// 144 real-time seconds at the slow (Human-scale) rate, per the wiki's own
+// worked example (Rat Sandwich, 18 duration = 43.2 min).
+const FD_FAST_RACES=new Set(['Barbarian','Halfling','Ogre','Troll']);
+const FD_MIN_PER_UNIT_SLOW=2.4;
+const FD_MIN_PER_UNIT_FAST=1.2;
+// name -> [type ('F'|'D'), duration]. Two wiki items share a name at different
+// durations due to fish-weight variants ("large Fetid Bass") or a vendor/quest
+// duplicate ("Muffin"); since this is a flat name lookup only one value can be
+// kept per name, so these are approximate for that handful of items.
+const _FD_RAW=[["Vile Sarnak Brew","D",100],["Fuzzlecutter Formula 5000","D",60],["Louie's Thick 'n Hearty","D",60],["Canteen of Slush Water","D",45],["Sarnak Travel Canteen","D",45],["Skin of Milk","D",30],["Steamfont Spring Water","D",30],["Surefall Sap","D",30],["Bladder of Otter Milk","D",25],["Jumjum Juice","D",25],["Egg Nog","D",20],["Oasis Water","D",20],["Crow's Special Brew","D",18],["Flask of Orange Juice","D",18],["Glob of Slush Water","D",17],["Pod of Water","D",16],["Flask of Bloodwater","D",15],["Flask of Icy Water","D",15],["Issued Water","D",15],["Large Bottle of Milk","D",15],["Purified Water","D",15],["Skin of Slush Water","D",15],["Summoned: Globe of Water","D",15],["Water Flask","D",15],["Flask of Karana Brown Tea","D",13],["Bladder of Lizard Milk","D",12],["Flask of Rathe Berry Juice","D",10],["Flask of Sylvan Berry Juice","D",10],["Root Beer Float","D",10],["Stormguard Root Beer","D",10],["Tagglefoot Tingle Drink","D",10],["Bottle of Milk","D",8],["Flask of Berry Juice","D",8],["Flask of Fruit Juice","D",8],["Neriak Nectar","D",8],["Brackish Water","D",5],["Malted Milk","D",5],
+["Sandwich of Foul Smelling Herbs","F",100],["Deep Cavern Toadstool","F",60],["17lb Fetid Bass","F",46],["Chokidai Jerky","F",45],["Dragon Egg","F",45],["Shellcracker's Seaside Salad","F",45],["16lb Fetid Bass","F",44],["15lb Fetid Bass","F",42],["Muskie Marinade","F",41],["14lb Fetid Bass","F",40],["13lb Fetid Bass","F",38],["Caynar Nut Stuffed Trout","F",37],["12lb Fetid Bass","F",36],["Barbequed Erudite","F",35],["Beer Braised Mammoth","F",35],["Fish Rolls","F",35],["Gator Rolls","F",35],["Rolled Cutlassfish","F",35],["Shark Rolls","F",35],["11lb Fetid Bass","F",34],["10lb Fetid Bass","F",32],["Frost Giant Steak","F",31],["Icy Mushrooms","F",31],["Storm Giant Steak","F",31],["Vegetable Roughy","F",31],["9lb Fetid Bass","F",30],["Bread Cakes","F",30],["humongous Fetid Bass","F",30],["Mammoth Steaks","F",30],["Rat Ear Turnovers","F",30],["Snow Griffin Souffle","F",30],["8lb Fetid Bass","F",28],["Smoked Shark","F",28],["Fish Head Soup","F",27],["7lb Fetid Bass","F",26],["Bear Steaks","F",25],["Berry Pie","F",25],["Clamcakes","F",25],["Crunchy Coldain Head","F",25],["Drake Egg","F",25],["Elven Trail Mix","F",25],["gigantic Fetid Bass","F",25],["Griffon Eggs","F",25],["Honey Berry Pie","F",25],["Iron Ration","F",25],["Lion Steaks","F",25],["Orange Flavored Cod","F",25],["Royal Jelly","F",25],["Shark Fillet","F",25],["Ulthork Meat Pie","F",25],["Vegetable Soup","F",25],["6lb Fetid Bass","F",24],["Dragon Steaks","F",24],["5lb Fetid Bass","F",22],["Aviak Eggs","F",21],["Yakman Steak","F",21],["4lb Fetid Bass","F",20],["Bear Sandwich","F",20],["Birthday Cake","F",20],["Bixie Berry Pie","F",20],["Blackened Panther","F",20],["Blackened Teir'Dal","F",20],["Carp Fillets","F",20],["Chub Fillets","F",20],["Dwarf Chops","F",20],["Elven Veal","F",20],["Fruit Pie","F",20],["Gator Steaks","F",20],["HEHE Meat","F",20],["Hot-N-Spicy Toelings","F",20],["Kobold Steaks","F",20],["Lion Delight","F",20],["Lizard-on-a-Stick","F",20],["Mammoth Sandwich","F",20],["Pike Fillets","F",20],["Raptor Steak","F",20],["Salmon Fillets","F",20],["Salty Whitefish Fillets","F",20],["Snake Steak","F",20],["Snow Bunny Stew","F",20],["Trout Fillets","F",20],["Wedding Cake","F",20],["Wolf Sandwich","F",20],["Wolf Steaks","F",20],["3lb Fetid Bass","F",18],["Beer Braised Bear","F",18],["Beer Braised Gator","F",18],["Beer Braised Lion","F",18],["Beer Braised Rat","F",18],["Beer Braised Wolf","F",18],["Bixie Crunchies","F",18],["Pickled Froglok","F",18],["Rat Sandwich","F",18],["Smoked Wood Elf","F",18],["Spicy Ulthork Meat","F",18],["Fish Fillets","F",17],["Rat Kabobs","F",17],["Saucy Bearmeat","F",17],["Wooly Spider Crunchies","F",17],["Batwing Crunchies","F",16],["Rat Ear Sandwich","F",16],["2lb Fetid Bass","F",15],["Barren Flounder","F",15],["Batwing Pie","F",15],["Beetle Eye Pie","F",15],["Boar Carp","F",15],["Cauldron Trout","F",15],["Cave Guppy","F",15],["Chokai Bass","F",15],["Chunk of Ogre Flesh","F",15],["Clam Chowder","F",15],["Clockwork Koi","F",15],["Cobalt Cod","F",15],["Cobalt Cup Cakes","F",15],["Cold Water Barracuda Meat","F",15],["Coldain Pickles","F",15],["Crystalline Cave Fish","F",15],["Danak Grouper","F",15],["Despair Chub","F",15],["Dragon Bay Snapper","F",15],["Dried Froglok Leg","F",15],["Dwarf Flesh","F",15],["Evergreen Salmon","F",15],["Fogwater Trout","F",15],["Fresh Fish","F",15],["Frosty Cave Trout","F",15],["Frozen Sea Biscuits","F",15],["giant Fetid Bass","F",15],["Gnome Sandwich","F",15],["Greengill Salmon","F",15],["Grotto Bluegill","F",15],["Gunthak Mackerel","F",15],["Hatch Dace","F",15],["Highland Pike","F",15],["Hound Pike","F",15],["Iceclad Cutlassfish","F",15],["Ikfish","F",15],["Kedge Carp","F",15],["Kerra Catfish","F",15],["Koada Cichlid","F",15],["Kunzar Koi","F",15],["large Fetid Bass","F",15],["Meat Pie","F",15],["Pine Cichlid","F",15],["Pouch of Frozen Roots","F",15],["Rat Ear Pie","F",15],["Rathe Muskie","F",15],["Ration","F",15],["Red Roughy","F",15],["Rivervale Trout","F",15],["Rujarkian Chub","F",15],["Salty Whitefish","F",15],["Sea Green Cookies","F",15],["Stonefish","F",15],["Summoned: Black Bread","F",15],["Thullian Mudskipper","F",15],["Thunder Salmon","F",15],["Timorous Tuna","F",15],["Tundrabear Sandwich","F",15],["Ulthork Meat","F",15],["Weary Wrass","F",15],["Whipped Hunkle Pear Pie","F",15],["Wulf Fish","F",15],["Wyvern Flesh Pie","F",15],["Grilled Rat Ears","F",12],["Human Pickles","F",12],["Orc Pickles","F",12],["Paladin Pickles","F",12],["Alligator Eggs","F",10],["Arctic King Crab","F",10],["Arctic Mussels","F",10],["Arctic Scallop","F",10],["Bag of Caynar Nuts","F",10],["Basilisk Eggs","F",10],["Beetle Bake","F",10],["Cobalt Abalone","F",10],["Cobalt Rock Crab","F",10],["Dwarf Pickles","F",10],["Fishcakes","F",10],["Fresh Piranha","F",10],["Iceclad Shrimp","F",10],["Krup Guppy","F",10],["Lichen Clover Sweet Bread","F",10],["Loaf of Bread","F",10],["Muckskipper Fish","F",10],["Pickled Dragon","F",10],["Pickled Drake","F",10],["Pickled Faun","F",10],["Pickled Frost Giant","F",10],["Pickled Storm Giant","F",10],["Pickled Unicorn","F",10],["Pickled Wurm","F",10],["Pickled Wyvern","F",10],["Pouch of Kejek Catnip","F",10],["Pound Cake","F",10],["Rabbit Meat","F",10],["Rabbit Stew","F",10],["Ro Dates","F",10],["Sand Crabs","F",10],["Saucy Bunnymeat","F",10],["Scorpion Sandwich","F",10],["Sifaye Pickles","F",10],["Siren Pickles","F",10],["Small Clam","F",10],["Vegetable Pie","F",10],["Pickled Bixie","F",9],["Pickled Gator","F",9],["Pickled Lizard","F",9],["Pickled Troll","F",9],["Armadillo Meat","F",8],["Ashweed","F",8],["Bag of Sea Salt","F",8],["Bamboo Shoot","F",8],["Berries","F",8],["Black Root","F",8],["Cactus Pulp","F",8],["Carrot","F",8],["Chunk of Meat","F",8],["Cinnamon Sticks","F",8],["Cockatrice Egg","F",8],["Crunchy Crawlers","F",8],["Earthworm Munch","F",8],["Elf Pickles","F",8],["Emerald Orange","F",8],["Frontier Stink Beetles","F",8],["Frost Turnip","F",8],["Fruit","F",8],["Giant Hornet Egg","F",8],["Glow Lichen","F",8],["Gnome Kabobs","F",8],["Gnome Pickles","F",8],["Gorge Moss","F",8],["Grapes","F",8],["Halfling Pickles","F",8],["Honey Berry","F",8],["Hopeless Willow Moss","F",8],["Kejekan Palm Fruit","F",8],["Lettuce","F",8],["Lichen Roots","F",8],["Marr Cherries","F",8],["Mud Crabs","F",8],["Plains Roots","F",8],["Rathe Berries","F",8],["Roots","F",8],["Shrub Lettuce","F",8],["Snake Pickles","F",8],["Speckled Toadstool","F",8],["Sylvan Berries","F",8],["Thunderhoof Mushroom","F",8],["Vein Worm","F",8],["Wild Cabbage","F",8],["Wild Radish","F",8],["Cactus Pie","F",7],["Edible Goo","F",6],["High Elf Flesh","F",6],["Human Flesh","F",6],["Pixie Pickles","F",6],["Alligator Egg","F",5],["Animal Shaped Cookie","F",5],["Armadillo Husk","F",5],["Barbarian Shaped Cookie","F",5],["Bixie Berry Buns","F",5],["Cactus Tart","F",5],["Chocolate Cookies","F",5],["Chocolate Marr Cherries","F",5],["Chocolate Muffins","F",5],["Clump of Dough","F",5],["Cup Cakes","F",5],["Freshly Cleaned Vegetables","F",5],["Gnome Shaped Cookie","F",5],["Hot Cross Buns","F",5],["Ice Berry Muffin","F",5],["Jumjum Stalk","F",5],["Kromdul Carrot","F",5],["Miller Carrot","F",5],["Mudcomb Muffin","F",5],["Pixie Powder Cinnesticks","F",5],["Prickly Pear","F",5],["Rotgrub Rye","F",5],["Seahorse Roe","F",5],["Snake Egg","F",5],["Summoned: Cake","F",5],["Swamp Vegetables","F",5],["Troll Shaped Cookie","F",5],["Vegetables","F",5],["Wooly Fungus","F",5],["White Chocolate","F",5],["White Chocolate Cookies","F",5],["White Chocolate Muffins","F",5],["Winter Chocolate","F",5],["Muffin","F",4],["Cookies","F",4],["Tasty Candy","F",4],["Candied Spider","F",3],["Birthday Cake Slice","F",2],["Wedding Cake Slice","F",2]];
+const FOOD_DRINK_DB=Object.fromEntries(_FD_RAW.map(([n,t,d])=>[n,{type:t==='D'?'drink':'food',dur:d}]));
+function fdMinutesPerUnit(charName){return FD_FAST_RACES.has((charMeta[charName]||{}).race)?FD_MIN_PER_UNIT_FAST:FD_MIN_PER_UNIT_SLOW;}
+function fdFmt(min){if(min<=0)return null;const h=Math.floor(min/60),m=Math.round(min%60);return h>0?(m>0?h+'h '+m+'m':h+'h'):m+'m';}
+// Returns null if this character's inventory hasn't been loaded at all (distinct
+// from "loaded but has zero food/drink"), otherwise {foodMin, drinkMin}.
+function computeFoodDrink(charName){
+  const items=chars[charName];
+  if(!items||!items.length)return null;
+  const perUnit=fdMinutesPerUnit(charName);
+  let foodUnits=0,drinkUnits=0;
+  const foodItems=[],drinkItems=[];
+  for(const it of items){
+    const db=FOOD_DRINK_DB[it.name];
+    if(!db)continue;
+    const count=it.count||1;
+    const minutes=db.dur*count*perUnit;
+    if(db.type==='food'){foodUnits+=db.dur*count;foodItems.push({name:it.name,count,minutes});}
+    else{drinkUnits+=db.dur*count;drinkItems.push({name:it.name,count,minutes});}
+  }
+  return{foodMin:foodUnits*perUnit,drinkMin:drinkUnits*perUnit,foodItems,drinkItems};
+}
+function getFDHidden(){return getCityHidden('mp_cityHidden_fooddrink');}
+function setFDHidden(s){setCityHidden('mp_cityHidden_fooddrink',s);}
+
+// ── Dashboard panel show/hide + reorder (Skyshrine/Kael/Thurgadin/Food & Drink/
+// Watch List). Mirrors the character-tab drag-reorder pattern (mpMakeTabDraggable /
+// reorderChar) so the interaction is consistent across the app. ────────────────
+const DASHBOARD_PANELS=[
+  {id:'skyshrine',  containerId:'cityBar_skyshrine',  label:'Skyshrine'},
+  {id:'kael',       containerId:'cityBar_kael',       label:'Kael Drakkel'},
+  {id:'thurgadin',  containerId:'cityBar_thurgadin',  label:'Thurgadin'},
+  {id:'fooddrink',  containerId:'foodDrinkBar',       label:'Food & Drink'},
+];
+let _dragPanel=null;
+// Two independent layouts: 'all' (the All Characters tab) and 'char' (any single
+// character tab) — hiding/reordering on one never touches the other.
+function panelScope(){return activeTab==='__all__'?'all':'char';}
+function loadPanelOrder(scope){try{const r=JSON.parse(localStorage.getItem('mp_panelOrder_'+scope)||'null');return Array.isArray(r)?r:DASHBOARD_PANELS.map(p=>p.id);}catch{return DASHBOARD_PANELS.map(p=>p.id);}}
+function savePanelOrder(scope,order){localStorage.setItem('mp_panelOrder_'+scope,JSON.stringify(order));}
+function getPanelOrder(scope){
+  const saved=loadPanelOrder(scope);
+  const known=DASHBOARD_PANELS.map(p=>p.id);
+  const ordered=saved.filter(id=>known.includes(id));
+  known.forEach(id=>{if(!ordered.includes(id))ordered.push(id);}); // new panels land at the end
+  return ordered;
+}
+function getPanelHidden(scope){try{return new Set(JSON.parse(localStorage.getItem('mp_panelHidden_'+scope)||'[]'));}catch{return new Set();}}
+function setPanelHidden(scope,s){localStorage.setItem('mp_panelHidden_'+scope,JSON.stringify([...s]));}
+function togglePanelVisible(id){const scope=panelScope();const h=getPanelHidden(scope);h.has(id)?h.delete(id):h.add(id);setPanelHidden(scope,h);applyPanelLayout();renderPanelCustomizeRows();}
+function reorderPanel(dragged,target){
+  const scope=panelScope();
+  const order=getPanelOrder(scope);
+  const from=order.indexOf(dragged),to=order.indexOf(target);
+  if(from<0||to<0||from===to)return;
+  order.splice(to,0,order.splice(from,1)[0]);
+  savePanelOrder(scope,order);
+  applyPanelLayout();renderPanelCustomizeRows();
+}
+function applyPanelLayout(){
+  const row=document.getElementById('dashboardPanelsRow');
+  if(!row)return;
+  const scope=panelScope();
+  const hidden=getPanelHidden(scope);
+  getPanelOrder(scope).forEach(id=>{
+    const cfg=DASHBOARD_PANELS.find(p=>p.id===id);
+    const el=cfg&&document.getElementById(cfg.containerId);
+    if(!el)return;
+    el.style.display=hidden.has(id)?'none':'';
+    row.appendChild(el); // moves existing node — reorders without losing content/listeners
+  });
+}
+function togglePanelCustomize(){
+  const pop=document.getElementById('panelCustomizePopover');
+  if(!pop)return;
+  const show=pop.style.display==='none';
+  pop.style.display=show?'block':'none';
+  if(show)renderPanelCustomizeRows();
+}
+// Show/hide only — reordering happens by dragging the panels themselves (see
+// wireDashboardPanelDrag), same direct-manipulation feel as dragging character tabs.
+function renderPanelCustomizeRows(){
+  const pop=document.getElementById('panelCustomizePopover');
+  if(!pop||pop.style.display==='none')return;
+  const scope=panelScope();
+  const hidden=getPanelHidden(scope);
+  pop.innerHTML='<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:.35rem;font-family:\'Cinzel\',serif">Show/hide &middot; drag a panel\'s title bar to reorder</div><div style="display:flex;flex-wrap:wrap;gap:.35rem">'
+    +getPanelOrder(scope).map(id=>{
+      const cfg=DASHBOARD_PANELS.find(p=>p.id===id);
+      if(!cfg)return'';
+      const active=!hidden.has(id);
+      return'<span class="faction-char-chip'+(active?' active':'')+'" onclick="togglePanelVisible(\''+id+'\')">'+(active?'\u2713 ':'')+esc(cfg.label)+'</span>';
+    }).join('')+'</div>';
+}
+// Direct drag-and-drop on each panel's own title bar — dropping one panel onto
+// another moves it there in the order, so two panels dragged adjacent to each
+// other end up sharing a row (all panels use equal flex sizing for this reason).
+function wireDashboardPanelDrag(){
+  DASHBOARD_PANELS.forEach(cfg=>{
+    const el=document.getElementById(cfg.containerId);
+    const header=el&&el.querySelector('.watchlist-bar-header');
+    if(!header)return;
+    header.style.cursor='grab';
+    header.draggable=true;
+    header.addEventListener('dragstart',e=>{_dragPanel=cfg.id;try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',cfg.id);}catch(_){}});
+    header.addEventListener('dragover',e=>{if(_dragPanel&&_dragPanel!==cfg.id){e.preventDefault();try{e.dataTransfer.dropEffect='move';}catch(_){}el.style.boxShadow='inset 0 0 0 2px var(--gold-light)';}});
+    header.addEventListener('dragleave',()=>{el.style.boxShadow='';});
+    header.addEventListener('drop',e=>{e.preventDefault();el.style.boxShadow='';if(_dragPanel&&_dragPanel!==cfg.id)reorderPanel(_dragPanel,cfg.id);_dragPanel=null;});
+    header.addEventListener('dragend',()=>{_dragPanel=null;DASHBOARD_PANELS.forEach(c=>{const e2=document.getElementById(c.containerId);if(e2)e2.style.boxShadow='';});});
+  });
+}
+wireDashboardPanelDrag();
+function toggleFoodDrinkConfig(){const row=document.getElementById('fdConfigRow');if(!row)return;row.style.display=row.style.display==='flex'?'none':'flex';}
+function fdBreakdownTitle(items){
+  if(!items||!items.length)return'';
+  return items.slice().sort((a,b)=>b.minutes-a.minutes)
+    .map(it=>it.name+(it.count>1?' \u00d7'+it.count:'')+' \u2014 '+fdFmt(it.minutes))
+    .join('\n');
+}
+function fdChip(min,items){
+  const tip=fdBreakdownTitle(items);
+  const titleAttr=tip?' title="'+esc(tip)+'"':'';
+  if(min===null)return'<span class="tov-chip tov-chip-none">&#9675; No data</span>';
+  if(min<=0)return'<span class="tov-chip tov-chip-warn"'+titleAttr+'>&#10007; Out</span>';
+  const label=fdFmt(min);
+  if(min<60)return'<span class="tov-chip tov-chip-yellow"'+titleAttr+'>&#9678; '+label+'</span>';
+  return'<span class="tov-chip tov-chip-ally"'+titleAttr+'>&#10003; '+label+'</span>';
+}
+function renderFoodDrinkPanel(){
+  const container=document.getElementById('fdRows');
+  const configRow=document.getElementById('fdConfigRow');
+  if(!container)return;
+  const allNames=charNames().filter(n=>n!=='__all__');
+  if(!allNames.length){container.innerHTML='<div class="watchlist-empty">No characters loaded.</div>';return;}
+  const hidden=getFDHidden();
+  const isAll=activeTab==='__all__';
+  if(configRow){
+    configRow.style.flexWrap='wrap';
+    configRow.style.gap='.35rem';
+    configRow.innerHTML=allNames.map(n=>{
+      const active=!hidden.has(n);
+      return'<span class="faction-char-chip'+(active?' active':'')+'" onclick="(function(){const h=getFDHidden();h.has(\''+esc(n)+'\')?h.delete(\''+esc(n)+'\'):h.add(\''+esc(n)+'\');setFDHidden(h);renderFoodDrinkPanel();})()">'+esc(n)+'</span>';
+    }).join('');
+  }
+  const visNames=isAll?allNames.filter(n=>!hidden.has(n)):(activeTab?[activeTab]:allNames);
+  const nameHeader=isAll?'<th style="padding:.2rem .5rem"></th>':'';
+  const rows=visNames.map(n=>{
+    const fd=computeFoodDrink(n);
+    const nameCell=isAll?'<td class="watchlist-item-name" style="padding:.15rem .5rem;min-width:100px;white-space:nowrap">'+esc(n)+'</td>':'';
+    return'<tr>'+nameCell+'<td style="padding:.15rem .5rem;white-space:nowrap">'+fdChip(fd?fd.foodMin:null,fd?fd.foodItems:null)+'</td><td style="padding:.15rem .5rem;white-space:nowrap">'+fdChip(fd?fd.drinkMin:null,fd?fd.drinkItems:null)+'</td></tr>';
+  }).join('');
+  container.innerHTML='<table style="border-collapse:collapse;width:100%"><thead><tr>'+nameHeader+'<th style="padding:.2rem .5rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Food</th><th style="padding:.2rem .5rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Drink</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
 function toggleCityConfig(id){
   const cfg=CITY_FACTIONS[id];if(!cfg)return;
   const row=document.getElementById(cfg.configId);if(!row)return;
@@ -6056,6 +6332,47 @@ function questCostFor(itemName){
   };
 }
 
+// Account-wide item holdings for the Skyshrine tracker: how many, who, and where
+// across EVERY loaded inventory (mains + bankers). Same smart-quote match as
+// charHasItem; buckets via locationType. `need` colors the cell (green >= need,
+// amber if some, red if none).
+function ssBucket(loc){const t=locationType(loc);return t==='equipped'?'Equipped':t==='bank'?'Bank':'Bag';}
+function itemHoldings(itemNames){
+  const norm=s=>String(s==null?'':s).replace(/[\u2018\u2019]/g,"'");
+  const targets=(Array.isArray(itemNames)?itemNames:[itemNames]).map(norm);
+  const holders=[]; let total=0;
+  for(const [cn,items] of Object.entries(chars)){
+    if(isExcludedChar(cn)) continue;   // excluded toons never count toward holdings
+    const wheres={}; let cnt=0;
+    for(const it of items){
+      if(targets.includes(norm(it.name))){
+        const c=it.count||1; cnt+=c;
+        const b=ssBucket(it.location); wheres[b]=(wheres[b]||0)+c;
+      }
+    }
+    if(cnt>0){ total+=cnt; holders.push({char:cn,count:cnt,wheres}); }
+  }
+  holders.sort((a,b)=>b.count-a.count);
+  return {total,holders};
+}
+function ssHoldCell(itemNames, need, budget){
+  const h=itemHoldings(itemNames);
+  // Shared pool: rows needing the same item (e.g. both wrists) draw from one
+  // budget. Earlier rows claim their share; later rows see only what's left.
+  const bkey=Array.isArray(itemNames)?itemNames.join('|'):String(itemNames);
+  const used=budget?(budget[bkey]||0):0;
+  const avail=h.total-used;
+  if(budget) budget[bkey]=used+Math.max(0,Math.min(avail,need));
+  if(avail<=0) return '<span class="ss-check-red">\u2718</span><div class="ss-holders">0 left</div>';
+  const enough=avail>=need;
+  const cls=enough?'ss-check-green':'ss-check-amber';
+  const mark=enough?'\u2714':'\u25d0';
+  const who=h.holders.map(hd=>{
+    const w=Object.entries(hd.wheres).map(([b,c])=>b+' \u00d7'+c).join(', ');
+    return esc(hd.char)+' ('+w+')';
+  }).join('; ');
+  return '<div><span class="'+cls+'" style="font-weight:700">'+mark+' \u00d7'+avail+'</span></div><div class="ss-holders">'+who+'</div>';
+}
 function renderSkyshrinePanel(){
   const panel=document.getElementById('skyshrinePanel');
   if(!panel)return;
@@ -6076,6 +6393,7 @@ function renderSkyshrinePanel(){
   for(let i=0;i<7;i++){if(getSSDone(name,i))done++;}
   if(getSSDone(name,'wrist2'))done++;
 
+  const ssBudget={}; // shared mat pool across the 8 rows (both wrists share one pool)
   let rows='';
   for(let i=0;i<7;i++){
     const rewardName=classData.items[i];
@@ -6095,9 +6413,9 @@ function renderSkyshrinePanel(){
       <td><div class="ss-item-name">${rewardLink}</div><div class="ss-sub">${esc(SS_SLOT_LABELS[i])}</div>${wristNote}</td>
       <td><div class="ss-sub">${tattLink}</div></td>
       <td><div class="ss-sub">${gemLink} ×3</div></td>
-      <td class="ss-check">${hasReward?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-      <td class="ss-check">${hasTattered?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-      <td class="ss-check">${hasGem?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
+      <td class="ss-check">${(charHasItem(name,rewardName)||charHasItem(name,rewardAlias))?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
+      <td class="ss-hold">${ssHoldCell(tattered,1,ssBudget)}</td>
+      <td class="ss-hold">${ssHoldCell(gem.gem,3,ssBudget)}</td>
       <td class="ss-th-center"><button type="button" class="ss-done-btn ${isDone?'done':''}" onclick="setSSDone('${esc(name)}',${i},${!isDone})">${isDone?'✔ Done':'Mark Done'}</button></td>
     </tr>`;
 
@@ -6111,9 +6429,9 @@ function renderSkyshrinePanel(){
         <td><div class="ss-item-name">${rewardLink}</div><div class="ss-sub">Wrist 2</div></td>
         <td><div class="ss-sub">${tattLink}</div></td>
         <td><div class="ss-sub">${gemLink} ×3</div></td>
-        <td class="ss-check">${hasReward2?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-        <td class="ss-check">${hasTattered2?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
-        <td class="ss-check">${hasGem2?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
+        <td class="ss-check">${(charHasItem(name,rewardName)||charHasItem(name,rewardAlias))?'<span class="ss-check-green">✔</span>':'<span class="ss-check-red">✘</span>'}</td>
+        <td class="ss-hold">${ssHoldCell(tattered,1,ssBudget)}</td>
+        <td class="ss-hold">${ssHoldCell(gem.gem,3,ssBudget)}</td>
         <td class="ss-th-center"><button type="button" class="ss-done-btn ${isDone2?'done':''}" onclick="setSSDone('${esc(name)}','wrist2',${!isDone2})">${isDone2?'✔ Done':'Mark Done'}</button></td>
       </tr>`;
     }
@@ -6788,6 +7106,20 @@ window.applyDBToChar    = applyDBToChar;
           if(msg.charName && msg.zone){
             knownWatcherChars.add(msg.charName);
             setCharBind(msg.charName, msg.zone, msg.src||'watcher', msg.timestamp||Date.now());
+          }
+        }
+        if(msg.type === 'levelUp'){
+          if(msg.charName && msg.level){
+            knownWatcherChars.add(msg.charName);
+            const key = charNames().find(c=>c.toLowerCase()===msg.charName.toLowerCase()) || msg.charName;
+            if(!charMeta[key]) charMeta[key]={};
+            if(charMeta[key].level !== msg.level){
+              charMeta[key].level = msg.level;
+              saveState();
+              if(activeTab===key && activeSub==='stats' && typeof renderStatsPanel==='function') renderStatsPanel();
+              if(activeTab===key && activeSub==='leveling' && typeof renderLevelingPanel==='function') renderLevelingPanel();
+              if(typeof showWatcherToast==='function') showWatcherToast('\u2b06\ufe0f '+key+' dinged to level '+msg.level);
+            }
           }
         }
         // Any per-char watcher traffic counts as activity for the idle-gap auto-close
@@ -8193,7 +8525,7 @@ window.setFarmSub=function(v){
 // (lore items fill at most one regardless of copies).
 const OUTFIT_CLASS_ABBR={'Bard':'BRD','Cleric':'CLR','Druid':'DRU','Enchanter':'ENC','Magician':'MAG','Monk':'MNK','Necromancer':'NEC','Paladin':'PAL','Ranger':'RNG','Rogue':'ROG','Shadow Knight':'SHD','Shaman':'SHM','Warrior':'WAR','Wizard':'WIZ'};
 const OUTFIT_SLOT_SEQ=[['PRIMARY',1],['SECONDARY',1],['RANGE',1],['EAR',2],['FINGERS',2],['WRIST',2],['HEAD',1],['FACE',1],['NECK',1],['SHOULDERS',1],['ARMS',1],['BACK',1],['HANDS',1],['CHEST',1],['LEGS',1],['FEET',1],['WAIST',1],['AMMO',1]];
-let _outfit={cls:'Rogue',race:'Dwarf',level:1,includeEquipped:false};
+let _outfit={cls:'Rogue',race:'Dwarf',level:1,includeEquipped:false,_userSet:false};
 
 
 // Worn-effect scoring for the Outfitter (PROC_DB's sibling). Keyed by EFFECT
@@ -8286,9 +8618,15 @@ function outfitBuildStock(includeEquipped){
       e.total+=cnt;
     }
   }
-  // Holder pickup preference: unequipped before equipped, bankers before alts.
+  // Holder pickup preference: the character you're viewing first (its own copy is
+  // the sensible source — and for a LORE item it already wears, an alt's copy is
+  // unusable anyway), then unequipped before equipped, then bankers before alts.
+  // Inert on All-Characters / when activeTab owns no copy (nothing matches).
   for(const e of stock.values()){
-    e.holders.sort((a,b)=>(a.equipped?1:0)-(b.equipped?1:0)||(b.banker?1:0)-(a.banker?1:0));
+    e.holders.sort((a,b)=>
+      (a.char===activeTab?0:1)-(b.char===activeTab?0:1)
+      ||(a.equipped?1:0)-(b.equipped?1:0)
+      ||(b.banker?1:0)-(a.banker?1:0));
     e.rem=e.total;
   }
   return {stock,nodropSkipped,rowCount};
@@ -8347,9 +8685,301 @@ function outfitStatStr(db){
   if(db._effect)bits.push('\u2726 '+db._effect+(String(db._effectType||'').toLowerCase().includes('worn')?' (Worn)':''));
   return bits.join(' \u00b7 ');
 }
+/* == Leveling guide (Per-Level Hunting Guide, P99-wiki-sourced) ==============
+   Phase 1: interactive filterable spot table. VERIFIED starter dataset (early
+   game, levels 1-25); the full 1-60 set + guide directory are follow-on data.
+   Show-all-by-default with user toggles (class / era / solo-group / level /
+   search) and character-aware highlighting. Reads charMeta[activeTab]. */
+const LVL_CLASSES=['BRD','CLR','DRU','ENC','MAG','MNK','NEC','PAL','RNG','ROG','SHD','SHM','WAR','WIZ'];
+const LVL_CLASS_FULL={Bard:'BRD',Cleric:'CLR',Druid:'DRU',Enchanter:'ENC',Magician:'MAG',Monk:'MNK',Necromancer:'NEC',Paladin:'PAL',Ranger:'RNG',Rogue:'ROG','Shadow Knight':'SHD',Shaman:'SHM',Warrior:'WAR',Wizard:'WIZ'};
+const LVL_ERA_NAME={Cla:'Classic',Kun:'Kunark',Vel:'Velious',Pai:'Paineel',War:'Warrens',Hol:'The Hole'};
+const LEVELING_SPOTS=[
+  {s:'01-03',g:'',z:'Butcherblock Mountains',w:'In front of Kaladim',m:'Assorted critters',zem:133,era:'Cla',t:['PAL'],n:'Save Bone Chips for the Kaladim Bone Chips quest'},
+  {s:'01-03',g:'',z:'Greater Faydark',w:'Ruins near the Kelethin lifts',m:'Assorted critters',zem:133,era:'Cla',t:[],n:'Save Orc Hatchets from Orc Pawns for a quest'},
+  {s:'01-03',g:'',z:'North Qeynos',w:'Outside the front gate',m:'Assorted critters',zem:133,era:'Cla',t:[],n:'Save Bone Chips for the Qeynos Bone Chips quest'},
+  {s:'01-03',g:'',z:'Steamfont Mountains',w:"Hills near Ak'Anon",m:'Assorted critters, Renegade Clockworks',zem:133,era:'Cla',t:[],n:'Watch out for the wandering Skeleton and Kobold Shaman'},
+  {s:'01-03',g:'',z:'West Freeport',w:'Outside the front gate',m:'Assorted critters',zem:133,era:'Cla',t:[],n:''},
+  {s:'01-03',g:'',z:'Field of Bone',w:'Near Cabilis (Iksar start)',m:'Assorted critters',zem:100,era:'Kun',t:[],n:''},
+  {s:'01-03',g:'',z:'Innothule Swamp',w:'Near Grobb',m:'Assorted critters',zem:133,era:'Cla',t:[],n:''},
+  {s:'01-10',g:'',z:'Kithicor Forest',w:'Near the Rivervale entrance',m:'Beetles, snakes, bixies, bears, wolves',zem:133,era:'Cla',t:[],n:'Daytime only - high-level undead spawn at night'},
+  {s:'03-05',g:'01-04',z:'Steamfont Mountains',w:'Crater near the Druid Ring / kobold camp',m:'Spiderlings, a coyote, a kobold scout',zem:133,era:'Cla',t:[],n:'Bridges the gap 3->5; near Felwithe'},
+  {s:'04-06',g:'03-05',z:'Greater Faydark',w:'Orc hill (before Crushbone)',m:'Orcs',zem:133,era:'Cla',t:[],n:'Save Crushbone Belts for a quest; clumped, harder to solo'},
+  {s:'04-10',g:'04-10',z:'The Warrens',w:'Paineel zoneline',m:'Kobolds',zem:200,era:'War',t:[],n:''},
+  {s:'05-08',g:'05-08',z:'Blackburrow',w:'Top level',m:'Gnolls',zem:133,era:'Cla',t:[],n:'Save Gnoll Fangs for Gnoll Bounty; trains are common'},
+  {s:'05-08',g:'04-06',z:'Nektulos Forest',w:'Just south of the north bridge',m:'Tree snake, skeleton, shadow wolf',zem:100,era:'Cla',t:['NEC'],n:'Guards save you if not KOS; necros can solo'},
+  {s:'',g:'05-10',z:'East Commonlands',w:'Throughout',m:'Orcs, Dervish Cutthroats',zem:100,era:'Cla',t:[],n:'Save Deathfist Slashed Belts for a quest; free buffs in the tunnel'},
+  {s:'06-11',g:'06-11',z:'Befallen',w:'Entrance',m:'Assorted',zem:213,era:'Cla',t:[],n:'Careful of the named Gynok Moltor'},
+  {s:'07-10',g:'07-10',z:'Crushbone',w:'Entry / slave area / trainer hill',m:'Orcs',zem:213,era:'Cla',t:[],n:'Save Crushbone Belts for a quest'},
+  {s:'09-18',g:'09-18',z:"Kurn's Tower",w:'Throughout',m:'Assorted',zem:200,era:'Kun',t:['CLR','NEC','PAL'],n:'Skeletons are not social'},
+  {s:'10-15',g:'',z:'Upper Guk',w:'Near the Heartspiders',m:'Swampwater crocodiles',zem:159,era:'Cla',t:['ALL'],n:'Non-aggro, non-social'},
+  {s:'10-14',g:'08+',z:'Western Karana',w:'Bandit camps (#3, #6, #16)',m:'Bandits',zem:100,era:'Cla',t:['CLR','ENC'],n:'Save Bandit Sashes for a quest; clerics may need twinking'},
+  {s:'10-15',g:'10-15',z:'Estate of Unrest',w:'Entrance area (yard trash)',m:'Assorted',zem:173,era:'Cla',t:[],n:''},
+  {s:'11-13',g:'09-13',z:'Butcherblock Mountains',w:'Chess board (#7)',m:'Undead bishops, pawns, etc.',zem:100,era:'Cla',t:['CLR','NEC','ROG'],n:'All undead; watch for the undead king (much higher level)'},
+  {s:'12-18',g:'',z:'Lesser Faydark',w:'Nybright Sister camp',m:'Nybright Sisters',zem:100,era:'Cla',t:['DRU','ENC'],n:'Kill Kayla Nybright first to break camp'},
+  {s:'12-16',g:'',z:"Erud's Crossing",w:'Whole island',m:"Will o' Wisps",zem:null,era:'Cla',t:['ENC','SHM'],n:'Wisps drop Lightstones (sellable / questable)'},
+  {s:'14-19',g:'14-19',z:'East Karana',w:'Gnolls in the southwest',m:'A gnoll reaver, an undead reaver',zem:100,era:'Cla',t:['AFK','SHM'],n:'Great solo camp; fast respawn, mobs stand alone'},
+  {s:'14-16',g:'14-16',z:'Kerra Island',w:'Entrance',m:'Kerran awrat, kerran mamluk',zem:120,era:'Cla',t:['ENC'],n:'Come in pairs - great for charming'},
+  {s:'15-20',g:'15-20',z:'Befallen',w:'Second and third floor',m:'Skeletons, mummies, ghouls, necromancers',zem:213,era:'Cla',t:['melee'],n:'Good for melee and undead-control classes; high add chance'},
+  {s:'15-20',g:'15-20',z:'Permafrost',w:'Near the zone-in',m:'Ice goblins',zem:120,era:'Cla',t:['MNK'],n:'Mobs usually in pairs'},
+  {s:'17-21',g:'',z:"Dagnor's Cauldron",w:'NE corner',m:'Sandbar serpents',zem:100,era:'Cla',t:['ALL'],n:'Possibly the fastest-spawning camp in the game'},
+  {s:'16-19',g:'15-19',z:'Lavastorm Mountains',w:'Near the Nektulos / Najena zone-in',m:'Fire elementals, lava crawlers, basilisks',zem:100,era:'Cla',t:['ROG','SHD','WAR'],n:'Pull to the zone-in to avoid adds'},
+  {s:'20-24',g:'',z:'Stonebrunt Mountains',w:'Kejekan Mines (#2)',m:'Kejekan miners x4',zem:100,era:'War',t:['fear-kite'],n:'Extremely safe; a large empty section is ideal for fear kiting'},
+  {s:'20-24',g:'',z:"Kurn's Tower",w:'Top down to the lower tunnels',m:'Greater Scalebones, Lesser Icebones',zem:200,era:'Kun',t:['CLR','MNK','NEC','PAL'],n:'Skeletons not social; zone out/in to reset'},
+  {s:'18-25',g:'17-24',z:'Lake Rathetear',w:'Aviak islands (near the Arena)',m:'Aviak guards',zem:100,era:'Cla',t:['NEC','SHM'],n:'Aviaks are faction-less but social; levitate helps'},
+  {s:'20-24',g:'17-22',z:'Timorous Deep',w:'Elven Outpost docks',m:'Elven rangers / scouts',zem:100,era:'Kun',t:['NEC','evil'],n:'Excellent low-risk solo camp; beta-neutral vendor on the beach'},
+  {s:'20-26',g:'',z:'Najena',w:'Crystal Room (#4)',m:'Magicians',zem:173,era:'Cla',t:['MAG'],n:'Three magicians, splittable by line of sight'},
+  {s:'27-31',g:'27-33',z:'Cazic Thule',w:'Alligator Pit',m:'Alligators',zem:150,era:'Cla',t:['DRU','RNG','SHM'],n:'Recent ZEM changes boosted this zone'},
+  {s:'27-31',g:'',z:'Tower of Frozen Shadow',w:'First level, hallways from entrance',m:'A shadow beast, icy shades, shadowbones',zem:113,era:'Vel',t:['CLR','NEC'],n:'Undead that run; need Calm/CC. Beasts can spawn a large undead gnoll on death'},
+  {s:'27-34',g:'',z:'Warsliks Woods',w:'Caves leading to Dalnir',m:'A skulking brute',zem:100,era:'Kun',t:['MNK','ROG','WAR'],n:'Two spawn spots (a 2-group and a 3-group); non-aggro, go down fast, lots of coin/gems'},
+  {s:'28-35',g:'',z:'Southern Karana',w:'Northeast corner',m:'A Treant x2',zem:133,era:'Cla',t:['NEC','SHM','evil'],n:'Two treants (druids) - fear kite or nuke fast; drops coin/gems/fine steel staffs'},
+  {s:'29-32',g:'29-32',z:'Mistmoore',w:'Graveyard',m:'Assorted undead',zem:116,era:'Cla',t:['CLR','ENC','NEC'],n:'Undead'},
+  {s:'31-39',g:'',z:'Crystal Caverns',w:'Start at top, work down',m:"Ry'Gorr orcs",zem:113,era:'Vel',t:[],n:'Dwarf city in zone (bank/vendor with sneak or faction spell); velium ore drops for tradeskills'},
+  {s:'31-36',g:'',z:'South Karana',w:'Spires around Splitpaw zoneline',m:'Gnolls',zem:100,era:'Cla',t:['BRD','ENC','MAG','NEC','SHM'],n:'Save Tesch Val Scrolls for extra XP'},
+  {s:'32-35',g:'29-34',z:'Cazic Thule',w:'Alligator Alley',m:'Alligators',zem:113,era:'Cla',t:['DRU','RNG','SHM'],n:''},
+  {s:'33-40',g:'31-40',z:'Frontier Mountains',w:'Giant Fort',m:'Mountain Giant Tumps and Hillocks',zem:100,era:'Kun',t:['BRD','SHM'],n:''},
+  {s:'33-37',g:'30-37',z:'Great Divide',w:'Tizmak cave',m:'Tizmaks',zem:100,era:'Vel',t:[],n:'Bind/sell at nearby Thurgadin; kill shaman first; velium weapons/leather drop'},
+  {s:'34-39',g:'24-30',z:'Estate of Unrest',w:'Basement',m:'Assorted',zem:173,era:'Cla',t:[],n:''},
+  {s:'34-55',g:'34-55',z:'Dreadlands',w:"Along the walls of Karnor's Castle",m:'Assorted',zem:100,era:'Kun',t:['BRD','ENC','SHM'],n:'Very wide level range'},
+  {s:'35-39',g:'',z:'Emerald Jungle',w:'Throughout',m:'A frenzied ape, raging tiger, trakaraptor, etc.',zem:100,era:'Kun',t:['DRU'],n:'Good for animal charming'},
+  {s:'37-42',g:'35-42',z:'Kaesora',w:'Throughout',m:'Undead',zem:147,era:'Kun',t:['CLR','NEC','PAL'],n:'Tons of undead; Xalgoz-name mobs lower Venril Sathir faction'},
+  {s:'35-39',g:'',z:'Tower of Frozen Shadow',w:'Second level, exit hallway',m:'A ghostly scholar',zem:113,era:'Vel',t:['CLR','NEC','AFK'],n:'Undead that run and can charm you; Clerics stun between nukes. Have a corpse-recovery plan for the key'},
+  {s:'35-40',g:'',z:'Iceclad Ocean',w:'Largest island',m:'Dire Wolves',zem:100,era:'Vel',t:['DRU','RNG'],n:'Good for animal charming / fear kiting'},
+  {s:'33-38',g:'33-38',z:'Mistmoore',w:'Castle entrance',m:'Assorted',zem:120,era:'Cla',t:['ENC'],n:'A gypsy musician (Rogue) makes a good Enchanter pet'},
+  {s:'38-51',g:'38-51',z:'Timorous Deep',w:'Spiroc Island (#2)',m:'Spiroc Lightfoots, Watchers, Proven',zem:100,era:'Kun',t:['DRU','MAG'],n:"Can't bind in zone; plenty of room to kite around the tree house"},
+  {s:'40-45',g:'40-45',z:'Lower Guk',w:'#13 and halls to #17',m:'Ghoul Ritualist, Zols/Dars',zem:107,era:'Cla',t:['CLR','NEC','PAL'],n:'Undead'},
+  {s:'40-47',g:'',z:"Trakanon's Teeth",w:'Front of Sebilis ruins',m:'Spectral Legionnaire and footman',zem:100,era:'Kun',t:['AFK','CLR','NEC','PAL'],n:'Undead warriors that lifetap; pull into the courtyard to avoid adds'},
+  {s:'40-49',g:'',z:'Kedge Keep',w:'Entrance',m:'Fish schools',zem:217,era:'Cla',t:['DRU','SHM'],n:'Enduring Breath required; CC recommended, or root one at the zoneline and repeat'},
+  {s:'40-46',g:'',z:'Dreadlands',w:'Northwest Yeti caves',m:'Yeti (8 static, 2 roamers)',zem:100,era:'Kun',t:['ENC','SHM'],n:'16-minute respawn'},
+  {s:'40-48',g:'40-48',z:'Oggok',w:'Throughout',m:'Ogre Guards (Bouncers)',zem:133,era:'Cla',t:['ROG'],n:'Static and roaming bouncers drop lots of Fine Steel'},
+  {s:'44-49',g:'40-45',z:'Eastern Wastes',w:'#4, Frost Giant Fort',m:'Frost Giants',zem:100,era:'Vel',t:['DRU','WIZ'],n:'Luminescent Staff handy for druids'},
+  {s:'43-52',g:'',z:'Lake of Ill Omen',w:'Bottom of lake',m:'Bloodgill Goblins',zem:87,era:'Kun',t:['ROG','SHD'],n:'Enduring Breath required; low HP, come in groups of 2'},
+  {s:'45-50',g:'45-50',z:'Lower Guk',w:'Dead side / Live side Noble Room',m:'Frogloks',zem:115,era:'Cla',t:[],n:'Fine steel + rare loot (Flowing Black Silk Sash; White Gold Necklace)'},
+  {s:'47-50',g:'45-50',z:"Trakanon's Teeth",w:'Graveyard / forest outside Sebilis',m:'Spectral keepers (undead)',zem:110,era:'Kun',t:['CLR','NEC','MAG','PAL'],n:'Wizards that nuke hard - keep them stunned (an air pet suffices)'},
+  {s:'45-50',g:'',z:'The Wakening Land',w:'SE of Skyshrine entrance',m:'Panthers, haze panthers, tigeraptors',zem:110,era:'Vel',t:['RNG'],n:'Can quad; need see-invis for haze panthers'},
+  {s:'45-50',g:'41-50',z:'The Hole',w:'Entrance',m:'Elementals (summoned)',zem:171,era:'Hol',t:[],n:"Lvl 39-40, don't single-pull; named are 50. See Wedar's Guide to The Hole"},
+  {s:'47-53',g:'45-51',z:'City of Mist',w:'Moat / Temple',m:'Assorted, Haze Golems',zem:125,era:'Kun',t:['CLR','ENC','SHM','SHD'],n:'Ghost mobs proc lifetaps'},
+  {s:'46-52',g:'',z:'Cobalt Scar',w:'Throughout',m:'Wyverns and cobalt drakes',zem:100,era:'Vel',t:['BRD','DRU','WIZ'],n:'Wyverns quad-kite; drakes root/rot; avoid nameds Yvolcarn and Azureake'},
+  {s:'49-56',g:'49-56',z:'Permafrost',w:'Giant caves',m:'Spiders',zem:225,era:'Cla',t:[],n:'LOS problems from invisible pixels; giants are belly casters'},
+  {s:'50-54',g:'50-54',z:'The Hole',w:'Entrance / Drop Down (castle, rat jail)',m:'Elementals',zem:133,era:'Hol',t:['SHD'],n:'Everyone needs a way out (Gate/OT hammer) if you drop to the castle'},
+  {s:'51-59',g:'49-59',z:"Nagafen's Lair",w:'Near Sol A zoneline',m:'Lava duct crawlers',zem:100,era:'Cla',t:['MAG','SHM'],n:'Procs Boiling Blood (blocks regen). Can level to 60 but slows after 55-56'},
+  {s:'54-59',g:'52-59',z:'Chardok',w:'Betrayer Camp',m:'Assorted',zem:113,era:'Kun',t:[],n:'Several nice drops incl. the pipe for the Monk epic'},
+  {s:'52-59',g:'',z:"Karnor's Castle",w:'Entrance / Moat',m:'Skeletal guardians, assorted',zem:113,era:'Kun',t:['WAR'],n:'Nearby LFG casters may buff/heal'},
+  {s:'51-56',g:'',z:'Timorous Deep',w:'Raptor Island',m:'Raptors',zem:100,era:'Kun',t:['DRU','WIZ','MAG'],n:"Can't bind; raptors run VERY fast with huge aggro - Pegasus Feather Cloak recommended; quad-kitable"},
+  {s:'51-54',g:'51-54',z:'Dreadlands',w:'3x Skeletons on Wall',m:'Greater Plaguebone, Scalebone, Rotting skeleton',zem:100,era:'Kun',t:['CLR','MAG','NEC','PAL','SHD'],n:"Undead; rare Rotting skeleton drops a Key to Veeshan's Peak piece"},
+  {s:'50-60',g:'45-60',z:'Wakening Lands',w:'Geonid tunnel west of dragon ring',m:'A Geonid, A Geonid Shaman',zem:100,era:'Vel',t:['BRD','ENC','NEC','SHD','SHM'],n:'Gives XP even at 60; watch the geonid shamans (they flee and cause adds)'},
+  {s:'55-60',g:'',z:'The Hole',w:'Undead Crypt',m:'Undead',zem:200,era:'Hol',t:['CLR','NEC','PAL'],n:'See The Hole Undead Crypt for details'},
+  {s:'55-59',g:'55-59',z:'The Hole',w:'Drop Down / Docks / Undead Tower',m:'Elementals',zem:200,era:'Hol',t:[],n:'Castle greens out in upper 50s but still good; undead tower needs an enchanter for CC'},
+  {s:'55-59',g:'',z:'Chardok',w:'Exit',m:'Assorted',zem:113,era:'Kun',t:['DRU'],n:'Druids can charm the Sarnak dogs; watch for trains'},
+  {s:'56-59',g:'55-59',z:'Permafrost',w:'Polar bear pits',m:'Giant Polar Bears',zem:225,era:'Cla',t:['DRU','RNG','SHM'],n:''},
+  {s:'53-59',g:'55-59',z:'Howling Stones',w:'Basement',m:'Assorted',zem:113,era:'Kun',t:['ENC','NEC','SHM','SHD'],n:'See Charasis Basement for more info'},
+  {s:'53-59',g:'',z:'Sebilis',w:'Entrance',m:'Assorted',zem:113,era:'Kun',t:['SHM'],n:'Requires key; no immediate exit so consider binding outside'},
+  {s:'57-59',g:'',z:"Velketor's Labyrinth",w:'Entrance',m:'Assorted',zem:113,era:'Vel',t:['SHD'],n:''},
+  {s:'57-59',g:'',z:"Siren's Grotto",w:'Arena (#3)',m:'Manatee and Walrus servants',zem:113,era:'Vel',t:['DRU'],n:'Good for charm-kiting'},
+  {s:'55-59',g:'',z:'Western Wastes',w:'Throughout',m:'Animals',zem:107,era:'Vel',t:['DRU','ENC'],n:'Charm-kiting; animals share spawns with dragons (good CoV faction helps)'}
+];
+function _lvlRange(x){if(!x||x==='-')return null;const m=String(x).match(/\d+/g);if(!m)return null;const a=parseInt(m[0],10);if(/\+/.test(x))return [a,60];const b=m.length>1?parseInt(m[m.length-1],10):a;return [Math.min(a,b),Math.max(a,b)];}
+function _lvlSpotRange(sp,mode){const S=_lvlRange(sp.s),G=_lvlRange(sp.g);if(mode==='solo')return S;if(mode==='group')return G;return S||G;} // 'both' prefers the solo tier so a group "N+" floor doesn't inflate the range to 60
+function _lvlMyClass(meta){const c=String((meta||{}).class||'').toUpperCase();const full=Object.keys(LVL_CLASS_FULL).find(function(k){return k.toUpperCase()===c;});if(full)return LVL_CLASS_FULL[full];if(LVL_CLASSES.indexOf(c)>=0)return c;return null;}
+let _lvlF={cls:new Set(),era:new Set(),mode:'both',near:false,q:'',sort:'level',_char:null};
+window.lvlToggleCls=function(c){_lvlF.cls.has(c)?_lvlF.cls.delete(c):_lvlF.cls.add(c);renderLevelingPanel();};
+window.lvlToggleEra=function(e){_lvlF.era.has(e)?_lvlF.era.delete(e):_lvlF.era.add(e);renderLevelingPanel();};
+window.lvlMode=function(m){_lvlF.mode=m;renderLevelingPanel();};
+window.lvlSort=function(x){_lvlF.sort=x;renderLevelingPanel();};
+window.lvlNear=function(){_lvlF.near=!_lvlF.near;renderLevelingPanel();};
+window.lvlSearch=function(v){_lvlF.q=v;renderLevelingPanel();};
+window.lvlReset=function(){_lvlF={cls:new Set(),era:new Set(),mode:'both',near:false,q:'',sort:'level',_char:activeTab};renderLevelingPanel();};
+window.lvlMyClassOnly=function(c){(_lvlF.cls.size===1&&_lvlF.cls.has(c))?_lvlF.cls.clear():(_lvlF.cls=new Set([c]));renderLevelingPanel();};
+function renderLevelingPanel(){
+  const panel=document.getElementById('levelingPanel');if(!panel)return;
+  // Reset filters when the active character changes (don't carry one toon's view to the next).
+  if(_lvlF._char!==activeTab)_lvlF={cls:new Set(),era:new Set(),mode:'both',near:false,q:'',sort:'level',_char:activeTab};
+  const meta=(activeTab&&activeTab!=='__all__')?(charMeta[activeTab]||{}):{};
+  const myCls=_lvlMyClass(meta),myLvl=parseInt(meta.level,10)||null,f=_lvlF;
+  const esc=function(v){return String(v==null?'':v).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+  let rows=LEVELING_SPOTS.filter(function(sp){
+    if(f.cls.size&&sp.t.indexOf('ALL')<0&&![...f.cls].some(function(c){return sp.t.indexOf(c)>=0;}))return false;
+    const rg=_lvlSpotRange(sp,f.mode);if(!rg)return false;
+    if(myLvl&&!f.near&&rg[1]<myLvl-3)return false; // hide spots you've clearly outleveled (top of range >3 below you); 'Near' does its own tighter windowing
+    if(f.near&&myLvl&&!(rg[0]<=myLvl+3&&rg[1]>=myLvl-3))return false;
+    if(f.q){const hay=(sp.z+' '+sp.w+' '+sp.m+' '+sp.n+' '+sp.t.join(' ')).toLowerCase();if(hay.indexOf(f.q.toLowerCase())<0)return false;}
+    return true;
+  });
+  rows.sort(function(a,b){if(f.sort==='zem')return (b.zem||0)-(a.zem||0);const ra=_lvlSpotRange(a,f.mode)||[99,99],rb=_lvlSpotRange(b,f.mode)||[99,99];return ra[0]-rb[0]||ra[1]-rb[1];});
+  const chip=function(lbl,on,cb,title){return '<button onclick="'+cb+'" title="'+(title||'')+'" style="font-size:.7rem;padding:.1rem .4rem;margin:.1rem;border-radius:3px;cursor:pointer;border:1px solid '+(on?'var(--gold,#b8892b)':'var(--border2,#d8d5c8)')+';background:'+(on?'var(--gold,#b8892b)':'transparent')+';color:'+(on?'#fff':'var(--text-secondary,#52514e)')+'">'+esc(lbl)+'</button>';};
+  const clsChips=LVL_CLASSES.map(function(c){return chip(c,f.cls.has(c),"lvlToggleCls('"+c+"')");}).join('');
+  const modeChips=['both','solo','group'].map(function(m){return chip(m.charAt(0).toUpperCase()+m.slice(1),f.mode===m,"lvlMode('"+m+"')");}).join('');
+  const sortChips=[['level','Level'],['zem','XP mod']].map(function(kv){return chip(kv[1],f.sort===kv[0],"lvlSort('"+kv[0]+"')");}).join('');
+  let head='<div style="font-size:.95rem;font-weight:600;color:var(--text-secondary)">Leveling Guide</div>'+
+    '<div style="font-size:.72rem;color:var(--text-muted);margin:.15rem 0 .5rem">Per-Level Hunting Guide (P99 wiki). Showing '+rows.length+' of '+LEVELING_SPOTS.length+' spots. <span style="opacity:.8">Covers levels 1-60.</span></div>';
+  let ctx='';
+  if(myCls||myLvl){ctx='<div style="font-size:.74rem;margin-bottom:.4rem">This character: <b>'+esc(meta.class||'?')+'</b>'+(myLvl?(' &middot; L'+myLvl):'')+(myLvl?' <span style="color:var(--text-muted);font-size:.68rem">(outleveled camps hidden)</span>':'')+' &nbsp; '+(myCls?chip('My class ('+myCls+')',f.cls.size===1&&f.cls.has(myCls),"lvlMyClassOnly('"+myCls+"')"):'')+(myLvl?chip('Near L'+myLvl,f.near,'lvlNear()'):'')+'</div>';}
+  const bar='<div style="margin-bottom:.4rem"><span style="font-size:.68rem;color:var(--text-muted)">Class:</span> '+clsChips+'</div>'+
+    '<div style="margin-bottom:.4rem"><span style="font-size:.68rem;color:var(--text-muted)">Mode:</span> '+modeChips+' &nbsp;&nbsp; <span style="font-size:.68rem;color:var(--text-muted)">Sort:</span> '+sortChips+' '+chip('Reset',false,'lvlReset()')+'</div>'+
+    '<div style="margin-bottom:.5rem"><input type="text" value="'+esc(f.q)+'" oninput="lvlSearch(this.value)" placeholder="Search zone / mob / notes..." style="font-size:.75rem;padding:.2rem .4rem;width:260px;border:1px solid var(--border2,#d8d5c8);border-radius:3px;background:transparent;color:var(--text-secondary)"></div>';
+  let tbl='<table style="width:100%;border-collapse:collapse;font-size:.74rem"><thead><tr style="text-align:left;color:var(--text-muted);border-bottom:1px solid var(--border2)"><th style="padding:.2rem .3rem">Solo</th><th>Group</th><th>Zone</th><th>Where / What</th><th>XP</th><th>Good for</th><th>Notes</th></tr></thead><tbody>';
+  if(!rows.length)tbl+='<tr><td colspan="8" style="padding:.5rem;color:var(--text-muted)">No spots match these filters.</td></tr>';
+  rows.forEach(function(sp){
+    const mine=myCls&&sp.t.indexOf(myCls)>=0;
+    const rg=_lvlSpotRange(sp,f.mode);const near=myLvl&&rg&&rg[0]<=myLvl+3&&rg[1]>=myLvl-3;
+    const tags=sp.t.map(function(x){return '<span style="font-size:.64rem;padding:0 .25rem;border-radius:2px;border:1px solid '+(x===myCls?'var(--gold,#b8892b)':'var(--border2,#d8d5c8)')+';color:'+(x===myCls?'var(--gold,#b8892b)':'var(--text-muted)')+'">'+esc(x)+'</span>';}).join(' ');
+    tbl+='<tr style="border-bottom:1px solid var(--border2,#eee);'+(mine?'background:rgba(184,137,43,0.08);':'')+'">'+
+      '<td style="padding:.2rem .3rem;white-space:nowrap">'+esc(sp.s||'-')+'</td>'+
+      '<td style="white-space:nowrap">'+esc(sp.g||'-')+'</td>'+
+      '<td style="white-space:nowrap">'+esc(sp.z)+(near?' <span title="near your level" style="color:var(--gold,#b8892b)">&#9670;</span>':'')+'</td>'+
+      '<td>'+esc(sp.w)+(sp.m?' - <span style="color:var(--text-muted)">'+esc(sp.m)+'</span>':'')+'</td>'+
+      '<td style="white-space:nowrap">'+(sp.zem?sp.zem+'%':'?')+'</td>'+
+      '<td style="white-space:nowrap">'+tags+'</td>'+
+      '<td style="color:var(--text-muted)">'+esc(sp.n)+'</td></tr>';
+  });
+  tbl+='</tbody></table>';
+  panel.innerHTML=head+ctx+bar+tbl;
+}
+
+let consolidateExcl=(function(){try{return JSON.parse(localStorage.getItem('mp_consol_excl'))||[];}catch(e){return [];}})();
+function isConsolExcluded(name){return consolidateExcl.some(function(x){return x.toLowerCase()===String(name).toLowerCase();});}
+function saveConsolExcl(){try{localStorage.setItem('mp_consol_excl',JSON.stringify(consolidateExcl));}catch(e){} if(typeof saveGuildDataField==='function'&&typeof currentUser!=='undefined'&&currentUser)saveGuildDataField('consolidate_excl',consolidateExcl,'ConsolExcl');}
+window.consolExclude=function(name){if(name&&!isConsolExcluded(name)){consolidateExcl.push(name);saveConsolExcl();renderConsolidatePanel();}};
+window.consolUnexclude=function(name){consolidateExcl=consolidateExcl.filter(function(x){return x.toLowerCase()!==String(name).toLowerCase();});saveConsolExcl();renderConsolidatePanel();};
+async function loadConsolExclFromSupabase(){try{const r=await sb.from('guild_data').select('consolidate_excl').eq('pool','SoV').eq('user_id',currentUser.id).single();if(r&&!r.error&&r.data&&Array.isArray(r.data.consolidate_excl))consolidateExcl=r.data.consolidate_excl;}catch(e){}}
+function _consolWire(panel){panel.querySelectorAll('.cx').forEach(function(el){el.onclick=function(){consolExclude(el.dataset.name);};});panel.querySelectorAll('.cu').forEach(function(el){el.onclick=function(){consolUnexclude(el.dataset.name);};});}
+let consolidateBankerExcl=(function(){try{return JSON.parse(localStorage.getItem('mp_consol_banker_excl'))||[];}catch(e){return [];}})();
+function isConsolBankerExcl(name){return consolidateBankerExcl.some(function(x){return x.toLowerCase()===String(name).toLowerCase();});}
+function saveConsolBankerExcl(){try{localStorage.setItem('mp_consol_banker_excl',JSON.stringify(consolidateBankerExcl));}catch(e){} if(typeof saveGuildDataField==='function'&&typeof currentUser!=='undefined'&&currentUser)saveGuildDataField('consolidate_banker_excl',consolidateBankerExcl,'ConsolBankerExcl');}
+window.consolToggleBanker=function(name){if(isConsolBankerExcl(name))consolidateBankerExcl=consolidateBankerExcl.filter(function(x){return x.toLowerCase()!==String(name).toLowerCase();});else consolidateBankerExcl.push(name);saveConsolBankerExcl();renderConsolidatePanel();};
+async function loadConsolBankerExclFromSupabase(){try{const r=await sb.from('guild_data').select('consolidate_banker_excl').eq('pool','SoV').eq('user_id',currentUser.id).single();if(r&&!r.error&&r.data&&Array.isArray(r.data.consolidate_banker_excl))consolidateBankerExcl=r.data.consolidate_banker_excl;}catch(e){}}
+
+// Bag capacity from the wiki-verified name->slots table (the export's 5th column
+// is not a reliable container-size field, so we don't use it). Keys are normalized
+// (lowercase, apostrophes/backticks stripped).
+function _bagKey(n){return String(n||'').toLowerCase().replace(/[`'\u2019]/g,'').replace(/\s+/g,' ').trim();}
+const BAG_SLOTS=(function(){var m={},g={
+  10:['bag of the tinkerers','box of abu-kar','box of nil space','driftwood treasure chest','darkwood trunk','kavruuls mystic pouch','large soiled bag','forager bag','hand made backpack','bootstrutters framed pack','treasure hunters satchel','glowing backpack','bearskin potion bag','deluxe sewing kit','deluxe toolbox','tax collection box','tome binder','vale sewing kit','coin pouch'],
+  8:['bag of sewn evil-eye','dusty ransackers pack','light burlap sack','lionhide backpack','pierces pouch of storing','shralok pack','travelers pack','very large coin purse','wenglawks manly purse','backpack','fletching kit','large box','large metal container','large sewing kit','rhinohide backpack','small box','toolbox'],
+  6:['archeologist pack','fleeting quiver','memento box','quiver of marr','rough leather sack','tailored large bag','tailored large belt pouch','tailored quiver','kobold shamans pouch','dimensional hole','bandoleer of luclin','large bag','medicine bag','mortar and pestle','spit','tackle box'],
+  4:['quiver','tailored small bag','tailored wrist pouch','thunderhoof quiver','travelers pouch','small coin purse','medium coin purse','dimensional pocket','spirit pouch','belt pouch','book of dark bindings','elemental grimoire','lexicon','medium metal container','mixing bowl','purse','small bag','tome of endless enchantments','wrist pouch'],
+  2:['dakoit coin purse','tiny coin purse','small metal container','small sewing kit']
+};for(var s in g){g[s].forEach(function(n){m[n]=Number(s);});}return m;})();
+function bagCapacity(it){return BAG_SLOTS[_bagKey(it&&it.name)]||0;}
+// Real bank free-space per character. Bank = 8 personal slots (P99 is classic-era,
+// no shared bank). free = sum(bag capacities) - items-in-bags + empty top slots.
+function bankCapacity(name){
+  var items=(chars[name]||[]).filter(function(it){return locationType(it.location)==='bank';});
+  var TOP=8, bagCapSum=0, bagCount=0, looseTop=0, inBags=0;
+  items.forEach(function(it){
+    var cap=bagCapacity(it), top=/^Bank\d+$/.test(it.location);
+    if(cap>0){bagCapSum+=cap;bagCount++;}
+    else if(top){looseTop++;}
+    else {inBags++;}
+  });
+  var emptyTop=Math.max(0,TOP-(bagCount+looseTop));
+  var cap=bagCapSum+looseTop+emptyTop, used=inBags+looseTop;
+  return {cap:cap, used:used, free:Math.max(0,cap-used)};
+}
+
+function renderConsolidatePanel(){
+  const panel=document.getElementById('consolidatePanel'); if(!panel)return;
+  const esc=function(v){return String(v==null?'':v).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+  const mains=charNames();
+  const allBankers=bankerNames();
+  const wire=function(){_consolWire(panel);panel.querySelectorAll('[data-bx]').forEach(function(el){el.onclick=function(){consolToggleBanker(el.dataset.bx);};});};
+  const HD='<div style="font-size:1rem;font-weight:600;color:var(--text-secondary)">Gear Consolidation</div><div style="font-size:.78rem;color:var(--text-muted);margin:.15rem 0 .7rem">Moves tradeable gear out of your mains\' banks onto general bankers. Copies of an item pool onto whichever banker holds the most of it, until it runs out of bag space. NO DROP gear can\'t be traded, so it stays put.</div>';
+  if(!allBankers.length){panel.innerHTML=HD+'<div style="font-size:.82rem;color:var(--text-muted)">No bankers registered. Mark a character as a banker in the Bankers view to route unused gear to it.</div>';return;}
+  const capInfo={}; allBankers.forEach(function(b){capInfo[b]=bankCapacity(b);});
+  const chipBar=function(){var x='<div style="margin-bottom:.6rem"><span style="font-size:.72rem;color:var(--text-muted);margin-right:.3rem">Destination bankers:</span>';allBankers.forEach(function(b){var off=isConsolBankerExcl(b);var ci=capInfo[b];x+='<button data-bx="'+esc(b)+'" title="'+(off?'Excluded &mdash; click to use as a destination':'Click to exclude (e.g. reaper / idol bots)')+'" style="font-size:.72rem;padding:.1rem .45rem;margin:.1rem;border-radius:3px;cursor:pointer;border:1px solid '+(off?'var(--border2,#d8d5c8)':'var(--gold,#b8892b)')+';background:'+(off?'transparent':'var(--gold,#b8892b)')+';color:'+(off?'var(--text-muted)':'#fff')+';'+(off?'text-decoration:line-through;opacity:.7':'')+'">'+esc(b)+(off?'':' <span style="opacity:.85">'+ci.free+'/'+ci.cap+'</span>')+'</button>';});return x+'</div>';};
+  const bankers=allBankers.filter(function(b){return !isConsolBankerExcl(b);});
+  if(!bankers.length){panel.innerHTML=HD+chipBar()+'<div style="font-size:.82rem;color:var(--text-muted)">Every banker is excluded as a destination &mdash; re-enable at least one above to build a plan.</div>';wire();return;}
+  const bs={}, bankerCount={};
+  bankers.forEach(function(b){
+    const items=chars[b]||[]; const lore=new Set(); bankerCount[b]={};
+    items.forEach(function(it){const db=itemDBGet(it.name); const k=it.name.toLowerCase(); if(db&&db._lore) lore.add(k); bankerCount[b][k]=(bankerCount[b][k]||0)+(Number(it.count)||1);});
+    bs[b]={lore:lore, free:capInfo[b].free, cap:capInfo[b].cap, used0:capInfo[b].used};
+  });
+  const src={}, byName={}, loreList=[]; let tMove=0,tImm=0,tUn=0;
+  mains.forEach(function(m){
+    const items=(chars[m]||[]).filter(function(it){return locationType(it.location)==='bank'&&bagCapacity(it)===0&&!isConsolExcluded(it.name);});
+    const e={rows:[],immovable:0,unplaced:[]}; src[m]=e;
+    items.forEach(function(it){
+      const db=itemDBGet(it.name);
+      if(db&&db._nodrop){e.immovable++;tImm++;return;}
+      if(db&&db._lore){loreList.push({m:m,it:it});return;}
+      const rec={m:m,it:it,to:null}; e.rows.push(rec);
+      const k=it.name.toLowerCase(); (byName[k]=byName[k]||[]).push(rec);
+    });
+  });
+  // non-LORE: affinity (most existing copies) then most free; spill when a banker fills
+  Object.keys(byName).forEach(function(k){
+    const recs=byName[k];
+    const order=bankers.slice().sort(function(a,b){var ca=bankerCount[a][k]||0,cb=bankerCount[b][k]||0; if(cb!==ca)return cb-ca; return bs[b].free-bs[a].free;});
+    var bi=0;
+    recs.forEach(function(r){
+      while(bi<order.length&&bs[order[bi]].free<=0)bi++;
+      if(bi>=order.length){src[r.m].unplaced.push({name:r.it.name,reason:'room'});tUn++;return;}
+      r.to=order[bi]; bs[order[bi]].free--; tMove++;
+    });
+  });
+  // LORE: one per banker, no clash, most free
+  loreList.forEach(function(o){
+    const key=o.it.name.toLowerCase(); let best=null;
+    bankers.forEach(function(b){if(bs[b].lore.has(key))return; if(bs[b].free<=0)return; if(best===null||bs[b].free>bs[best].free)best=b;});
+    if(best===null){src[o.m].unplaced.push({name:o.it.name,reason:'lore'});tUn++;return;}
+    bs[best].free--; bs[best].lore.add(key); src[o.m].rows.push({m:o.m,it:o.it,to:best,lore:true}); tMove++;
+  });
+  const plan=[];
+  mains.forEach(function(m){const e=src[m];
+    const rows=e.rows.filter(function(r){return r.to;}).map(function(r){return {name:r.it.name,loc:r.it.location,count:r.it.count,lore:!!r.lore,to:r.to};});
+    rows.sort(function(a,b){return a.to<b.to?-1:a.to>b.to?1:(a.name<b.name?-1:1);});
+    if(rows.length||e.immovable||e.unplaced.length)plan.push({main:m,rows:rows,immovable:e.immovable,unplaced:e.unplaced});
+  });
+
+  let h=HD+chipBar();
+  h+='<div style="font-size:.8rem;margin:0 0 .5rem"><b>'+tMove+'</b> to move'+(tImm?' &middot; <span style="color:var(--text-muted)">'+tImm+' stay (NO DROP)</span>':'')+(tUn?' &middot; <span style="color:#b05">'+tUn+' unplaced</span>':'')+'</div>';
+  if(consolidateExcl.length){h+='<div style="font-size:.74rem;color:var(--text-muted);margin:0 0 .6rem;padding:.3rem .5rem;background:rgba(0,0,0,.03);border-radius:4px"><b>Excluded items:</b> '+consolidateExcl.map(function(n){return esc(n)+' <span class="cu" data-name="'+esc(n)+'" style="cursor:pointer;color:var(--gold,#b8892b)" title="Remove exclusion">&#8635;</span>';}).join(' &nbsp; ')+'</div>';}
+  if(!plan.length){h+='<div style="font-size:.82rem;color:var(--text-muted);margin-top:.5rem">Nothing to consolidate &mdash; no tradeable gear sitting in your mains\' banks.</div>';panel.innerHTML=h;wire();return;}
+  const TH='style="text-align:left;padding:.22rem .5rem;font-size:.68rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border2,#d8d5c8)"';
+  plan.forEach(function(pl){
+    h+='<div style="margin-top:.9rem"><span style="font-size:.9rem;font-weight:600;color:var(--text-secondary)">'+esc(pl.main)+'</span> <span style="font-size:.72rem;color:var(--text-muted)">&mdash; '+pl.rows.length+' to move'+(pl.immovable?', '+pl.immovable+' stay':'')+'</span></div>';
+    if(pl.rows.length){
+      h+='<table style="width:100%;border-collapse:collapse;margin-top:.2rem"><thead><tr><th '+TH+'>Item</th><th '+TH+'>From</th><th '+TH+'>&rarr; To</th><th '+TH+' style="width:1.4rem"></th></tr></thead><tbody>';
+      pl.rows.forEach(function(x){
+        h+='<tr style="border-bottom:1px solid var(--border2,#ece9df)">'+
+          '<td style="padding:.2rem .5rem;font-size:.78rem">'+esc(x.name)+(x.count>1?' <span style="color:var(--text-muted)">&times;'+x.count+'</span>':'')+(x.lore?' <span style="font-size:.58rem;color:var(--gold,#b8892b);border:1px solid var(--gold,#b8892b);border-radius:2px;padding:0 .2rem">LORE</span>':'')+'</td>'+
+          '<td style="padding:.2rem .5rem;font-size:.74rem;color:var(--text-muted);white-space:nowrap">'+esc(x.loc)+'</td>'+
+          '<td style="padding:.2rem .5rem;font-size:.78rem;font-weight:600;white-space:nowrap">'+esc(x.to)+'</td>'+
+          '<td style="padding:.2rem .5rem;text-align:center"><span class="cx" data-name="'+esc(x.name)+'" title="Exclude from consolidation" style="cursor:pointer;color:#b05;font-size:.72rem">&#10005;</span></td>'+
+          '</tr>';
+      });
+      h+='</tbody></table>';
+    }
+    if(pl.immovable)h+='<div style="font-size:.7rem;color:var(--text-muted);margin:.2rem 0 0 .5rem">+ '+pl.immovable+' NO DROP item'+(pl.immovable>1?'s':'')+' stay in this bank</div>';
+    var noRoom=pl.unplaced.filter(function(u){return u.reason==='room';}).map(function(u){return u.name;});
+    var loreClash=pl.unplaced.filter(function(u){return u.reason==='lore';}).map(function(u){return u.name;});
+    if(noRoom.length)h+='<div style="font-size:.72rem;color:#b05;margin:.2rem 0 0 .5rem">No room on any banker: '+noRoom.map(esc).join(', ')+'</div>';
+    if(loreClash.length)h+='<div style="font-size:.72rem;color:#b05;margin:.2rem 0 0 .5rem">LORE clash (every banker already holds one): '+loreClash.map(esc).join(', ')+'</div>';
+  });
+  h+='<div style="margin-top:1rem;padding-top:.5rem;border-top:1px solid var(--border2,#d8d5c8);font-size:.72rem;color:var(--text-muted)"><b>Projected banker loads:</b> '+bankers.map(function(b){var proj=bs[b].cap-bs[b].free;var full=bs[b].free<=0;return esc(b)+' '+bs[b].used0+'&rarr;'+proj+'/'+bs[b].cap+(full?' <span style="color:#b05">full</span>':'');}).join(' &nbsp; ')+'</div>';
+  panel.innerHTML=h; wire();
+}
+
 function renderOutfitterPanel(){
   const panel=document.getElementById('outfitterPanel');
   if(!panel)return;
+  // Seed class/race/level from the active character until the user takes manual
+  // control. Option-2 behaviour: follows whoever's selected (re-seeds when you
+  // land on a new character), but the first manual pick via outfitSet() flips
+  // _userSet and freezes it, so a twink plan you're building survives tabbing.
+  // Falls back to the standing default on All-Characters or when class/race is
+  // unknown; each field is seeded only on a clean match.
+  if(!_outfit._userSet){
+    const _m=(typeof charMeta!=='undefined'&&activeTab&&activeTab!=='__all__')?charMeta[activeTab]:null;
+    if(_m){
+      const _ck=Object.keys(CLASS_STAT_WEIGHTS).find(c=>c.toUpperCase()===String(_m.class||'').toUpperCase());
+      if(_ck)_outfit.cls=_ck;
+      const _rk=EQ_RACES.find(r=>r.toUpperCase()===String(_m.race||'').toUpperCase());
+      if(_rk)_outfit.race=_rk;
+      const _lv=parseInt(_m.level,10);
+      if(_lv>=1&&_lv<=60)_outfit.level=_lv;
+    }
+  }
   const o=_outfit;
   const kit=outfitBuildKit();
   const selStyle='background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .45rem;font-family:\'Crimson Pro\',serif;font-size:.85rem;outline:none;cursor:pointer';
@@ -8361,7 +8991,14 @@ function renderOutfitterPanel(){
     const badges=[];
     if(r.db._lore)badges.push('<span style="font-size:.6rem;color:var(--gold-light);border:1px solid var(--gold-dim);border-radius:2px;padding:0 .2rem">LORE</span>');
     if(outfitWornEffect(r.db).unscored)badges.push('<span title="This item has a worn effect the scorer does not value yet \u2014 judge it yourself" style="font-size:.6rem;color:#e0a030;border:1px solid #a07020;border-radius:2px;padding:0 .2rem">\u26a0 EFFECT NOT SCORED</span>');
-    if(h&&h.equipped)badges.push(`<span style="font-size:.6rem;color:#e05050;border:1px solid #a03030;border-radius:2px;padding:0 .2rem">EQUIPPED</span>`);
+    if(h&&h.equipped){
+      // Green when it is already worn by the character you are building for
+      // (on you — no action). Red when worn by a different character (must be
+      // stripped off that alt). On All-Characters nothing is "you" -> red.
+      const _onSelf=(h.char===activeTab);
+      const _c=_onSelf?'#3a7a3a':'#e05050',_bc=_onSelf?'#2f6a2f':'#a03030';
+      badges.push(`<span title="${_onSelf?'Already equipped on this character':'Equipped on another character \u2014 must be stripped'}" style="font-size:.6rem;color:${_c};border:1px solid ${_bc};border-radius:2px;padding:0 .2rem">EQUIPPED</span>`);
+    }
     const from=h?`${h.banker?'\ud83c\udfe6 ':''}${esc(h.char)} \u00b7 <span style="opacity:.7">${esc(h.loc)}</span>`:'?';
     return `<tr>
       <td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted);white-space:nowrap">${r.slot}</td>
@@ -8375,6 +9012,7 @@ function renderOutfitterPanel(){
   const byHolder={};
   for(const r of kit.rows){
     if(r.empty||!r.holder)continue;
+    if(r.holder.char===activeTab)continue; // already on the toon you're building for — nothing to pick up (equipped or in a bag)
     const key=r.holder.char;
     (byHolder[key]=byHolder[key]||{banker:r.holder.banker,items:[]}).items.push({name:r.name,loc:r.holder.loc,equipped:r.holder.equipped});
   }
@@ -8416,6 +9054,7 @@ function renderOutfitterPanel(){
 }
 window.outfitSet=function(k,v){
   _outfit[k]=k==='level'?Math.max(1,Math.min(60,parseInt(v,10)||1)):v;
+  _outfit._userSet=true;   // user took manual control — stop auto-seeding from the active character
   renderOutfitterPanel();
 };
 window.outfitToggleEq=function(cb){
@@ -10910,7 +11549,7 @@ function parseDkpDetailsCsv(text){
       d=`${y}-${String(mo).padStart(2,'0')}-${String(+dm[2]).padStart(2,'0')}`;
     }else d=iso.slice(0,10);
     if(!d||d.length!==10)continue;
-    ticks.push({d,l:label});
+    ticks.push({d,l:label,v:val});
   }
   const r1=x=>Math.round(x*10)/10;
   const dkp=iVal>=0?{balance:r1(dkpEarned+dkpSpent+dkpAdjust),earned:r1(dkpEarned),spent:r1(dkpSpent),adjust:r1(dkpAdjust)}:null;
@@ -10921,19 +11560,34 @@ function parseDkpDetailsCsv(text){
 //   killState 'killed'   → expect a kill/neutral tick        (type 'kill')
 //   killState 'failtick' → expect a no-kill/neutral tick     (type 'failtick')
 //   hourly submissions   → expect hourly-marked ticks (lenient, type 'hourly')
+// Expected value uses BOSS_ROSTER base rates only (b.dkp for a kill, b.baseDkp
+// for a fail tick / attendance credit). Per-character role bonuses (MT, healer,
+// etc. — sp.bossRoles / session.bossRoles) aren't attributable to a single
+// character from session state alone, so they're not included; a mismatch on a
+// role-bonused kill may be legitimate rather than an error.
+function ccExpectedValue(target){
+  const b=BOSS_ROSTER.find(x=>x.target===target);
+  return b?{kill:b.dkp+(b.baseDkp||0),failtick:b.baseDkp||0}:null;
+}
 function ccCollectSessionEvents(){
   const evts=[];
   for(const s of [...raidSessions].sort((a,b)=>(b.date||'').localeCompare(a.date||''))){
     for(const[target,st] of Object.entries(s.killState||{})){
-      if(st==='killed')evts.push({date:s.date,target,type:'kill'});
-      else if(st==='failtick')evts.push({date:s.date,target,type:'failtick'});
+      const ev=ccExpectedValue(target);
+      if(st==='killed')evts.push({date:s.date,target,type:'kill',expVal:ev?ev.kill:null});
+      else if(st==='failtick')evts.push({date:s.date,target,type:'failtick',expVal:ev?ev.failtick:null});
     }
     for(const es of (s.extraSpawns||[])){
-      if(es.state==='killed')evts.push({date:s.date,target:es.base,type:'kill',extra:true});
-      else if(es.state==='failtick')evts.push({date:s.date,target:es.base,type:'failtick',extra:true});
+      const ev=ccExpectedValue(es.base);
+      if(es.state==='killed')evts.push({date:s.date,target:es.base,type:'kill',extra:true,expVal:ev?ev.kill:null});
+      else if(es.state==='failtick')evts.push({date:s.date,target:es.base,type:'failtick',extra:true,expVal:ev?ev.failtick:null});
     }
     const hourlyCount=(s.hourly||[]).length+(s.tickSubmissions||[]).filter(t=>/hour/i.test(t.desc||'')).reduce((n,t)=>n+(t.qty||1),0);
-    if(hourlyCount>0)evts.push({date:s.date,target:'Hourly',type:'hourly',qty:hourlyCount});
+    if(hourlyCount>0){
+      const hourlyExp=(s.hourly||[]).reduce((sum,t)=>sum+(t.value||0)*(t.qty||1),0)
+        +(s.tickSubmissions||[]).filter(t=>/hour/i.test(t.desc||'')).reduce((sum,t)=>sum+(t.dkp!=null?t.dkp:(t.value||0)*(t.qty||1)),0);
+      evts.push({date:s.date,target:'Hourly',type:'hourly',qty:hourlyCount,expVal:Math.round(hourlyExp*10)/10});
+    }
   }
   return evts;
 }
@@ -10941,7 +11595,7 @@ function ccCollectSessionEvents(){
 function ccBuildTickIndex(){
   const byDate={};
   for(const t of odkpTicks){
-    (byDate[t.d]=byDate[t.d]||[]).push({d:t.d,l:t.l,targets:odkpTickTargets(t.l),pol:tickPolarity(t.l)});
+    (byDate[t.d]=byDate[t.d]||[]).push({d:t.d,l:t.l,v:t.v,targets:odkpTickTargets(t.l),pol:tickPolarity(t.l)});
   }
   return byDate;
 }
@@ -10953,15 +11607,30 @@ function ccDatesAround(d){
   return [0,1,-1].map(off=>new Date(b.getTime()+off*86400000).toISOString().slice(0,10));
 }
 
-// Match one event → {status:'strong'|'weak'|'missing', tick, note}
+// Match one event → {status:'strong'|'valuemismatch'|'weak'|'missing', tick, note, creditedVal, expectedVal}
 // Candidate ranking: same-day right-polarity > same-day neutral > adjacent-day,
 // with wrong-polarity ticks last (accepted only as a ⚠ weak match, because
 // "tracker says killed / ODKP says no kill" is itself a discrepancy to surface).
+// A tick that's present with the right polarity but credited for a different
+// DKP value than expected (BOSS_ROSTER base rate, or the tracked hourly value)
+// downgrades from 'strong' to 'valuemismatch' rather than 'weak' — the tick
+// itself is correctly identified, only the amount is in question.
+const CC_VALUE_TOLERANCE=0.05;
+function ccValueStatus(evt,creditedVal){
+  if(evt.expVal==null||creditedVal==null)return'strong';
+  return Math.abs(creditedVal-evt.expVal)>CC_VALUE_TOLERANCE?'valuemismatch':'strong';
+}
 function ccMatchEvent(evt,byDate){
   if(evt.type==='hourly'){
-    const found=(byDate[evt.date]||[]).filter(t=>/hourly|hour\s*\d|plus hour|\+\s*\d*\s*hour/i.test(t.l)).length;
-    if(found>=evt.qty)return{status:'strong',tick:found+' hourly-marked tick'+(found!==1?'s':'')+' that day'};
-    if(found>0)return{status:'weak',tick:'only '+found+' of '+evt.qty+' hourly ticks found',note:'hourly count short'};
+    const matches=(byDate[evt.date]||[]).filter(t=>/hourly|hour\s*\d|plus hour|\+\s*\d*\s*hour/i.test(t.l));
+    const found=matches.length;
+    const creditedVal=matches.length?Math.round(matches.reduce((s,t)=>s+(t.v||0),0)*10)/10:null;
+    if(found>=evt.qty){
+      const status=ccValueStatus(evt,creditedVal);
+      return{status,tick:found+' hourly-marked tick'+(found!==1?'s':'')+' that day',creditedVal,expectedVal:evt.expVal,
+        note:status==='valuemismatch'?'credited '+creditedVal+' DKP, expected '+evt.expVal:undefined};
+    }
+    if(found>0)return{status:'weak',tick:'only '+found+' of '+evt.qty+' hourly ticks found',note:'hourly count short',creditedVal,expectedVal:evt.expVal};
     return{status:'missing',tick:null};
   }
   const days=ccDatesAround(evt.date);
@@ -10973,7 +11642,10 @@ function ccMatchEvent(evt,byDate){
   cands.sort((a,b)=>rank(a)-rank(b));
   const best=cands[0];
   if(best.t.pol===wrongPol)return{status:'weak',tick:best.t.l,note:evt.type==='failtick'?'tracker failtick, but tick reads as a kill':'only a no-kill tick found'};
-  return{status:'strong',tick:best.t.l};
+  const creditedVal=best.t.v!=null?best.t.v:null;
+  const status=ccValueStatus(evt,creditedVal);
+  return{status,tick:best.t.l,creditedVal,expectedVal:evt.expVal,
+    note:status==='valuemismatch'?'credited '+creditedVal+' DKP, expected '+evt.expVal:undefined};
 }
 
 // Ticks that resolve to no target and aren't recognizable noise → the
@@ -12965,18 +13637,20 @@ function renderCreditCheckPanel(){
   }
 
   const byDate=ccBuildTickIndex();
-  let nStrong=0,nWeak=0,nMiss=0,nAcked=0;
+  let nStrong=0,nWeak=0,nMiss=0,nAcked=0,nValMismatch=0;
   let rows='';
   for(const evt of evts){
     const m=ccMatchEvent(evt,byDate);
     const key=ccEvtKey(evt);
     const acked=m.status!=='strong'&&ccAcks.has(key);
-    if(m.status==='strong')nStrong++;else if(acked)nAcked++;else if(m.status==='weak')nWeak++;else nMiss++;
+    if(m.status==='strong')nStrong++;else if(acked)nAcked++;else if(m.status==='valuemismatch')nValMismatch++;else if(m.status==='weak')nWeak++;else nMiss++;
     const d=new Date(evt.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
     const statusCell=m.status==='strong'
       ?'<td style="text-align:center;color:#3a7a3a;font-size:.9rem">✓</td>'
       :acked
       ?'<td style="text-align:center;color:var(--text-muted);font-size:.9rem" title="Acknowledged — not counted as missing">◌</td>'
+      :m.status==='valuemismatch'
+      ?`<td style="text-align:center;color:#c9a800;font-size:.9rem;font-weight:bold" title="${esc(m.note||'value differs')}">✓ <span style="font-size:.68rem;font-weight:600">${m.expectedVal}</span></td>`
       :m.status==='weak'
       ?`<td style="text-align:center;color:#b08020;font-size:.9rem;font-weight:bold" title="${esc(m.note||'weak match')}">⚠</td>`
       :'<td style="text-align:center;color:#c03030;font-size:.95rem;font-weight:bold" title="Attended per tracker, but no credited tick found (checked ±1 day)">✗</td>';
@@ -12988,7 +13662,7 @@ function renderCreditCheckPanel(){
       :acked
       ?`<td style="text-align:center"><button class="cc-unack-btn" data-key="${esc(key)}" title="Restore the missed marker" style="background:none;border:none;cursor:pointer;font-size:.68rem;color:var(--text-muted);font-family:'Cinzel',serif;letter-spacing:.04em">↩ un-ack</button></td>`
       :`<td style="text-align:center"><button class="cc-ack-btn" data-key="${esc(key)}" title="Acknowledge — I know about this one; stop counting it as missing" style="background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:.66rem;color:var(--text-muted);font-family:'Cinzel',serif;letter-spacing:.04em;padding:.1rem .35rem">ack</button></td>`;
-    rows+=`<tr style="${acked?'opacity:.45':m.status==='missing'?'background:rgba(180,40,40,.08)':m.status==='weak'?'background:rgba(180,130,20,.07)':''}">
+    rows+=`<tr style="${acked?'opacity:.45':m.status==='missing'?'background:rgba(180,40,40,.08)':m.status==='valuemismatch'?'background:rgba(210,180,20,.12)':m.status==='weak'?'background:rgba(180,130,20,.07)':''}">
       <td style="padding:.3rem .6rem;font-size:.78rem;color:var(--text-muted);white-space:nowrap">${d}</td>
       <td style="padding:.3rem .6rem;font-size:.82rem;font-weight:500">${esc(evt.target)}${evt.extra?' <span style="font-size:.65rem;color:var(--text-muted)">(extra spawn)</span>':''}${typeBadge}</td>
       ${statusCell}
@@ -12998,8 +13672,8 @@ function renderCreditCheckPanel(){
   }
 
   const ackedNote=nAcked>0?` · <span style="color:var(--text-muted)">◌ ${nAcked} acknowledged</span>`:'';
-  const summary=(nMiss>0||nWeak>0)
-    ?`<div style="padding:.5rem 1rem;background:rgba(180,40,40,.1);border-bottom:1px solid rgba(180,40,40,.25);font-size:.78rem;color:#c03030">${nMiss>0?`✗ ${nMiss} missing`:''}${nMiss>0&&nWeak>0?' · ':''}${nWeak>0?`<span style="color:#b08020">⚠ ${nWeak} weak</span>`:''}${ackedNote} — ${nStrong} of ${evts.length} events fully matched</div>`
+  const summary=(nMiss>0||nWeak>0||nValMismatch>0)
+    ?`<div style="padding:.5rem 1rem;background:rgba(180,40,40,.1);border-bottom:1px solid rgba(180,40,40,.25);font-size:.78rem;color:#c03030">${nMiss>0?`✗ ${nMiss} missing`:''}${nMiss>0&&(nWeak>0||nValMismatch>0)?' · ':''}${nValMismatch>0?`<span style="color:#c9a800">✓ ${nValMismatch} value differs</span>`:''}${nValMismatch>0&&nWeak>0?' · ':''}${nWeak>0?`<span style="color:#b08020">⚠ ${nWeak} weak</span>`:''}${ackedNote} — ${nStrong} of ${evts.length} events fully matched</div>`
     :`<div style="padding:.5rem 1rem;background:rgba(40,120,40,.08);border-bottom:1px solid rgba(40,120,40,.2);font-size:.78rem;color:#3a7a3a">✓ All ${evts.length} events credited${ackedNote?ackedNote:' — every kill, fail tick, and hourly you tracked has a matching credited tick'}</div>`;
 
   // Unmatched-ticks queue — click-to-teach aliases (saved to shared Supabase)
@@ -13082,7 +13756,7 @@ window.exportCreditReport=function(){
     if(ccAcks.has(ccEvtKey(evt))){nAckedSkipped++;continue;}
     found=true;
     const tag=evt.type==='failtick'?' [fail tick]':evt.type==='hourly'?' [hourly x'+evt.qty+']':'';
-    lines.push(`${m.status==='missing'?'MISSING':'WEAK   '}  ${evt.date}  ${(evt.target+tag).padEnd(32)}  ${m.tick?m.tick+(m.note?' — '+m.note:''):'no matching tick within ±1 day'}`);
+    lines.push(`${m.status==='missing'?'MISSING':m.status==='valuemismatch'?'VALUE  ':'WEAK   '}  ${evt.date}  ${(evt.target+tag).padEnd(32)}  ${m.tick?m.tick+(m.note?' — '+m.note:''):'no matching tick within ±1 day'}`);
   }
   if(!found)lines.push('None — every kill, fail tick, and hourly is accounted for.');
   if(nAckedSkipped)lines.push('','('+nAckedSkipped+' acknowledged event'+(nAckedSkipped!==1?'s':'')+' omitted)');

@@ -4,6 +4,8 @@ $candidates = @(
     "src\setup.html",
     "src\session.html",
     "src\map.html",
+    "src\manifest.json",
+    "src\service-worker.js",
     "electron\main.js",
     "electron\preload.js",
     "electron\ipc\watcher.js",
@@ -12,8 +14,15 @@ $candidates = @(
     "build-map-db.js"
 );
 
+# Latest handoff
 $h = Get-ChildItem -Filter "HANDOFF_v*.md" | Sort-Object Name | Select-Object -Last 1;
 if ($h) { $candidates += $h.Name }
+
+# GitHub Pages deploy workflow(s) — the src->docs bot. Needed so the next Claude
+# can fix/verify what actually gets published (open blocker: it only copies HTML,
+# so manifest.json / service-worker.js / icons never reach docs\).
+Get-ChildItem -Path ".github\workflows" -Include *.yml, *.yaml -Recurse -ErrorAction SilentlyContinue |
+    ForEach-Object { $candidates += $_.FullName }
 
 $files = $candidates | Where-Object { Test-Path $_ };
 Compress-Archive -Path $files -DestinationPath "session-upload.zip" -Force;
