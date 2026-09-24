@@ -2951,7 +2951,11 @@ function renderUpgradesPanel(){
   // so effectiveGain doesn't double-count STA (once via sta weight, once via hpbonus weight).
   const hpPerSta = HP_RATIOS[charClass] ? staRatio(charClass, charLevel) : 0;
 
-  function effectiveGain(curItemData,candData,baseTotals){
+  // cardSlot: the slot being filled (card dbSlot). A candidate's stored _slot can differ
+  // (a throwing dagger tagged RANGE offered in PRIMARY), so suppression and DPS must key
+  // off the card, not the item — mirrors admin.html gcScoreItem. Falls back to _slot.
+  function effectiveGain(curItemData,candData,baseTotals,cardSlot){
+    const evalSlot=cardSlot||candData._slot;
     // For hybrid classes, 2H weapons score ratio-only — stats ignored.
     // 1H weapons on hybrid classes still score stats normally.
     const candItype=(candData._skill||candData._itemType||'').toLowerCase();
@@ -3038,7 +3042,7 @@ function renderUpgradesPanel(){
     // not on the survivability stats a stat-stick happens to carry. The DPS delta
     // added just below stays at full weight. Non-weapon slots and other classes
     // are untouched. Mirror in admin.html.
-    const _isWepSlotEG=(candData._slot==='PRIMARY'||candData._slot==='SECONDARY'||candData._slot==='TWOHANDER');
+    const _isWepSlotEG=(evalSlot==='PRIMARY'||evalSlot==='SECONDARY'||evalSlot==='TWOHANDER');
     if(_isWepSlotEG&&PURE_DPS_CLASSES.has(charClass)){
       total*=PURE_DPS_WEP_STAT_MULT;
     }
@@ -3050,9 +3054,9 @@ function renderUpgradesPanel(){
     // Handled via STAT_KEYS_ALL if dmg is included, but dmg needs special ratio treatment.
     // Score the delta in effective ratio between candidate and current item.
     const dmgW=weights.dmg||0;
-    if(dmgW>0&&(candData._slot==='PRIMARY'||candData._slot==='SECONDARY'||candData._slot==='RANGE'||candData._slot==='TWOHANDER')){
-      const candRatio=weaponDpsScore(candData,candData._slot,charClass,charLevel,baseTotals);
-      const curRatio=weaponDpsScore(curItemData,candData._slot,charClass,charLevel,baseTotals);
+    if(dmgW>0&&(evalSlot==='PRIMARY'||evalSlot==='SECONDARY'||evalSlot==='RANGE'||evalSlot==='TWOHANDER')){
+      const candRatio=weaponDpsScore(candData,evalSlot,charClass,charLevel,baseTotals);
+      const curRatio=weaponDpsScore(curItemData,evalSlot,charClass,charLevel,baseTotals);
       total+=(candRatio-curRatio)*dmgW;
     }
     // Flowing Thought mana regen — only scores for mana classes
@@ -3183,7 +3187,7 @@ function renderUpgradesPanel(){
     const candidatePool=[...(bySlot[dbSlot]||[]),...ohExtra.filter(c=>!(bySlot[dbSlot]||[]).some(x=>x.name===c.name))];
     const candidates=candidatePool
       .filter(c=>(!slotEquippedNames.has(c.name)||(!c._lore&&c.name!==item.name))&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._nonp99&&!c._gm&&!UNOBTAINABLE_ITEMS.has(c.name)&&(c.name==='Custom Cowl of Mortality'||!c.name.startsWith('Custom ')))
-      .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
+      .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals,dbSlot)}))
       .sort((a,b)=>b._effGain-a._effGain);
     slotResults.push({item,dbSlot,currentData,candidates});
   }
@@ -3228,7 +3232,7 @@ function renderUpgradesPanel(){
       const emptyPool=[...(bySlot[slot]||[]),...ohExtraEmpty.filter(c=>!(bySlot[slot]||[]).some(x=>x.name===c.name))];
       const candidates=emptyPool
         .filter(c=>(!slotAlreadyEquipped.has(c.name)||!c._lore)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._nonp99&&!c._gm&&!UNOBTAINABLE_ITEMS.has(c.name)&&(c.name==='Custom Cowl of Mortality'||!c.name.startsWith('Custom ')))
-        .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)}))
+        .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals,slot)}))
         .sort((a,b)=>b._effGain-a._effGain);
       if(!candidates.length)continue;
       slotResults.push({item:{name:'(empty)',location:slot},dbSlot:slot,currentData:{},candidates,isEmpty:true});
@@ -3258,7 +3262,7 @@ function renderUpgradesPanel(){
       const unarmedForSlot={...unarmedItem,_slot:slotForUnarmed};
       const alreadyIn=sr.candidates.some(c=>c.name==='Unarmed (Fists)');
       if(!alreadyIn){
-        const gain=effectiveGain(sr.currentData,unarmedForSlot,baselineTotals);
+        const gain=effectiveGain(sr.currentData,unarmedForSlot,baselineTotals,slotForUnarmed);
         sr.candidates.push({...unarmedForSlot,_effGain:gain});
         sr.candidates.sort((a,b)=>b._effGain-a._effGain);
       }
@@ -3662,7 +3666,7 @@ function renderUpgradesPanel(){
             if(curName.get(sr)===c.name)continue;
             if(budgetK&&(cum+c.plat)>budgetK)continue;
             if(fixStat&&(Number(c[fixStat]||0)-Number(curD[fixStat]||0))<=0)continue;
-            const g=effectiveGain(curD,c,totals);
+            const g=effectiveGain(curD,c,totals,sr.is2hCard?undefined:sr.dbSlot);
             if(g<=0)continue;
             const rank=mode==='value'?g/c.plat:g;
             if(!best||rank>best.rank)best={sr:sr,c:c,g:g,rank:rank};
@@ -4098,7 +4102,7 @@ window.upgCascadeRescore=function(){
   for(const sr of slots){
     if(!slotActive(sr)||!sr.candidates||!sr.candidates.length)continue;
     const t2=anySel?totalsFor(sr):baseT;
-    for(const c of sr.candidates){c._effGain=Math.round(eff(sr.currentData||{},c,t2)*10)/10;}
+    for(const c of sr.candidates){c._effGain=Math.round(eff(sr.currentData||{},c,t2,sr.is2hCard?undefined:sr.dbSlot)*10)/10;}
     if(sortBy)sr.candidates.sort(upgSortCmp(sortBy));
     else sr.candidates.sort((a,b)=>(b._effGain||0)-(a._effGain||0));
     const selEl=document.querySelector(`.upg-alt-select[data-cardid="${sr.cardId||sr.dbSlot}"]`);

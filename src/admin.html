@@ -2985,6 +2985,11 @@ function gcCompare() {
   const gcSlot     = gcBaseSlot(document.getElementById('gc-slot')?.value || (_gcItemA?.data?._slot) || '');
   const gcDex      = Math.min(255, baseTotals.dex || 175);
 
+  // Pure-DPS weapon-slot suppression — gcScoreItem scales stat/AC points by this, so the
+  // breakdown rows must too or they won't sum to the WEIGHTED SCORE. Haste and weapon DPS
+  // stay at full weight.
+  const gcStatMult = (['PRIMARY','SECONDARY','TWOHANDER'].includes(gcSlot) && ['Rogue','Monk'].includes(cls)) ? 0.15 : 1;
+
   // Per-stat breakdown with individual scores
   function buildBreakdown(dataA, dataB) {
     const allKeys = ['ac', ...STAT_KEYS_ALL, 'haste'];
@@ -3039,12 +3044,13 @@ function gcCompare() {
 
       const suffix = k === 'haste' ? '%' : '';
       const label  = k === 'ac' ? 'AC' : k === 'haste' ? 'Haste' : (STAT_DISPLAY[k] || k.toUpperCase());
-      const scoreA = Math.round(scoreVal(va) * 10) / 10;
-      const scoreB = Math.round(scoreVal(vb) * 10) / 10;
+      const mult = k === 'haste' ? 1 : gcStatMult;
+      const scoreA = Math.round(scoreVal(va) * mult * 10) / 10;
+      const scoreB = Math.round(scoreVal(vb) * mult * 10) / 10;
       const capState = (!NO_CAP.has(k) && k !== 'ac' && k !== 'haste' && k !== 'sta')
         ? ((baseTotals[k]||0) >= 255 ? 'hard' : (baseTotals[k]||0) >= 200 ? 'soft' : '')
         : '';
-      return { k, label, suffix, va, vb, w, scoreA, scoreB, capState };
+      return { k, label, suffix, va, vb, w, scoreA, scoreB, capState, suppressed: mult < 1 };
     }).filter(Boolean);
 
     // ── Weapon DPS row ─────────────────────────────────────────────────────────
@@ -3182,11 +3188,14 @@ function gcCompare() {
       : r.capState === 'soft'
       ? `<span style="color:${gold};font-size:.66rem;margin-left:.2rem" title="In softcap zone (33% returns)">SC</span>`
       : '';
+    const suppBadge = r.suppressed
+      ? `<span style="color:${dim};font-size:.66rem;margin-left:.2rem" title="${cls} weapon slot: stat points scaled ×${gcStatMult} so the weapon is judged on DPS">×${gcStatMult}</span>`
+      : '';
     const extraRow = r.extra ? `<tr><td colspan="5" style="padding:.1rem .6rem .35rem;font-size:.68rem;color:${dim};font-family:var(--mono)">${r.extra}</td></tr>` : '';
     const sepBefore = (r.isWeapon && r.k === '_weapondps') ? `<tr><td colspan="5" style="padding:0;border-top:1px solid var(--border2)"></td></tr>` : '';
 
     return sepBefore + `<tr>
-      <td style="${tdLb}">${r.label}${capBadge}</td>
+      <td style="${tdLb}">${r.label}${capBadge}${suppBadge}</td>
       <td style="${tdS}">${wDisp}</td>
       <td style="${tdS};color:${aWins&&!weightRow?green:''}">${fmtV(r.va)}${fmtSc(r.scoreA, aWins)}</td>
       <td style="${tdS};color:${bWins&&!weightRow?green:''}">${fmtV(r.vb)}${fmtSc(r.scoreB, bWins)}</td>
