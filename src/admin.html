@@ -686,6 +686,12 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
 </div><!-- shell -->
 
 <script>
+// Electron/Windows: inputs stop taking keystrokes after a native alert()/confirm() until
+// the window re-gains focus — force that round-trip after every dialog (main: window:refocus).
+(function(){const A=window.MixelParseApp;if(!A||!A.refocusWindow)return;const _a=window.alert.bind(window),_c=window.confirm.bind(window);
+window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){const r=_c(m);A.refocusWindow();return r;};})();
+</script>
+<script>
 // ── EQ log rotation (v1.3.5) — manual trigger, admin panel. Auto-rotation
 // (250 MB + 10 min idle) runs in the main process regardless of this button.
 window.rotateEqLogsUI=async function(){

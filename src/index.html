@@ -825,6 +825,12 @@
 </head>
 <body>
 <script>window._mob=window.innerWidth<768;</script>
+<script>
+// Electron/Windows: inputs stop taking keystrokes after a native alert()/confirm() until
+// the window re-gains focus — force that round-trip after every dialog (main: window:refocus).
+(function(){const A=window.MixelParseApp;if(!A||!A.refocusWindow)return;const _a=window.alert.bind(window),_c=window.confirm.bind(window);
+window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){const r=_c(m);A.refocusWindow();return r;};})();
+</script>
 
 <!-- Auth Screen -->
 <!-- Login Screen -->
@@ -11974,10 +11980,12 @@ async function setPriceOverride(name){
   const cur=priceOverrideFor(name);
   const inp=await mpPromptNumber(cur
     ?`"${esc(name)}" is manually priced at ${cur.toLocaleString()} pp each.\nEnter a new price, or 0 to go back to the market price:`
-    :`Manual price for "${esc(name)}" (pp each):`,String(cur||''));
+    :`Manual price for "${esc(name)}" (pp each):`,String(cur||''),{
+      validate:v=>{const n=parseFloat(v);return(v===''||!isFinite(n)||n<0)?'Enter a price of 0 or more (0 goes back to the market price)':null;},
+      extra:cur?{label:'Use market price',value:'0'}:null,
+    });
   if(inp===null)return;
   const n=parseFloat(inp);
-  if(!isFinite(n)||n<0){alert('Enter a price of 0 or more (0 clears the manual price)');return;}
   if(n===0)delete priceOverrides[key];else priceOverrides[key]=n;
   savePriceOverrides();
   renderNetworthBar();
@@ -12001,24 +12009,39 @@ async function loadPriceOverridesFromSupabase(){
 }
 
 // In-app numeric prompt — Electron does NOT implement window.prompt() (alert/confirm work).
-// Returns the entered string, or null on cancel/escape/backdrop click.
-function mpPromptNumber(messageHtml,defVal){
+// Returns the entered string (commas stripped), opts.extra.value if that button is
+// clicked, or null on cancel/escape/backdrop click.
+// opts.validate(str) -> error message or null: shown inline, keeps the prompt open —
+// never alert() from here (a native dialog can leave inputs deaf to typing in Electron).
+// opts.extra = {label, value}: optional third button (e.g. "Use market price").
+function mpPromptNumber(messageHtml,defVal,opts){
+  opts=opts||{};
   return new Promise(resolve=>{
     const ov=document.createElement('div');
     ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center';
     ov.innerHTML=`<div style="background:var(--bg-card,#f5efe0);border:1px solid var(--border,#b8a888);border-radius:8px;padding:1.1rem 1.25rem;min-width:300px;max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.35)">
       <div style="margin-bottom:.7rem;white-space:pre-line;font-size:.85rem;color:var(--text,#3a3226)">${messageHtml}</div>
-      <input type="number" min="1" step="1" value="${defVal}" style="width:100%;box-sizing:border-box;padding:.4rem .5rem;background:var(--bg,#fffdf7);border:1px solid var(--border,#b8a888);border-radius:4px;color:var(--text,#3a3226);font-size:.95rem;margin-bottom:.8rem">
+      <input type="text" inputmode="decimal" autocomplete="off" value="${esc(String(defVal??''))}" style="width:100%;box-sizing:border-box;padding:.4rem .5rem;background:var(--bg,#fffdf7);border:1px solid var(--border,#b8a888);border-radius:4px;color:var(--text,#3a3226);font-size:.95rem;margin-bottom:.3rem">
+      <div data-err style="min-height:1rem;font-size:.75rem;color:#c0392b;margin-bottom:.5rem"></div>
       <div style="display:flex;gap:.5rem;justify-content:flex-end">
+        ${opts.extra?`<button data-act="extra" style="padding:.35rem .8rem;background:none;border:1px solid var(--border,#b8a888);border-radius:4px;color:var(--text,#3a3226);cursor:pointer;font-size:.8rem;margin-right:auto">${esc(opts.extra.label)}</button>`:''}
         <button data-act="cancel" style="padding:.35rem .8rem;background:none;border:1px solid var(--border,#b8a888);border-radius:4px;color:var(--text-muted,#8a7d66);cursor:pointer;font-size:.8rem">Cancel</button>
         <button data-act="ok" style="padding:.35rem .8rem;background:var(--gold-light,#b8860b);border:1px solid var(--gold-light,#b8860b);border-radius:4px;color:#fff;cursor:pointer;font-size:.8rem;font-weight:600">OK</button>
       </div></div>`;
-    const input=ov.querySelector('input');
+    const input=ov.querySelector('input'),errEl=ov.querySelector('[data-err]');
     const done=v=>{ov.remove();resolve(v);};
-    ov.querySelector('[data-act="ok"]').onclick=()=>done(input.value);
+    const submit=()=>{
+      const v=input.value.replace(/[,\s]/g,'');
+      const err=opts.validate?opts.validate(v):null;
+      if(err){errEl.textContent=err;input.focus();input.select();return;}
+      done(v);
+    };
+    ov.querySelector('[data-act="ok"]').onclick=submit;
     ov.querySelector('[data-act="cancel"]').onclick=()=>done(null);
+    if(opts.extra)ov.querySelector('[data-act="extra"]').onclick=()=>done(opts.extra.value);
     ov.addEventListener('click',e=>{if(e.target===ov)done(null);});
-    input.addEventListener('keydown',e=>{if(e.key==='Enter')done(input.value);else if(e.key==='Escape')done(null);});
+    input.addEventListener('keydown',e=>{if(e.key==='Enter')submit();else if(e.key==='Escape')done(null);});
+    input.addEventListener('input',()=>{errEl.textContent='';});
     document.body.appendChild(ov);
     input.focus();input.select();
   });
@@ -12034,10 +12057,11 @@ async function setStackDivisor(name){
   const cur=stackDivisors[key]||0;
   const inp=await mpPromptNumber(cur
     ?`"${esc(name)}" is currently priced as quote ÷ ${cur}.\nEnter a new stack size, or 1 to remove:`
-    :`Treat PigParse quotes for "${esc(name)}" as per-stack.\nStack size to divide by:`,String(cur||20));
+    :`Treat PigParse quotes for "${esc(name)}" as per-stack.\nStack size to divide by:`,String(cur||20),{
+      validate:v=>/^\d+$/.test(v)&&parseInt(v,10)>=1?null:'Enter a whole number of 1 or more (1 removes the divisor)',
+    });
   if(inp===null)return;
   const n=parseInt(inp,10);
-  if(!isFinite(n)||n<1){alert('Enter a whole number of 1 or more (1 removes the divisor)');return;}
   if(n===1)delete stackDivisors[key];else stackDivisors[key]=n;
   await saveStackDivisorsToSupabase();
   applyPlatToItemDB();          // re-applies itemDB.plat + rebuilds session lookup

@@ -505,6 +505,15 @@ ipcMain.handle('config:get',    ()        => config);
 ipcMain.handle('config:save',   (e, data) => saveConfig(data));
 ipcMain.handle('admin:open',    ()        => { createAdminWindow(); });
 
+// Electron/Windows bug: after a native alert()/confirm() the page's inputs stop taking
+// keystrokes until the window loses and regains focus. Renderers call this right after
+// each dialog (see the alert/confirm wrapper in the pages) to force that round-trip.
+ipcMain.handle('window:refocus', (e) => {
+  const w = BrowserWindow.fromWebContents(e.sender);
+  if (!w || w.isDestroyed()) return;
+  w.blur(); w.focus(); e.sender.focus();
+});
+
 // ToD popup screen-priority: float the main window above full-screen EQ while a
 // /note ToD prompt is pending, without stealing keyboard focus. Released on handle.
 ipcMain.handle('tod:surface', () => {

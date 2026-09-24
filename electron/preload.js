@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
 
   // ── Windows ────────────────────────────────────────────────────────────────
   openAdmin:    ()         => ipcRenderer.invoke('admin:open'),
+  refocusWindow: ()        => ipcRenderer.invoke('window:refocus'),
 
   // ── ToD popup screen-priority (main window float-on-top while pending) ──────
   todSurface:   ()         => ipcRenderer.invoke('tod:surface'),

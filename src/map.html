@@ -209,6 +209,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 </div><!-- /.win -->
 
 <script>
+// Electron/Windows: inputs stop taking keystrokes after a native alert()/confirm() until
+// the window re-gains focus — force that round-trip after every dialog (main: window:refocus).
+(function(){const A=window.MixelParseApp;if(!A||!A.refocusWindow)return;const _a=window.alert.bind(window),_c=window.confirm.bind(window);
+window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){const r=_c(m);A.refocusWindow();return r;};})();
+</script>
+<script>
 'use strict';
 
 // ── Supabase Storage — public map bucket ─────────────────────────────────────
