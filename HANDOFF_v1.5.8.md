@@ -42,6 +42,14 @@ alter table guild_data add column if not exists consolidate_banker_excl jsonb de
 - Fix: every `eqlog_*_P1999Green.txt` is seeded to EOF at startup and tailed when it grows; logs created mid-run read from the top. Startup zone scan still limited to inventory-file chars. Installed build tracks 163 logs.
 - Verified with a simulated fresh-PC harness only. **Watch in real play:** logging in on a toon with no inventory file (e.g. Mixelshank) should toast "Session auto-started". Also watch for: sessions auto-starting on mules/idol bots (now possible for every toon, same as the old PC), and any watcher CPU cost from polling ~160 logs every 2s.
 
+### Raid kill auto-detect — **WATCH-ONLY (in trial)**
+- Kill Tracker → **🎯 Auto-Detect** tab. Records suggestions only; never touches sessions.
+- Anchor: `RAIDTICK` at the start of a guild/OOC/raid/shout message, **any poster** (officers are too many + volunteers; non-guild trackers post in OOC only). OOC+guild copies within 90s = one tick.
+- Boss = kill-tracker `BOSS_ROSTER` only. Evidence window: 10 min before the tick (never before the previous tick) → 2 min after. Rank: slain > ENRAGED > landing (`glances nervously about` tash / `looks very uncomfortable` malo / `yawns`,`slows down` slow — from P99 spell pages) > debuff callout. Callouts count only if the tick was also in OOC. Name matching strips leading "The", treats ` as ', whole-word only.
+- Tiers: **Strong** (slain/enrage), **Weak** (landing/callout), **Pick** (tie — often real double kills, e.g. AoW+Statue), **No boss**.
+- Backtest (scripts were in the session scratchpad, not the repo): Mixelmedic history vs 50 recorded sessions — strong 65/66, weak 12/20 (user says some weak "misses" were real unrecorded kills). Finds ~44% of kills in sessions where the cleric saw ticks; misses are out-of-range/parked or other zones.
+- Next: collect a few raids in watch mode → decide on pre-filled ToD prompts for Strong, pick-list for Pick/Weak, optional "which kill?" for No-boss OOC ticks.
+
 ---
 
 ## Open items
