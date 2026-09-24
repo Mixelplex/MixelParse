@@ -1,8 +1,9 @@
 # MixelParse — Handoff v1.5.8
 
 ## Version status
-- `package.json` is **1.5.8**. **Built and installed locally only — NOT published.**
-- Local `main` is ahead of `origin/main`; nothing pushed, no `v1.5.8` tag. Do not push or tag until the user gives the all-clear (pushing `main` redeploys the Pages site; pushing a `v*` tag triggers `release.yml` → public release + auto-update).
+- **1.5.8 PUBLISHED 2026-09-24** — https://github.com/Mixelplex/MixelParse/releases/tag/v1.5.8 (built by CI, notes from `release-notes.md`). Installed on the user's PC.
+- Release flow now: bump version + update `release-notes.md` and the in-app `WHATS_NEW` constant → merge `origin/main` (Pages bot commits) → push main → push tag. `release.yml` has `contents: write` and sets the release-page notes; `release-notes.yml` re-syncs notes when the file changes on main. Don't push or tag without the user's all-clear.
+- What's New splash shows once per version (`mp_whatsnew_seen`); Feedback shows a public "Already suggested" list via the `suggestions_public` view (id, created_at, subject, message — no emails). Admin panel still lists full submissions.
 - Test flow: `npx electron-builder --win --publish never` → silent-install `dist\MixelParse-Setup-1.5.8.exe /S` over the user's copy (standing permission). Never run a dev `npm start` copy alongside the installed app.
 - Note: releases v1.5.6/v1.5.7 were built from the old PC's uncommitted tree, so both tags point at stale commit `4e86dca`. The published 1.5.7 installer predates the 9/15 `index.html` edits — those ship in 1.5.8.
 
