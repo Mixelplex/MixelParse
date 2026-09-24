@@ -283,6 +283,15 @@
   .help-modal-list{list-style:none;padding:0;margin:0 0 1.2rem;display:flex;flex-direction:column;gap:.55rem}
   .help-modal-item{display:flex;gap:.55rem;align-items:flex-start;font-size:.87rem;color:var(--text-dim);line-height:1.5}
   .help-modal-bullet{color:var(--gold);flex-shrink:0;font-size:.8rem;margin-top:.22em}
+  /* What's New splash (one-time per version) */
+  .wn-section-hdr{font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.08em;color:var(--gold-light);text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:.25rem;margin:.9rem 0 .55rem}
+  .wn-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.55rem}
+  .wn-item{display:flex;gap:.55rem;align-items:flex-start;font-size:.84rem;color:var(--text-dim);line-height:1.45}
+  .wn-item b{color:var(--text)}
+  .wn-tag{flex-shrink:0;font-size:.6rem;font-family:'Cinzel',serif;letter-spacing:.06em;padding:.08rem .35rem;border-radius:3px;margin-top:.18em;border:1px solid}
+  .wn-tag-new{color:#3a7a3a;border-color:#3a7a3a}
+  .wn-tag-fix{color:#8a5a10;border-color:#8a5a10}
+  .wn-feedback{margin-top:1.1rem;padding:.8rem .9rem;border:1px dashed var(--gold);border-radius:6px;background:var(--surface2);text-align:center}
   .btn-confirm-danger{background:#7a1010;border:1px solid #a02020;border-radius:3px;color:#f8d0d0;padding:.45rem 1rem;cursor:pointer;font-family:\'Crimson Pro\',serif;font-size:.9rem}
   .btn-confirm-danger:hover{background:#a01010}
   /* ── Auth Screen ── */
@@ -825,6 +834,12 @@
 </head>
 <body>
 <script>window._mob=window.innerWidth<768;</script>
+<script>
+// Electron/Windows: inputs stop taking keystrokes after a native alert()/confirm() until
+// the window re-gains focus — force that round-trip after every dialog (main: window:refocus).
+(function(){const A=window.MixelParseApp;if(!A||!A.refocusWindow)return;const _a=window.alert.bind(window),_c=window.confirm.bind(window);
+window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){const r=_c(m);A.refocusWindow();return r;};})();
+</script>
 
 <!-- Auth Screen -->
 <!-- Login Screen -->
@@ -953,6 +968,7 @@
   </div>
   <div class="top-nav-item" style="color:var(--text-muted);font-size:.65rem" onclick="openAdminPanel()">&#9881; Admin</div>
   <div style="color:var(--text-muted);font-size:.65rem;font-family:'Cinzel',serif;letter-spacing:.07em;padding:.55rem .9rem;cursor:pointer;white-space:nowrap" onclick="showCurrentHelp()" title="How to use this tab">Help</div>
+  <div style="color:var(--text-muted);font-size:.65rem;font-family:'Cinzel',serif;letter-spacing:.07em;padding:.55rem .9rem;cursor:pointer;white-space:nowrap" onclick="showWhatsNew()" title="See what changed in this version">What&#8217;s New</div>
   <div style="color:var(--text-muted);font-size:.65rem;font-family:'Cinzel',serif;letter-spacing:.07em;padding:.55rem .9rem;cursor:pointer;white-space:nowrap" onclick="openFeedbackModal()" title="Submit feedback or suggestions">Feedback</div>
   <div id="updateNavBtn" style="display:none;font-size:.65rem;font-family:'Cinzel',serif;letter-spacing:.07em;padding:.55rem .9rem;cursor:pointer;white-space:nowrap;color:var(--text-muted);transition:color .2s" onclick="handleUpdateClick()" title="Check for updates">&#8635; Update</div>
 </div>
@@ -1340,7 +1356,7 @@
 </div>
 
 <div class="wl-modal-overlay" id="feedbackModalOverlay">
-  <div class="wl-modal" style="max-width:460px">
+  <div class="wl-modal" style="max-width:540px;max-height:90vh;overflow-y:auto">
     <div class="wl-modal-title">&#128172; Feedback &amp; Suggestions</div>
     <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.9rem;line-height:1.5">Got a feature idea, bug report, or general thought? Send it through — all submissions are reviewed.</p>
     <div style="margin-bottom:.6rem">
@@ -1357,6 +1373,13 @@
       <button class="btn" onclick="closeFeedbackModal()">Cancel</button>
       <button class="btn primary" id="feedbackSubmitBtn" onclick="submitFeedback()">Send Feedback</button>
     </div>
+    <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.7rem">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">
+        <span style="font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.05em;color:var(--gold-light)">ALREADY SUGGESTED <span id="feedbackListCount" style="color:var(--text-muted)"></span></span>
+        <input type="text" id="feedbackListSearch" class="wl-modal-input" placeholder="Search before you post…" oninput="renderFeedbackList()" style="flex:1;font-size:.78rem;padding:.25rem .45rem">
+      </div>
+      <div id="feedbackList" style="max-height:230px;overflow-y:auto;font-size:.78rem"></div>
+    </div>
   </div>
 </div>
 <div class="modal-overlay" id="helpModalOverlay">
@@ -1367,6 +1390,30 @@
     <div style="text-align:center;display:flex;flex-direction:column;gap:.45rem;align-items:center">
       <button class="btn" style="min-width:100px" onclick="dismissHelp()">Got it</button>
       <span style="font-size:.68rem;color:var(--text-muted);cursor:pointer;opacity:.65;text-decoration:underline" onclick="resetAllHelp()">Reset all tips</span>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="whatsNewOverlay">
+  <div class="modal" style="max-width:620px;text-align:left;padding:1.6rem 1.75rem;max-height:88vh;overflow-y:auto">
+    <div style="text-align:center;margin-bottom:1rem">
+      <div style="font-size:.68rem;letter-spacing:.14em;color:var(--text-muted);text-transform:uppercase">What&#8217;s New</div>
+      <h2 style="margin:.15rem 0 .1rem">MixelParse <span id="whatsNewVersion"></span></h2>
+      <div id="whatsNewDate" style="font-size:.72rem;color:var(--text-muted)"></div>
+    </div>
+    <div class="wn-section-hdr">&#10024; New Features</div>
+    <ul class="wn-list" id="whatsNewFeatures"></ul>
+    <div class="wn-section-hdr">&#128295; Bug Fixes</div>
+    <ul class="wn-list" id="whatsNewFixes"></ul>
+    <div class="wn-feedback">
+      <div style="font-family:'Cinzel',serif;font-size:.78rem;letter-spacing:.05em;color:var(--gold-light);margin-bottom:.2rem">What would you like to see next?</div>
+      <div style="font-size:.78rem;color:var(--text-dim);margin-bottom:.6rem">Ideas and bug reports go straight to the developer &#8212; and you can browse what others have already suggested.</div>
+      <div style="display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">
+        <button class="btn" onclick="whatsNewFeedback('idea')">&#128161; Suggest a feature</button>
+        <button class="btn" onclick="whatsNewFeedback('bug')">&#128030; Report a bug</button>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:1rem">
+      <button class="btn primary" style="min-width:120px" onclick="dismissWhatsNew()">Let&#8217;s go</button>
     </div>
   </div>
 </div>
@@ -2951,7 +2998,11 @@ function renderUpgradesPanel(){
   // so effectiveGain doesn't double-count STA (once via sta weight, once via hpbonus weight).
   const hpPerSta = HP_RATIOS[charClass] ? staRatio(charClass, charLevel) : 0;
 
-  function effectiveGain(curItemData,candData,baseTotals){
+  // cardSlot: the slot being filled (card dbSlot). A candidate's stored _slot can differ
+  // (a throwing dagger tagged RANGE offered in PRIMARY), so suppression and DPS must key
+  // off the card, not the item — mirrors admin.html gcScoreItem. Falls back to _slot.
+  function effectiveGain(curItemData,candData,baseTotals,cardSlot){
+    const evalSlot=cardSlot||candData._slot;
     // For hybrid classes, 2H weapons score ratio-only — stats ignored.
     // 1H weapons on hybrid classes still score stats normally.
     const candItype=(candData._skill||candData._itemType||'').toLowerCase();
@@ -3038,7 +3089,7 @@ function renderUpgradesPanel(){
     // not on the survivability stats a stat-stick happens to carry. The DPS delta
     // added just below stays at full weight. Non-weapon slots and other classes
     // are untouched. Mirror in admin.html.
-    const _isWepSlotEG=(candData._slot==='PRIMARY'||candData._slot==='SECONDARY'||candData._slot==='TWOHANDER');
+    const _isWepSlotEG=(evalSlot==='PRIMARY'||evalSlot==='SECONDARY'||evalSlot==='TWOHANDER');
     if(_isWepSlotEG&&PURE_DPS_CLASSES.has(charClass)){
       total*=PURE_DPS_WEP_STAT_MULT;
     }
@@ -3050,9 +3101,9 @@ function renderUpgradesPanel(){
     // Handled via STAT_KEYS_ALL if dmg is included, but dmg needs special ratio treatment.
     // Score the delta in effective ratio between candidate and current item.
     const dmgW=weights.dmg||0;
-    if(dmgW>0&&(candData._slot==='PRIMARY'||candData._slot==='SECONDARY'||candData._slot==='RANGE'||candData._slot==='TWOHANDER')){
-      const candRatio=weaponDpsScore(candData,candData._slot,charClass,charLevel,baseTotals);
-      const curRatio=weaponDpsScore(curItemData,candData._slot,charClass,charLevel,baseTotals);
+    if(dmgW>0&&(evalSlot==='PRIMARY'||evalSlot==='SECONDARY'||evalSlot==='RANGE'||evalSlot==='TWOHANDER')){
+      const candRatio=weaponDpsScore(candData,evalSlot,charClass,charLevel,baseTotals);
+      const curRatio=weaponDpsScore(curItemData,evalSlot,charClass,charLevel,baseTotals);
       total+=(candRatio-curRatio)*dmgW;
     }
     // Flowing Thought mana regen — only scores for mana classes
@@ -3183,7 +3234,7 @@ function renderUpgradesPanel(){
     const candidatePool=[...(bySlot[dbSlot]||[]),...ohExtra.filter(c=>!(bySlot[dbSlot]||[]).some(x=>x.name===c.name))];
     const candidates=candidatePool
       .filter(c=>(!slotEquippedNames.has(c.name)||(!c._lore&&c.name!==item.name))&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._nonp99&&!c._gm&&!UNOBTAINABLE_ITEMS.has(c.name)&&(c.name==='Custom Cowl of Mortality'||!c.name.startsWith('Custom ')))
-      .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals)}))
+      .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals,dbSlot)}))
       .sort((a,b)=>b._effGain-a._effGain);
     slotResults.push({item,dbSlot,currentData,candidates});
   }
@@ -3228,7 +3279,7 @@ function renderUpgradesPanel(){
       const emptyPool=[...(bySlot[slot]||[]),...ohExtraEmpty.filter(c=>!(bySlot[slot]||[]).some(x=>x.name===c.name))];
       const candidates=emptyPool
         .filter(c=>(!slotAlreadyEquipped.has(c.name)||!c._lore)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._nonp99&&!c._gm&&!UNOBTAINABLE_ITEMS.has(c.name)&&(c.name==='Custom Cowl of Mortality'||!c.name.startsWith('Custom ')))
-        .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals)}))
+        .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals,slot)}))
         .sort((a,b)=>b._effGain-a._effGain);
       if(!candidates.length)continue;
       slotResults.push({item:{name:'(empty)',location:slot},dbSlot:slot,currentData:{},candidates,isEmpty:true});
@@ -3258,7 +3309,7 @@ function renderUpgradesPanel(){
       const unarmedForSlot={...unarmedItem,_slot:slotForUnarmed};
       const alreadyIn=sr.candidates.some(c=>c.name==='Unarmed (Fists)');
       if(!alreadyIn){
-        const gain=effectiveGain(sr.currentData,unarmedForSlot,baselineTotals);
+        const gain=effectiveGain(sr.currentData,unarmedForSlot,baselineTotals,slotForUnarmed);
         sr.candidates.push({...unarmedForSlot,_effGain:gain});
         sr.candidates.sort((a,b)=>b._effGain-a._effGain);
       }
@@ -3662,7 +3713,7 @@ function renderUpgradesPanel(){
             if(curName.get(sr)===c.name)continue;
             if(budgetK&&(cum+c.plat)>budgetK)continue;
             if(fixStat&&(Number(c[fixStat]||0)-Number(curD[fixStat]||0))<=0)continue;
-            const g=effectiveGain(curD,c,totals);
+            const g=effectiveGain(curD,c,totals,sr.is2hCard?undefined:sr.dbSlot);
             if(g<=0)continue;
             const rank=mode==='value'?g/c.plat:g;
             if(!best||rank>best.rank)best={sr:sr,c:c,g:g,rank:rank};
@@ -4098,7 +4149,7 @@ window.upgCascadeRescore=function(){
   for(const sr of slots){
     if(!slotActive(sr)||!sr.candidates||!sr.candidates.length)continue;
     const t2=anySel?totalsFor(sr):baseT;
-    for(const c of sr.candidates){c._effGain=Math.round(eff(sr.currentData||{},c,t2)*10)/10;}
+    for(const c of sr.candidates){c._effGain=Math.round(eff(sr.currentData||{},c,t2,sr.is2hCard?undefined:sr.dbSlot)*10)/10;}
     if(sortBy)sr.candidates.sort(upgSortCmp(sortBy));
     else sr.candidates.sort((a,b)=>(b._effGain||0)-(a._effGain||0));
     const selEl=document.querySelector(`.upg-alt-select[data-cardid="${sr.cardId||sr.dbSlot}"]`);
@@ -4855,6 +4906,45 @@ function dismissHelp(){
   _helpCurrentKey=null;
 }
 
+// ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
+// the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
+const WHATS_NEW={
+  version:'1.5.8',
+  date:'September 2026',
+  features:[
+    ['Raid Kill Auto-Detect <i>(preview)</i>','Kill Tracker &rarr; <b>&#127919; Auto-Detect</b> watches for each RAIDTICK and works out which boss died from enrage, slain, and tash/malo/slow messages &mdash; with the time of death. Watch-only for now: it suggests, it never changes your sessions.'],
+    ['Manual prices in Networth','Click <b>&#9998;</b> on any item to set your own price &mdash; including items with no WTS data. <b>Use market price</b> puts it back.'],
+    ['Browse suggestions','<b>Feedback</b> now shows what everyone has already suggested, with search &mdash; add your voice instead of a duplicate.'],
+  ],
+  fixes:[
+    ['Sessions auto-start for every character','Login, XP, kill and loot tracking now works for all your toons on a fresh install &mdash; not just ones that had exported their inventory on that PC.'],
+    ['Text boxes stop freezing','After a pop-up message, text boxes could stop accepting typing until you clicked away. Fixed everywhere.'],
+    ['Gear Planner: Rogue &amp; Monk weapons','Daggers tagged for the Range slot no longer rank too high in Main/Off Hand.'],
+    ['Gear Test Bench totals','The stat breakdown now adds up to the weighted score.'],
+  ],
+};
+function showWhatsNew(){
+  document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
+  document.getElementById('whatsNewDate').textContent=WHATS_NEW.date;
+  const li=(tag,[title,desc])=>`<li class="wn-item"><span class="wn-tag wn-tag-${tag}">${tag==='new'?'NEW':'FIX'}</span><span><b>${title}</b> &mdash; ${desc}</span></li>`;
+  document.getElementById('whatsNewFeatures').innerHTML=WHATS_NEW.features.map(f=>li('new',f)).join('');
+  document.getElementById('whatsNewFixes').innerHTML=WHATS_NEW.fixes.map(f=>li('fix',f)).join('');
+  document.getElementById('whatsNewOverlay').classList.add('open');
+}
+function dismissWhatsNew(){
+  try{localStorage.setItem('mp_whatsnew_seen',WHATS_NEW.version);}catch(e){}
+  document.getElementById('whatsNewOverlay').classList.remove('open');
+}
+function maybeShowWhatsNew(){
+  let seen=null;try{seen=localStorage.getItem('mp_whatsnew_seen');}catch(e){}
+  if(seen!==WHATS_NEW.version)showWhatsNew();
+}
+function whatsNewFeedback(kind){
+  dismissWhatsNew();
+  openFeedbackModal(kind==='bug'?`Bug (v${WHATS_NEW.version}): `:`Idea (v${WHATS_NEW.version}): `);
+  setTimeout(()=>document.getElementById('feedbackMessage').focus(),50);
+}
+
 function resetAllHelp(){
   Object.keys(HELP_CONTENT).forEach(k=>localStorage.removeItem('mp_help_seen_'+k));
   document.getElementById('helpModalOverlay').classList.remove('open');
@@ -4954,13 +5044,49 @@ function retryUpdate(){
   if(window.MixelParseApp) window.MixelParseApp.checkUpdates();
 }
 
-function openFeedbackModal(){
-  document.getElementById('feedbackSubject').value='';
+function openFeedbackModal(subjectPrefill){
+  document.getElementById('feedbackSubject').value=typeof subjectPrefill==='string'?subjectPrefill:'';
   document.getElementById('feedbackMessage').value='';
   document.getElementById('feedbackCharCount').textContent='0 / 2000';
   document.getElementById('feedbackStatus').textContent='';
   document.getElementById('feedbackSubmitBtn').disabled=false;
   document.getElementById('feedbackModalOverlay').classList.add('open');
+  document.getElementById('feedbackListSearch').value='';
+  loadFeedbackList();
+}
+// Public "Already suggested" list — reads the suggestions_public VIEW (date/subject/
+// message only; the base table's email + user_id are never exposed to other users).
+let _feedbackList=null;
+async function loadFeedbackList(){
+  const el=document.getElementById('feedbackList');
+  el.innerHTML='<div style="color:var(--text-muted);font-style:italic">Loading…</div>';
+  try{
+    const{data,error}=await sb.from('suggestions_public').select('id,created_at,subject,message').order('created_at',{ascending:false}).limit(500);
+    if(error)throw error;
+    _feedbackList=data||[];
+  }catch(e){
+    console.warn('[Feedback] list load error (run the suggestions_public view SQL?)',e);
+    _feedbackList=null;
+    el.innerHTML='<div style="color:var(--text-muted);font-style:italic">The suggestion list isn’t available yet.</div>';
+    document.getElementById('feedbackListCount').textContent='';
+    return;
+  }
+  renderFeedbackList();
+}
+function renderFeedbackList(){
+  const el=document.getElementById('feedbackList');
+  if(!_feedbackList)return;
+  const q=(document.getElementById('feedbackListSearch').value||'').trim().toLowerCase();
+  const rows=q?_feedbackList.filter(r=>((r.subject||'')+' '+(r.message||'')).toLowerCase().includes(q)):_feedbackList;
+  document.getElementById('feedbackListCount').textContent=`(${q?rows.length+' of ':''}${_feedbackList.length})`;
+  if(!rows.length){el.innerHTML=`<div style="color:var(--text-muted);font-style:italic">${q?'No matches — looks like a new idea!':'Nothing yet — be the first.'}</div>`;return;}
+  el.innerHTML=rows.map(r=>{
+    const msg=r.message||'',long=msg.length>220;
+    return `<div style="padding:.35rem 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;gap:.5rem"><b style="color:var(--text)">${esc(r.subject||'(no subject)')}</b><span style="color:var(--text-muted);font-size:.7rem;white-space:nowrap">${r.created_at?new Date(r.created_at).toLocaleDateString():''}</span></div>
+      <div style="color:var(--text-dim);white-space:pre-wrap">${esc(long?msg.slice(0,220)+'…':msg)}${long?` <a href="#" style="color:var(--gold-light)" onclick="this.parentElement.textContent=${esc(JSON.stringify(msg))};return false">more</a>`:''}</div>
+    </div>`;
+  }).join('');
 }
 function closeFeedbackModal(){
   document.getElementById('feedbackModalOverlay').classList.remove('open');
@@ -4986,6 +5112,7 @@ async function submitFeedback(){
     status.style.color='#3a7a3a';
     status.textContent='\u2714 Submitted \u2014 thanks for the feedback!';
     btn.textContent='Sent';
+    loadFeedbackList();
     setTimeout(()=>closeFeedbackModal(),1800);
   }catch(e){
     console.warn('[Feedback] Submit error',e);
@@ -5102,6 +5229,8 @@ async function onSignedIn(user){
     if(!document.getElementById('helpModalOverlay').classList.contains('open')) maybeShowHelp('bind_intro');
     // One-time intro for the 1.5.7 panel customize/reorder feature — same guard.
     if(!document.getElementById('helpModalOverlay').classList.contains('open')) maybeShowHelp('panel_customize_intro');
+    // One-time What's New for this version — only when no help tip is up (one modal at a time).
+    if(!document.getElementById('helpModalOverlay').classList.contains('open')) maybeShowWhatsNew();
   }, 900);
 }
 
@@ -5275,6 +5404,7 @@ async function loadFromSupabase(){
   await loadParkIgnoresFromSupabase();
   await loadBindDataFromSupabase();
   await loadPriceExclusionsFromSupabase();
+  await loadPriceOverridesFromSupabase();
   await loadStackDivisorsFromSupabase();
   await loadPlaySessionsFromSupabase();
   applyDkpToItemDB();
@@ -7125,6 +7255,8 @@ window.applyDBToChar    = applyDBToChar;
         // Any per-char watcher traffic counts as activity for the idle-gap auto-close
         if(_sess && _sess.active && msg.charName && msg.charName === _sess.charName) _sess.lastActivity = Date.now();
         if(msg.type==='sessionLogin'||msg.type==='sessionXP'||msg.type==='sessionKill'||msg.type==='sessionLoot'||msg.type==='sessionPlat'||msg.type==='sessionCamp') handleSessionMsg(msg);
+        if(msg.type==='raidTick') rkdOnTick(msg);
+        if(msg.type==='raidEvidence') rkdOnEvidence(msg);
         if(msg.type==='killScanProgress'||msg.type==='killScanResult') handleKillScanMsg(msg);
         if(msg.type==='sessScanProgress'||msg.type==='sessScanResult') handleSessScanMsg(msg);
         if(msg.type==='logRotated') showWatcherToast('🧹 Auto-rotated '+msg.file+' ('+msg.mb+' MB) → '+msg.to);
@@ -8133,6 +8265,9 @@ let platData=[];          // raw array from Pigparse
 let platMeta={};          // {fetchedAt, count}
 let _platLookupMap=null;  // { lowerName → priceInK } built from platData; WTS preferred, WTB fallback
 let priceExclusions=[];   // item names (lowercase) excluded from networth calc
+// lowerName -> pp per unit (per-user). Replaces the PigParse price in networth, and
+// prices No-WTS items. localStorage + guild_data.price_overrides mirror.
+let priceOverrides=(function(){try{const o=JSON.parse(localStorage.getItem('mp_price_overrides'));return(o&&typeof o==='object'&&!Array.isArray(o))?o:{};}catch(e){return {};}})();
 // Watchlist state — declared here because renderWatchlistBar() can run off a watcher IPC
 // push BEFORE login load first assigns these; undeclared reads throw ReferenceError.
 let watchList=[],bankerWatchList=[],bwlHiddenBankers=new Set();
@@ -9613,7 +9748,9 @@ const BOSS_RESPAWN = {
 // Sessions: [{id, date, kills:[target,...], roles:[{desc,value,qty},...], note}] [{id, date, kills:[target,...], roles:[{desc,value,qty},...], note}]
 let raidSessions=[];
 let activeSession=null;
-let sessionsView='new'; // 'new' | 'history' | 'creditcheck'
+let sessionsView='new'; // 'new' | 'history' | 'creditcheck' | 'autodetect'
+// Raid kill auto-detect (WATCH-ONLY) results — declared early: the tab label reads it.
+let rkdLog=(function(){try{const a=JSON.parse(localStorage.getItem('mp_rkd_log'));return Array.isArray(a)?a:[];}catch(e){return [];}})();
 let ktExpanded={}; // {target: true} — which boss role panels are open
 let _loadedSessionId=null; // set by ktLoadSession; non-null = working copy of a saved session
 let creditData=null; // parsed ODKP details CSV: {charName→{date→Set<normalizedBoss>}}
@@ -10639,10 +10776,11 @@ function renderKillsPanel(){
       <div class="kt-view-tab${sessionsView==='new'?' active':''}" onclick="ktSetView('new')">⚔ New Session</div>
       <div class="kt-view-tab${sessionsView==='history'?' active':''}" onclick="ktSetView('history')">📜 History (${raidSessions.length})</div>
       <div class="kt-view-tab${sessionsView==='creditcheck'?' active':''}" onclick="ktSetView('creditcheck')">🔍 Credit Check</div>
+      <div class="kt-view-tab${sessionsView==='autodetect'?' active':''}" onclick="ktSetView('autodetect')">🎯 Auto-Detect${rkdLog.filter(r=>r.tier==='strong'||r.tier==='weak'||r.tier==='ambiguous').length?` (${rkdLog.filter(r=>r.tier==='strong'||r.tier==='weak'||r.tier==='ambiguous').length})`:''}</div>
       <div style="margin-left:auto;display:flex;align-items:center;padding:0 .6rem"><button class="watchlist-gear-btn" onclick="toggleNoteRef()" title="/note keyword reference" style="font-size:.72rem;font-family:'Cinzel',serif;letter-spacing:.04em;padding:.2rem .5rem;border:1px solid var(--border);border-radius:3px">/note INFO</button></div>
     </div>
     <div id="ktNoteRef" style="display:none">${buildNoteRefHtml()}</div>
-    ${sessionsView==='creditcheck'?renderCreditCheckPanel():sessionsView==='history'?`<div style="padding:.5rem 0">${histHtml}</div>`:`
+    ${sessionsView==='autodetect'?renderAutoDetectPanel():sessionsView==='creditcheck'?renderCreditCheckPanel():sessionsView==='history'?`<div style="padding:.5rem 0">${histHtml}</div>`:`
       <div style="display:flex;gap:.75rem;padding:.6rem 1rem;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap;background:var(--surface2)">
         <div style="display:flex;align-items:center;gap:.4rem">
           <label style="font-family:\'Cinzel\',serif;font-size:.65rem;letter-spacing:.07em;color:var(--text-muted)">DATE</label>
@@ -11128,6 +11266,132 @@ window.ktDeleteSession=function(id){
 };
 
 window.ktSetView=function(v){sessionsView=v;renderKillsPanel();};
+
+// ── Raid kill auto-detect (WATCH-ONLY, v1.5.8) ───────────────────────────────
+// A RAIDTICK (guild/OOC, any poster) is the anchor — no tick, no suggestion. The
+// boss comes from evidence in the window before it, ranked: slain > enrage >
+// in-range landing (tash/malo/slow) > debuff callout. Callouts only count when the
+// tick was also seen in OOC (poster in your zone). Evidence before the previous
+// tick belongs to that tick. Backtested vs Mixelmedic logs + recorded sessions:
+// strong tier 65/66 matched, weak tier 12/20. Records only — never touches sessions.
+// Evidence is kept 40 min so the watcher's 30-min startup backfill (restart mid-raid) lands intact.
+const RKD_WIN_BEFORE=10*60e3, RKD_WIN_AFTER=2*60e3, RKD_TICK_DEDUPE=90e3, RKD_EVIDENCE_KEEP=40*60e3, RKD_LOG_MAX=300;
+const RKD_RANK={slain:4,enrage:3,land:2,call:1};
+let _rkdEvidence=[];      // {ts, kind, sub, boss, raw, sameZoneOnly}
+let _rkdOpenTicks=[];     // ticks awaiting their post-tick evidence window
+let _rkdLastTickTs=null;  // previous tick — evidence before it is already spent
+// Game names carry a leading "The" the tracker omits ("The Avatar of War") and use ` for '.
+function _rkdNorm(s){return String(s||'').toLowerCase().replace(/[`’']/g,"'").replace(/\s+/g,' ').trim().replace(/^the /,'');}
+function _rkdBossByMob(mob){const n=_rkdNorm(mob);return BOSS_ROSTER.find(b=>_rkdNorm(b.full)===n||_rkdNorm(b.target)===n)||null;}
+function _rkdWordRx(n){return new RegExp("(^|[^a-z'])"+n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+"($|[^a-z'])");}
+// Whole-word only ("Fright" must not match "a frightfinger"); short tracker names
+// (Koi/TFA/Prog) are too collision-prone for free chat, so targets need 5+ chars.
+function _rkdBossInText(text){
+  const t=_rkdNorm(text);
+  return BOSS_ROSTER.find(b=>_rkdWordRx(_rkdNorm(b.full)).test(t))
+      || BOSS_ROSTER.find(b=>b.target.length>=5&&_rkdWordRx(_rkdNorm(b.target)).test(t)) || null;
+}
+function rkdSave(){try{localStorage.setItem('mp_rkd_log',JSON.stringify(rkdLog.slice(-RKD_LOG_MAX)));}catch(e){}}
+function rkdOnEvidence(msg){
+  const b=msg.kind==='call'?_rkdBossInText(msg.text):_rkdBossByMob(msg.mob);
+  if(!b)return;
+  const raw=msg.kind==='call'?`${msg.poster}: ${msg.text}`:msg.kind==='land'?`${msg.mob} (${msg.sub})`:`${msg.mob} ${msg.kind==='slain'?'slain':'ENRAGED'}`;
+  _rkdEvidence.push({ts:msg.ts||Date.now(),kind:msg.kind,sub:msg.sub||null,boss:b.target,raw,char:msg.charName});
+  const cut=Date.now()-RKD_EVIDENCE_KEEP; _rkdEvidence=_rkdEvidence.filter(e=>e.ts>=cut);
+}
+function rkdOnTick(msg){
+  const ts=msg.ts||Date.now();
+  const sameZone=/out of character|shouts/.test(msg.channel||'');
+  // Same tick posted to OOC and guild — one tick, merged channels.
+  const open=_rkdOpenTicks.find(t=>Math.abs(ts-t.ts)<=RKD_TICK_DEDUPE);
+  if(open){open.sameZone=open.sameZone||sameZone;if(!open.channels.includes(msg.channel))open.channels.push(msg.channel);return;}
+  // Startup backfill replays recent ticks (and requestAll fires more than once): a tick
+  // already logged is skipped — unless it was logged as "No boss", which usually means
+  // its evidence was lost to a restart, so it's re-evaluated with the backfilled evidence.
+  const done=rkdLog.find(r=>Math.abs(ts-r.ts)<=RKD_TICK_DEDUPE);
+  if(done){
+    if(done.tier!=='none'){_rkdLastTickTs=Math.max(_rkdLastTickTs||0,ts);return;}
+    rkdLog=rkdLog.filter(r=>r!==done);
+  }
+  const prev=[...rkdLog.map(r=>r.ts),_rkdLastTickTs||0].filter(x=>x<ts-RKD_TICK_DEDUPE);
+  const t={id:'rkd_'+ts,ts,char:msg.charName,poster:msg.poster,text:msg.text||'',channels:[msg.channel],sameZone,prevTickTs:prev.length?Math.max(...prev):null};
+  _rkdLastTickTs=Math.max(_rkdLastTickTs||0,ts);
+  _rkdOpenTicks.push(t);
+  // Live ticks wait out the 2-min post-window; backfilled ones already have it.
+  setTimeout(()=>rkdFinalize(t),Math.max(0,ts+RKD_WIN_AFTER-Date.now()));
+}
+function rkdAttribute(t){
+  const from=Math.max(t.ts-RKD_WIN_BEFORE,t.prevTickTs!=null?t.prevTickTs+1:-Infinity);
+  const win=_rkdEvidence.filter(e=>e.ts>=from&&e.ts<=t.ts+RKD_WIN_AFTER&&(e.kind!=='call'||t.sameZone));
+  const per={};
+  for(const e of win){const p=per[e.boss]||(per[e.boss]={boss:e.boss,best:0,events:[]});p.best=Math.max(p.best,RKD_RANK[e.kind]);p.events.push(e);}
+  const lastTs=c=>Math.max(...c.events.map(e=>e.ts));
+  const cands=Object.values(per).sort((a,b)=>b.best-a.best||lastTs(b)-lastTs(a));
+  if(!cands.length)return{tier:'none'};
+  if(cands.length>1&&cands[1].best===cands[0].best)return{tier:'ambiguous',cands:cands.filter(c=>c.best===cands[0].best).map(c=>c.boss),events:win};
+  const top=cands[0],slain=top.events.find(e=>e.kind==='slain');
+  return{tier:top.best>=3?'strong':'weak',boss:top.boss,basis:['','call','land','enrage','slain'][top.best],
+         tod:slain?slain.ts:t.ts,todSource:slain?'slain':'tick',events:top.events};
+}
+function rkdFinalize(t){
+  if(!_rkdOpenTicks.includes(t))return;
+  _rkdOpenTicks=_rkdOpenTicks.filter(x=>x!==t);
+  const a=rkdAttribute(t);
+  rkdLog.push({id:t.id,ts:t.ts,char:t.char,poster:t.poster,channels:t.channels,sameZone:t.sameZone,text:t.text,
+    tier:a.tier,boss:a.boss||null,cands:a.cands||null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,
+    evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw}))});
+  rkdLog.sort((a,b)=>a.ts-b.ts);
+  if(rkdLog.length>RKD_LOG_MAX)rkdLog=rkdLog.slice(-RKD_LOG_MAX);
+  rkdSave();
+  if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
+}
+// Was this boss marked killed/failtick in a session around the suggestion? (watch-only comparison)
+function _rkdRecorded(boss,ts){
+  const all=(raidSessions||[]).slice();
+  if(activeSession&&!all.some(s=>s.id===activeSession.id))all.push(activeSession);
+  return all.some(s=>{
+    if(!(s.killState||{})[boss])return false;
+    const st=Date.parse(s.startedAt||s.date||0),end=Date.parse(s.lastKillAt||s.startedAt||s.date||0);
+    return ts>=st-3600e3&&ts<=Math.max(end,st)+12*3600e3;
+  });
+}
+window.rkdToggleNoise=function(v){try{localStorage.setItem('mp_rkd_noise',v?'1':'0');}catch(e){}renderKillsPanel();};
+window.rkdClearLog=function(){if(!confirm('Clear the auto-detect log?'))return;rkdLog=[];rkdSave();renderKillsPanel();};
+function renderAutoDetectPanel(){
+  let showNoise=false;try{showNoise=localStorage.getItem('mp_rkd_noise')==='1';}catch(e){}
+  const rows=rkdLog.slice().reverse().filter(r=>showNoise||r.tier!=='none'||r.sameZone);
+  const fmt=ts=>ts?new Date(ts).toLocaleString([], {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';
+  const TIER={strong:['Strong','#4caf7d'],weak:['Weak','#c9a84c'],ambiguous:['Pick','#6ab4c4'],none:['No boss','var(--text-muted)']};
+  const counts={strong:0,weak:0,ambiguous:0,none:0};rkdLog.forEach(r=>counts[r.tier]=(counts[r.tier]||0)+1);
+  const body=rows.map(r=>{
+    const [tl,tc]=TIER[r.tier]||TIER.none;
+    const who=r.tier==='ambiguous'?(r.cands||[]).map(esc).join(' / '):r.boss?esc(r.boss):'<span style="color:var(--text-muted)">—</span>';
+    const rec=r.boss?(_rkdRecorded(r.boss,r.tod||r.ts)?'<span style="color:#4caf7d" title="Marked in the kill tracker">✓ in tracker</span>':'<span style="color:var(--text-muted)">not recorded</span>')
+             :r.tier==='ambiguous'?(r.cands||[]).map(b=>_rkdRecorded(b,r.ts)?'✓':'·').join(' / '):'';
+    const ev=(r.evidence||[]).map(e=>`<div>${fmt(e.ts).split(', ').pop()} <b>${esc(e.kind)}</b> ${esc(e.raw)}</div>`).join('');
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:.3rem .5rem;white-space:nowrap">${fmt(r.ts)}</td>
+      <td style="padding:.3rem .5rem">${esc(r.char||'')}</td>
+      <td style="padding:.3rem .5rem;font-weight:600">${who}</td>
+      <td style="padding:.3rem .5rem;color:${tc};white-space:nowrap">${tl}${r.basis?` <span style="font-size:.7rem;color:var(--text-muted)">(${esc(r.basis)})</span>`:''}</td>
+      <td style="padding:.3rem .5rem;white-space:nowrap">${r.tod?fmt(r.tod).split(', ').pop()+` <span style="font-size:.68rem;color:var(--text-muted)">${esc(r.todSource||'')}</span>`:'—'}</td>
+      <td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted)">${r.sameZone?'OOC+':''}${esc(r.poster||'')}<div style="font-size:.68rem">${ev}</div></td>
+      <td style="padding:.3rem .5rem;white-space:nowrap;font-size:.75rem">${rec}</td>
+    </tr>`;
+  }).join('');
+  return `<div style="padding:.6rem 1rem;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+      <span style="font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.06em;color:var(--gold-light)">WATCH-ONLY</span>
+      <span style="font-size:.75rem;color:var(--text-muted)">Suggested kills from RAIDTICK + enrage/slain/tash/malo/slow. Nothing is added to your sessions.</span>
+      <span style="font-size:.75rem">Strong ${counts.strong} · Weak ${counts.weak} · Pick ${counts.ambiguous} · No boss ${counts.none}</span>
+      <label style="font-size:.72rem;color:var(--text-muted);margin-left:auto;cursor:pointer"><input type="checkbox" ${showNoise?'checked':''} onchange="rkdToggleNoise(this.checked)"> show guild-only ticks with no boss</label>
+      <button class="kt-undo-btn" onclick="rkdClearLog()">Clear log</button>
+    </div>
+    <div style="overflow:auto;max-height:72vh">${rows.length?`<table style="width:100%;border-collapse:collapse;font-size:.8rem">
+      <thead><tr style="text-align:left;font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.06em;color:var(--text-muted)">
+        <th style="padding:.35rem .5rem">TICK</th><th style="padding:.35rem .5rem">CHAR</th><th style="padding:.35rem .5rem">SUGGESTED</th><th style="padding:.35rem .5rem">CONFIDENCE</th><th style="padding:.35rem .5rem">ToD</th><th style="padding:.35rem .5rem">EVIDENCE</th><th style="padding:.35rem .5rem">TRACKER</th>
+      </tr></thead><tbody>${body}</tbody></table>`
+      :`<div style="padding:1.2rem;color:var(--text-muted);font-style:italic">No raid ticks seen yet. Suggestions appear here about 2 minutes after each RAIDTICK while MixelParse is running.</div>`}</div>`;
+}
 
 // ── ODKP alias map: normalizes ODKP source labels → tracker target names ──
 const ODKP_ALIAS={
@@ -11830,7 +12094,10 @@ function buildNetworthData(){
     for(const item of items){
       if(itemDBGet(item.name)?._nodrop){nodrop.push({char:cn,name:item.name,count:item.count||1});continue;}
       if(exclusionSet.has(item.name.toLowerCase())){excluded.push({char:cn,name:item.name,count:item.count||1});continue;}
-      const price=priceLookup[item.name.toLowerCase()];
+      const market=priceLookup[item.name.toLowerCase()];
+      const manual=priceOverrideFor(item.name);
+      if(manual!=null){priced.push({char:cn,name:item.name,count:item.count||1,unitPrice:manual,total:manual*(item.count||1),divisor:1,manual:true,marketPrice:market||null});continue;}
+      const price=market;
       if(!price){nowts.push({char:cn,name:item.name,count:item.count||1});continue;}
       priced.push({char:cn,name:item.name,count:item.count||1,unitPrice:price,total:price*(item.count||1),divisor:stackDivFor(item.name)});
     }
@@ -11855,6 +12122,8 @@ document.addEventListener('click',function(e){
   if(excBtn){const name=excBtn.dataset.name;if(name)excludeFromNetworth(name);return;}
   const divBtn=e.target.closest('.nw-stackdiv-btn');
   if(divBtn){const name=divBtn.dataset.name;if(name)setStackDivisor(name);return;}
+  const priceBtn=e.target.closest('.nw-price-btn');
+  if(priceBtn){const name=priceBtn.dataset.name;if(name)setPriceOverride(name);return;}
   const unexcBtn=e.target.closest('.nw-unexclude-btn');
   if(unexcBtn){const name=unexcBtn.dataset.name;if(name)unexcludeFromNetworth(name);}
 });
@@ -11864,13 +12133,17 @@ function renderNetworthModalBody(body){
 
   const tblHdr=(cols)=>`<thead><tr>${cols.map(([label,cls])=>`<th class="${cls||''}">${label}</th>`).join('')}</tr></thead>`;
 
+  const priceBtn=(name,manual)=>`<button class="nw-price-btn" data-name="${esc(name)}" title="${manual?'Manual price — click to change or clear':'Set a manual price for this item'}" style="background:none;border:none;cursor:pointer;font-size:.85rem;color:${manual?'var(--gold-light)':'var(--text-muted)'};padding:0 .2rem;line-height:1" onmouseover="this.style.color='var(--gold-light)'" onmouseout="this.style.color='${manual?'var(--gold-light)':'var(--text-muted)'}'">✎</button>`;
+  const manualBadge=r=>` <span style="font-size:.65rem;color:var(--gold-light);border:1px solid var(--border);border-radius:3px;padding:0 .25rem" title="${r.marketPrice?`Manual price — market is ${r.marketPrice.toLocaleString()} pp`:'Manual price — no market data'}">manual</span>`;
+  const manualCount=priced.filter(r=>r.manual).length;
+
   const pricedRows=priced.map(r=>`<tr>
     <td>${esc(r.name)}</td>
     <td style="color:var(--text-muted)">${esc(r.char)}</td>
     <td class="r">${r.count}</td>
-    <td class="r">${r.unitPrice.toLocaleString()} pp${r.divisor>1?` <span style="font-size:.65rem;color:var(--gold-light);border:1px solid var(--border);border-radius:3px;padding:0 .25rem" title="PigParse quote divided by stack size of ${r.divisor}">÷${r.divisor}</span>`:''}</td>
+    <td class="r">${r.unitPrice.toLocaleString()} pp${r.manual?manualBadge(r):''}${r.divisor>1?` <span style="font-size:.65rem;color:var(--gold-light);border:1px solid var(--border);border-radius:3px;padding:0 .25rem" title="PigParse quote divided by stack size of ${r.divisor}">÷${r.divisor}</span>`:''}</td>
     <td class="r" style="color:var(--gold-light);font-weight:600">${Math.floor(r.total).toLocaleString()} pp</td>
-    <td class="r" style="white-space:nowrap"><button class="nw-stackdiv-btn" data-name="${esc(r.name)}" title="${r.divisor>1?`Stack quote ÷${r.divisor} — click to change or remove`:'Price looks like a per-stack quote? Divide it by stack size'}" style="background:none;border:none;cursor:pointer;font-size:.85rem;font-weight:700;color:${r.divisor>1?'var(--gold-light)':'var(--text-muted)'};padding:0 .2rem;line-height:1" onmouseover="this.style.color='var(--gold-light)'" onmouseout="this.style.color='${r.divisor>1?'var(--gold-light)':'var(--text-muted)'}'">÷</button><button class="nw-exclude-btn" data-name="${esc(r.name)}" title="Exclude from networth" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--text-muted);padding:0 .2rem;line-height:1" onmouseover="this.style.color='#c0392b'" onmouseout="this.style.color='var(--text-muted)'">🚫</button></td>
+    <td class="r" style="white-space:nowrap">${priceBtn(r.name,r.manual)}${r.manual?'':`<button class="nw-stackdiv-btn" data-name="${esc(r.name)}" title="${r.divisor>1?`Stack quote ÷${r.divisor} — click to change or remove`:'Price looks like a per-stack quote? Divide it by stack size'}" style="background:none;border:none;cursor:pointer;font-size:.85rem;font-weight:700;color:${r.divisor>1?'var(--gold-light)':'var(--text-muted)'};padding:0 .2rem;line-height:1" onmouseover="this.style.color='var(--gold-light)'" onmouseout="this.style.color='${r.divisor>1?'var(--gold-light)':'var(--text-muted)'}'">÷</button>`}<button class="nw-exclude-btn" data-name="${esc(r.name)}" title="Exclude from networth" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--text-muted);padding:0 .2rem;line-height:1" onmouseover="this.style.color='#c0392b'" onmouseout="this.style.color='var(--text-muted)'">🚫</button></td>
   </tr>`).join('');
 
   const nowtsRows=nowts.map(r=>`<tr>
@@ -11878,6 +12151,7 @@ function renderNetworthModalBody(body){
     <td style="color:var(--text-muted)">${esc(r.char)}</td>
     <td class="r">${r.count}</td>
     <td style="color:var(--text-muted)">No WTS data</td>
+    <td class="r">${priceBtn(r.name,false)}</td>
   </tr>`).join('');
 
   const excludedRows=excluded.map(r=>`<tr>
@@ -11901,6 +12175,7 @@ function renderNetworthModalBody(body){
       <div class="nw-card"><div class="nw-card-label">Est. Market Value</div><div class="nw-card-val" style="color:var(--gold-light);font-size:1.3rem">${totalPP.toLocaleString()} pp</div></div>
       <div class="nw-card"><div class="nw-card-label">Priced Items</div><div class="nw-card-val" style="color:var(--green)">${priced.length.toLocaleString()}</div></div>
       <div class="nw-card"><div class="nw-card-label">No WTS Data</div><div class="nw-card-val" style="color:var(--text-muted)">${nowts.length.toLocaleString()}</div></div>
+      ${manualCount?`<div class="nw-card"><div class="nw-card-label">Manual Prices</div><div class="nw-card-val" style="color:var(--gold-light)">${manualCount.toLocaleString()}</div></div>`:''}
       ${excluded.length?`<div class="nw-card"><div class="nw-card-label">Excluded</div><div class="nw-card-val" style="color:#a05030">${excluded.length.toLocaleString()}</div></div>`:''}
     </div>
 
@@ -11915,7 +12190,7 @@ function renderNetworthModalBody(body){
     <div class="nw-section-hdr" style="color:var(--text-muted)">No WTS Data — ${nowts.length}</div>
     <div class="nw-tbl-wrap">
       <table class="nw-tbl">
-        ${tblHdr([['Item'],['Char'],['Count','r'],['Reason']])}
+        ${tblHdr([['Item'],['Char'],['Count','r'],['Reason'],['','r']])}
         <tbody>${nowtsRows}</tbody>
       </table>
     </div>
@@ -11947,25 +12222,76 @@ async function unexcludeFromNetworth(name){
   if(body)renderNetworthModalBody(body);
 }
 
+// ── Manual price overrides (networth only) ──────────────────────────────────
+function priceOverrideFor(name){const v=priceOverrides[(name||'').toLowerCase()];return(typeof v==='number'&&v>0)?v:null;}
+async function setPriceOverride(name){
+  const key=(name||'').toLowerCase();
+  if(!key)return;
+  const cur=priceOverrideFor(name);
+  const inp=await mpPromptNumber(cur
+    ?`"${esc(name)}" is manually priced at ${cur.toLocaleString()} pp each.\nEnter a new price, or 0 to go back to the market price:`
+    :`Manual price for "${esc(name)}" (pp each):`,String(cur||''),{
+      validate:v=>{const n=parseFloat(v);return(v===''||!isFinite(n)||n<0)?'Enter a price of 0 or more (0 goes back to the market price)':null;},
+      extra:cur?{label:'Use market price',value:'0'}:null,
+    });
+  if(inp===null)return;
+  const n=parseFloat(inp);
+  if(n===0)delete priceOverrides[key];else priceOverrides[key]=n;
+  savePriceOverrides();
+  renderNetworthBar();
+  const body=document.getElementById('networthModalBody');
+  if(body)renderNetworthModalBody(body);
+}
+function savePriceOverrides(){
+  try{localStorage.setItem('mp_price_overrides',JSON.stringify(priceOverrides));}catch(e){}
+  if(currentUser)saveGuildDataField('price_overrides',priceOverrides,'PriceOverrides');
+}
+async function loadPriceOverridesFromSupabase(){
+  try{
+    const{data,error}=await sb.from('guild_data').select('price_overrides').eq('pool','SoV').eq('user_id',currentUser.id).single();
+    if(!error&&data&&data.price_overrides&&typeof data.price_overrides==='object'&&!Array.isArray(data.price_overrides)){
+      // Empty remote but local prices exist (first sync after adding the column) — push local up.
+      if(!Object.keys(data.price_overrides).length&&Object.keys(priceOverrides).length){savePriceOverrides();return;}
+      priceOverrides=data.price_overrides;
+      try{localStorage.setItem('mp_price_overrides',JSON.stringify(priceOverrides));}catch(e){}
+    }
+  }catch(e){}
+}
+
 // In-app numeric prompt — Electron does NOT implement window.prompt() (alert/confirm work).
-// Returns the entered string, or null on cancel/escape/backdrop click.
-function mpPromptNumber(messageHtml,defVal){
+// Returns the entered string (commas stripped), opts.extra.value if that button is
+// clicked, or null on cancel/escape/backdrop click.
+// opts.validate(str) -> error message or null: shown inline, keeps the prompt open —
+// never alert() from here (a native dialog can leave inputs deaf to typing in Electron).
+// opts.extra = {label, value}: optional third button (e.g. "Use market price").
+function mpPromptNumber(messageHtml,defVal,opts){
+  opts=opts||{};
   return new Promise(resolve=>{
     const ov=document.createElement('div');
     ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center';
     ov.innerHTML=`<div style="background:var(--bg-card,#f5efe0);border:1px solid var(--border,#b8a888);border-radius:8px;padding:1.1rem 1.25rem;min-width:300px;max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.35)">
       <div style="margin-bottom:.7rem;white-space:pre-line;font-size:.85rem;color:var(--text,#3a3226)">${messageHtml}</div>
-      <input type="number" min="1" step="1" value="${defVal}" style="width:100%;box-sizing:border-box;padding:.4rem .5rem;background:var(--bg,#fffdf7);border:1px solid var(--border,#b8a888);border-radius:4px;color:var(--text,#3a3226);font-size:.95rem;margin-bottom:.8rem">
+      <input type="text" inputmode="decimal" autocomplete="off" value="${esc(String(defVal??''))}" style="width:100%;box-sizing:border-box;padding:.4rem .5rem;background:var(--bg,#fffdf7);border:1px solid var(--border,#b8a888);border-radius:4px;color:var(--text,#3a3226);font-size:.95rem;margin-bottom:.3rem">
+      <div data-err style="min-height:1rem;font-size:.75rem;color:#c0392b;margin-bottom:.5rem"></div>
       <div style="display:flex;gap:.5rem;justify-content:flex-end">
+        ${opts.extra?`<button data-act="extra" style="padding:.35rem .8rem;background:none;border:1px solid var(--border,#b8a888);border-radius:4px;color:var(--text,#3a3226);cursor:pointer;font-size:.8rem;margin-right:auto">${esc(opts.extra.label)}</button>`:''}
         <button data-act="cancel" style="padding:.35rem .8rem;background:none;border:1px solid var(--border,#b8a888);border-radius:4px;color:var(--text-muted,#8a7d66);cursor:pointer;font-size:.8rem">Cancel</button>
         <button data-act="ok" style="padding:.35rem .8rem;background:var(--gold-light,#b8860b);border:1px solid var(--gold-light,#b8860b);border-radius:4px;color:#fff;cursor:pointer;font-size:.8rem;font-weight:600">OK</button>
       </div></div>`;
-    const input=ov.querySelector('input');
+    const input=ov.querySelector('input'),errEl=ov.querySelector('[data-err]');
     const done=v=>{ov.remove();resolve(v);};
-    ov.querySelector('[data-act="ok"]').onclick=()=>done(input.value);
+    const submit=()=>{
+      const v=input.value.replace(/[,\s]/g,'');
+      const err=opts.validate?opts.validate(v):null;
+      if(err){errEl.textContent=err;input.focus();input.select();return;}
+      done(v);
+    };
+    ov.querySelector('[data-act="ok"]').onclick=submit;
     ov.querySelector('[data-act="cancel"]').onclick=()=>done(null);
+    if(opts.extra)ov.querySelector('[data-act="extra"]').onclick=()=>done(opts.extra.value);
     ov.addEventListener('click',e=>{if(e.target===ov)done(null);});
-    input.addEventListener('keydown',e=>{if(e.key==='Enter')done(input.value);else if(e.key==='Escape')done(null);});
+    input.addEventListener('keydown',e=>{if(e.key==='Enter')submit();else if(e.key==='Escape')done(null);});
+    input.addEventListener('input',()=>{errEl.textContent='';});
     document.body.appendChild(ov);
     input.focus();input.select();
   });
@@ -11981,10 +12307,11 @@ async function setStackDivisor(name){
   const cur=stackDivisors[key]||0;
   const inp=await mpPromptNumber(cur
     ?`"${esc(name)}" is currently priced as quote ÷ ${cur}.\nEnter a new stack size, or 1 to remove:`
-    :`Treat PigParse quotes for "${esc(name)}" as per-stack.\nStack size to divide by:`,String(cur||20));
+    :`Treat PigParse quotes for "${esc(name)}" as per-stack.\nStack size to divide by:`,String(cur||20),{
+      validate:v=>/^\d+$/.test(v)&&parseInt(v,10)>=1?null:'Enter a whole number of 1 or more (1 removes the divisor)',
+    });
   if(inp===null)return;
   const n=parseInt(inp,10);
-  if(!isFinite(n)||n<1){alert('Enter a whole number of 1 or more (1 removes the divisor)');return;}
   if(n===1)delete stackDivisors[key];else stackDivisors[key]=n;
   await saveStackDivisorsToSupabase();
   applyPlatToItemDB();          // re-applies itemDB.plat + rebuilds session lookup
