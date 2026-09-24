@@ -1,0 +1,34 @@
+name: Update Release Notes
+
+# Edit release-notes.md on main → the GitHub release for the current package.json
+# version gets those notes, without rebuilding. (release.yml sets them on tag too.)
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'release-notes.md'
+      - '.github/workflows/release-notes.yml'
+  workflow_dispatch:
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set notes on the current version's release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            gh release edit "v$VERSION" --notes-file release-notes.md
+            echo "Updated notes for v$VERSION"
+          else
+            echo "No release v$VERSION yet — release.yml will set notes when it's tagged."
+          fi
