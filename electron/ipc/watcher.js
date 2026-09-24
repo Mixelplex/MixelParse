@@ -921,7 +921,8 @@ function parsePlatAmount(str) {
 // the attribution (RAIDTICK anchor + boss evidence). Nothing is recorded here.
 // Landing text per P99 spell pages: Tashanian/Wind of Tishanian "glances nervously
 // about", Malo/Malosini "looks very uncomfortable", Turgur's "yawns", Forlorn "slows down".
-const RE_RT_TICK     = /^\[.+?\] (\w+) (tells the guild|says out of character|tells the raid|shouts), '\s*RAIDTICK\b(.*)'$/i;
+// Allows a short prefix — Tokkaa's OOC copy reads "CA RAIDTICK - Your attendance…".
+const RE_RT_TICK     = /^\[.+?\] (\w+) (tells the guild|says out of character|tells the raid|shouts), '\s*(?:\S{1,4}\s+)?RAIDTICK\b(.*)'$/i;
 const RE_RT_ENRAGE   = /^\[.+?\] (.+?) has become ENRAGED\.$/;
 const RE_RT_SLAIN    = /^\[.+?\] (.+?) has been slain by .+!$/;
 const RE_RT_YOUSLAIN = /^\[.+?\] You have slain (.+)!$/;
@@ -945,6 +946,39 @@ function raidEvidence(line, charName) {
   if ((m = RE_RT_SLAIN.exec(line)) || (m = RE_RT_YOUSLAIN.exec(line))) { if (!_rtGeneric(m[1])) broadcast({ type:'raidEvidence', charName, kind:'slain', mob:m[1], ts }); return; }
   if ((m = RE_RT_LAND.exec(line)))   { if (!_rtGeneric(m[1])) broadcast({ type:'raidEvidence', charName, kind:'land', sub:RT_LAND_KIND[m[2]], mob:m[1], ts }); return; }
   if ((m = RE_RT_CALL.exec(line)) && RE_RT_CALLKIND.test(m[3])) broadcast({ type:'raidEvidence', charName, kind:'call', text:m[3], poster:m[1], channel:m[2], ts });
+}
+
+// Startup backfill (raid signals ONLY): the watcher seeks every log to EOF on start,
+// so a restart mid-raid lost the evidence for the next tick (Trakanon, 9/24: app
+// restarted 90s after the kill). Replays the last 30 min of recently written logs
+// through raidEvidence alone — no other handlers — when the renderer asks for its
+// snapshot (requestAll), so the renderer is listening. The renderer dedupes ticks.
+const RT_BACKFILL_MS = 30 * 60e3;
+function raidBackfill() {
+  if (!_config || !_config.logDir) return;
+  const since = Date.now() - RT_BACKFILL_MS;
+  let files = [];
+  try { files = fs.readdirSync(_config.logDir).filter(f => /^eqlog_.+_P1999Green\.txt$/i.test(f)); } catch { return; }
+  for (const f of files) {
+    const fp = path.join(_config.logDir, f);
+    try {
+      const stat = fs.statSync(fp);
+      if (stat.mtimeMs < since) continue;
+      const charName = extractCharFromLog(f);
+      const readSize = Math.min(8 * 1024 * 1024, stat.size);
+      const buf = Buffer.alloc(readSize);
+      const fd = fs.openSync(fp, 'r');
+      fs.readSync(fd, buf, 0, readSize, stat.size - readSize);
+      fs.closeSync(fd);
+      let n = 0;
+      for (const raw of buf.toString('utf8').split('\n')) {
+        const line = raw.trim();
+        if (!line || _rtLineTs(line) < since) continue;
+        raidEvidence(line, charName); n++;
+      }
+      log(`[RAID] backfilled ${charName}: ${n} lines from the last 30 min`);
+    } catch (e) { err('[RAID] backfill error:', f, e.message); }
+  }
 }
 
 function processLogLine(line, charName) {
@@ -1818,6 +1852,7 @@ async function scanLogsForSessions(charFilter, idleGapMin) {
 function command(cmd, args) {
   if (cmd === 'requestAll') {
     sendFullSnapshot();
+    raidBackfill();
   } else if (cmd === 'reload') {
     stop();
     start({ config: _config, logPosPath: _logPosPath, factionPath: _factionPath, onMessage: _onMessage });

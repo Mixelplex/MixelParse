@@ -11155,7 +11155,8 @@ window.ktSetView=function(v){sessionsView=v;renderKillsPanel();};
 // tick was also seen in OOC (poster in your zone). Evidence before the previous
 // tick belongs to that tick. Backtested vs Mixelmedic logs + recorded sessions:
 // strong tier 65/66 matched, weak tier 12/20. Records only — never touches sessions.
-const RKD_WIN_BEFORE=10*60e3, RKD_WIN_AFTER=2*60e3, RKD_TICK_DEDUPE=90e3, RKD_EVIDENCE_KEEP=15*60e3, RKD_LOG_MAX=300;
+// Evidence is kept 40 min so the watcher's 30-min startup backfill (restart mid-raid) lands intact.
+const RKD_WIN_BEFORE=10*60e3, RKD_WIN_AFTER=2*60e3, RKD_TICK_DEDUPE=90e3, RKD_EVIDENCE_KEEP=40*60e3, RKD_LOG_MAX=300;
 const RKD_RANK={slain:4,enrage:3,land:2,call:1};
 let _rkdEvidence=[];      // {ts, kind, sub, boss, raw, sameZoneOnly}
 let _rkdOpenTicks=[];     // ticks awaiting their post-tick evidence window
@@ -11185,10 +11186,20 @@ function rkdOnTick(msg){
   // Same tick posted to OOC and guild — one tick, merged channels.
   const open=_rkdOpenTicks.find(t=>Math.abs(ts-t.ts)<=RKD_TICK_DEDUPE);
   if(open){open.sameZone=open.sameZone||sameZone;if(!open.channels.includes(msg.channel))open.channels.push(msg.channel);return;}
-  const t={id:'rkd_'+ts,ts,char:msg.charName,poster:msg.poster,text:msg.text||'',channels:[msg.channel],sameZone,prevTickTs:_rkdLastTickTs};
-  _rkdLastTickTs=ts;
+  // Startup backfill replays recent ticks (and requestAll fires more than once): a tick
+  // already logged is skipped — unless it was logged as "No boss", which usually means
+  // its evidence was lost to a restart, so it's re-evaluated with the backfilled evidence.
+  const done=rkdLog.find(r=>Math.abs(ts-r.ts)<=RKD_TICK_DEDUPE);
+  if(done){
+    if(done.tier!=='none'){_rkdLastTickTs=Math.max(_rkdLastTickTs||0,ts);return;}
+    rkdLog=rkdLog.filter(r=>r!==done);
+  }
+  const prev=[...rkdLog.map(r=>r.ts),_rkdLastTickTs||0].filter(x=>x<ts-RKD_TICK_DEDUPE);
+  const t={id:'rkd_'+ts,ts,char:msg.charName,poster:msg.poster,text:msg.text||'',channels:[msg.channel],sameZone,prevTickTs:prev.length?Math.max(...prev):null};
+  _rkdLastTickTs=Math.max(_rkdLastTickTs||0,ts);
   _rkdOpenTicks.push(t);
-  setTimeout(()=>rkdFinalize(t),RKD_WIN_AFTER);
+  // Live ticks wait out the 2-min post-window; backfilled ones already have it.
+  setTimeout(()=>rkdFinalize(t),Math.max(0,ts+RKD_WIN_AFTER-Date.now()));
 }
 function rkdAttribute(t){
   const from=Math.max(t.ts-RKD_WIN_BEFORE,t.prevTickTs!=null?t.prevTickTs+1:-Infinity);
@@ -11204,11 +11215,13 @@ function rkdAttribute(t){
          tod:slain?slain.ts:t.ts,todSource:slain?'slain':'tick',events:top.events};
 }
 function rkdFinalize(t){
+  if(!_rkdOpenTicks.includes(t))return;
   _rkdOpenTicks=_rkdOpenTicks.filter(x=>x!==t);
   const a=rkdAttribute(t);
   rkdLog.push({id:t.id,ts:t.ts,char:t.char,poster:t.poster,channels:t.channels,sameZone:t.sameZone,text:t.text,
     tier:a.tier,boss:a.boss||null,cands:a.cands||null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,
     evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw}))});
+  rkdLog.sort((a,b)=>a.ts-b.ts);
   if(rkdLog.length>RKD_LOG_MAX)rkdLog=rkdLog.slice(-RKD_LOG_MAX);
   rkdSave();
   if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
