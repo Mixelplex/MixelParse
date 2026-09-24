@@ -283,6 +283,15 @@
   .help-modal-list{list-style:none;padding:0;margin:0 0 1.2rem;display:flex;flex-direction:column;gap:.55rem}
   .help-modal-item{display:flex;gap:.55rem;align-items:flex-start;font-size:.87rem;color:var(--text-dim);line-height:1.5}
   .help-modal-bullet{color:var(--gold);flex-shrink:0;font-size:.8rem;margin-top:.22em}
+  /* What's New splash (one-time per version) */
+  .wn-section-hdr{font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.08em;color:var(--gold-light);text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:.25rem;margin:.9rem 0 .55rem}
+  .wn-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.55rem}
+  .wn-item{display:flex;gap:.55rem;align-items:flex-start;font-size:.84rem;color:var(--text-dim);line-height:1.45}
+  .wn-item b{color:var(--text)}
+  .wn-tag{flex-shrink:0;font-size:.6rem;font-family:'Cinzel',serif;letter-spacing:.06em;padding:.08rem .35rem;border-radius:3px;margin-top:.18em;border:1px solid}
+  .wn-tag-new{color:#3a7a3a;border-color:#3a7a3a}
+  .wn-tag-fix{color:#8a5a10;border-color:#8a5a10}
+  .wn-feedback{margin-top:1.1rem;padding:.8rem .9rem;border:1px dashed var(--gold);border-radius:6px;background:var(--surface2);text-align:center}
   .btn-confirm-danger{background:#7a1010;border:1px solid #a02020;border-radius:3px;color:#f8d0d0;padding:.45rem 1rem;cursor:pointer;font-family:\'Crimson Pro\',serif;font-size:.9rem}
   .btn-confirm-danger:hover{background:#a01010}
   /* ── Auth Screen ── */
@@ -959,6 +968,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
   </div>
   <div class="top-nav-item" style="color:var(--text-muted);font-size:.65rem" onclick="openAdminPanel()">&#9881; Admin</div>
   <div style="color:var(--text-muted);font-size:.65rem;font-family:'Cinzel',serif;letter-spacing:.07em;padding:.55rem .9rem;cursor:pointer;white-space:nowrap" onclick="showCurrentHelp()" title="How to use this tab">Help</div>
+  <div style="color:var(--text-muted);font-size:.65rem;font-family:'Cinzel',serif;letter-spacing:.07em;padding:.55rem .9rem;cursor:pointer;white-space:nowrap" onclick="showWhatsNew()" title="See what changed in this version">What&#8217;s New</div>
   <div style="color:var(--text-muted);font-size:.65rem;font-family:'Cinzel',serif;letter-spacing:.07em;padding:.55rem .9rem;cursor:pointer;white-space:nowrap" onclick="openFeedbackModal()" title="Submit feedback or suggestions">Feedback</div>
   <div id="updateNavBtn" style="display:none;font-size:.65rem;font-family:'Cinzel',serif;letter-spacing:.07em;padding:.55rem .9rem;cursor:pointer;white-space:nowrap;color:var(--text-muted);transition:color .2s" onclick="handleUpdateClick()" title="Check for updates">&#8635; Update</div>
 </div>
@@ -1346,7 +1356,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
 </div>
 
 <div class="wl-modal-overlay" id="feedbackModalOverlay">
-  <div class="wl-modal" style="max-width:460px">
+  <div class="wl-modal" style="max-width:540px;max-height:90vh;overflow-y:auto">
     <div class="wl-modal-title">&#128172; Feedback &amp; Suggestions</div>
     <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.9rem;line-height:1.5">Got a feature idea, bug report, or general thought? Send it through — all submissions are reviewed.</p>
     <div style="margin-bottom:.6rem">
@@ -1363,6 +1373,13 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
       <button class="btn" onclick="closeFeedbackModal()">Cancel</button>
       <button class="btn primary" id="feedbackSubmitBtn" onclick="submitFeedback()">Send Feedback</button>
     </div>
+    <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.7rem">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">
+        <span style="font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.05em;color:var(--gold-light)">ALREADY SUGGESTED <span id="feedbackListCount" style="color:var(--text-muted)"></span></span>
+        <input type="text" id="feedbackListSearch" class="wl-modal-input" placeholder="Search before you post…" oninput="renderFeedbackList()" style="flex:1;font-size:.78rem;padding:.25rem .45rem">
+      </div>
+      <div id="feedbackList" style="max-height:230px;overflow-y:auto;font-size:.78rem"></div>
+    </div>
   </div>
 </div>
 <div class="modal-overlay" id="helpModalOverlay">
@@ -1373,6 +1390,30 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
     <div style="text-align:center;display:flex;flex-direction:column;gap:.45rem;align-items:center">
       <button class="btn" style="min-width:100px" onclick="dismissHelp()">Got it</button>
       <span style="font-size:.68rem;color:var(--text-muted);cursor:pointer;opacity:.65;text-decoration:underline" onclick="resetAllHelp()">Reset all tips</span>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="whatsNewOverlay">
+  <div class="modal" style="max-width:620px;text-align:left;padding:1.6rem 1.75rem;max-height:88vh;overflow-y:auto">
+    <div style="text-align:center;margin-bottom:1rem">
+      <div style="font-size:.68rem;letter-spacing:.14em;color:var(--text-muted);text-transform:uppercase">What&#8217;s New</div>
+      <h2 style="margin:.15rem 0 .1rem">MixelParse <span id="whatsNewVersion"></span></h2>
+      <div id="whatsNewDate" style="font-size:.72rem;color:var(--text-muted)"></div>
+    </div>
+    <div class="wn-section-hdr">&#10024; New Features</div>
+    <ul class="wn-list" id="whatsNewFeatures"></ul>
+    <div class="wn-section-hdr">&#128295; Bug Fixes</div>
+    <ul class="wn-list" id="whatsNewFixes"></ul>
+    <div class="wn-feedback">
+      <div style="font-family:'Cinzel',serif;font-size:.78rem;letter-spacing:.05em;color:var(--gold-light);margin-bottom:.2rem">What would you like to see next?</div>
+      <div style="font-size:.78rem;color:var(--text-dim);margin-bottom:.6rem">Ideas and bug reports go straight to the developer &#8212; and you can browse what others have already suggested.</div>
+      <div style="display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">
+        <button class="btn" onclick="whatsNewFeedback('idea')">&#128161; Suggest a feature</button>
+        <button class="btn" onclick="whatsNewFeedback('bug')">&#128030; Report a bug</button>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:1rem">
+      <button class="btn primary" style="min-width:120px" onclick="dismissWhatsNew()">Let&#8217;s go</button>
     </div>
   </div>
 </div>
@@ -4865,6 +4906,45 @@ function dismissHelp(){
   _helpCurrentKey=null;
 }
 
+// ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
+// the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
+const WHATS_NEW={
+  version:'1.5.8',
+  date:'September 2026',
+  features:[
+    ['Raid Kill Auto-Detect <i>(preview)</i>','Kill Tracker &rarr; <b>&#127919; Auto-Detect</b> watches for each RAIDTICK and works out which boss died from enrage, slain, and tash/malo/slow messages &mdash; with the time of death. Watch-only for now: it suggests, it never changes your sessions.'],
+    ['Manual prices in Networth','Click <b>&#9998;</b> on any item to set your own price &mdash; including items with no WTS data. <b>Use market price</b> puts it back.'],
+    ['Browse suggestions','<b>Feedback</b> now shows what everyone has already suggested, with search &mdash; add your voice instead of a duplicate.'],
+  ],
+  fixes:[
+    ['Sessions auto-start for every character','Login, XP, kill and loot tracking now works for all your toons on a fresh install &mdash; not just ones that had exported their inventory on that PC.'],
+    ['Text boxes stop freezing','After a pop-up message, text boxes could stop accepting typing until you clicked away. Fixed everywhere.'],
+    ['Gear Planner: Rogue &amp; Monk weapons','Daggers tagged for the Range slot no longer rank too high in Main/Off Hand.'],
+    ['Gear Test Bench totals','The stat breakdown now adds up to the weighted score.'],
+  ],
+};
+function showWhatsNew(){
+  document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
+  document.getElementById('whatsNewDate').textContent=WHATS_NEW.date;
+  const li=(tag,[title,desc])=>`<li class="wn-item"><span class="wn-tag wn-tag-${tag}">${tag==='new'?'NEW':'FIX'}</span><span><b>${title}</b> &mdash; ${desc}</span></li>`;
+  document.getElementById('whatsNewFeatures').innerHTML=WHATS_NEW.features.map(f=>li('new',f)).join('');
+  document.getElementById('whatsNewFixes').innerHTML=WHATS_NEW.fixes.map(f=>li('fix',f)).join('');
+  document.getElementById('whatsNewOverlay').classList.add('open');
+}
+function dismissWhatsNew(){
+  try{localStorage.setItem('mp_whatsnew_seen',WHATS_NEW.version);}catch(e){}
+  document.getElementById('whatsNewOverlay').classList.remove('open');
+}
+function maybeShowWhatsNew(){
+  let seen=null;try{seen=localStorage.getItem('mp_whatsnew_seen');}catch(e){}
+  if(seen!==WHATS_NEW.version)showWhatsNew();
+}
+function whatsNewFeedback(kind){
+  dismissWhatsNew();
+  openFeedbackModal(kind==='bug'?`Bug (v${WHATS_NEW.version}): `:`Idea (v${WHATS_NEW.version}): `);
+  setTimeout(()=>document.getElementById('feedbackMessage').focus(),50);
+}
+
 function resetAllHelp(){
   Object.keys(HELP_CONTENT).forEach(k=>localStorage.removeItem('mp_help_seen_'+k));
   document.getElementById('helpModalOverlay').classList.remove('open');
@@ -4964,13 +5044,49 @@ function retryUpdate(){
   if(window.MixelParseApp) window.MixelParseApp.checkUpdates();
 }
 
-function openFeedbackModal(){
-  document.getElementById('feedbackSubject').value='';
+function openFeedbackModal(subjectPrefill){
+  document.getElementById('feedbackSubject').value=typeof subjectPrefill==='string'?subjectPrefill:'';
   document.getElementById('feedbackMessage').value='';
   document.getElementById('feedbackCharCount').textContent='0 / 2000';
   document.getElementById('feedbackStatus').textContent='';
   document.getElementById('feedbackSubmitBtn').disabled=false;
   document.getElementById('feedbackModalOverlay').classList.add('open');
+  document.getElementById('feedbackListSearch').value='';
+  loadFeedbackList();
+}
+// Public "Already suggested" list — reads the suggestions_public VIEW (date/subject/
+// message only; the base table's email + user_id are never exposed to other users).
+let _feedbackList=null;
+async function loadFeedbackList(){
+  const el=document.getElementById('feedbackList');
+  el.innerHTML='<div style="color:var(--text-muted);font-style:italic">Loading…</div>';
+  try{
+    const{data,error}=await sb.from('suggestions_public').select('id,created_at,subject,message').order('created_at',{ascending:false}).limit(500);
+    if(error)throw error;
+    _feedbackList=data||[];
+  }catch(e){
+    console.warn('[Feedback] list load error (run the suggestions_public view SQL?)',e);
+    _feedbackList=null;
+    el.innerHTML='<div style="color:var(--text-muted);font-style:italic">The suggestion list isn’t available yet.</div>';
+    document.getElementById('feedbackListCount').textContent='';
+    return;
+  }
+  renderFeedbackList();
+}
+function renderFeedbackList(){
+  const el=document.getElementById('feedbackList');
+  if(!_feedbackList)return;
+  const q=(document.getElementById('feedbackListSearch').value||'').trim().toLowerCase();
+  const rows=q?_feedbackList.filter(r=>((r.subject||'')+' '+(r.message||'')).toLowerCase().includes(q)):_feedbackList;
+  document.getElementById('feedbackListCount').textContent=`(${q?rows.length+' of ':''}${_feedbackList.length})`;
+  if(!rows.length){el.innerHTML=`<div style="color:var(--text-muted);font-style:italic">${q?'No matches — looks like a new idea!':'Nothing yet — be the first.'}</div>`;return;}
+  el.innerHTML=rows.map(r=>{
+    const msg=r.message||'',long=msg.length>220;
+    return `<div style="padding:.35rem 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;gap:.5rem"><b style="color:var(--text)">${esc(r.subject||'(no subject)')}</b><span style="color:var(--text-muted);font-size:.7rem;white-space:nowrap">${r.created_at?new Date(r.created_at).toLocaleDateString():''}</span></div>
+      <div style="color:var(--text-dim);white-space:pre-wrap">${esc(long?msg.slice(0,220)+'…':msg)}${long?` <a href="#" style="color:var(--gold-light)" onclick="this.parentElement.textContent=${esc(JSON.stringify(msg))};return false">more</a>`:''}</div>
+    </div>`;
+  }).join('');
 }
 function closeFeedbackModal(){
   document.getElementById('feedbackModalOverlay').classList.remove('open');
@@ -4996,6 +5112,7 @@ async function submitFeedback(){
     status.style.color='#3a7a3a';
     status.textContent='\u2714 Submitted \u2014 thanks for the feedback!';
     btn.textContent='Sent';
+    loadFeedbackList();
     setTimeout(()=>closeFeedbackModal(),1800);
   }catch(e){
     console.warn('[Feedback] Submit error',e);
@@ -5112,6 +5229,8 @@ async function onSignedIn(user){
     if(!document.getElementById('helpModalOverlay').classList.contains('open')) maybeShowHelp('bind_intro');
     // One-time intro for the 1.5.7 panel customize/reorder feature — same guard.
     if(!document.getElementById('helpModalOverlay').classList.contains('open')) maybeShowHelp('panel_customize_intro');
+    // One-time What's New for this version — only when no help tip is up (one modal at a time).
+    if(!document.getElementById('helpModalOverlay').classList.contains('open')) maybeShowWhatsNew();
   }, 900);
 }
 

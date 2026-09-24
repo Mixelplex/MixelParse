@@ -46,7 +46,11 @@
     "publish": {
       "provider": "github",
       "owner": "mixelplex",
-      "repo": "MixelParse"
+      "repo": "MixelParse",
+      "releaseType": "release"
+    },
+    "releaseInfo": {
+      "releaseNotesFile": "release-notes.md"
     },
     "files": [
       "electron/**/*",
