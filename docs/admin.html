@@ -2500,6 +2500,7 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
     } else { total += v * w; }
   } // end if (!skipStats) stat loop
   if (!skipStats && weights.ac && itemData.ac) total += Number(itemData.ac) * weights.ac;
+  let hastePts = 0;
   if (weights.haste && itemData.haste) {
     const hasteVal = Number(itemData.haste || 0);
     const CLASS_STAT_THRESHOLDS_gc = A2?.CLASS_STAT_THRESHOLDS || {};
@@ -2515,7 +2516,9 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
     // v1.3.19: MAX semantics, not additive-then-cap — worn haste does not stack on
     // P99, only the highest source applies. Mirrors index.html effectiveGain().
     const cappedHaste = Math.min(Math.max(otherHaste, hasteVal), hasteThresh) - Math.min(otherHaste, hasteThresh);
-    total += cappedHaste * weights.haste;
+    // Held out of `total` so suppression below doesn't scale it — effective haste
+    // is DPS, added at full weight after suppression. Mirrors index.html.
+    hastePts = cappedHaste * weights.haste;
   }
   // ── Flowing Thought mana regen scoring (mirrors index.html effectiveGain) ──
   const MANA_CLASSES_gc = A2 ? (A2.MANA_CLASSES || new Set()) : new Set();
@@ -2533,6 +2536,10 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
   if (slot && _STAT_SLOTS_GC.has(slot) && _PURE_DPS_GC.has(cls)) {
     total *= _PURE_DPS_WEP_STAT_MULT_GC;
   }
+  // Effective haste added at FULL weight, after suppression — up to the 41% cap it
+  // is real DPS, not a stat-stick perk (over-cap already scored 0 via the clamp).
+  // Mirrors index.html effectiveGain.
+  total += hastePts;
   // ── Weapon dmg scoring — uses dmg weight from CLASS_STAT_WEIGHTS via getStatWeights ──
   // Mirrors index.html effectiveGain: ratio = weaponDpsScore() result, scaled by weights.dmg
   const dmgW = weights.dmg || 0;
