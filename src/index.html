@@ -5275,6 +5275,7 @@ async function loadFromSupabase(){
   await loadParkIgnoresFromSupabase();
   await loadBindDataFromSupabase();
   await loadPriceExclusionsFromSupabase();
+  await loadPriceOverridesFromSupabase();
   await loadStackDivisorsFromSupabase();
   await loadPlaySessionsFromSupabase();
   applyDkpToItemDB();
@@ -8133,6 +8134,9 @@ let platData=[];          // raw array from Pigparse
 let platMeta={};          // {fetchedAt, count}
 let _platLookupMap=null;  // { lowerName → priceInK } built from platData; WTS preferred, WTB fallback
 let priceExclusions=[];   // item names (lowercase) excluded from networth calc
+// lowerName -> pp per unit (per-user). Replaces the PigParse price in networth, and
+// prices No-WTS items. localStorage + guild_data.price_overrides mirror.
+let priceOverrides=(function(){try{const o=JSON.parse(localStorage.getItem('mp_price_overrides'));return(o&&typeof o==='object'&&!Array.isArray(o))?o:{};}catch(e){return {};}})();
 // Watchlist state — declared here because renderWatchlistBar() can run off a watcher IPC
 // push BEFORE login load first assigns these; undeclared reads throw ReferenceError.
 let watchList=[],bankerWatchList=[],bwlHiddenBankers=new Set();
@@ -11830,7 +11834,10 @@ function buildNetworthData(){
     for(const item of items){
       if(itemDBGet(item.name)?._nodrop){nodrop.push({char:cn,name:item.name,count:item.count||1});continue;}
       if(exclusionSet.has(item.name.toLowerCase())){excluded.push({char:cn,name:item.name,count:item.count||1});continue;}
-      const price=priceLookup[item.name.toLowerCase()];
+      const market=priceLookup[item.name.toLowerCase()];
+      const manual=priceOverrideFor(item.name);
+      if(manual!=null){priced.push({char:cn,name:item.name,count:item.count||1,unitPrice:manual,total:manual*(item.count||1),divisor:1,manual:true,marketPrice:market||null});continue;}
+      const price=market;
       if(!price){nowts.push({char:cn,name:item.name,count:item.count||1});continue;}
       priced.push({char:cn,name:item.name,count:item.count||1,unitPrice:price,total:price*(item.count||1),divisor:stackDivFor(item.name)});
     }
@@ -11855,6 +11862,8 @@ document.addEventListener('click',function(e){
   if(excBtn){const name=excBtn.dataset.name;if(name)excludeFromNetworth(name);return;}
   const divBtn=e.target.closest('.nw-stackdiv-btn');
   if(divBtn){const name=divBtn.dataset.name;if(name)setStackDivisor(name);return;}
+  const priceBtn=e.target.closest('.nw-price-btn');
+  if(priceBtn){const name=priceBtn.dataset.name;if(name)setPriceOverride(name);return;}
   const unexcBtn=e.target.closest('.nw-unexclude-btn');
   if(unexcBtn){const name=unexcBtn.dataset.name;if(name)unexcludeFromNetworth(name);}
 });
@@ -11864,13 +11873,17 @@ function renderNetworthModalBody(body){
 
   const tblHdr=(cols)=>`<thead><tr>${cols.map(([label,cls])=>`<th class="${cls||''}">${label}</th>`).join('')}</tr></thead>`;
 
+  const priceBtn=(name,manual)=>`<button class="nw-price-btn" data-name="${esc(name)}" title="${manual?'Manual price — click to change or clear':'Set a manual price for this item'}" style="background:none;border:none;cursor:pointer;font-size:.85rem;color:${manual?'var(--gold-light)':'var(--text-muted)'};padding:0 .2rem;line-height:1" onmouseover="this.style.color='var(--gold-light)'" onmouseout="this.style.color='${manual?'var(--gold-light)':'var(--text-muted)'}'">✎</button>`;
+  const manualBadge=r=>` <span style="font-size:.65rem;color:var(--gold-light);border:1px solid var(--border);border-radius:3px;padding:0 .25rem" title="${r.marketPrice?`Manual price — market is ${r.marketPrice.toLocaleString()} pp`:'Manual price — no market data'}">manual</span>`;
+  const manualCount=priced.filter(r=>r.manual).length;
+
   const pricedRows=priced.map(r=>`<tr>
     <td>${esc(r.name)}</td>
     <td style="color:var(--text-muted)">${esc(r.char)}</td>
     <td class="r">${r.count}</td>
-    <td class="r">${r.unitPrice.toLocaleString()} pp${r.divisor>1?` <span style="font-size:.65rem;color:var(--gold-light);border:1px solid var(--border);border-radius:3px;padding:0 .25rem" title="PigParse quote divided by stack size of ${r.divisor}">÷${r.divisor}</span>`:''}</td>
+    <td class="r">${r.unitPrice.toLocaleString()} pp${r.manual?manualBadge(r):''}${r.divisor>1?` <span style="font-size:.65rem;color:var(--gold-light);border:1px solid var(--border);border-radius:3px;padding:0 .25rem" title="PigParse quote divided by stack size of ${r.divisor}">÷${r.divisor}</span>`:''}</td>
     <td class="r" style="color:var(--gold-light);font-weight:600">${Math.floor(r.total).toLocaleString()} pp</td>
-    <td class="r" style="white-space:nowrap"><button class="nw-stackdiv-btn" data-name="${esc(r.name)}" title="${r.divisor>1?`Stack quote ÷${r.divisor} — click to change or remove`:'Price looks like a per-stack quote? Divide it by stack size'}" style="background:none;border:none;cursor:pointer;font-size:.85rem;font-weight:700;color:${r.divisor>1?'var(--gold-light)':'var(--text-muted)'};padding:0 .2rem;line-height:1" onmouseover="this.style.color='var(--gold-light)'" onmouseout="this.style.color='${r.divisor>1?'var(--gold-light)':'var(--text-muted)'}'">÷</button><button class="nw-exclude-btn" data-name="${esc(r.name)}" title="Exclude from networth" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--text-muted);padding:0 .2rem;line-height:1" onmouseover="this.style.color='#c0392b'" onmouseout="this.style.color='var(--text-muted)'">🚫</button></td>
+    <td class="r" style="white-space:nowrap">${priceBtn(r.name,r.manual)}${r.manual?'':`<button class="nw-stackdiv-btn" data-name="${esc(r.name)}" title="${r.divisor>1?`Stack quote ÷${r.divisor} — click to change or remove`:'Price looks like a per-stack quote? Divide it by stack size'}" style="background:none;border:none;cursor:pointer;font-size:.85rem;font-weight:700;color:${r.divisor>1?'var(--gold-light)':'var(--text-muted)'};padding:0 .2rem;line-height:1" onmouseover="this.style.color='var(--gold-light)'" onmouseout="this.style.color='${r.divisor>1?'var(--gold-light)':'var(--text-muted)'}'">÷</button>`}<button class="nw-exclude-btn" data-name="${esc(r.name)}" title="Exclude from networth" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--text-muted);padding:0 .2rem;line-height:1" onmouseover="this.style.color='#c0392b'" onmouseout="this.style.color='var(--text-muted)'">🚫</button></td>
   </tr>`).join('');
 
   const nowtsRows=nowts.map(r=>`<tr>
@@ -11878,6 +11891,7 @@ function renderNetworthModalBody(body){
     <td style="color:var(--text-muted)">${esc(r.char)}</td>
     <td class="r">${r.count}</td>
     <td style="color:var(--text-muted)">No WTS data</td>
+    <td class="r">${priceBtn(r.name,false)}</td>
   </tr>`).join('');
 
   const excludedRows=excluded.map(r=>`<tr>
@@ -11901,6 +11915,7 @@ function renderNetworthModalBody(body){
       <div class="nw-card"><div class="nw-card-label">Est. Market Value</div><div class="nw-card-val" style="color:var(--gold-light);font-size:1.3rem">${totalPP.toLocaleString()} pp</div></div>
       <div class="nw-card"><div class="nw-card-label">Priced Items</div><div class="nw-card-val" style="color:var(--green)">${priced.length.toLocaleString()}</div></div>
       <div class="nw-card"><div class="nw-card-label">No WTS Data</div><div class="nw-card-val" style="color:var(--text-muted)">${nowts.length.toLocaleString()}</div></div>
+      ${manualCount?`<div class="nw-card"><div class="nw-card-label">Manual Prices</div><div class="nw-card-val" style="color:var(--gold-light)">${manualCount.toLocaleString()}</div></div>`:''}
       ${excluded.length?`<div class="nw-card"><div class="nw-card-label">Excluded</div><div class="nw-card-val" style="color:#a05030">${excluded.length.toLocaleString()}</div></div>`:''}
     </div>
 
@@ -11915,7 +11930,7 @@ function renderNetworthModalBody(body){
     <div class="nw-section-hdr" style="color:var(--text-muted)">No WTS Data — ${nowts.length}</div>
     <div class="nw-tbl-wrap">
       <table class="nw-tbl">
-        ${tblHdr([['Item'],['Char'],['Count','r'],['Reason']])}
+        ${tblHdr([['Item'],['Char'],['Count','r'],['Reason'],['','r']])}
         <tbody>${nowtsRows}</tbody>
       </table>
     </div>
@@ -11945,6 +11960,40 @@ async function unexcludeFromNetworth(name){
   renderNetworthBar();
   const body=document.getElementById('networthModalBody');
   if(body)renderNetworthModalBody(body);
+}
+
+// ── Manual price overrides (networth only) ──────────────────────────────────
+function priceOverrideFor(name){const v=priceOverrides[(name||'').toLowerCase()];return(typeof v==='number'&&v>0)?v:null;}
+async function setPriceOverride(name){
+  const key=(name||'').toLowerCase();
+  if(!key)return;
+  const cur=priceOverrideFor(name);
+  const inp=await mpPromptNumber(cur
+    ?`"${esc(name)}" is manually priced at ${cur.toLocaleString()} pp each.\nEnter a new price, or 0 to go back to the market price:`
+    :`Manual price for "${esc(name)}" (pp each):`,String(cur||''));
+  if(inp===null)return;
+  const n=parseFloat(inp);
+  if(!isFinite(n)||n<0){alert('Enter a price of 0 or more (0 clears the manual price)');return;}
+  if(n===0)delete priceOverrides[key];else priceOverrides[key]=n;
+  savePriceOverrides();
+  renderNetworthBar();
+  const body=document.getElementById('networthModalBody');
+  if(body)renderNetworthModalBody(body);
+}
+function savePriceOverrides(){
+  try{localStorage.setItem('mp_price_overrides',JSON.stringify(priceOverrides));}catch(e){}
+  if(currentUser)saveGuildDataField('price_overrides',priceOverrides,'PriceOverrides');
+}
+async function loadPriceOverridesFromSupabase(){
+  try{
+    const{data,error}=await sb.from('guild_data').select('price_overrides').eq('pool','SoV').eq('user_id',currentUser.id).single();
+    if(!error&&data&&data.price_overrides&&typeof data.price_overrides==='object'&&!Array.isArray(data.price_overrides)){
+      // Empty remote but local prices exist (first sync after adding the column) — push local up.
+      if(!Object.keys(data.price_overrides).length&&Object.keys(priceOverrides).length){savePriceOverrides();return;}
+      priceOverrides=data.price_overrides;
+      try{localStorage.setItem('mp_price_overrides',JSON.stringify(priceOverrides));}catch(e){}
+    }
+  }catch(e){}
 }
 
 // In-app numeric prompt — Electron does NOT implement window.prompt() (alert/confirm work).
