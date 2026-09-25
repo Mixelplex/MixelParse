@@ -942,9 +942,11 @@ function raidEvidence(line, charName) {
   if (!/RAIDTICK|ENRAGED|slain|nervously|uncomfortable|yawns\.|slows down\.|tash|malo|slow/i.test(line)) return;   // cheap pre-filter
   let m; const ts = _rtLineTs(line);
   if ((m = RE_RT_TICK.exec(line)))   { broadcast({ type:'raidTick', charName, poster:m[1], channel:m[2], text:m[3].trim(), ts }); return; }
-  if ((m = RE_RT_ENRAGE.exec(line))) { if (!_rtGeneric(m[1])) broadcast({ type:'raidEvidence', charName, kind:'enrage', mob:m[1], ts }); return; }
+  // Enrage + landing lines are low-volume, so generic names pass too — some bosses are
+  // "a dracoliche" / "an undead bard" in-game. Kill lines stay filtered (every trash kill).
+  if ((m = RE_RT_ENRAGE.exec(line))) { broadcast({ type:'raidEvidence', charName, kind:'enrage', mob:m[1], ts }); return; }
   if ((m = RE_RT_SLAIN.exec(line)) || (m = RE_RT_YOUSLAIN.exec(line))) { if (!_rtGeneric(m[1])) broadcast({ type:'raidEvidence', charName, kind:'slain', mob:m[1], ts }); return; }
-  if ((m = RE_RT_LAND.exec(line)))   { if (!_rtGeneric(m[1])) broadcast({ type:'raidEvidence', charName, kind:'land', sub:RT_LAND_KIND[m[2]], mob:m[1], ts }); return; }
+  if ((m = RE_RT_LAND.exec(line)))   { broadcast({ type:'raidEvidence', charName, kind:'land', sub:RT_LAND_KIND[m[2]], mob:m[1], ts }); return; }
   if ((m = RE_RT_CALL.exec(line)) && RE_RT_CALLKIND.test(m[3])) broadcast({ type:'raidEvidence', charName, kind:'call', text:m[3], poster:m[1], channel:m[2], ts });
 }
 
