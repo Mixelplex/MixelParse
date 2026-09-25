@@ -1433,6 +1433,17 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
 const EQ_CLASSES=["Bard","Cleric","Druid","Enchanter","Magician","Monk","Necromancer","Paladin","Ranger","Rogue","Shadow Knight","Shaman","Warrior","Wizard"];
 const TESTBENCH_NAME='\u2699 Test Bench';   // Gear Test Bench synthetic character — memory-only, never persisted to Supabase
 const EQ_RACES=["Barbarian","Dark Elf","Dwarf","Erudite","Gnome","Half Elf","Halfling","High Elf","Human","Iksar","Ogre","Troll","Wood Elf"];
+const EQ_DEITIES=["Agnostic","Bertoxxulous","Brell Serilis","Bristlebane","Cazic-Thule","Erollisi Marr","Innoruuk","Karana","Mithaniel Marr","Prexus","Quellious","Rallos Zek","Rodcet Nife","Solusek Ro","The Tribunal","Tunare"];
+// Deity-restricted gear (item._deity, split out of _races at load — 444 items). Item deity
+// text can list several ("The Tribunal / Rallos Zek", "Bertoxxulous Cazic-Thule Innoruuk
+// Rallos Zek"), so match the character's deity anywhere in it; "-" vs " " ignored
+// ("Cazic-Thule" = "Cazic Thule"). Unset character deity → allowed (unknown ≠ forbidden);
+// Agnostic never matches a deity item.
+function deityOk(itemDeity,charDeity){
+  if(!itemDeity||!charDeity)return true;
+  const n=s=>String(s).toLowerCase().replace(/-/g,' ').replace(/\s+/g,' ').trim();
+  return n(itemDeity).includes(n(charDeity));
+}
 const RACE_ABBR_MAP={"Barbarian":"BAR","Dark Elf":"DEF","Dwarf":"DWF","Erudite":"ERU","Gnome":"GNM","Half Elf":"HEF","Halfling":"HFL","High Elf":"HIE","Human":"HUM","Iksar":"IKS","Ogre":"OGR","Troll":"TRL","Wood Elf":"WEF"};
 const STAT_LABELS=["Strength","Stamina","Dexterity","Agility","Wisdom","Intelligence","Charisma"];
 const RESIST_LABELS=["Poison","Magic","Disease","Fire","Cold"];
@@ -1499,9 +1510,9 @@ const BUFF_DB=[
  {name:'Adorning Grace',g:'Enchanter',cls:'ENC 49',cat:'spell',line:'CHA (Primary)',v:0,fx:{cha:40}},
  {name:'Radiant Visage',g:'Enchanter',cls:'ENC 34',cat:'spell',line:'CHA (Primary)',v:0,fx:{cha:30}},
  {name:'Enlightenment',g:'Enchanter',cls:'ENC 57',cat:'spell',line:'INT/WIS (Primary)',v:0,fx:{int:22,wis:22}},
- {name:'Brilliance',g:'Enchanter',cls:'ENC 44',cat:'spell',line:'INT/WIS (Primary)',v:0,fx:{int:14,wis:7}},
- {name:'Insight',g:'Enchanter',cls:'ENC 39',cat:'spell',line:'INT/WIS (Primary)',v:0,fx:{int:9,wis:14}},
- {name:'Berserker Spirit',g:'Enchanter',cls:'ENC 49',cat:'spell',line:'STR (Primary)',v:0,fx:{str:40},note:'+200 rune not shown.'},
+ {name:'Brilliance',g:'Enchanter',cls:'ENC 44',cat:'spell',line:'INT/WIS (Primary)',v:1,fx:{int:14,wis:8}},
+ {name:'Insight',g:'Enchanter',cls:'ENC 39',cat:'spell',line:'INT/WIS (Primary)',v:1,fx:{int:8,wis:14}},
+ {name:'Berserker Spirit',g:'Enchanter',cls:'ENC 49',cat:'spell',line:'STR (Primary)',v:1,fx:{str:40,agi:-20},note:'+200 rune not shown. Also -20 AGI (spell page).'},
  {name:'Visions of Grandeur',g:'Enchanter',cls:'ENC 60',cat:'spell',line:'Speed Augmentation',v:1,fx:{agi:40,dex:25},note:'58% spell haste + 20 ATK not shown. Blocked by Speed of the Shissar.'},
  // Caster self-buffs
  {name:'Shield of the Magi',g:'Caster (self-only)',cls:'ENC/MAG/NEC/WIZ 54',cat:'spell',line:'Shielding line',v:1,fx:{hpbonus:250,ac:44,svmagic:24},note:'Self-only. Does not stack with Focus of Spirit.'},
@@ -1643,6 +1654,8 @@ const CLASS_NO_DW=new Set(['Paladin','Shadow Knight']);
 // Monk 78%=(252+60)/400, Rogue 76.25%=(245+60)/400, Ranger 75%=(240+60)/400,
 // Bard 67.5%=(210+60)/400, Warrior 63.16%=(240+60)/475.
 const DW_SKILL_CAP={'Monk':252,'Rogue':245,'Ranger':240,'Bard':210,'Warrior':240};
+// L50 dual wield skill, back-solved from the wiki's L50 chance column: (50+skill)/MaxSkill.
+const DW_SKILL_CAP_50={'Monk':252,'Rogue':210,'Ranger':210,'Bard':210,'Warrior':210};
 const DW_MAX_SKILL={'Monk':400,'Rogue':400,'Ranger':400,'Bard':400,'Warrior':475};
 // Classes that can equip shields in SECONDARY slot (WAR: shield or weapon; PAL/SHD: shield only).
 const CLASS_SHIELD_OK=new Set(['Warrior','Paladin','Shadow Knight']);
@@ -1823,7 +1836,10 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
   const ppm=(dex/170)+0.5;
   // DW chance = (level + skill) / MaxSkill; skill and MaxSkill are class-specific.
   // Skill cap approximated as min(max_skill_cap, (lv+1)*7) — scales with level.
-  const dwSkillCap=DW_SKILL_CAP[charClass]||252;
+  // Skill cap rises from the L50 cap to the L60 cap (wiki DW table: ROG/RNG/WAR
+  // chances at L50 imply 210 skill, at L60 the full cap).
+  const dwCap60=DW_SKILL_CAP[charClass]||252, dwCap50=DW_SKILL_CAP_50[charClass]||dwCap60;
+  const dwSkillCap=lv>=60?dwCap60:lv<=50?dwCap50:Math.floor(dwCap50+(dwCap60-dwCap50)*(lv-50)/10);
   const dwMaxSkill=DW_MAX_SKILL[charClass]||400;
   const dwSkill=Math.min((lv+1)*7,dwSkillCap);
   const dwChance=Math.min((dwSkill+lv)/dwMaxSkill,1.0);
@@ -2119,11 +2135,35 @@ function getStatWeights(cls, baseTotals, baseOverride) {
   return w;
 }
 
-function staRatio(cls,lvl){const r=HP_RATIOS[cls];if(!r)return 0;if(lvl<=50)return r[0]*(lvl/50);if(lvl>=60)return r[1];return r[0]+(r[1]-r[0])*((lvl-50)/10);}
-function calcHP(sta,cls,lvl){return Math.floor(12.1*lvl+sta*staRatio(cls,lvl));}
+// ── HP / mana — classic EQ formulas (EQEmu pre-SoF, which P99 runs) ─────────────
+// Class HP level factor. level×factor/3000 reproduces all 12 STA→HP values on the
+// P99 wiki (Game_Mechanics → Health calculations, levels 50 and 60) exactly; the
+// wiki omits the base term (level×factor/10), which is why the old single
+// 12.1×level base (= the caster factor) under-counted every non-caster — a L60
+// Warrior by ~1,080 HP. HP_RATIOS (above) stays as the wiki's reference table.
+function hpLevelFactor(cls,l){
+  switch(cls){
+    case 'Warrior': return l<20?220:l<30?230:l<40?250:l<53?270:l<57?280:l<60?290:300;
+    case 'Cleric':case 'Druid':case 'Shaman': return 150;
+    case 'Paladin':case 'Shadow Knight': return l<35?210:l<45?220:l<51?230:l<56?240:l<60?250:260;
+    case 'Monk':case 'Bard':case 'Rogue': return l<51?180:l<58?190:200;
+    case 'Ranger': return l<58?200:210;
+    case 'Enchanter':case 'Magician':case 'Necromancer':case 'Wizard': return 120;
+    default: return 0;
+  }
+}
+function staRatio(cls,lvl){const f=hpLevelFactor(cls,lvl);return f?lvl*f/3000:0;}
+// Integer steps as the server computes them. STA is capped at 255 by callers.
+function calcHP(sta,cls,lvl){const f=hpLevelFactor(cls,lvl);if(!f)return 0;return 5+Math.floor(lvl*f/10)+Math.floor(sta*lvl*f/3000);}
+// Classic mana: points above 199 count half (the wiki's 200 breakpoint), and each
+// step truncates — which is why the wiki's (80×L/425)×stat "is often a few points
+// off". Slope at L60 ≈ 11.25/pt below 200, ≈ 5.6/pt above (wiki: ~11.27 / half).
+// Verified in-game (Mixelmedic, CLR 52, WIS 255: 3288 mana = 2418 + 870 gear): the half-
+// value zone starts ABOVE 200 (wiki wording) — EQEmu's 199 is 12 mana high at 255.
 function calcMana(intWis,lvl){
-  if(intWis<=200)return Math.floor((intWis+10)*lvl/5);
-  return Math.floor((11250*lvl+33*intWis*lvl)/425);
+  const lesser=Math.max(0,Math.trunc((intWis-200)/2)),mind=intWis-lesser;
+  if(intWis>100)return Math.trunc(Math.trunc(Math.trunc(5*(mind+20)/2)*3*lvl)/40);
+  return Math.trunc(Math.trunc(Math.trunc(5*(mind+200)/2)*3*lvl)/100);
 }
 
 // ─── Item Database ────────────────────────────────────────────────────────────
@@ -2294,7 +2334,21 @@ const ITEM_STAT_OVERRIDES={
   'Primal Velium Claidhmore':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Slashing',_classes:'WAR PAL RNG SHD'},
   'Primal Velium Brawl Stick':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Blunt',_classes:'ALL EXCEPT BRD ROG'},
   'Primal Velium War Lance':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Piercing',_classes:'WAR PAL SHD'},
+  // ── Wiki audit 2026-09-24 (item_db vs live wiki statsblocks, 409-item sample) ──
+  "Yelinak's Talisman":{haste:41},
+  'Crown of Narandi':{ac:25,str:8,dex:8,sta:8,wis:8,int:8,agi:8,hpbonus:50,manabonus:50,svfire:4,svdisease:4,svcold:4,svmagic:4,svpoison:4,_slot:'HEAD',_lore:true,_magic:true,_effect:'Flowing Thought II',_ft:2,_classes:'PAL SHD'},
+  'Spiked Seahorse Hide Belt':{_lore:true},
+  'Drums of the Beast':{_slot:'PRIMARY'},
+  'Forge Hammer of Dalnir':{_classes:'WAR CLR PAL RNG SHD DRU MNK BRD ROG SHM NEC'},
+  'Rubicite Breastplate':{_races:'HUM BAR ERU ELF HIE DEF HEF DWF TRL OGR'},
+  'Ancient Venom Sack':{_races:'HUM BAR ELF DEF HEF DWF'},
 };
+// Bard instrument modifiers — the item export never carried these columns, so no item
+// had one and Bard instrument scoring never fired. Built from every item in the wiki's
+// Category:Bard Instrument (2026-09-24). Fill-only, applied at every index rebuild.
+// Gear the export stored with slot NONE (mostly instruments) — slot from each wiki page.
+const SLOT_FIXES={"Agilmente's Flute of Flight":{"_slot":"PRIMARY"},"Alluring Horn":{"_slot":"SECONDARY"},"Brahhms Horn":{"_slot":"SECONDARY"},"Conch Shell Horn":{"_slot":"SECONDARY"},"Denon's Horn of Disaster":{"_slot":"PRIMARY"},"Efreeti War Horn":{"_slot":"PRIMARY"},"Ervaj's Flute of Flight":{"_slot":"PRIMARY"},"Faun Flute":{"_slot":"SECONDARY"},"Fine Lute Tuners":{"_slot":"SECONDARY"},"Flute of the Sacred Glade":{"_slot":"SECONDARY"},"Gypsy Lute":{"_slot":"SECONDARY"},"Hand Drum":{"_slot":"SECONDARY"},"Horn":{"_slot":"SECONDARY"},"Horn Mouthpiece":{"_slot":"SECONDARY"},"Immaculate Shell Horn":{"_slot":"SECONDARY"},"Kelin`s Seven Stringed Lute":{"_slot":"SECONDARY"},"Lute of the Gypsy Princess":{"_slot":"SECONDARY"},"Lute of the Howler":{"_slot":"PRIMARY"},"Lyendlln's Lute":{"_slot":"SECONDARY"},"Lyran's Mystical Lute":{"_slot":"PRIMARY","_slots":["PRIMARY","SECONDARY"]},"Lyssa`s Darkwood Piccolo":{"_slot":"SECONDARY"},"Mahlin's Mystical Bongos":{"_slot":"SECONDARY"},"Mandolin":{"_slot":"SECONDARY"},"McVaxius` Horn of War":{"_slot":"SECONDARY"},"Minotaur Horn":{"_slot":"SECONDARY"},"Mistmoore Battle Drums":{"_slot":"SECONDARY"},"Mystical Lute":{"_slot":"SECONDARY"},"Nostrolo Tambourine":{"_slot":"SECONDARY"},"Scorpion Pincer":{"_slot":"SECONDARY"},"Selo`s Drums of the March":{"_slot":"SECONDARY"},"Sharkskin Drum":{"_slot":"SECONDARY"},"Trumpet Valves":{"_slot":"SECONDARY"},"Uliorn's Fishing Pole":{"_slot":"PRIMARY","_slots":["PRIMARY","SECONDARY"]},"Unfinished Brass Trumpet":{"_slot":"SECONDARY"},"Verlekarnorm's Horn of Disaster":{"_slot":"PRIMARY"},"Walrus Skin Drum":{"_slot":"SECONDARY"}};
+const INSTRUMENT_MODS={"Agilmente's Flute of Flight":{"_windmod":22},"Alluring Horn":{"_brasmod":18},"Brahhms Horn":{"_windmod":21},"Conch Shell Horn":{"_brasmod":21},"Denon's Horn of Disaster":{"_brasmod":24},"Drums of the Beast":{"_percmod":26},"Efreeti War Horn":{"_brasmod":22},"Ervaj's Flute of Flight":{"_windmod":22},"Faun Flute":{"_windmod":21},"Fine Lute Tuners":{"_stringmod":10},"Flute of the Sacred Glade":{"_windmod":25},"Gypsy Lute":{"_stringmod":21},"Hand Drum":{"_percmod":18},"Horn":{"_brasmod":20},"Horn Mouthpiece":{"_brasmod":10},"Immaculate Shell Horn":{"_brasmod":24},"Kelin`s Seven Stringed Lute":{"_stringmod":24},"Lute of the Gypsy Princess":{"_stringmod":21},"Lute of the Howler":{"_stringmod":22},"Lyendlln's Lute":{"_stringmod":24},"Lyran's Mystical Lute":{"_stringmod":25},"Lyssa`s Darkwood Piccolo":{"_windmod":24},"Mahlin's Mystical Bongos":{"_percmod":21},"Mandolin":{"_stringmod":20},"McVaxius` Horn of War":{"_brasmod":23},"Minotaur Horn":{"_windmod":20},"Mistmoore Battle Drums":{"_percmod":21},"Mystical Lute":{"_stringmod":21},"Nostrolo Tambourine":{"_percmod":22},"Scorpion Pincer":{"_windmod":20},"Selo`s Drums of the March":{"_percmod":24},"Sharkskin Drum":{"_percmod":22},"Trumpet Valves":{"_brasmod":10},"Unfinished Brass Trumpet":{"_brasmod":10},"Unicorn Horn":{"_windmod":22},"Verlekarnorm's Horn of Disaster":{"_brasmod":22},"Walrus Skin Drum":{"_percmod":23}};
 // Creates the DB entry if the crawler never captured it; otherwise fills only the
 // missing fields (won't clobber a good existing weapon's dmg/delay).
 function applyItemStatOverrides(){
@@ -2307,8 +2361,8 @@ function applyItemStatOverrides(){
       // parser stamps every row with _classes (defaulting to 'ALL' when its
       // class column is blank), so a truthy-but-wrong 'ALL' from the crawler
       // would otherwise pass the fill-only check below and never get fixed.
-      if(k==='_classes'){ it[k]=v; continue; }
-      if(!it[k]) it[k]=v;
+      if(k==='_classes'||k==='_races'){ it[k]=v; continue; }
+      if(!it[k]||(k==='_slot'&&it[k]==='NONE')) it[k]=v;
     }
   }
 }
@@ -2352,6 +2406,11 @@ function _rebuildItemDBIndex(){
     if(d&&typeof d==='object'){
       if(/no longer drops/i.test(d._from||''))d._legacy=true;
       else if(d._legacy)delete d._legacy;
+      // Deity was crawled into _races ("ELF HIE HEF Deity: Tunare"). Split it out: the
+      // "ALL Deity: Bristlebane" form failed the race check for every character.
+      if(typeof d._races==='string'&&/\bdeity\b/i.test(d._races)){const m=d._races.match(/^(.*?)\s*\bdeity\b:?\s*(.+)$/i);if(m){d._races=(m[1].trim()||'ALL');d._deity=m[2].trim();}}
+      const im=INSTRUMENT_MODS[k];if(im)for(const[mk,mv]of Object.entries(im))if(!d[mk])d[mk]=mv;
+      const sf=SLOT_FIXES[k];if(sf&&(!d._slot||d._slot==='NONE'))Object.assign(d,sf);
     }
   }
   applyItemEffectOverrides();
@@ -2684,7 +2743,8 @@ function renderTable(){const query=document.getElementById('searchBox').value.to
 
 // ─── Stats Panel ──────────────────────────────────────────────────────────────
 function renderStatsPanel(){const panel=document.getElementById('statsPanel');const name=activeTab;if(!name||name==='__all__'){panel.innerHTML='';return;}const meta=charMeta[name]||{};const base=meta.baseStats||null;const selClass=meta.class||'';const selLevel=meta.level||1;const selRace=meta.race||'';const charGear=gearStats[name]||{};const dbCount=Object.keys(itemDB).length;const getBaseVal=(k)=>{if(!base)return'';const si=STAT_KEYS.indexOf(k);if(si>=0)return base.stats[si]||'';const ri=RESIST_KEYS.indexOf(k);if(ri>=0)return base.resists[ri]||'';const pi=POOL_KEYS.indexOf(k);if(pi>=0)return base.pools?.[pi]||'';return'';};const getCurVal=(k)=>{const cs=meta.currentStats;if(cs){const si=STAT_KEYS.indexOf(k);if(si>=0)return cs.stats?.[si]||'';const ri=RESIST_KEYS.indexOf(k);if(ri>=0)return cs.resists?.[ri]||'';const pi=POOL_KEYS.indexOf(k);if(pi>=0)return cs.pools?.[pi]||'';return'';}return getBaseVal(k);};
-const raceSelect=`<label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Race<select id="raceSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:\'Crimson Pro\',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">— Select Race —</option>${EQ_RACES.map(r=>`<option value="${r}"${r===selRace?' selected':''}>${r}</option>`).join('')}</select></label>`;
+const raceSelect=`<label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Race<select id="raceSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:\'Crimson Pro\',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">— Select Race —</option>${EQ_RACES.map(r=>`<option value="${r}"${r===selRace?' selected':''}>${r}</option>`).join('')}</select></label>`+
+`<label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem" title="Filters deity-restricted gear (e.g. Imbued armor/jewelry) in the Gear Planner and Outfitter. Unset = deity gear is shown.">Deity<select id="deitySelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:\'Crimson Pro\',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">— Select Deity —</option>${EQ_DEITIES.map(d=>`<option value="${d}"${d===(meta.deity||'')?' selected':''}>${d}</option>`).join('')}</select></label>`;
 panel.innerHTML=`<div class="char-setup" style="flex-direction:column;align-items:flex-start;gap:.75rem;display:flex">
 <div style="font-family:\'Cinzel\',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em">CHARACTER</div>
 <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center">
@@ -2769,6 +2829,7 @@ window._mpBuffEditIdx=null;renderBuffChips();
 const _buffAddBtn=document.getElementById('buffAddBtn');if(_buffAddBtn)_buffAddBtn.addEventListener('click',()=>window.mpBuffAdd());
 document.getElementById('classSelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};charMeta[name].class=e.target.value;saveState();renderStatsPanel();});
 document.getElementById('raceSelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};charMeta[name].race=e.target.value;saveState();renderStatsPanel();buildTabs();});
+document.getElementById('deitySelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};if(e.target.value)charMeta[name].deity=e.target.value;else delete charMeta[name].deity;saveState();renderStatsPanel();});
 document.getElementById('levelInput').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};const v=Math.min(60,Math.max(1,parseInt(e.target.value)||1));charMeta[name].level=v;e.target.value=v;saveState();renderStatsPanel();});
 mpEnsureZonesDL();{const _bi=document.getElementById('bindInput');if(_bi)_bi.addEventListener('change',e=>{setCharBind(name,e.target.value,'manual');});}
 
@@ -2906,6 +2967,7 @@ function renderUpgradesPanel(){
   const charRaceAbbr=RACE_ABBR_MAP[meta.race||'']||'';
 
   function itemUsableByChar(data){
+    if(!deityOk(data._deity,meta.deity))return false;
     if(!charClassAbbr)return true;
     const classes=(data._classes||'ALL').toUpperCase();
     let classOk;
@@ -4420,7 +4482,7 @@ function parseItemDB(csvText,filename){
 
   const validSlots=new Set(['EAR','HEAD','FACE','NECK','SHOULDERS','ARMS','BACK','WRIST','RANGE','HANDS','PRIMARY','SECONDARY','FINGERS','CHEST','LEGS','FEET','WAIST','AMMO','TWOHANDER','ONEHANDER','SHIELD']);
   const FILE_CLASS_MAP={'bard':'BRD','cleric':'CLR','druid':'DRU','enchanter':'ENC','mage':'MAG','magician':'MAG','monk':'MNK','necromancer':'NEC','paladin':'PAL','ranger':'RNG','rogue':'ROG','shadowknight':'SHD','shadow_knight':'SHD','shaman':'SHM','warrior':'WAR','wizard':'WIZ'};
-  const FILE_RACE_MAP={'human':'HUM','barbarian':'BAR','erudite':'ERU','woodelf':'WEF','wood_elf':'WEF','highelf':'HEF','high_elf':'HEF','darkelf':'DEF','dark_elf':'DEF','halfelf':'HEF','half_elf':'HEF','dwarf':'DWF','troll':'TRL','ogre':'OGR','halfling':'HFL','gnome':'GNM','iksar':'IKS'};
+  const FILE_RACE_MAP={'human':'HUM','barbarian':'BAR','erudite':'ERU','woodelf':'WEF','wood_elf':'WEF','highelf':'HIE','high_elf':'HIE','darkelf':'DEF','dark_elf':'DEF','halfelf':'HEF','half_elf':'HEF','dwarf':'DWF','troll':'TRL','ogre':'OGR','halfling':'HFL','gnome':'GNM','iksar':'IKS'};
   function classFromFilename(fn){const low=fn.toLowerCase().replace(/[^a-z_]/g,'');for(const[k,v]of Object.entries(FILE_CLASS_MAP)){if(low.includes(k))return v;}return null;}
   function raceFromFilename(fn){const low=fn.toLowerCase().replace(/[^a-z_]/g,'');for(const[k,v]of Object.entries(FILE_RACE_MAP)){if(low.includes(k))return v;}return null;}
 
@@ -4909,18 +4971,20 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.5.8',
+  version:'1.5.9',
   date:'September 2026',
   features:[
-    ['Raid Kill Auto-Detect <i>(preview)</i>','Kill Tracker &rarr; <b>&#127919; Auto-Detect</b> watches for each RAIDTICK and works out which boss died from enrage, slain, and tash/malo/slow messages &mdash; with the time of death. Watch-only for now: it suggests, it never changes your sessions.'],
-    ['Manual prices in Networth','Click <b>&#9998;</b> on any item to set your own price &mdash; including items with no WTS data. <b>Use market price</b> puts it back.'],
-    ['Browse suggestions','<b>Feedback</b> now shows what everyone has already suggested, with search &mdash; add your voice instead of a duplicate.'],
+    ['Deity on your characters','Pick each character&rsquo;s deity on the <b>Stats</b> tab. The Gear Planner and Outfitter now hide gear for other deities (Imbued armor and jewelry, and more).'],
+    ['Bard instruments scored','The Gear Planner now values instrument modifiers for all 37 Bard instruments &mdash; before, instrument upgrades never showed up.'],
+    ['Raid Auto-Detect catches up','If MixelParse is closed or restarted mid-raid, it now catches up on the whole night when it starts &mdash; and recognizes more bosses (Dracoliche, Yael, Kelorek&rsquo;Dar, Kozzalym, Garzicor, Undead Bard).'],
   ],
   fixes:[
-    ['Sessions auto-start for every character','Login, XP, kill and loot tracking now works for all your toons on a fresh install &mdash; not just ones that had exported their inventory on that PC.'],
-    ['Text boxes stop freezing','After a pop-up message, text boxes could stop accepting typing until you clicked away. Fixed everywhere.'],
-    ['Gear Planner: Rogue &amp; Monk weapons','Daggers tagged for the Range slot no longer rank too high in Main/Off Hand.'],
-    ['Gear Test Bench totals','The stat breakdown now adds up to the weighted score.'],
+    ['HP and mana match the game','Rebuilt from the P99 wiki and checked against the in-game Inventory window. Non-casters were showing hundreds of HP too low (a level 60 Warrior by over 1,000).'],
+    ['60 hidden items are back','Deity items marked &ldquo;ALL races&rdquo; were being treated as unusable by everyone.'],
+    ['Food &amp; drink timers','On P99 race doesn&rsquo;t change how long food lasts &mdash; that rule is gone. Monks&rsquo; food and drink now last twice as long.'],
+    ['Bag sizes in Consolidate','Spell tomes hold 10 (not 4), and 64 more bags and kits are recognized.'],
+    ['Item and buff data','Corrected against the wiki: Yelinak&rsquo;s Talisman haste, Crown of Narandi stats, Brilliance, Insight, Berserker Spirit, and more.'],
+    ['Smaller fixes','Dual wield chance at levels 50&ndash;59; Lyran&rsquo;s Mystical Lute drop source; High Elf item imports.'],
   ],
 };
 function showWhatsNew(){
@@ -5354,7 +5418,7 @@ async function loadFromSupabase(){
           }
         }
         if(row.base_stats?.questData)questData[row.char_name]=row.base_stats.questData;
-        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,factionValues:_fv,questData:_qd,buffs:_bu,planBuffed:_pb,spellbook:_sb,spellIgnore:_si,customWeights:_cw,consumeOverrides:_co,...bs}=row.base_stats||{};
+        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,factionValues:_fv,questData:_qd,buffs:_bu,planBuffed:_pb,spellbook:_sb,spellIgnore:_si,customWeights:_cw,consumeOverrides:_co,deity:_de,...bs}=row.base_stats||{};
         const hasRealStats=bs.stats||bs.resists;
         charMeta[row.char_name]={
           class:row.class||'',race:row.race||'',level:row.level||1,
@@ -5370,6 +5434,7 @@ async function loadFromSupabase(){
           customWeights:row.base_stats?.customWeights||null,
           consumeOverrides:row.base_stats?.consumeOverrides||null,
           planBuffed:row.base_stats?.planBuffed??undefined,
+          deity:row.base_stats?.deity||'',
         };
         if(row.gear_stats)gearStats[row.char_name]=row.gear_stats;
         _charLoadedMeta[row.char_name]={
@@ -5488,6 +5553,7 @@ function _charSaveRow(cn){
         customWeights:charMeta[cn]?.customWeights||null,
         consumeOverrides:charMeta[cn]?.consumeOverrides||null,
         planBuffed:charMeta[cn]?.planBuffed,
+        deity:charMeta[cn]?.deity||null,
       };
     })(),
     gear_stats:gearStats[cn]||null,
@@ -5934,13 +6000,12 @@ function getCityHidden(key){try{return new Set(JSON.parse(localStorage.getItem(k
 function setCityHidden(key,s){localStorage.setItem(key,JSON.stringify([...s]));}
 
 // ── Food & Drink tracker (P99 wiki: Food_and_drink) ────────────────────────────
-// Fast-consuming races run the Halfling-scale timers (half the real-time per
-// duration unit); everyone else uses the Human-scale rate. 1 duration unit =
-// 144 real-time seconds at the slow (Human-scale) rate, per the wiki's own
-// worked example (Rat Sandwich, 18 duration = 43.2 min).
-const FD_FAST_RACES=new Set(['Barbarian','Halfling','Ogre','Troll']);
-const FD_MIN_PER_UNIT_SLOW=2.4;
-const FD_MIN_PER_UNIT_FAST=1.2;
+// 1 duration unit = 144 real-time seconds (wiki Food_and_drink; Rat Sandwich
+// 18 duration = 43.2 min). On P99 race does NOT change this (the Live halfling/
+// troll rule doesn't apply — wiki, post Oct 29 2025 patch), but food and drink
+// last twice as long for Monks.
+const FD_MIN_PER_UNIT=2.4;
+const FD_MONK_MULT=2;
 // name -> [type ('F'|'D'), duration]. Two wiki items share a name at different
 // durations due to fish-weight variants ("large Fetid Bass") or a vendor/quest
 // duplicate ("Muffin"); since this is a flat name lookup only one value can be
@@ -5948,7 +6013,7 @@ const FD_MIN_PER_UNIT_FAST=1.2;
 const _FD_RAW=[["Vile Sarnak Brew","D",100],["Fuzzlecutter Formula 5000","D",60],["Louie's Thick 'n Hearty","D",60],["Canteen of Slush Water","D",45],["Sarnak Travel Canteen","D",45],["Skin of Milk","D",30],["Steamfont Spring Water","D",30],["Surefall Sap","D",30],["Bladder of Otter Milk","D",25],["Jumjum Juice","D",25],["Egg Nog","D",20],["Oasis Water","D",20],["Crow's Special Brew","D",18],["Flask of Orange Juice","D",18],["Glob of Slush Water","D",17],["Pod of Water","D",16],["Flask of Bloodwater","D",15],["Flask of Icy Water","D",15],["Issued Water","D",15],["Large Bottle of Milk","D",15],["Purified Water","D",15],["Skin of Slush Water","D",15],["Summoned: Globe of Water","D",15],["Water Flask","D",15],["Flask of Karana Brown Tea","D",13],["Bladder of Lizard Milk","D",12],["Flask of Rathe Berry Juice","D",10],["Flask of Sylvan Berry Juice","D",10],["Root Beer Float","D",10],["Stormguard Root Beer","D",10],["Tagglefoot Tingle Drink","D",10],["Bottle of Milk","D",8],["Flask of Berry Juice","D",8],["Flask of Fruit Juice","D",8],["Neriak Nectar","D",8],["Brackish Water","D",5],["Malted Milk","D",5],
 ["Sandwich of Foul Smelling Herbs","F",100],["Deep Cavern Toadstool","F",60],["17lb Fetid Bass","F",46],["Chokidai Jerky","F",45],["Dragon Egg","F",45],["Shellcracker's Seaside Salad","F",45],["16lb Fetid Bass","F",44],["15lb Fetid Bass","F",42],["Muskie Marinade","F",41],["14lb Fetid Bass","F",40],["13lb Fetid Bass","F",38],["Caynar Nut Stuffed Trout","F",37],["12lb Fetid Bass","F",36],["Barbequed Erudite","F",35],["Beer Braised Mammoth","F",35],["Fish Rolls","F",35],["Gator Rolls","F",35],["Rolled Cutlassfish","F",35],["Shark Rolls","F",35],["11lb Fetid Bass","F",34],["10lb Fetid Bass","F",32],["Frost Giant Steak","F",31],["Icy Mushrooms","F",31],["Storm Giant Steak","F",31],["Vegetable Roughy","F",31],["9lb Fetid Bass","F",30],["Bread Cakes","F",30],["humongous Fetid Bass","F",30],["Mammoth Steaks","F",30],["Rat Ear Turnovers","F",30],["Snow Griffin Souffle","F",30],["8lb Fetid Bass","F",28],["Smoked Shark","F",28],["Fish Head Soup","F",27],["7lb Fetid Bass","F",26],["Bear Steaks","F",25],["Berry Pie","F",25],["Clamcakes","F",25],["Crunchy Coldain Head","F",25],["Drake Egg","F",25],["Elven Trail Mix","F",25],["gigantic Fetid Bass","F",25],["Griffon Eggs","F",25],["Honey Berry Pie","F",25],["Iron Ration","F",25],["Lion Steaks","F",25],["Orange Flavored Cod","F",25],["Royal Jelly","F",25],["Shark Fillet","F",25],["Ulthork Meat Pie","F",25],["Vegetable Soup","F",25],["6lb Fetid Bass","F",24],["Dragon Steaks","F",24],["5lb Fetid Bass","F",22],["Aviak Eggs","F",21],["Yakman Steak","F",21],["4lb Fetid Bass","F",20],["Bear Sandwich","F",20],["Birthday Cake","F",20],["Bixie Berry Pie","F",20],["Blackened Panther","F",20],["Blackened Teir'Dal","F",20],["Carp Fillets","F",20],["Chub Fillets","F",20],["Dwarf Chops","F",20],["Elven Veal","F",20],["Fruit Pie","F",20],["Gator Steaks","F",20],["HEHE Meat","F",20],["Hot-N-Spicy Toelings","F",20],["Kobold Steaks","F",20],["Lion Delight","F",20],["Lizard-on-a-Stick","F",20],["Mammoth Sandwich","F",20],["Pike Fillets","F",20],["Raptor Steak","F",20],["Salmon Fillets","F",20],["Salty Whitefish Fillets","F",20],["Snake Steak","F",20],["Snow Bunny Stew","F",20],["Trout Fillets","F",20],["Wedding Cake","F",20],["Wolf Sandwich","F",20],["Wolf Steaks","F",20],["3lb Fetid Bass","F",18],["Beer Braised Bear","F",18],["Beer Braised Gator","F",18],["Beer Braised Lion","F",18],["Beer Braised Rat","F",18],["Beer Braised Wolf","F",18],["Bixie Crunchies","F",18],["Pickled Froglok","F",18],["Rat Sandwich","F",18],["Smoked Wood Elf","F",18],["Spicy Ulthork Meat","F",18],["Fish Fillets","F",17],["Rat Kabobs","F",17],["Saucy Bearmeat","F",17],["Wooly Spider Crunchies","F",17],["Batwing Crunchies","F",16],["Rat Ear Sandwich","F",16],["2lb Fetid Bass","F",15],["Barren Flounder","F",15],["Batwing Pie","F",15],["Beetle Eye Pie","F",15],["Boar Carp","F",15],["Cauldron Trout","F",15],["Cave Guppy","F",15],["Chokai Bass","F",15],["Chunk of Ogre Flesh","F",15],["Clam Chowder","F",15],["Clockwork Koi","F",15],["Cobalt Cod","F",15],["Cobalt Cup Cakes","F",15],["Cold Water Barracuda Meat","F",15],["Coldain Pickles","F",15],["Crystalline Cave Fish","F",15],["Danak Grouper","F",15],["Despair Chub","F",15],["Dragon Bay Snapper","F",15],["Dried Froglok Leg","F",15],["Dwarf Flesh","F",15],["Evergreen Salmon","F",15],["Fogwater Trout","F",15],["Fresh Fish","F",15],["Frosty Cave Trout","F",15],["Frozen Sea Biscuits","F",15],["giant Fetid Bass","F",15],["Gnome Sandwich","F",15],["Greengill Salmon","F",15],["Grotto Bluegill","F",15],["Gunthak Mackerel","F",15],["Hatch Dace","F",15],["Highland Pike","F",15],["Hound Pike","F",15],["Iceclad Cutlassfish","F",15],["Ikfish","F",15],["Kedge Carp","F",15],["Kerra Catfish","F",15],["Koada Cichlid","F",15],["Kunzar Koi","F",15],["large Fetid Bass","F",15],["Meat Pie","F",15],["Pine Cichlid","F",15],["Pouch of Frozen Roots","F",15],["Rat Ear Pie","F",15],["Rathe Muskie","F",15],["Ration","F",15],["Red Roughy","F",15],["Rivervale Trout","F",15],["Rujarkian Chub","F",15],["Salty Whitefish","F",15],["Sea Green Cookies","F",15],["Stonefish","F",15],["Summoned: Black Bread","F",15],["Thullian Mudskipper","F",15],["Thunder Salmon","F",15],["Timorous Tuna","F",15],["Tundrabear Sandwich","F",15],["Ulthork Meat","F",15],["Weary Wrass","F",15],["Whipped Hunkle Pear Pie","F",15],["Wulf Fish","F",15],["Wyvern Flesh Pie","F",15],["Grilled Rat Ears","F",12],["Human Pickles","F",12],["Orc Pickles","F",12],["Paladin Pickles","F",12],["Alligator Eggs","F",10],["Arctic King Crab","F",10],["Arctic Mussels","F",10],["Arctic Scallop","F",10],["Bag of Caynar Nuts","F",10],["Basilisk Eggs","F",10],["Beetle Bake","F",10],["Cobalt Abalone","F",10],["Cobalt Rock Crab","F",10],["Dwarf Pickles","F",10],["Fishcakes","F",10],["Fresh Piranha","F",10],["Iceclad Shrimp","F",10],["Krup Guppy","F",10],["Lichen Clover Sweet Bread","F",10],["Loaf of Bread","F",10],["Muckskipper Fish","F",10],["Pickled Dragon","F",10],["Pickled Drake","F",10],["Pickled Faun","F",10],["Pickled Frost Giant","F",10],["Pickled Storm Giant","F",10],["Pickled Unicorn","F",10],["Pickled Wurm","F",10],["Pickled Wyvern","F",10],["Pouch of Kejek Catnip","F",10],["Pound Cake","F",10],["Rabbit Meat","F",10],["Rabbit Stew","F",10],["Ro Dates","F",10],["Sand Crabs","F",10],["Saucy Bunnymeat","F",10],["Scorpion Sandwich","F",10],["Sifaye Pickles","F",10],["Siren Pickles","F",10],["Small Clam","F",10],["Vegetable Pie","F",10],["Pickled Bixie","F",9],["Pickled Gator","F",9],["Pickled Lizard","F",9],["Pickled Troll","F",9],["Armadillo Meat","F",8],["Ashweed","F",8],["Bag of Sea Salt","F",8],["Bamboo Shoot","F",8],["Berries","F",8],["Black Root","F",8],["Cactus Pulp","F",8],["Carrot","F",8],["Chunk of Meat","F",8],["Cinnamon Sticks","F",8],["Cockatrice Egg","F",8],["Crunchy Crawlers","F",8],["Earthworm Munch","F",8],["Elf Pickles","F",8],["Emerald Orange","F",8],["Frontier Stink Beetles","F",8],["Frost Turnip","F",8],["Fruit","F",8],["Giant Hornet Egg","F",8],["Glow Lichen","F",8],["Gnome Kabobs","F",8],["Gnome Pickles","F",8],["Gorge Moss","F",8],["Grapes","F",8],["Halfling Pickles","F",8],["Honey Berry","F",8],["Hopeless Willow Moss","F",8],["Kejekan Palm Fruit","F",8],["Lettuce","F",8],["Lichen Roots","F",8],["Marr Cherries","F",8],["Mud Crabs","F",8],["Plains Roots","F",8],["Rathe Berries","F",8],["Roots","F",8],["Shrub Lettuce","F",8],["Snake Pickles","F",8],["Speckled Toadstool","F",8],["Sylvan Berries","F",8],["Thunderhoof Mushroom","F",8],["Vein Worm","F",8],["Wild Cabbage","F",8],["Wild Radish","F",8],["Cactus Pie","F",7],["Edible Goo","F",6],["High Elf Flesh","F",6],["Human Flesh","F",6],["Pixie Pickles","F",6],["Alligator Egg","F",5],["Animal Shaped Cookie","F",5],["Armadillo Husk","F",5],["Barbarian Shaped Cookie","F",5],["Bixie Berry Buns","F",5],["Cactus Tart","F",5],["Chocolate Cookies","F",5],["Chocolate Marr Cherries","F",5],["Chocolate Muffins","F",5],["Clump of Dough","F",5],["Cup Cakes","F",5],["Freshly Cleaned Vegetables","F",5],["Gnome Shaped Cookie","F",5],["Hot Cross Buns","F",5],["Ice Berry Muffin","F",5],["Jumjum Stalk","F",5],["Kromdul Carrot","F",5],["Miller Carrot","F",5],["Mudcomb Muffin","F",5],["Pixie Powder Cinnesticks","F",5],["Prickly Pear","F",5],["Rotgrub Rye","F",5],["Seahorse Roe","F",5],["Snake Egg","F",5],["Summoned: Cake","F",5],["Swamp Vegetables","F",5],["Troll Shaped Cookie","F",5],["Vegetables","F",5],["Wooly Fungus","F",5],["White Chocolate","F",5],["White Chocolate Cookies","F",5],["White Chocolate Muffins","F",5],["Winter Chocolate","F",5],["Muffin","F",4],["Cookies","F",4],["Tasty Candy","F",4],["Candied Spider","F",3],["Birthday Cake Slice","F",2],["Wedding Cake Slice","F",2]];
 const FOOD_DRINK_DB=Object.fromEntries(_FD_RAW.map(([n,t,d])=>[n,{type:t==='D'?'drink':'food',dur:d}]));
-function fdMinutesPerUnit(charName){return FD_FAST_RACES.has((charMeta[charName]||{}).race)?FD_MIN_PER_UNIT_FAST:FD_MIN_PER_UNIT_SLOW;}
+function fdMinutesPerUnit(charName){return (charMeta[charName]||{}).class==='Monk'?FD_MIN_PER_UNIT*FD_MONK_MULT:FD_MIN_PER_UNIT;}
 function fdFmt(min){if(min<=0)return null;const h=Math.floor(min/60),m=Math.round(min%60);return h>0?(m>0?h+'h '+m+'m':h+'h'):m+'m';}
 // Returns null if this character's inventory hasn't been loaded at all (distinct
 // from "loaded but has zero food/drink"), otherwise {foodMin, drinkMin}.
@@ -7647,7 +7712,7 @@ window.classFromFilename= function(fn){
   return null;
 };
 window.raceFromFilename = function(fn){
-  const FILE_RACE_MAP={'human':'HUM','barbarian':'BAR','erudite':'ERU','woodelf':'WEF','wood_elf':'WEF','highelf':'HEF','high_elf':'HEF','darkelf':'DEF','dark_elf':'DEF','halfelf':'HEF','half_elf':'HEF','dwarf':'DWF','troll':'TRL','ogre':'OGR','halfling':'HFL','gnome':'GNM','iksar':'IKS'};
+  const FILE_RACE_MAP={'human':'HUM','barbarian':'BAR','erudite':'ERU','woodelf':'WEF','wood_elf':'WEF','highelf':'HIE','high_elf':'HIE','darkelf':'DEF','dark_elf':'DEF','halfelf':'HEF','half_elf':'HEF','dwarf':'DWF','troll':'TRL','ogre':'OGR','halfling':'HFL','gnome':'GNM','iksar':'IKS'};
   const low=fn.toLowerCase().replace(/[^a-z_]/g,'');
   for(const[k,v]of Object.entries(FILE_RACE_MAP)){if(low.includes(k))return v;}
   return null;
@@ -7684,7 +7749,8 @@ window.SS_CUSTOM_ITEMS        = SS_CUSTOM_ITEMS;
 window.RACE_ABBR_MAP          = RACE_ABBR_MAP;
 // Standalone class/race usability check — mirrors itemUsableByChar inside renderUpgradesPanel
 // but takes explicit abbrs so it can be called from admin.html without the closure context.
-window.itemUsableByContext    = function(data, classAbbr, raceAbbr) {
+window.itemUsableByContext    = function(data, classAbbr, raceAbbr, deity) {
+  if (!deityOk(data._deity, deity)) return false;
   if (classAbbr) {
     const classes = (data._classes || 'ALL').toUpperCase();
     let classOk;
@@ -8660,7 +8726,7 @@ window.setFarmSub=function(v){
 // (lore items fill at most one regardless of copies).
 const OUTFIT_CLASS_ABBR={'Bard':'BRD','Cleric':'CLR','Druid':'DRU','Enchanter':'ENC','Magician':'MAG','Monk':'MNK','Necromancer':'NEC','Paladin':'PAL','Ranger':'RNG','Rogue':'ROG','Shadow Knight':'SHD','Shaman':'SHM','Warrior':'WAR','Wizard':'WIZ'};
 const OUTFIT_SLOT_SEQ=[['PRIMARY',1],['SECONDARY',1],['RANGE',1],['EAR',2],['FINGERS',2],['WRIST',2],['HEAD',1],['FACE',1],['NECK',1],['SHOULDERS',1],['ARMS',1],['BACK',1],['HANDS',1],['CHEST',1],['LEGS',1],['FEET',1],['WAIST',1],['AMMO',1]];
-let _outfit={cls:'Rogue',race:'Dwarf',level:1,includeEquipped:false,_userSet:false};
+let _outfit={cls:'Rogue',race:'Dwarf',deity:'',level:1,includeEquipped:false,_userSet:false};
 
 
 // Worn-effect scoring for the Outfitter (PROC_DB's sibling). Keyed by EFFECT
@@ -8788,7 +8854,7 @@ function outfitBuildKit(){
         const db=e.db;
         if(db._lore&&loreClaimed.has(e.name))continue;
         if(!outfitSlotMatch(db,slot,o.cls))continue;
-        if(!window.itemUsableByContext(db,clsAbbr,raceAbbr))continue;
+        if(!window.itemUsableByContext(db,clsAbbr,raceAbbr,o.deity))continue;
         if(!outfitWepOk(db,slot,o.cls))continue;
         const sc=outfitScore(db,slot,o.cls,o.level);
         if(sc>bestScore){bestScore=sc;best=e;}
@@ -8987,12 +9053,15 @@ async function loadConsolBankerExclFromSupabase(){try{const r=await sb.from('gui
 // is not a reliable container-size field, so we don't use it). Keys are normalized
 // (lowercase, apostrophes/backticks stripped).
 function _bagKey(n){return String(n||'').toLowerCase().replace(/[`'\u2019]/g,'').replace(/\s+/g,' ').trim();}
+// Capacities checked against each bag's P99 wiki page (2026-09-24): 66/70 matched;
+// tomes were 4 (wiki: 10); missing containers added. "Empty Tin Box" omitted —
+// two variants share that name with different capacities (4 / 10).
 const BAG_SLOTS=(function(){var m={},g={
-  10:['bag of the tinkerers','box of abu-kar','box of nil space','driftwood treasure chest','darkwood trunk','kavruuls mystic pouch','large soiled bag','forager bag','hand made backpack','bootstrutters framed pack','treasure hunters satchel','glowing backpack','bearskin potion bag','deluxe sewing kit','deluxe toolbox','tax collection box','tome binder','vale sewing kit','coin pouch'],
-  8:['bag of sewn evil-eye','dusty ransackers pack','light burlap sack','lionhide backpack','pierces pouch of storing','shralok pack','travelers pack','very large coin purse','wenglawks manly purse','backpack','fletching kit','large box','large metal container','large sewing kit','rhinohide backpack','small box','toolbox'],
-  6:['archeologist pack','fleeting quiver','memento box','quiver of marr','rough leather sack','tailored large bag','tailored large belt pouch','tailored quiver','kobold shamans pouch','dimensional hole','bandoleer of luclin','large bag','medicine bag','mortar and pestle','spit','tackle box'],
-  4:['quiver','tailored small bag','tailored wrist pouch','thunderhoof quiver','travelers pouch','small coin purse','medium coin purse','dimensional pocket','spirit pouch','belt pouch','book of dark bindings','elemental grimoire','lexicon','medium metal container','mixing bowl','purse','small bag','tome of endless enchantments','wrist pouch'],
-  2:['dakoit coin purse','tiny coin purse','small metal container','small sewing kit']
+  10:['bag of the tinkerers','box of abu-kar','box of nil space','driftwood treasure chest','darkwood trunk','kavruuls mystic pouch','large soiled bag','forager bag','hand made backpack','bootstrutters framed pack','treasure hunters satchel','glowing backpack','bearskin potion bag','deluxe sewing kit','deluxe toolbox','tax collection box','tome binder','vale sewing kit','coin pouch','erudite sewing kit','feirdal sewing kit','fire beetle eye box','glowing chest','preservationists box','tae ew hide sack','worn erudite sewing kit','book of dark bindings','elemental grimoire','lexicon','tome of endless enchantments'],
+  8:['bag of sewn evil-eye','dusty ransackers pack','light burlap sack','lionhide backpack','pierces pouch of storing','shralok pack','travelers pack','very large coin purse','wenglawks manly purse','backpack','fletching kit','large box','large metal container','large sewing kit','rhinohide backpack','small box','toolbox','bag for cutthroat rings','coldain tanners kit','empty curskin bag','empty gem bag','empty seed collection bag','kejekan tool kit','penance bag','slave shackle bag','small embroidered sack'],
+  6:['archeologist pack','fleeting quiver','memento box','quiver of marr','rough leather sack','tailored large bag','tailored large belt pouch','tailored quiver','kobold shamans pouch','dimensional hole','bandoleer of luclin','large bag','medicine bag','mortar and pestle','spit','tackle box','a skull chest','blighted mare hide satchel','box for bones','empty pouch','featherweight pouch','herbalist pack','large coin purse','partisan pack','quiver of kithicor','traitors bane box'],
+  4:['quiver','tailored small bag','tailored wrist pouch','thunderhoof quiver','travelers pouch','small coin purse','medium coin purse','dimensional pocket','spirit pouch','belt pouch','medium metal container','mixing bowl','purse','small bag','wrist pouch','a sparkle purse','box for ivans remains','box with pawprints','brood sack','burlap satchel','charred bone box','cinched stomach pouch','component chest','empty artifact container','empty bag','empty fish sack','empty shark bag','enchanters sack','fern flower pouch','first rite pack','footmans pack','full fern flower pouch','giant belt pouch','giant sack','jewelers kit','leech husk pouch','material pack','noblemans bag','ornate tin box','pack for shark','piranha bag','pouch of quellious','sarnak head pack','small sealable bag','tattered sack from rinmark','zimbittles pouch'],
+  2:['dakoit coin purse','tiny coin purse','small metal container','small sewing kit','body bag','box of the void','incomplete tool kit','ornate reagent box','pincer satchel','tattered leather pouch','toalas box for heads']
 };for(var s in g){g[s].forEach(function(n){m[n]=Number(s);});}return m;})();
 function bagCapacity(it){return BAG_SLOTS[_bagKey(it&&it.name)]||0;}
 // Real bank free-space per character. Bank = 8 personal slots (P99 is classic-era,
@@ -9113,6 +9182,7 @@ function renderOutfitterPanel(){
       if(_rk)_outfit.race=_rk;
       const _lv=parseInt(_m.level,10);
       if(_lv>=1&&_lv<=60)_outfit.level=_lv;
+      _outfit.deity=_m.deity||'';
     }
   }
   const o=_outfit;
@@ -9166,6 +9236,7 @@ function renderOutfitterPanel(){
       <span style="font-size:.68rem;letter-spacing:.08em;color:var(--text-muted)">OUTFITTER</span>
       <select style="${selStyle}" onchange="outfitSet('cls',this.value)">${clsOpts}</select>
       <select style="${selStyle}" onchange="outfitSet('race',this.value)">${raceOpts}</select>
+      <select style="${selStyle}" onchange="outfitSet('deity',this.value)" title="Deity — filters deity-restricted gear (unset = shown)"><option value=""${o.deity?'':' selected'}>Any deity</option>${EQ_DEITIES.map(d=>`<option${d===o.deity?' selected':''}>${d}</option>`).join('')}</select>
       <label style="font-size:.78rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem">Lv
         <input type="number" min="1" max="60" value="${o.level}" onchange="outfitSet('level',this.value)" style="width:3.2rem;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.25rem .35rem;font-size:.85rem;outline:none">
       </label>
@@ -11281,8 +11352,10 @@ let _rkdEvidence=[];      // {ts, kind, sub, boss, raw, sameZoneOnly}
 let _rkdOpenTicks=[];     // ticks awaiting their post-tick evidence window
 let _rkdLastTickTs=null;  // previous tick — evidence before it is already spent
 // Game names carry a leading "The" the tracker omits ("The Avatar of War") and use ` for '.
-function _rkdNorm(s){return String(s||'').toLowerCase().replace(/[`’']/g,"'").replace(/\s+/g,' ').trim().replace(/^the /,'');}
-function _rkdBossByMob(mob){const n=_rkdNorm(mob);return BOSS_ROSTER.find(b=>_rkdNorm(b.full)===n||_rkdNorm(b.target)===n)||null;}
+function _rkdNorm(s){return String(s||'').toLowerCase().replace(/[`’']/g,"'").replace(/\s+/g,' ').trim().replace(/^(the|a|an) /,'');}
+// In-game NPC names that differ from the tracker's (checked against P99 wiki NPC pages).
+const RKD_GAME_NAMES={'master yael':'Yael',"kelorek'dar":'Kelorek Dar','guardian kozzalym':'Kozzalym','spirit of garzicor':'Garzicor',"garzicor's wraith":'Garzicor','undead bard':'UDB'};
+function _rkdBossByMob(mob){const n=_rkdNorm(mob),alias=RKD_GAME_NAMES[n];return BOSS_ROSTER.find(b=>(alias&&b.target===alias)||_rkdNorm(b.full)===n||_rkdNorm(b.target)===n)||null;}
 function _rkdWordRx(n){return new RegExp("(^|[^a-z'])"+n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+"($|[^a-z'])");}
 // Whole-word only ("Fright" must not match "a frightfinger"); short tracker names
 // (Koi/TFA/Prog) are too collision-prone for free chat, so targets need 5+ chars.
@@ -11297,7 +11370,9 @@ function rkdOnEvidence(msg){
   if(!b)return;
   const raw=msg.kind==='call'?`${msg.poster}: ${msg.text}`:msg.kind==='land'?`${msg.mob} (${msg.sub})`:`${msg.mob} ${msg.kind==='slain'?'slain':'ENRAGED'}`;
   _rkdEvidence.push({ts:msg.ts||Date.now(),kind:msg.kind,sub:msg.sub||null,boss:b.target,raw,char:msg.charName});
-  const cut=Date.now()-RKD_EVIDENCE_KEEP; _rkdEvidence=_rkdEvidence.filter(e=>e.ts>=cut);
+  // Prune by the event's own time, not the wall clock — backfilled evidence from hours ago
+  // must survive long enough to be matched to its tick.
+  const cut=(msg.ts||Date.now())-RKD_EVIDENCE_KEEP; _rkdEvidence=_rkdEvidence.filter(e=>e.ts>=cut);
 }
 function rkdOnTick(msg){
   const ts=msg.ts||Date.now();
@@ -11318,7 +11393,8 @@ function rkdOnTick(msg){
   _rkdLastTickTs=Math.max(_rkdLastTickTs||0,ts);
   _rkdOpenTicks.push(t);
   // Live ticks wait out the 2-min post-window; backfilled ones already have it.
-  setTimeout(()=>rkdFinalize(t),Math.max(0,ts+RKD_WIN_AFTER-Date.now()));
+  // Backfilled ticks wait 3s so the rest of the replay (incl. a kill just after the tick) arrives first.
+  setTimeout(()=>rkdFinalize(t),Math.max(3000,ts+RKD_WIN_AFTER-Date.now()));
 }
 function rkdAttribute(t){
   const from=Math.max(t.ts-RKD_WIN_BEFORE,t.prevTickTs!=null?t.prevTickTs+1:-Infinity);
@@ -15141,9 +15217,9 @@ Bard:[
      {desc:'Test of Tone → Mask of Song (FACE AC12 all stats+3 all resists+7). NPC: Denise Songweaver (say "tone"). Drops: Ochre Tessera (isl 1, thunder spirits) + Songbird Statuette (isl 2 boss Protector of Sky) + Light Woolen Mask (isl 3 boss Gorgalosk)',items:['Ochre Tessera','Songbird Statuette','Light Woolen Mask']},
      {desc:'Test of Brass → Denon\'s Horn of Disaster (PRIMARY Brass Instrument 24 STR+5 CHA+10 INT+5 HP+50). NPC: Clarisa Spiritsong (say "brass"). Drops: Saffron Spiroc Feather (isl 5, spiroc arbiters) + Adamantium Bands (isl 6, Bazzzazzt/Bizazzzt) + Glowing Diamond (isl 7 boss Sister of the Spire) + Efreeti War Horn (Noble Dojorn/Overseer/Hand)',items:['Saffron Spiroc Feather','Adamantium Bands','Glowing Diamond','Efreeti War Horn']},
      {desc:'Test of Wind → Amulet of the Fae (NECK 4 charges Healing clicky at lvl 45, AC8 STR+5 DEX+4 STA+4 HP+50 SV DIS/POI+10). NPC: Clarisa Spiritsong (say "wind"). Drops: Imp Statuette (isl 4, soul harvesters) + Dull Stone (isl 5, spiroc arbiters) + Amulet of Woven Hair (isl 6, Bizazzzt)',items:['Imp Statuette','Dull Stone','Amulet of Woven Hair']},
-     {desc:'Test of Harmony → Harmonic Spear (PRIMARY/SECONDARY). NPC: Clarisa Spiritsong (say "harmony"). Drops: Manna Nectar (isl 6, Bzzazzt) + Nebulous Emerald (isl 7, drakes/sphinxes) + Nebulous Diamond (isl 8 boss Eye of Veeshan) + Efreeti War Spear (Noble Dojorn/Overseer/Hand). NOTE: Lyran\'s Mystical Lute (Bard epic piece) drops from Mistress of Scorn in PoSky.',items:['Manna Nectar','Nebulous Emerald','Nebulous Diamond','Efreeti War Spear',"Lyran's Mystical Lute"]},
+     {desc:'Test of Harmony → Harmonic Spear (PRIMARY/SECONDARY). NPC: Clarisa Spiritsong (say "harmony"). Drops: Manna Nectar (isl 6, Bzzazzt) + Nebulous Emerald (isl 7, drakes/sphinxes) + Nebulous Diamond (isl 8 boss Eye of Veeshan) + Efreeti War Spear (Noble Dojorn/Overseer/Hand).',items:['Manna Nectar','Nebulous Emerald','Nebulous Diamond','Efreeti War Spear']},
    ],
-   note:'NPC: Talk to Cilin Spellsinger in PoSky, then choose Denise Songweaver or Clarisa Spiritsong. Mask of Song (all stats +3 all resists +7) is exceptional. Mantle of the Songweaver (Fury clicky ×9 charges) is a fantastic clickie. Lyran\'s Mystical Lute (Bard epic component) also drops in PoSky from Mistress of Scorn.'},,
+   note:'NPC: Talk to Cilin Spellsinger in PoSky, then choose Denise Songweaver or Clarisa Spiritsong. Mask of Song (all stats +3 all resists +7) is exceptional. Mantle of the Songweaver (Fury clicky ×9 charges) is a fantastic clickie. (Lyran\'s Mystical Lute — Stringed 25, STR/DEX/INT +10, CHA +15 — is not a Sky item: it drops from Silverwing in Veeshan\'s Peak.)'},,
   {name:'Dozekar Tear Quests — Request of the Strong',shortName:'Dozekar: Mask (Melee)',wiki:'https://wiki.project1999.com/Request_of_the_Strong',
    steps:[
      {desc:'Turn-in → Silver Mask of the Slayer (FACE AC25 STR+12 DEX+12 STA+12 HP+80 all resists+7, Aura of Battle worn). NPC: Lendiniara the Keeper (ToV). Items: Poison Tear (Dozekar the Cursed) + Silver Tear (Dozekar the Cursed) + Flame Kissed Tear (Dozekar the Cursed) + Serrated Tear (Dozekar the Cursed)',
