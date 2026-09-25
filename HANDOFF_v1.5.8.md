@@ -53,7 +53,7 @@ alter table guild_data add column if not exists consolidate_banker_excl jsonb de
 
 ---
 
-### P99 wiki audit — 1.5.9 (LOCAL test build, not published; installer in dist\)
+### P99 wiki audit — 1.5.9 (PUBLISHED 2026-09-25: https://github.com/Mixelplex/MixelParse/releases/tag/v1.5.9)
 Audit scripts lived in the session scratchpad (batched wiki API fetch, 50 titles/request, cached).
 - **HP/mana:** `calcHP` now uses the classic class level factor (5 + L·F/10 + STA·L·F/3000); L·F/3000 reproduces all 28 wiki STA→HP values. Old flat 12.1·L base under-counted every non-caster (L60 WAR −1,079). `calcMana` = classic integer formula (slope 11.26/pt @60, wiki ~11.27). **Verified in-game:** Mixelmedic (CLR 52, STA 117, WIS 255) HP 1677 / mana 3288 match exactly; mana half-zone starts above 200 (not EQEmu 199). A tank/hybrid reading would confirm their factors too. Hybrid mana (PAL/RNG/SHD/BRD) unverified.
 - **Dual wield:** L50 skill caps added; matches all 10 wiki chances.
