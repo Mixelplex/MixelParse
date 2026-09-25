@@ -2158,8 +2158,10 @@ function calcHP(sta,cls,lvl){const f=hpLevelFactor(cls,lvl);if(!f)return 0;retur
 // Classic mana: points above 199 count half (the wiki's 200 breakpoint), and each
 // step truncates — which is why the wiki's (80×L/425)×stat "is often a few points
 // off". Slope at L60 ≈ 11.25/pt below 200, ≈ 5.6/pt above (wiki: ~11.27 / half).
+// Verified in-game (Mixelmedic, CLR 52, WIS 255: 3288 mana = 2418 + 870 gear): the half-
+// value zone starts ABOVE 200 (wiki wording) — EQEmu's 199 is 12 mana high at 255.
 function calcMana(intWis,lvl){
-  const lesser=Math.max(0,Math.trunc((intWis-199)/2)),mind=intWis-lesser;
+  const lesser=Math.max(0,Math.trunc((intWis-200)/2)),mind=intWis-lesser;
   if(intWis>100)return Math.trunc(Math.trunc(Math.trunc(5*(mind+20)/2)*3*lvl)/40);
   return Math.trunc(Math.trunc(Math.trunc(5*(mind+200)/2)*3*lvl)/100);
 }
