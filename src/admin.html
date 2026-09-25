@@ -2422,7 +2422,9 @@ function gcItemUsable(data) {
   const fn = A2 ? A2.itemUsableByContext : null;
   if (!fn) return true; // fallback: no restriction check available
   const { classAbbr, raceAbbr } = gcGetCharAbbrs();
-  return fn(data, classAbbr, raceAbbr);
+  // Deity comes from the loaded character (the bench has no deity picker).
+  const deity = _gcChar && _gcChar.meta ? (_gcChar.meta.deity || '') : '';
+  return fn(data, classAbbr, raceAbbr, deity);
 }
 
 function gcMergeItemData(name, charName) {

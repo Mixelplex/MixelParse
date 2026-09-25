@@ -1433,6 +1433,17 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
 const EQ_CLASSES=["Bard","Cleric","Druid","Enchanter","Magician","Monk","Necromancer","Paladin","Ranger","Rogue","Shadow Knight","Shaman","Warrior","Wizard"];
 const TESTBENCH_NAME='\u2699 Test Bench';   // Gear Test Bench synthetic character — memory-only, never persisted to Supabase
 const EQ_RACES=["Barbarian","Dark Elf","Dwarf","Erudite","Gnome","Half Elf","Halfling","High Elf","Human","Iksar","Ogre","Troll","Wood Elf"];
+const EQ_DEITIES=["Agnostic","Bertoxxulous","Brell Serilis","Bristlebane","Cazic-Thule","Erollisi Marr","Innoruuk","Karana","Mithaniel Marr","Prexus","Quellious","Rallos Zek","Rodcet Nife","Solusek Ro","The Tribunal","Tunare"];
+// Deity-restricted gear (item._deity, split out of _races at load — 444 items). Item deity
+// text can list several ("The Tribunal / Rallos Zek", "Bertoxxulous Cazic-Thule Innoruuk
+// Rallos Zek"), so match the character's deity anywhere in it; "-" vs " " ignored
+// ("Cazic-Thule" = "Cazic Thule"). Unset character deity → allowed (unknown ≠ forbidden);
+// Agnostic never matches a deity item.
+function deityOk(itemDeity,charDeity){
+  if(!itemDeity||!charDeity)return true;
+  const n=s=>String(s).toLowerCase().replace(/-/g,' ').replace(/\s+/g,' ').trim();
+  return n(itemDeity).includes(n(charDeity));
+}
 const RACE_ABBR_MAP={"Barbarian":"BAR","Dark Elf":"DEF","Dwarf":"DWF","Erudite":"ERU","Gnome":"GNM","Half Elf":"HEF","Halfling":"HFL","High Elf":"HIE","Human":"HUM","Iksar":"IKS","Ogre":"OGR","Troll":"TRL","Wood Elf":"WEF"};
 const STAT_LABELS=["Strength","Stamina","Dexterity","Agility","Wisdom","Intelligence","Charisma"];
 const RESIST_LABELS=["Poison","Magic","Disease","Fire","Cold"];
@@ -2730,7 +2741,8 @@ function renderTable(){const query=document.getElementById('searchBox').value.to
 
 // ─── Stats Panel ──────────────────────────────────────────────────────────────
 function renderStatsPanel(){const panel=document.getElementById('statsPanel');const name=activeTab;if(!name||name==='__all__'){panel.innerHTML='';return;}const meta=charMeta[name]||{};const base=meta.baseStats||null;const selClass=meta.class||'';const selLevel=meta.level||1;const selRace=meta.race||'';const charGear=gearStats[name]||{};const dbCount=Object.keys(itemDB).length;const getBaseVal=(k)=>{if(!base)return'';const si=STAT_KEYS.indexOf(k);if(si>=0)return base.stats[si]||'';const ri=RESIST_KEYS.indexOf(k);if(ri>=0)return base.resists[ri]||'';const pi=POOL_KEYS.indexOf(k);if(pi>=0)return base.pools?.[pi]||'';return'';};const getCurVal=(k)=>{const cs=meta.currentStats;if(cs){const si=STAT_KEYS.indexOf(k);if(si>=0)return cs.stats?.[si]||'';const ri=RESIST_KEYS.indexOf(k);if(ri>=0)return cs.resists?.[ri]||'';const pi=POOL_KEYS.indexOf(k);if(pi>=0)return cs.pools?.[pi]||'';return'';}return getBaseVal(k);};
-const raceSelect=`<label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Race<select id="raceSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:\'Crimson Pro\',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">— Select Race —</option>${EQ_RACES.map(r=>`<option value="${r}"${r===selRace?' selected':''}>${r}</option>`).join('')}</select></label>`;
+const raceSelect=`<label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Race<select id="raceSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:\'Crimson Pro\',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">— Select Race —</option>${EQ_RACES.map(r=>`<option value="${r}"${r===selRace?' selected':''}>${r}</option>`).join('')}</select></label>`+
+`<label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem" title="Filters deity-restricted gear (e.g. Imbued armor/jewelry) in the Gear Planner and Outfitter. Unset = deity gear is shown.">Deity<select id="deitySelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:\'Crimson Pro\',serif;font-size:.9rem;outline:none;cursor:pointer"><option value="">— Select Deity —</option>${EQ_DEITIES.map(d=>`<option value="${d}"${d===(meta.deity||'')?' selected':''}>${d}</option>`).join('')}</select></label>`;
 panel.innerHTML=`<div class="char-setup" style="flex-direction:column;align-items:flex-start;gap:.75rem;display:flex">
 <div style="font-family:\'Cinzel\',serif;font-size:.7rem;color:var(--gold);letter-spacing:.06em">CHARACTER</div>
 <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center">
@@ -2815,6 +2827,7 @@ window._mpBuffEditIdx=null;renderBuffChips();
 const _buffAddBtn=document.getElementById('buffAddBtn');if(_buffAddBtn)_buffAddBtn.addEventListener('click',()=>window.mpBuffAdd());
 document.getElementById('classSelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};charMeta[name].class=e.target.value;saveState();renderStatsPanel();});
 document.getElementById('raceSelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};charMeta[name].race=e.target.value;saveState();renderStatsPanel();buildTabs();});
+document.getElementById('deitySelect').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};if(e.target.value)charMeta[name].deity=e.target.value;else delete charMeta[name].deity;saveState();renderStatsPanel();});
 document.getElementById('levelInput').addEventListener('change',e=>{if(!charMeta[name])charMeta[name]={};const v=Math.min(60,Math.max(1,parseInt(e.target.value)||1));charMeta[name].level=v;e.target.value=v;saveState();renderStatsPanel();});
 mpEnsureZonesDL();{const _bi=document.getElementById('bindInput');if(_bi)_bi.addEventListener('change',e=>{setCharBind(name,e.target.value,'manual');});}
 
@@ -2952,6 +2965,7 @@ function renderUpgradesPanel(){
   const charRaceAbbr=RACE_ABBR_MAP[meta.race||'']||'';
 
   function itemUsableByChar(data){
+    if(!deityOk(data._deity,meta.deity))return false;
     if(!charClassAbbr)return true;
     const classes=(data._classes||'ALL').toUpperCase();
     let classOk;
@@ -7729,7 +7743,8 @@ window.SS_CUSTOM_ITEMS        = SS_CUSTOM_ITEMS;
 window.RACE_ABBR_MAP          = RACE_ABBR_MAP;
 // Standalone class/race usability check — mirrors itemUsableByChar inside renderUpgradesPanel
 // but takes explicit abbrs so it can be called from admin.html without the closure context.
-window.itemUsableByContext    = function(data, classAbbr, raceAbbr) {
+window.itemUsableByContext    = function(data, classAbbr, raceAbbr, deity) {
+  if (!deityOk(data._deity, deity)) return false;
   if (classAbbr) {
     const classes = (data._classes || 'ALL').toUpperCase();
     let classOk;
@@ -8705,7 +8720,7 @@ window.setFarmSub=function(v){
 // (lore items fill at most one regardless of copies).
 const OUTFIT_CLASS_ABBR={'Bard':'BRD','Cleric':'CLR','Druid':'DRU','Enchanter':'ENC','Magician':'MAG','Monk':'MNK','Necromancer':'NEC','Paladin':'PAL','Ranger':'RNG','Rogue':'ROG','Shadow Knight':'SHD','Shaman':'SHM','Warrior':'WAR','Wizard':'WIZ'};
 const OUTFIT_SLOT_SEQ=[['PRIMARY',1],['SECONDARY',1],['RANGE',1],['EAR',2],['FINGERS',2],['WRIST',2],['HEAD',1],['FACE',1],['NECK',1],['SHOULDERS',1],['ARMS',1],['BACK',1],['HANDS',1],['CHEST',1],['LEGS',1],['FEET',1],['WAIST',1],['AMMO',1]];
-let _outfit={cls:'Rogue',race:'Dwarf',level:1,includeEquipped:false,_userSet:false};
+let _outfit={cls:'Rogue',race:'Dwarf',deity:'',level:1,includeEquipped:false,_userSet:false};
 
 
 // Worn-effect scoring for the Outfitter (PROC_DB's sibling). Keyed by EFFECT
@@ -8833,7 +8848,7 @@ function outfitBuildKit(){
         const db=e.db;
         if(db._lore&&loreClaimed.has(e.name))continue;
         if(!outfitSlotMatch(db,slot,o.cls))continue;
-        if(!window.itemUsableByContext(db,clsAbbr,raceAbbr))continue;
+        if(!window.itemUsableByContext(db,clsAbbr,raceAbbr,o.deity))continue;
         if(!outfitWepOk(db,slot,o.cls))continue;
         const sc=outfitScore(db,slot,o.cls,o.level);
         if(sc>bestScore){bestScore=sc;best=e;}
@@ -9161,6 +9176,7 @@ function renderOutfitterPanel(){
       if(_rk)_outfit.race=_rk;
       const _lv=parseInt(_m.level,10);
       if(_lv>=1&&_lv<=60)_outfit.level=_lv;
+      _outfit.deity=_m.deity||'';
     }
   }
   const o=_outfit;
@@ -9214,6 +9230,7 @@ function renderOutfitterPanel(){
       <span style="font-size:.68rem;letter-spacing:.08em;color:var(--text-muted)">OUTFITTER</span>
       <select style="${selStyle}" onchange="outfitSet('cls',this.value)">${clsOpts}</select>
       <select style="${selStyle}" onchange="outfitSet('race',this.value)">${raceOpts}</select>
+      <select style="${selStyle}" onchange="outfitSet('deity',this.value)" title="Deity — filters deity-restricted gear (unset = shown)"><option value=""${o.deity?'':' selected'}>Any deity</option>${EQ_DEITIES.map(d=>`<option${d===o.deity?' selected':''}>${d}</option>`).join('')}</select>
       <label style="font-size:.78rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem">Lv
         <input type="number" min="1" max="60" value="${o.level}" onchange="outfitSet('level',this.value)" style="width:3.2rem;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.25rem .35rem;font-size:.85rem;outline:none">
       </label>
