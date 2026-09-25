@@ -1,18 +1,9 @@
-## ✨ New Features
+## 🔧 Hotfix
 
-- **Deity on your characters** — pick each character's deity on the **Stats** tab. The Gear Planner and Outfitter now hide gear for other deities (Imbued armor and jewelry, and more).
-- **Bard instruments scored** — the Gear Planner now values instrument modifiers for all 37 Bard instruments. Before, instrument upgrades never showed up.
-- **Raid Auto-Detect catches up** — if MixelParse is closed or restarted mid-raid, it now catches up on the whole night when it starts, and recognizes more bosses (Dracoliche, Yael, Kelorek'Dar, Kozzalym, Garzicor, Undead Bard).
+- **Item database protection** — 1.5.9 could save a handful of item records at startup before the item database finished loading, wiping most of their details (Yelinak's Talisman, Drums of the Beast, Spiked Seahorse Hide Belt, Rubicite Breastplate, Forge Hammer of Dalnir, Ancient Venom Sack, Crown of Narandi). 1.5.10 never saves the item database before it has loaded, and automatically restores those seven items.
 
-## 🔧 Bug Fixes
-
-- **HP and mana match the game** — rebuilt from the P99 wiki and checked against the in-game Inventory window. Non-casters were showing hundreds of HP too low (a level 60 Warrior by over 1,000).
-- **60 hidden items are back** — deity items marked "ALL races" were being treated as unusable by everyone.
-- **Food & drink timers** — on P99 race doesn't change how long food lasts, so that rule is gone. Monks' food and drink now last twice as long.
-- **Bag sizes in Consolidate** — spell tomes hold 10 (not 4), and 64 more bags and kits are recognized.
-- **Item and buff data** — corrected against the wiki: Yelinak's Talisman haste, Crown of Narandi stats, Brilliance, Insight, Berserker Spirit, and more.
-- **Smaller fixes** — dual wield chance at levels 50–59; Lyran's Mystical Lute drop source; High Elf item imports.
+Everything from 1.5.9 is included — see the [1.5.9 release](https://github.com/Mixelplex/MixelParse/releases/tag/v1.5.9) for the full list (deity support, HP/mana matching the game, Bard instruments, Auto-Detect catch-up, and the wiki data fixes).
 
 ## 💬 Feedback
 
-Have an idea or found a bug? Use **Feedback** in the app's top bar, or the buttons on the What's New screen — and browse what others have already suggested.
+Have an idea or found a bug? Use **Feedback** in the app's top bar.
