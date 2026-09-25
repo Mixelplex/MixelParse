@@ -82,3 +82,12 @@ Audit scripts lived in the session scratchpad (batched wiki API fetch, 50 titles
 
 ## Deprioritized
 - Website / PWA / Pages workflow — **not the focus** (desktop app is). `admin.html` is a public troubleshooting tool by design.
+
+## Local test builds (NOT published — waiting for the user's all-clear)
+- **1.5.11** (c2cc4c8, fa3926c): Admin → Wiki Check (items / parked buffs / bags vs live wiki via main-process `wiki:query`).
+- **1.5.12** (d84e908): in-game AC/ATK on the stat sheet.
+  - Skills: watcher `scanSkillsAllLogs()` (runs 6s after sign-in; `window.rescanSkills()`), live `skillUp` events; stored in `characters.base_stats.skills` (logs, max only) and `skillsManual` (typed on the Stats tab COMBAT SKILLS row; wins over logs).
+  - `calcDisplayAC` exact for non-casters above L50 (5/5 in-game readings); casters and L≤50 show "≈". `calcDisplayATK` within ±6 (Mixelmedic −14, likely an unseen buff).
+  - Worn effects: `WORN_EFFECT_STATS` / `ITEM_WORN_EFFECT`.
+  - Admin: Combat Check tab + 8 in-game reference cases in the Calcs suite (`COMBAT_REFS`; expected: 0 fail, 4 warn).
+  - Before publishing: bump `WHATS_NEW` + release-notes.md to cover 1.5.11 and 1.5.12.
