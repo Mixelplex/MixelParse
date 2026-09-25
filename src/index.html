@@ -1643,6 +1643,8 @@ const CLASS_NO_DW=new Set(['Paladin','Shadow Knight']);
 // Monk 78%=(252+60)/400, Rogue 76.25%=(245+60)/400, Ranger 75%=(240+60)/400,
 // Bard 67.5%=(210+60)/400, Warrior 63.16%=(240+60)/475.
 const DW_SKILL_CAP={'Monk':252,'Rogue':245,'Ranger':240,'Bard':210,'Warrior':240};
+// L50 dual wield skill, back-solved from the wiki's L50 chance column: (50+skill)/MaxSkill.
+const DW_SKILL_CAP_50={'Monk':252,'Rogue':210,'Ranger':210,'Bard':210,'Warrior':210};
 const DW_MAX_SKILL={'Monk':400,'Rogue':400,'Ranger':400,'Bard':400,'Warrior':475};
 // Classes that can equip shields in SECONDARY slot (WAR: shield or weapon; PAL/SHD: shield only).
 const CLASS_SHIELD_OK=new Set(['Warrior','Paladin','Shadow Knight']);
@@ -1823,7 +1825,10 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
   const ppm=(dex/170)+0.5;
   // DW chance = (level + skill) / MaxSkill; skill and MaxSkill are class-specific.
   // Skill cap approximated as min(max_skill_cap, (lv+1)*7) — scales with level.
-  const dwSkillCap=DW_SKILL_CAP[charClass]||252;
+  // Skill cap rises from the L50 cap to the L60 cap (wiki DW table: ROG/RNG/WAR
+  // chances at L50 imply 210 skill, at L60 the full cap).
+  const dwCap60=DW_SKILL_CAP[charClass]||252, dwCap50=DW_SKILL_CAP_50[charClass]||dwCap60;
+  const dwSkillCap=lv>=60?dwCap60:lv<=50?dwCap50:Math.floor(dwCap50+(dwCap60-dwCap50)*(lv-50)/10);
   const dwMaxSkill=DW_MAX_SKILL[charClass]||400;
   const dwSkill=Math.min((lv+1)*7,dwSkillCap);
   const dwChance=Math.min((dwSkill+lv)/dwMaxSkill,1.0);
@@ -2119,11 +2124,33 @@ function getStatWeights(cls, baseTotals, baseOverride) {
   return w;
 }
 
-function staRatio(cls,lvl){const r=HP_RATIOS[cls];if(!r)return 0;if(lvl<=50)return r[0]*(lvl/50);if(lvl>=60)return r[1];return r[0]+(r[1]-r[0])*((lvl-50)/10);}
-function calcHP(sta,cls,lvl){return Math.floor(12.1*lvl+sta*staRatio(cls,lvl));}
+// ── HP / mana — classic EQ formulas (EQEmu pre-SoF, which P99 runs) ─────────────
+// Class HP level factor. level×factor/3000 reproduces all 12 STA→HP values on the
+// P99 wiki (Game_Mechanics → Health calculations, levels 50 and 60) exactly; the
+// wiki omits the base term (level×factor/10), which is why the old single
+// 12.1×level base (= the caster factor) under-counted every non-caster — a L60
+// Warrior by ~1,080 HP. HP_RATIOS (above) stays as the wiki's reference table.
+function hpLevelFactor(cls,l){
+  switch(cls){
+    case 'Warrior': return l<20?220:l<30?230:l<40?250:l<53?270:l<57?280:l<60?290:300;
+    case 'Cleric':case 'Druid':case 'Shaman': return 150;
+    case 'Paladin':case 'Shadow Knight': return l<35?210:l<45?220:l<51?230:l<56?240:l<60?250:260;
+    case 'Monk':case 'Bard':case 'Rogue': return l<51?180:l<58?190:200;
+    case 'Ranger': return l<58?200:210;
+    case 'Enchanter':case 'Magician':case 'Necromancer':case 'Wizard': return 120;
+    default: return 0;
+  }
+}
+function staRatio(cls,lvl){const f=hpLevelFactor(cls,lvl);return f?lvl*f/3000:0;}
+// Integer steps as the server computes them. STA is capped at 255 by callers.
+function calcHP(sta,cls,lvl){const f=hpLevelFactor(cls,lvl);if(!f)return 0;return 5+Math.floor(lvl*f/10)+Math.floor(sta*lvl*f/3000);}
+// Classic mana: points above 199 count half (the wiki's 200 breakpoint), and each
+// step truncates — which is why the wiki's (80×L/425)×stat "is often a few points
+// off". Slope at L60 ≈ 11.25/pt below 200, ≈ 5.6/pt above (wiki: ~11.27 / half).
 function calcMana(intWis,lvl){
-  if(intWis<=200)return Math.floor((intWis+10)*lvl/5);
-  return Math.floor((11250*lvl+33*intWis*lvl)/425);
+  const lesser=Math.max(0,Math.trunc((intWis-199)/2)),mind=intWis-lesser;
+  if(intWis>100)return Math.trunc(Math.trunc(Math.trunc(5*(mind+20)/2)*3*lvl)/40);
+  return Math.trunc(Math.trunc(Math.trunc(5*(mind+200)/2)*3*lvl)/100);
 }
 
 // ─── Item Database ────────────────────────────────────────────────────────────

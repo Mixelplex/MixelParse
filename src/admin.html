@@ -950,11 +950,35 @@ SUITES.wikiparse = [
 SUITES.calcs = [
   makeTest('calcHP — Warrior at 60 with 200 STA', () => {
     const hp = A.calcHP(200, 'Warrior', 60);
-    // calcHP(200,'Warrior',60) = floor(12.1*60 + 200*6.0) = floor(726+1200) = 1926
+    // 5 + 60*300/10 + 200*60*300/3000 = 5 + 1800 + 1200 = 3005
     return { asserts: [
       assert('returns number', typeof hp === 'number'),
-      assertRange('in expected range', hp, 1500, 3000),
+      assert('equals classic formula (3005)', hp === 3005, hp),
     ], msg: `calcHP(200, 'Warrior', 60) = ${hp}` };
+  }),
+  makeTest('calcHP — caster base unchanged (Wizard 120 STA @60 = 1013)', () => {
+    const hp = A.calcHP(120, 'Wizard', 60);
+    return { asserts: [ assert('Wizard 120 STA @60 = 1013', hp === 1013, hp) ], msg: `calcHP(120,'Wizard',60) = ${hp}` };
+  }),
+  makeTest('staRatio — matches all 12 P99 wiki STA→HP values', () => {
+    // wiki.project1999.com/Game_Mechanics → Health calculations (levels 50 and 60)
+    const WIKI = { Warrior:[4.5,6], Paladin:[3.8,5.2], 'Shadow Knight':[3.8,5.2], Ranger:[3.3,4.2],
+      Bard:[3.0,4], Monk:[3.0,4], Rogue:[3.0,4], Cleric:[2.5,3], Druid:[2.5,3], Shaman:[2.5,3],
+      Enchanter:[2.0,2.4], Magician:[2.0,2.4], Necromancer:[2.0,2.4], Wizard:[2.0,2.4] };
+    const asserts = [];
+    for (const [cls,[w50,w60]] of Object.entries(WIKI)) {
+      asserts.push(assert(`${cls} L50 ≈ ${w50}`, Math.abs(A.staRatio(cls,50)-w50) < 0.05, A.staRatio(cls,50).toFixed(3)));
+      asserts.push(assert(`${cls} L60 = ${w60}`, Math.abs(A.staRatio(cls,60)-w60) < 0.001, A.staRatio(cls,60).toFixed(3)));
+    }
+    return { asserts };
+  }),
+  makeTest('calcMana — wiki slope (~11.27/pt @60 ≤200, half above)', () => {
+    const below = (A.calcMana(200,60) - A.calcMana(110,60)) / 90;
+    const above = (A.calcMana(255,60) - A.calcMana(205,60)) / 50;
+    return { asserts: [
+      assertRange('≤200 slope', below, 11.0, 11.5),
+      assertRange('>200 slope', above, 5.4, 5.8),
+    ], output: `slope ≤200 = ${below.toFixed(2)}/pt · >200 = ${above.toFixed(2)}/pt` };
   }),
   makeTest('calcHP — Cleric at 50 vs 60 (should increase)', () => {
     const hp50 = A.calcHP(150, 'Cleric', 50);
@@ -981,7 +1005,7 @@ SUITES.calcs = [
     });
     return { asserts };
   }),
-  makeTest('staRatio — interpolates between 50 and 60', () => {
+  makeTest('staRatio — rises between 50 and 60', () => {
     const r50 = A.staRatio('Warrior', 50);
     const r55 = A.staRatio('Warrior', 55);
     const r60 = A.staRatio('Warrior', 60);
@@ -1051,6 +1075,7 @@ SUITES.upgrades = [
   const _WEP_SKILLS={'Monk':['hand to hand','1h blunt','2h blunt'],'Rogue':['1h slashing','1h blunt','piercing']};
   // Per-class DW skill cap and max-skill denominator (mirrors index.html DW_SKILL_CAP/DW_MAX_SKILL)
   const _DW_SKILL_CAP={'Monk':252,'Rogue':245,'Ranger':240,'Bard':210,'Warrior':240};
+  const _DW_SKILL_CAP_50={'Monk':252,'Rogue':210,'Ranger':210,'Bard':210,'Warrior':210};
   const _DW_MAX_SKILL={'Monk':400,'Rogue':400,'Ranger':400,'Bard':400,'Warrior':475};
 
   function _wdps(item, slot, cls, lv, dex){
@@ -1095,7 +1120,8 @@ SUITES.upgrades = [
     const dexCap=Math.min(255,dex||175);
     const ppm=(dexCap/170)+0.5;
     // DW chance for OH proc rate (mirrors index.html)
-    const dwSkillCap=_DW_SKILL_CAP[cls]||252;
+    const _c60=_DW_SKILL_CAP[cls]||252,_c50=_DW_SKILL_CAP_50[cls]||_c60;
+    const dwSkillCap=lvCap>=60?_c60:lvCap<=50?_c50:Math.floor(_c50+(_c60-_c50)*(lvCap-50)/10);
     const dwMaxSkill=_DW_MAX_SKILL[cls]||400;
     const dwSkill=Math.min((lvCap+1)*7,dwSkillCap);
     const dwChance=Math.min((dwSkill+lvCap)/dwMaxSkill,1.0);
