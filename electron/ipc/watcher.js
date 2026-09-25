@@ -985,6 +985,10 @@ function raidBackfill() {
 
 function processLogLine(line, charName) {
   raidEvidence(line, charName);
+  if (line.indexOf('become better at') >= 0) {
+    const sm = RE_SKILLUP.exec(line);
+    if (sm) broadcast({ type: 'skillUp', charName, skill: sm[1], value: +sm[2] });
+  }
 
   // Concealment transitions (hide / sneak / invis) — tracked for CON suppression.
   // Cheap tests first; these lines carry nothing else we track, so return early.
@@ -1528,6 +1532,44 @@ function scanOneLogForKills(fp, fileIdx, totalFiles) {
   });
 }
 
+// ── Skill scan (AC/ATK formulas) ─────────────────────────────────────────────
+// Skills only ever rise and every rise is logged ("You have become better at
+// Defense! (165)"), so the highest value in a character's full log history is the
+// current skill. Verified against in-game Skills windows (Mixelshank, Mixelboom,
+// Mixelflop). Reads live logs, rotated .old files and the Logs\archive folder.
+const RE_SKILLUP = /You have become better at (.+?)! \((\d+)\)/;
+let _skillScanRunning = false;
+async function scanSkillsAllLogs() {
+  if (_skillScanRunning || !_config || !_config.logDir) return;
+  _skillScanRunning = true;
+  const skills = {};   // char -> { skill: max }
+  try {
+    const dirs = [_config.logDir, path.join(_config.logDir, 'archive')].filter(d => { try { return fs.statSync(d).isDirectory(); } catch { return false; } });
+    const files = [];
+    for (const d of dirs) for (const f of fs.readdirSync(d)) if (/^eqlog_.+?_P1999Green.*\.(txt|old)$/i.test(f)) files.push(path.join(d, f));
+    for (let i = 0; i < files.length; i++) {
+      const charName = (path.basename(files[i]).match(/^eqlog_(.+?)_P1999Green/i) || [])[1];
+      if (!charName) continue;
+      broadcast({ type: 'skillsScanProgress', charName, fileIdx: i + 1, totalFiles: files.length });
+      await new Promise((resolve) => {
+        const rl = require('readline').createInterface({ input: fs.createReadStream(files[i], { encoding: 'latin1' }), crlfDelay: Infinity });
+        rl.on('line', (line) => {
+          if (line.indexOf('become better at') < 0) return;
+          const m = RE_SKILLUP.exec(line); if (!m) return;
+          const s = skills[charName] || (skills[charName] = {}); const v = +m[2];
+          if (!(s[m[1]] >= v)) s[m[1]] = v;
+        });
+        rl.on('close', resolve); rl.on('error', resolve);
+      });
+    }
+    log(`[SKILLS] scanned ${files.length} log file(s) for ${Object.keys(skills).length} character(s)`);
+    broadcast({ type: 'skillsScanResult', skills, files: files.length });
+  } catch (e) {
+    err('[SKILLS]', e.message);
+    broadcast({ type: 'skillsScanResult', error: e.message });
+  } finally { _skillScanRunning = false; }
+}
+
 async function scanKillCountsAllLogs(charFilter) {
   if (_killScanRunning) {
     broadcast({ type: 'killScanResult', error: 'A scan is already running' });
@@ -1858,6 +1900,8 @@ function command(cmd, args) {
   } else if (cmd === 'reload') {
     stop();
     start({ config: _config, logPosPath: _logPosPath, factionPath: _factionPath, onMessage: _onMessage });
+  } else if (cmd === 'scanSkills') {
+    scanSkillsAllLogs();
   } else if (cmd === 'scanKillCounts') {
     scanKillCountsAllLogs(args && args.chars);
   } else if (cmd === 'scanSessions') {

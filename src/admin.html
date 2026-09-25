@@ -270,6 +270,11 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
     Wiki Check
     <span class="sb-badge skip" id="badge-wikicheck">—</span>
   </div>
+  <div class="sb-item" data-suite="combatcheck" onclick="showSuite('combatcheck',this);ccInit()">
+    <div class="sb-dot skip" id="dot-combatcheck"></div>
+    Combat Check
+    <span class="sb-badge skip" id="badge-combatcheck">—</span>
+  </div>
   <div class="sb-item" data-suite="feedback" onclick="showSuite('feedback',this);loadFeedback()">
     <div class="sb-dot skip" id="dot-feedback"></div>
     Feedback
@@ -687,6 +692,18 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
       <div id="wk-results" style="margin-top:.75rem"></div>
     </div>
 
+    <div id="suite-combatcheck" class="suite">
+      <div class="suite-title">COMBAT CHECK — AC / ATK / SKILLS</div>
+      <div class="suite-desc">Shows how the app works out a character's AC and ATK, and every input it used. Type the numbers from your in-game Inventory window to see the difference. Skills come from your logs ("You have become better at…") unless typed on the Stats tab. The Calcs suite also checks these formulas against 8 known in-game readings.</div>
+      <div class="suite-actions" style="display:flex;flex-wrap:wrap;align-items:center;gap:.5rem">
+        <select id="cc-char" onchange="ccRender()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-d);padding:.3rem .4rem;border-radius:3px;min-width:180px"></select>
+        <button class="btn" onclick="ccRender()">&#8635; Refresh</button>
+        <button class="btn" onclick="ccRescan()">&#128269; Rescan logs for skills</button>
+        <span id="cc-status" style="font-size:.74rem;color:var(--text-m)"></span>
+      </div>
+      <div id="cc-results" style="margin-top:.75rem"></div>
+    </div>
+
     <div id="suite-feedback" class="suite">
       <div class="suite-title">FEEDBACK &amp; SUGGESTIONS</div>
       <div class="suite-desc">User-submitted feedback from the in-app Feedback form. Sorted newest first.</div>
@@ -803,6 +820,18 @@ function makeTest(name, fn) {
 
 // ── SUITE DEFINITIONS ──
 const SUITES = {};
+
+// In-game Inventory-window readings used by the Calcs suite and the Combat Check tab.
+const COMBAT_REFS = [
+  {n:'Mixelmedic (CLR52, unbuffed)',ac:{cls:'Cleric',level:52,defense:165,gearAC:291,agi:100},AC:922, atk:{offense:140,str:85,weaponSkill:144},ATK:606},
+  {n:'Mixelmedic (CLR52, PotG)',ac:{cls:'Cleric',level:52,defense:165,gearAC:291,agi:100,buffAC:24},AC:945},
+  {n:'Mixelplex (DRU60, PotG+Grim Aura)',ac:{cls:'Druid',level:60,defense:200,gearAC:156,agi:119,buffAC:24},AC:821, atk:{offense:78,str:166,weaponSkill:20,spellATK:10},ATK:262},
+  {n:'Mixelshank (ROG54, PotG, Ragebringer)',ac:{cls:'Rogue',level:54,defense:206,gearAC:196,agi:145,buffAC:24,wornAC:9},AC:929, atk:{offense:225,str:206,weaponSkill:220,wornATK:40},ATK:1073},
+  {n:'Mixelflop (MNK59 Iksar, PotG+VoG)',ac:{cls:'Monk',race:'Iksar',level:59,defense:252,gearAC:132,agi:212,buffAC:24},AC:1075, atk:{offense:252,str:199,weaponSkill:252,spellATK:20},ATK:1155},
+  {n:'Mixelreaper (SHD48)',ac:{cls:'Shadow Knight',level:48,defense:210,gearAC:200,agi:120},AC:846, atk:{offense:200,str:141,weaponSkill:147,wornATK:10},ATK:745},
+  {n:'Mixelboom (WIZ54)',ac:{cls:'Wizard',level:54,defense:122,gearAC:119,agi:124},AC:525, atk:{offense:22,str:83,weaponSkill:33},ATK:134},
+  {n:'Mixelmez (ENC60, PotG+Shadow)',ac:{cls:'Enchanter',level:60,defense:145,gearAC:154,agi:99,buffAC:43},AC:678, atk:{offense:140,str:70,weaponSkill:1},ATK:200},
+];
 
 // PARSING
 SUITES.parsing = [
@@ -1039,6 +1068,20 @@ SUITES.calcs = [
       assert('r55 between r50 and r60', r55 >= Math.min(r50,r60) && r55 <= Math.max(r50,r60)),
     ], output: `Warrior staRatio: lvl50=${r50.toFixed(3)}, lvl55=${r55.toFixed(3)}, lvl60=${r60.toFixed(3)}` };
   }),
+  // In-game Inventory-window readings (2026-09-25). Exact AC must match to the point;
+  // "≈" AC (casters, level 50 and under) and ATK report the gap as a warning.
+  ...COMBAT_REFS.map(r => makeTest('In-game AC/ATK — ' + r.n, () => {
+    if (typeof A.calcDisplayAC !== 'function') return { asserts: [assert('calcDisplayAC exposed by the app', false, 'missing — app older than 1.5.12')] };
+    const a = A.calcDisplayAC(r.ac), asserts = [];
+    if (a.exact) asserts.push(assertEq('AC (exact formula)', a.value, r.AC));
+    else asserts.push(warn(`AC ≈ (${a.why.join('; ')})`, a.value !== r.AC, `app ${a.value} vs in-game ${r.AC} (Δ${a.value - r.AC})`));
+    if (r.atk) {
+      const t = A.calcDisplayATK(r.atk), d = t.value - r.ATK;
+      asserts.push(Math.abs(d) <= 6 ? assert('ATK within ±6', true, `app ${t.value} vs in-game ${r.ATK} (Δ${d})`)
+                                    : warn('ATK within ±6', true, `app ${t.value} vs in-game ${r.ATK} (Δ${d})`));
+    }
+    return { asserts, output: 'AC parts: ' + JSON.stringify(a.parts) };
+  })),
 ];
 
 // UPGRADES
@@ -3917,6 +3960,97 @@ function wkSimpleTable(head, rows) {
   return `<table style="width:100%;border-collapse:collapse;font-size:.78rem"><thead><tr style="text-align:left;color:var(--text-m)">${head.map(h => `<th style="padding:.3rem">${h}</th>`).join('')}</tr></thead><tbody>` +
     rows.map(r => `<tr style="border-top:1px solid var(--border)">${r.map((c, i) => `<td style="padding:.25rem .3rem${i === 3 ? ';color:var(--ok-green,#4caf7d)' : ''}">${wkEsc(c)}</td>`).join('')}</tr>`).join('') + '</tbody></table>';
 }
+// ── COMBAT CHECK ──
+const _ccGame = {}; // charName -> {ac, atk} typed from the in-game Inventory window
+function ccEsc(v) { return String(v == null ? '' : v).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function ccInit() {
+  const sel = document.getElementById('cc-char');
+  if (!A || typeof A.charNames !== 'function' || typeof A.combatDisplayFor !== 'function') {
+    document.getElementById('cc-results').innerHTML = '<div style="color:var(--amber-l);font-size:.8rem">⚠ Open admin with the ⚙ Admin button in MixelParse 1.5.12 or newer.</div>';
+    return;
+  }
+  const cur = sel.value, names = A.charNames();
+  sel.innerHTML = names.map(n => `<option${n === cur ? ' selected' : ''}>${ccEsc(n)}</option>`).join('');
+  if (!cur && A.activeTab && names.includes(A.activeTab)) sel.value = A.activeTab;
+  ccRender();
+}
+function ccSkillCell(s) {
+  if (!s || s.v == null) return '<span style="color:var(--red-l)">unknown</span>';
+  return `${s.v} <span style="color:var(--text-m);font-size:.7rem">(${s.src === 'entered' ? 'typed on Stats tab' : 'from logs'})</span>`;
+}
+function ccDiff(app, game, exact) {
+  if (game === '' || game == null || isNaN(+game)) return '<span style="color:var(--text-m)">—</span>';
+  const d = app - (+game);
+  const col = d === 0 ? 'var(--green-l)' : (exact || Math.abs(d) > 6) ? 'var(--red-l)' : 'var(--amber-l)';
+  return `<span style="color:${col};font-weight:600">${d === 0 ? '✓ match' : (d > 0 ? '+' : '') + d}</span>`;
+}
+function ccRender() {
+  const out = document.getElementById('cc-results'), name = document.getElementById('cc-char').value;
+  if (!name || typeof A.combatDisplayFor !== 'function') return;
+  const r = A.combatDisplayFor(name);
+  const info = A._skillsScanInfo;
+  document.getElementById('cc-status').textContent = info
+    ? `Last log scan: ${new Date(info.at).toLocaleTimeString()} · ${info.files} files${info.error ? ' · error: ' + info.error : ''}`
+    : 'Log scan has not reported yet this session.';
+  if (!r) { out.innerHTML = '<div style="color:var(--amber-l);font-size:.8rem">This character needs a class, level and base stats on the Stats tab first.</div>'; return; }
+  const g = _ccGame[name] || {}, i = r.inputs;
+  const row = (k, v) => `<tr><td style="color:var(--text-m);padding:.15rem .6rem .15rem 0">${k}</td><td>${v}</td></tr>`;
+  const inp = (key, val) => `<input type="number" value="${ccEsc(val)}" data-k="${key}" onchange="ccSet(this)" style="width:80px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.2rem .3rem;text-align:center">`;
+  const box = 'background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.6rem .8rem;font-size:.8rem';
+  const parts = p => Object.entries(p).map(([k, v]) => `${k} ${typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(1)) : v}`).join(' · ');
+  const meta = (A.charMeta || {})[name] || {}, logged = meta.skills || {}, manual = meta.skillsManual || {};
+  const skillNames = [...new Set([...Object.keys(logged), ...Object.keys(manual)])].sort();
+  out.innerHTML = `
+    <div style="${box};margin-bottom:.6rem">
+      <table style="border-collapse:collapse;font-size:.85rem">
+        <tr style="color:var(--text-m);font-size:.72rem"><td></td><td style="padding:0 .8rem">APP</td><td style="padding:0 .8rem">IN-GAME</td><td style="padding:0 .8rem">DIFF</td><td></td></tr>
+        <tr><td style="font-weight:600">AC</td><td style="padding:.25rem .8rem;font-weight:600">${r.ac.exact ? '' : '≈'}${r.ac.value}</td><td style="padding:0 .8rem">${inp('ac', g.ac || '')}</td><td style="padding:0 .8rem">${ccDiff(r.ac.value, g.ac, r.ac.exact)}</td><td style="font-size:.72rem;color:var(--text-m)">${r.ac.exact ? 'exact formula' : ccEsc(r.ac.why.join('; '))}</td></tr>
+        <tr><td style="font-weight:600">ATK</td><td style="padding:.25rem .8rem;font-weight:600">≈${r.atk.value}</td><td style="padding:0 .8rem">${inp('atk', g.atk || '')}</td><td style="padding:0 .8rem">${ccDiff(r.atk.value, g.atk, false)}</td><td style="font-size:.72rem;color:var(--text-m)">${ccEsc(r.atk.why.join('; '))}</td></tr>
+      </table>
+      <div style="font-size:.7rem;color:var(--text-m);margin-top:.4rem">Tip: take the reading with the same buffs the app has parked for this character, or the numbers will not line up.</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:.6rem">
+      <div style="${box}"><div style="color:var(--gold);font-size:.7rem;letter-spacing:.06em;margin-bottom:.3rem">INPUTS</div><table>
+        ${row('Class / level', ccEsc(i.cls + ' ' + i.level + (i.race ? ' · ' + i.race : '')))}
+        ${row('Defense', ccSkillCell(i.defense))}
+        ${row('Offense', ccSkillCell(i.offense))}
+        ${row('Weapon', ccEsc(i.weapon) + ' → ' + ccEsc(i.weaponSkillName) + ' ' + ccSkillCell(i.weaponSkill))}
+        ${row('AGI / STR (capped 255)', i.agi + ' / ' + i.str)}
+        ${row('Gear AC', i.gearAC)}
+        ${row('Item ATK', i.itemATK)}
+        ${row('Buff AC (parked)', i.buffAC)}
+        ${row('Worn effects', i.worn.length ? ccEsc(i.worn.join(', ')) + ` <span style="color:var(--text-m)">(AC ${i.wornAC}, ATK ${i.wornATK})</span>` : '<span style="color:var(--text-m)">none</span>')}
+      </table></div>
+      <div style="${box}"><div style="color:var(--gold);font-size:.7rem;letter-spacing:.06em;margin-bottom:.3rem">HOW THE NUMBERS ARE BUILT</div>
+        <div style="margin-bottom:.4rem"><b>AC</b> = (sum) × 1000/847<br><span style="color:var(--text-m)">${ccEsc(parts(r.ac.parts))}</span></div>
+        <div><b>ATK</b><br><span style="color:var(--text-m)">${ccEsc(parts(r.atk.parts))}</span></div>
+      </div>
+      <div style="${box}"><div style="color:var(--gold);font-size:.7rem;letter-spacing:.06em;margin-bottom:.3rem">ALL SKILLS FOR ${ccEsc(name.toUpperCase())}</div>
+        ${skillNames.length ? '<table>' + skillNames.map(s => row(ccEsc(s), (manual[s] != null ? `<b>${manual[s]}</b> <span style="color:var(--text-m);font-size:.7rem">typed</span>` : '') + (logged[s] != null ? ` <span style="color:var(--text-m)">${manual[s] != null ? '(logs ' + logged[s] + ')' : logged[s] + ' <span style="font-size:.7rem">logs</span>'}</span>` : ''))).join('') + '</table>'
+          : '<span style="color:var(--text-m)">No skills found in the logs yet. Press "Rescan logs for skills", or type them on the Stats tab.</span>'}
+      </div>
+    </div>`;
+  const known = r.ac.exact && g.ac !== undefined && g.ac !== '' ? (r.ac.value === +g.ac) : null;
+  const b = document.getElementById('badge-combatcheck'), d = document.getElementById('dot-combatcheck');
+  if (known === null) { b.textContent = '—'; b.className = 'sb-badge skip'; d.className = 'sb-dot skip'; }
+  else { b.textContent = known ? '✓' : 'Δ'; b.className = 'sb-badge ' + (known ? 'pass' : 'fail'); d.className = 'sb-dot ' + (known ? 'pass' : 'fail'); }
+}
+function ccSet(el) {
+  const name = document.getElementById('cc-char').value;
+  (_ccGame[name] = _ccGame[name] || {})[el.dataset.k] = el.value.trim();
+  ccRender();
+}
+function ccRescan() {
+  if (typeof A.rescanSkills !== 'function' || !A.rescanSkills()) { document.getElementById('cc-status').textContent = 'Rescan needs the desktop app.'; return; }
+  const before = (A._skillsScanInfo || {}).at || 0;
+  document.getElementById('cc-status').textContent = 'Scanning logs…';
+  let n = 0;
+  const t = setInterval(() => {
+    const at = (A._skillsScanInfo || {}).at || 0;
+    if (at > before || ++n > 120) { clearInterval(t); ccRender(); }
+  }, 500);
+}
+
 function wkSetBadge(n) {
   const b = document.getElementById('badge-wikicheck'), d = document.getElementById('dot-wikicheck');
   if (b) { b.textContent = n ? n : '✓'; b.className = 'sb-badge ' + (n ? 'fail' : 'pass'); }
