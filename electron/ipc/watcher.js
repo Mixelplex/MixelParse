@@ -952,10 +952,10 @@ function raidEvidence(line, charName) {
 
 // Startup backfill (raid signals ONLY): the watcher seeks every log to EOF on start,
 // so a restart mid-raid lost the evidence for the next tick (Trakanon, 9/24: app
-// restarted 90s after the kill). Replays the last 30 min of recently written logs
+// restarted 90s after the kill). Replays the last 6 hours (a whole raid night) of recently written logs
 // through raidEvidence alone — no other handlers — when the renderer asks for its
 // snapshot (requestAll), so the renderer is listening. The renderer dedupes ticks.
-const RT_BACKFILL_MS = 30 * 60e3;
+const RT_BACKFILL_MS = 6 * 3600e3;   // whole raid night — ticks already logged are skipped by the renderer
 function raidBackfill() {
   if (!_config || !_config.logDir) return;
   const since = Date.now() - RT_BACKFILL_MS;
@@ -967,7 +967,7 @@ function raidBackfill() {
       const stat = fs.statSync(fp);
       if (stat.mtimeMs < since) continue;
       const charName = extractCharFromLog(f);
-      const readSize = Math.min(8 * 1024 * 1024, stat.size);
+      const readSize = Math.min(24 * 1024 * 1024, stat.size);   // ~6h of raid spam
       const buf = Buffer.alloc(readSize);
       const fd = fs.openSync(fp, 'r');
       fs.readSync(fd, buf, 0, readSize, stat.size - readSize);
@@ -978,7 +978,7 @@ function raidBackfill() {
         if (!line || _rtLineTs(line) < since) continue;
         raidEvidence(line, charName); n++;
       }
-      log(`[RAID] backfilled ${charName}: ${n} lines from the last 30 min`);
+      log(`[RAID] backfilled ${charName}: ${n} lines from the last 6 hours`);
     } catch (e) { err('[RAID] backfill error:', f, e.message); }
   }
 }

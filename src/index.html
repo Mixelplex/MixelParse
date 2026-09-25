@@ -11364,7 +11364,9 @@ function rkdOnEvidence(msg){
   if(!b)return;
   const raw=msg.kind==='call'?`${msg.poster}: ${msg.text}`:msg.kind==='land'?`${msg.mob} (${msg.sub})`:`${msg.mob} ${msg.kind==='slain'?'slain':'ENRAGED'}`;
   _rkdEvidence.push({ts:msg.ts||Date.now(),kind:msg.kind,sub:msg.sub||null,boss:b.target,raw,char:msg.charName});
-  const cut=Date.now()-RKD_EVIDENCE_KEEP; _rkdEvidence=_rkdEvidence.filter(e=>e.ts>=cut);
+  // Prune by the event's own time, not the wall clock — backfilled evidence from hours ago
+  // must survive long enough to be matched to its tick.
+  const cut=(msg.ts||Date.now())-RKD_EVIDENCE_KEEP; _rkdEvidence=_rkdEvidence.filter(e=>e.ts>=cut);
 }
 function rkdOnTick(msg){
   const ts=msg.ts||Date.now();
@@ -11385,7 +11387,8 @@ function rkdOnTick(msg){
   _rkdLastTickTs=Math.max(_rkdLastTickTs||0,ts);
   _rkdOpenTicks.push(t);
   // Live ticks wait out the 2-min post-window; backfilled ones already have it.
-  setTimeout(()=>rkdFinalize(t),Math.max(0,ts+RKD_WIN_AFTER-Date.now()));
+  // Backfilled ticks wait 3s so the rest of the replay (incl. a kill just after the tick) arrives first.
+  setTimeout(()=>rkdFinalize(t),Math.max(3000,ts+RKD_WIN_AFTER-Date.now()));
 }
 function rkdAttribute(t){
   const from=Math.max(t.ts-RKD_WIN_BEFORE,t.prevTickTs!=null?t.prevTickTs+1:-Infinity);
