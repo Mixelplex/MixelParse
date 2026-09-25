@@ -2321,7 +2321,21 @@ const ITEM_STAT_OVERRIDES={
   'Primal Velium Claidhmore':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Slashing',_classes:'WAR PAL RNG SHD'},
   'Primal Velium Brawl Stick':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Blunt',_classes:'ALL EXCEPT BRD ROG'},
   'Primal Velium War Lance':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Piercing',_classes:'WAR PAL SHD'},
+  // ── Wiki audit 2026-09-24 (item_db vs live wiki statsblocks, 409-item sample) ──
+  "Yelinak's Talisman":{haste:41},
+  'Crown of Narandi':{ac:25,str:8,dex:8,sta:8,wis:8,int:8,agi:8,hpbonus:50,manabonus:50,svfire:4,svdisease:4,svcold:4,svmagic:4,svpoison:4,_slot:'HEAD',_lore:true,_magic:true,_effect:'Flowing Thought II',_ft:2,_classes:'PAL SHD'},
+  'Spiked Seahorse Hide Belt':{_lore:true},
+  'Drums of the Beast':{_slot:'PRIMARY'},
+  'Forge Hammer of Dalnir':{_classes:'WAR CLR PAL RNG SHD DRU MNK BRD ROG SHM NEC'},
+  'Rubicite Breastplate':{_races:'HUM BAR ERU ELF HIE DEF HEF DWF TRL OGR'},
+  'Ancient Venom Sack':{_races:'HUM BAR ELF DEF HEF DWF'},
 };
+// Bard instrument modifiers — the item export never carried these columns, so no item
+// had one and Bard instrument scoring never fired. Built from every item in the wiki's
+// Category:Bard Instrument (2026-09-24). Fill-only, applied at every index rebuild.
+// Gear the export stored with slot NONE (mostly instruments) — slot from each wiki page.
+const SLOT_FIXES={"Agilmente's Flute of Flight":{"_slot":"PRIMARY"},"Alluring Horn":{"_slot":"SECONDARY"},"Brahhms Horn":{"_slot":"SECONDARY"},"Conch Shell Horn":{"_slot":"SECONDARY"},"Denon's Horn of Disaster":{"_slot":"PRIMARY"},"Efreeti War Horn":{"_slot":"PRIMARY"},"Ervaj's Flute of Flight":{"_slot":"PRIMARY"},"Faun Flute":{"_slot":"SECONDARY"},"Fine Lute Tuners":{"_slot":"SECONDARY"},"Flute of the Sacred Glade":{"_slot":"SECONDARY"},"Gypsy Lute":{"_slot":"SECONDARY"},"Hand Drum":{"_slot":"SECONDARY"},"Horn":{"_slot":"SECONDARY"},"Horn Mouthpiece":{"_slot":"SECONDARY"},"Immaculate Shell Horn":{"_slot":"SECONDARY"},"Kelin`s Seven Stringed Lute":{"_slot":"SECONDARY"},"Lute of the Gypsy Princess":{"_slot":"SECONDARY"},"Lute of the Howler":{"_slot":"PRIMARY"},"Lyendlln's Lute":{"_slot":"SECONDARY"},"Lyran's Mystical Lute":{"_slot":"PRIMARY","_slots":["PRIMARY","SECONDARY"]},"Lyssa`s Darkwood Piccolo":{"_slot":"SECONDARY"},"Mahlin's Mystical Bongos":{"_slot":"SECONDARY"},"Mandolin":{"_slot":"SECONDARY"},"McVaxius` Horn of War":{"_slot":"SECONDARY"},"Minotaur Horn":{"_slot":"SECONDARY"},"Mistmoore Battle Drums":{"_slot":"SECONDARY"},"Mystical Lute":{"_slot":"SECONDARY"},"Nostrolo Tambourine":{"_slot":"SECONDARY"},"Scorpion Pincer":{"_slot":"SECONDARY"},"Selo`s Drums of the March":{"_slot":"SECONDARY"},"Sharkskin Drum":{"_slot":"SECONDARY"},"Trumpet Valves":{"_slot":"SECONDARY"},"Uliorn's Fishing Pole":{"_slot":"PRIMARY","_slots":["PRIMARY","SECONDARY"]},"Unfinished Brass Trumpet":{"_slot":"SECONDARY"},"Verlekarnorm's Horn of Disaster":{"_slot":"PRIMARY"},"Walrus Skin Drum":{"_slot":"SECONDARY"}};
+const INSTRUMENT_MODS={"Agilmente's Flute of Flight":{"_windmod":22},"Alluring Horn":{"_brasmod":18},"Brahhms Horn":{"_windmod":21},"Conch Shell Horn":{"_brasmod":21},"Denon's Horn of Disaster":{"_brasmod":24},"Drums of the Beast":{"_percmod":26},"Efreeti War Horn":{"_brasmod":22},"Ervaj's Flute of Flight":{"_windmod":22},"Faun Flute":{"_windmod":21},"Fine Lute Tuners":{"_stringmod":10},"Flute of the Sacred Glade":{"_windmod":25},"Gypsy Lute":{"_stringmod":21},"Hand Drum":{"_percmod":18},"Horn":{"_brasmod":20},"Horn Mouthpiece":{"_brasmod":10},"Immaculate Shell Horn":{"_brasmod":24},"Kelin`s Seven Stringed Lute":{"_stringmod":24},"Lute of the Gypsy Princess":{"_stringmod":21},"Lute of the Howler":{"_stringmod":22},"Lyendlln's Lute":{"_stringmod":24},"Lyran's Mystical Lute":{"_stringmod":25},"Lyssa`s Darkwood Piccolo":{"_windmod":24},"Mahlin's Mystical Bongos":{"_percmod":21},"Mandolin":{"_stringmod":20},"McVaxius` Horn of War":{"_brasmod":23},"Minotaur Horn":{"_windmod":20},"Mistmoore Battle Drums":{"_percmod":21},"Mystical Lute":{"_stringmod":21},"Nostrolo Tambourine":{"_percmod":22},"Scorpion Pincer":{"_windmod":20},"Selo`s Drums of the March":{"_percmod":24},"Sharkskin Drum":{"_percmod":22},"Trumpet Valves":{"_brasmod":10},"Unfinished Brass Trumpet":{"_brasmod":10},"Unicorn Horn":{"_windmod":22},"Verlekarnorm's Horn of Disaster":{"_brasmod":22},"Walrus Skin Drum":{"_percmod":23}};
 // Creates the DB entry if the crawler never captured it; otherwise fills only the
 // missing fields (won't clobber a good existing weapon's dmg/delay).
 function applyItemStatOverrides(){
@@ -2334,8 +2348,8 @@ function applyItemStatOverrides(){
       // parser stamps every row with _classes (defaulting to 'ALL' when its
       // class column is blank), so a truthy-but-wrong 'ALL' from the crawler
       // would otherwise pass the fill-only check below and never get fixed.
-      if(k==='_classes'){ it[k]=v; continue; }
-      if(!it[k]) it[k]=v;
+      if(k==='_classes'||k==='_races'){ it[k]=v; continue; }
+      if(!it[k]||(k==='_slot'&&it[k]==='NONE')) it[k]=v;
     }
   }
 }
@@ -2379,6 +2393,11 @@ function _rebuildItemDBIndex(){
     if(d&&typeof d==='object'){
       if(/no longer drops/i.test(d._from||''))d._legacy=true;
       else if(d._legacy)delete d._legacy;
+      // Deity was crawled into _races ("ELF HIE HEF Deity: Tunare"). Split it out: the
+      // "ALL Deity: Bristlebane" form failed the race check for every character.
+      if(typeof d._races==='string'&&/\bdeity\b/i.test(d._races)){const m=d._races.match(/^(.*?)\s*\bdeity\b:?\s*(.+)$/i);if(m){d._races=(m[1].trim()||'ALL');d._deity=m[2].trim();}}
+      const im=INSTRUMENT_MODS[k];if(im)for(const[mk,mv]of Object.entries(im))if(!d[mk])d[mk]=mv;
+      const sf=SLOT_FIXES[k];if(sf&&(!d._slot||d._slot==='NONE'))Object.assign(d,sf);
     }
   }
   applyItemEffectOverrides();
