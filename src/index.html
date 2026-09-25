@@ -15489,17 +15489,19 @@ function watchlistStatus(charName, itemName){
       return false;
     });
     if(match){
-      return {status:_consumeStatusCustom(match, charName, ov), have:_consumeHave(charName, match), target:_consumeTarget(match, ov), custom:true};
+      return {status:_consumeStatusCustom(match, charName, ov), have:_consumeHave(charName, match), target:_consumeTarget(match, ov), custom:true, count:charItemCount(charName, itemName)};
     }
     const have=charItemCount(charName, itemName);
-    return {status: have>0?'present':'missing_red', have, target:1, custom:true};
+    return {status: have>0?'present':'missing_red', have, target:1, custom:true, count:have};
   }
-  return {status: charHasItem(charName, itemName) ? 'present' : 'missing_red'};
+  return {status: charHasItem(charName, itemName) ? 'present' : 'missing_red', count:charItemCount(charName, itemName)};
 }
 function _wlBadge(res, big){
   const status=res&&res.status;
   const sz=big?'1.1rem':'1.05rem';
   if(status==='na')      return `<span class="rc-check-na" style="flex-shrink:0;font-size:${big?'1rem':'.8rem'}">N/A</span>`;
+  // More than one on hand: show the quantity instead of the check.
+  if(status==='present' && res.count>1) return `<span class="rc-check-green" title="${res.count} on hand" style="flex-shrink:0;font-size:${big?'.95rem':'.9rem'};font-weight:700;font-family:'Crimson Pro',serif">${res.count}</span>`;
   if(status==='present') return `<span class="rc-check-green" style="flex-shrink:0;font-size:${sz};font-weight:700">\u2714</span>`;
   if(status==='missing_yellow'||status==='missing_tracked'){
     // Show have/target so a partial explains itself (e.g. 2/3); fall back to the
