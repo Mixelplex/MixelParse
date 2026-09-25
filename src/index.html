@@ -5416,7 +5416,7 @@ async function loadFromSupabase(){
           }
         }
         if(row.base_stats?.questData)questData[row.char_name]=row.base_stats.questData;
-        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,factionValues:_fv,questData:_qd,buffs:_bu,planBuffed:_pb,spellbook:_sb,spellIgnore:_si,customWeights:_cw,consumeOverrides:_co,...bs}=row.base_stats||{};
+        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,factionValues:_fv,questData:_qd,buffs:_bu,planBuffed:_pb,spellbook:_sb,spellIgnore:_si,customWeights:_cw,consumeOverrides:_co,deity:_de,...bs}=row.base_stats||{};
         const hasRealStats=bs.stats||bs.resists;
         charMeta[row.char_name]={
           class:row.class||'',race:row.race||'',level:row.level||1,
@@ -5432,6 +5432,7 @@ async function loadFromSupabase(){
           customWeights:row.base_stats?.customWeights||null,
           consumeOverrides:row.base_stats?.consumeOverrides||null,
           planBuffed:row.base_stats?.planBuffed??undefined,
+          deity:row.base_stats?.deity||'',
         };
         if(row.gear_stats)gearStats[row.char_name]=row.gear_stats;
         _charLoadedMeta[row.char_name]={
@@ -5550,6 +5551,7 @@ function _charSaveRow(cn){
         customWeights:charMeta[cn]?.customWeights||null,
         consumeOverrides:charMeta[cn]?.consumeOverrides||null,
         planBuffed:charMeta[cn]?.planBuffed,
+        deity:charMeta[cn]?.deity||null,
       };
     })(),
     gear_stats:gearStats[cn]||null,
