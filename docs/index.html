@@ -2335,13 +2335,16 @@ const ITEM_STAT_OVERRIDES={
   'Primal Velium Brawl Stick':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Blunt',_classes:'ALL EXCEPT BRD ROG'},
   'Primal Velium War Lance':{..._PR8,ac:17,dmg:45,delay:44,_slot:'PRIMARY',_skill:'2H Piercing',_classes:'WAR PAL SHD'},
   // ── Wiki audit 2026-09-24 (item_db vs live wiki statsblocks, 409-item sample) ──
-  "Yelinak's Talisman":{haste:41},
-  'Crown of Narandi':{ac:25,str:8,dex:8,sta:8,wis:8,int:8,agi:8,hpbonus:50,manabonus:50,svfire:4,svdisease:4,svcold:4,svmagic:4,svpoison:4,_slot:'HEAD',_lore:true,_magic:true,_effect:'Flowing Thought II',_ft:2,_classes:'PAL SHD'},
-  'Spiked Seahorse Hide Belt':{_lore:true},
-  'Drums of the Beast':{_slot:'PRIMARY'},
-  'Forge Hammer of Dalnir':{_classes:'WAR CLR PAL RNG SHD DRU MNK BRD ROG SHM NEC'},
-  'Rubicite Breastplate':{_races:'HUM BAR ERU ELF HIE DEF HEF DWF TRL OGR'},
-  'Ancient Venom Sack':{_races:'HUM BAR ELF DEF HEF DWF'},
+  // Each entry carries the item's FULL row from before the 2026-09-25 incident (a 1.5.9 startup
+  // save wrote correction-only stubs over these 7 rows). Fill-only, so any client with this
+  // table heals the stored row on its next item save; the audit corrections sit on top.
+  "Yelinak's Talisman":{"ac":8,"agi":7,"cha":7,"dex":7,"int":7,"sta":7,"str":7,"wis":7,"_era":"Velious Era","_from":"Lord Yelinak","_lore":true,"_slot":"NECK","_magic":true,"_races":"ALL","svcold":7,"svfire":7,"_nodrop":true,"hpbonus":40,"svmagic":7,"_classes":"ALL","_wikiUrl":"https://wiki.project1999.com/Yelinak%27s_Talisman","svpoison":7,"manabonus":40,"svdisease":7,"haste":41},
+  "Crown of Narandi":{"_from":"","_slot":"HEAD","_races":"ALL","_classes":"PAL SHD","_wikiUrl":"https://wiki.project1999.com/Crown_of_Narandi","ac":25,"str":8,"dex":8,"sta":8,"wis":8,"int":8,"agi":8,"hpbonus":50,"manabonus":50,"svfire":4,"svdisease":4,"svcold":4,"svmagic":4,"svpoison":4,"_lore":true,"_magic":true,"_effect":"Flowing Thought II","_ft":2},
+  "Spiked Seahorse Hide Belt":{"ac":10,"agi":4,"cha":4,"dex":4,"int":4,"sta":4,"str":4,"wis":4,"_from":"","_slot":"WAIST","haste":34,"_races":"ALL","svcold":1,"svfire":1,"hpbonus":25,"svmagic":1,"_classes":"ALL","_wikiUrl":"https://wiki.project1999.com/Spiked_Seahorse_Hide_Belt","svpoison":1,"manabonus":25,"svdisease":1,"_lore":true},
+  "Drums of the Beast":{"_era":"Velious Era","_from":"shimmering sea spirit","_lore":true,"_slot":"PRIMARY","_magic":true,"_races":"ALL","_effect":"Enduring Breath","_classes":"BRD","_wikiUrl":"https://wiki.project1999.com/Drums_of_the_Beast","_effectType":"Any Slot/Can Equip, Casting Time: Instant"},
+  "Forge Hammer of Dalnir":{"dmg":6,"_era":"Kunark Era","_from":"an undead blacksmith","_lore":true,"_slot":"PRIMARY","delay":50,"_magic":true,"_races":"ALL","_skill":"1H Blunt","_nodrop":true,"_classes":"WAR CLR PAL RNG SHD DRU MNK BRD ROG SHM NEC","_wikiUrl":"https://wiki.project1999.com/Forge_Hammer_of_Dalnir"},
+  "Rubicite Breastplate":{"ac":19,"_era":"Classic Era","_from":"Avatar of FearClassic Phase 1","_lore":true,"_slot":"CHEST","_magic":true,"_races":"HUM BAR ERU ELF HIE DEF HEF DWF TRL OGR","_classes":"WAR CLR PAL RNG SHD BRD ROG SHM","_wikiUrl":"https://wiki.project1999.com/Rubicite_Breastplate"},
+  "Ancient Venom Sack":{"_from":"Slyder the Ancient","_slot":"NONE","_races":"HUM BAR ELF DEF HEF DWF","_effect":"Deadly Poison","_classes":"ROG","_wikiUrl":"https://wiki.project1999.com/Ancient_Venom_Sack","_effectType":"Combat, Casting Time: Instant"},
 };
 // Bard instrument modifiers — the item export never carried these columns, so no item
 // had one and Bard instrument scoring never fired. Built from every item in the wiki's
@@ -2351,9 +2354,15 @@ const SLOT_FIXES={"Agilmente's Flute of Flight":{"_slot":"PRIMARY"},"Alluring Ho
 const INSTRUMENT_MODS={"Agilmente's Flute of Flight":{"_windmod":22},"Alluring Horn":{"_brasmod":18},"Brahhms Horn":{"_windmod":21},"Conch Shell Horn":{"_brasmod":21},"Denon's Horn of Disaster":{"_brasmod":24},"Drums of the Beast":{"_percmod":26},"Efreeti War Horn":{"_brasmod":22},"Ervaj's Flute of Flight":{"_windmod":22},"Faun Flute":{"_windmod":21},"Fine Lute Tuners":{"_stringmod":10},"Flute of the Sacred Glade":{"_windmod":25},"Gypsy Lute":{"_stringmod":21},"Hand Drum":{"_percmod":18},"Horn":{"_brasmod":20},"Horn Mouthpiece":{"_brasmod":10},"Immaculate Shell Horn":{"_brasmod":24},"Kelin`s Seven Stringed Lute":{"_stringmod":24},"Lute of the Gypsy Princess":{"_stringmod":21},"Lute of the Howler":{"_stringmod":22},"Lyendlln's Lute":{"_stringmod":24},"Lyran's Mystical Lute":{"_stringmod":25},"Lyssa`s Darkwood Piccolo":{"_windmod":24},"Mahlin's Mystical Bongos":{"_percmod":21},"Mandolin":{"_stringmod":20},"McVaxius` Horn of War":{"_brasmod":23},"Minotaur Horn":{"_windmod":20},"Mistmoore Battle Drums":{"_percmod":21},"Mystical Lute":{"_stringmod":21},"Nostrolo Tambourine":{"_percmod":22},"Scorpion Pincer":{"_windmod":20},"Selo`s Drums of the March":{"_percmod":24},"Sharkskin Drum":{"_percmod":22},"Trumpet Valves":{"_brasmod":10},"Unfinished Brass Trumpet":{"_brasmod":10},"Unicorn Horn":{"_windmod":22},"Verlekarnorm's Horn of Disaster":{"_brasmod":22},"Walrus Skin Drum":{"_percmod":23}};
 // Creates the DB entry if the crawler never captured it; otherwise fills only the
 // missing fields (won't clobber a good existing weapon's dmg/delay).
+// Set by loadItemDBFromSupabase. Declared with var (hoisted) so the early startup
+// rebuild can read it before the loader's own declarations are reached.
+var _itemDBCloudLoaded=false;
 function applyItemStatOverrides(){
   for(const [name,ov] of Object.entries(ITEM_STAT_OVERRIDES)){
     let key = itemDB[name] ? name : (_itemDBLower||{})[name.toLowerCase()];
+    // Never create entries before the cloud DB has loaded: a pre-load stub, saved by an
+    // early DKP/price pass, overwrote 7 full rows on 2026-09-25.
+    if(!key&&!_itemDBCloudLoaded)continue;
     if(!key){ itemDB[name]={}; _itemDBLower[name.toLowerCase()]=name; key=name; }
     const it=itemDB[key];
     for(const [k,v] of Object.entries(ov)){
@@ -5652,6 +5661,9 @@ async function saveToSupabase(){
 let _itemDBLoadedCount=0;   // set by loadItemDBFromSupabase — the cloud size we started from
 async function saveItemDBToSupabase(){
   if(!currentUser)return;
+  // Never write before the cloud DB has loaded — an early save of partial/stub entries
+  // overwrote 7 full rows on 2026-09-25 (upsert replaces the whole data object).
+  if(!_itemDBCloudLoaded){console.warn('[ItemDB] Save skipped — cloud item DB not loaded yet');return;}
   const entries=Object.entries(itemDB);
   if(!entries.length)return;
   // Guard: never let a partial in-memory DB (e.g. after a short read) upsert over
@@ -5724,6 +5736,7 @@ async function loadItemDBFromSupabase(){
     if(allRows.length){
       for(const row of allRows)itemDB[row.item_name]=row.data;
       _itemDBLoadedCount=allRows.length;
+      _itemDBCloudLoaded=true;
       itemDBSources=['supabase ('+allRows.length+' items)'];
       const tag=(expected!==null&&allRows.length<expected)?` (expected ${expected} — still short, check console)`:'';
       console.log(`[ItemDB] Loaded ${allRows.length} items from Supabase${tag}`);
