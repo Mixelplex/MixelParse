@@ -53,6 +53,21 @@ alter table guild_data add column if not exists consolidate_banker_excl jsonb de
 
 ---
 
+### P99 wiki audit — 1.5.9 (LOCAL test build, not published; installer in dist\)
+Audit scripts lived in the session scratchpad (batched wiki API fetch, 50 titles/request, cached).
+- **HP/mana:** `calcHP` now uses the classic class level factor (5 + L·F/10 + STA·L·F/3000); L·F/3000 reproduces all 28 wiki STA→HP values. Old flat 12.1·L base under-counted every non-caster (L60 WAR −1,079). `calcMana` = classic integer formula (slope 11.26/pt @60, wiki ~11.27). **Still want 2–3 real in-game HP/mana readings to confirm the base term** (wiki only publishes per-STA slopes). Hybrid mana (PAL/RNG/SHD/BRD) unverified.
+- **Dual wield:** L50 skill caps added; matches all 10 wiki chances.
+- **Backstab (not changed — user's call):** wiki: max = dmg × (skill×0.02+2) × 2 × maxExtra, ~10s cooldown. App scores `(4.5×dmg ÷ delay) × 0.6`; dividing by delay undervalues slow high-damage daggers (backstab frequency doesn't depend on delay).
+- **Buffs:** 37/40 matched spell pages; fixed Brilliance, Insight, Berserker Spirit.
+- **Food:** P99 is not race-based (removed HFL/BAR/OGR/TRL 2×); Monks 2×.
+- **Bags:** tomes 4→10; 64 containers added; 132/132 match.
+- **Bosses:** in-game names added for auto-detect (a dracoliche, Master Yael, Kelorek`Dar, Guardian Kozzalym, Spirit of Garzicor/Garzicor's Wraith, An Undead Bard).
+- **Quests:** 890/890 reward stats, 182/182 NPCs, 669/672 items match; Lyran's Mystical Lute note fixed (Silverwing, VP).
+- **Items:** 409-item sample 96% → 100%. Deity split out of `_races` (444 items; 60 "ALL Deity" items were unusable by everyone); 37 Bard instrument mods + 36 slots added (instrument scoring never fired before); 7 item corrections. `_races` now overrides like `_classes`.
+- Also: High Elf item-import files were tagged Half Elf.
+
+---
+
 ## Open items
 - [ ] **Publish 1.5.8** when user gives the all-clear (push `main` + tag `v1.5.8`).
 - [ ] **HP/Mana formula audit** — suspects: 200 INT/WIS mana breakpoint, 255 cap, SK mana from INT, base (class/race/level). Needs a couple of real in-game HP/mana values to check against.
