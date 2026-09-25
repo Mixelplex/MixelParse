@@ -4971,18 +4971,20 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.5.8',
+  version:'1.5.9',
   date:'September 2026',
   features:[
-    ['Raid Kill Auto-Detect <i>(preview)</i>','Kill Tracker &rarr; <b>&#127919; Auto-Detect</b> watches for each RAIDTICK and works out which boss died from enrage, slain, and tash/malo/slow messages &mdash; with the time of death. Watch-only for now: it suggests, it never changes your sessions.'],
-    ['Manual prices in Networth','Click <b>&#9998;</b> on any item to set your own price &mdash; including items with no WTS data. <b>Use market price</b> puts it back.'],
-    ['Browse suggestions','<b>Feedback</b> now shows what everyone has already suggested, with search &mdash; add your voice instead of a duplicate.'],
+    ['Deity on your characters','Pick each character&rsquo;s deity on the <b>Stats</b> tab. The Gear Planner and Outfitter now hide gear for other deities (Imbued armor and jewelry, and more).'],
+    ['Bard instruments scored','The Gear Planner now values instrument modifiers for all 37 Bard instruments &mdash; before, instrument upgrades never showed up.'],
+    ['Raid Auto-Detect catches up','If MixelParse is closed or restarted mid-raid, it now catches up on the whole night when it starts &mdash; and recognizes more bosses (Dracoliche, Yael, Kelorek&rsquo;Dar, Kozzalym, Garzicor, Undead Bard).'],
   ],
   fixes:[
-    ['Sessions auto-start for every character','Login, XP, kill and loot tracking now works for all your toons on a fresh install &mdash; not just ones that had exported their inventory on that PC.'],
-    ['Text boxes stop freezing','After a pop-up message, text boxes could stop accepting typing until you clicked away. Fixed everywhere.'],
-    ['Gear Planner: Rogue &amp; Monk weapons','Daggers tagged for the Range slot no longer rank too high in Main/Off Hand.'],
-    ['Gear Test Bench totals','The stat breakdown now adds up to the weighted score.'],
+    ['HP and mana match the game','Rebuilt from the P99 wiki and checked against the in-game Inventory window. Non-casters were showing hundreds of HP too low (a level 60 Warrior by over 1,000).'],
+    ['60 hidden items are back','Deity items marked &ldquo;ALL races&rdquo; were being treated as unusable by everyone.'],
+    ['Food &amp; drink timers','On P99 race doesn&rsquo;t change how long food lasts &mdash; that rule is gone. Monks&rsquo; food and drink now last twice as long.'],
+    ['Bag sizes in Consolidate','Spell tomes hold 10 (not 4), and 64 more bags and kits are recognized.'],
+    ['Item and buff data','Corrected against the wiki: Yelinak&rsquo;s Talisman haste, Crown of Narandi stats, Brilliance, Insight, Berserker Spirit, and more.'],
+    ['Smaller fixes','Dual wield chance at levels 50&ndash;59; Lyran&rsquo;s Mystical Lute drop source; High Elf item imports.'],
   ],
 };
 function showWhatsNew(){
