@@ -7984,6 +7984,11 @@ Object.defineProperty(window,'itemDBSources',{get:()=>itemDBSources});
 Object.defineProperty(window,'chars',{get:()=>chars});
 Object.defineProperty(window,'charMeta',{get:()=>charMeta});
 Object.defineProperty(window,'gearStats',{get:()=>gearStats});
+// Wiki Check (admin) compares these code tables against their wiki pages. Getters,
+// not assignments: BAG_SLOTS is declared further down, and touching it here would
+// throw (TDZ) and abort the rest of this script block.
+Object.defineProperty(window,'BUFF_DB',{get:()=>BUFF_DB});
+Object.defineProperty(window,'BAG_SLOTS',{get:()=>BAG_SLOTS});
 window.charNames = charNames;
 window.isBanker = isBanker;
 window.bankerNames = bankerNames;

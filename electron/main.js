@@ -471,6 +471,30 @@ ipcMain.handle('farm:crawl', async (e, pages) => {
   return results;
 });
 
+// Wiki Check (admin): fetch ≤50 page wikitexts via the P99 wiki's MediaWiki API. Runs
+// here because the wiki sends no CORS headers, so renderer fetch() is blocked. Host is
+// fixed; input is only a list of titles. The caller paces requests (1/sec).
+ipcMain.handle('wiki:query', async (e, titles) => {
+  const list = (Array.isArray(titles) ? titles : []).filter(t => typeof t === 'string' && t.length && t.length <= 200).slice(0, 50);
+  if (!list.length) return { ok: false, error: 'no titles' };
+  const url = 'https://wiki.project1999.com/api.php?action=query&format=json&redirects=1&prop=revisions&rvprop=content&titles=' + encodeURIComponent(list.join('|'));
+  return new Promise((resolve) => {
+    let settled = false; const done = v => { if (!settled) { settled = true; resolve(v); } };
+    let req; try { req = net.request({ method: 'GET', url, redirect: 'follow' }); } catch (err) { return done({ ok: false, error: String(err && err.message || err) }); }
+    req.setHeader('User-Agent', 'MixelParse Wiki Check (github.com/Mixelplex/MixelParse)');
+    const timer = setTimeout(() => { try { req.abort(); } catch {} done({ ok: false, error: 'timeout' }); }, 20000);
+    req.on('response', (res) => {
+      const decoder = new StringDecoder('utf8'); let body = '';
+      res.on('data', c => { body += decoder.write(c); });
+      res.on('end', () => { clearTimeout(timer); body += decoder.end();
+        if (res.statusCode !== 200) return done({ ok: false, error: 'HTTP ' + res.statusCode });
+        try { done({ ok: true, data: JSON.parse(body) }); } catch (err) { done({ ok: false, error: 'bad JSON' }); } });
+    });
+    req.on('error', err => { clearTimeout(timer); done({ ok: false, error: String(err && err.message || err) }); });
+    req.end();
+  });
+});
+
 ipcMain.handle('setup:detect-paths', () => detectEQPaths());
 
 ipcMain.handle('setup:browse-dir', async (e, defaultPath) => {

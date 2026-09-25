@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   // ── Setup ──────────────────────────────────────────────────────────────────
   // Farm Targets wiki crawl (v1.3.5) — sandbox-safe, ipcRenderer only
   farmCrawl:      (pages) => ipcRenderer.invoke('farm:crawl', pages),
+  wikiQuery:      (titles) => ipcRenderer.invoke('wiki:query', titles),   // Wiki Check (≤50 titles)
   rotateLogs:     (opts)  => ipcRenderer.invoke('logs:rotate', opts),
   onFarmProgress: (cb)    => ipcRenderer.on('farm:progress', (e, p) => cb(p)),
 

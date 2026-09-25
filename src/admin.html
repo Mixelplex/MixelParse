@@ -265,6 +265,11 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
     Networth Audit
     <span class="sb-badge skip" id="badge-networth">—</span>
   </div>
+  <div class="sb-item" data-suite="wikicheck" onclick="showSuite('wikicheck',this)">
+    <div class="sb-dot skip" id="dot-wikicheck"></div>
+    Wiki Check
+    <span class="sb-badge skip" id="badge-wikicheck">—</span>
+  </div>
   <div class="sb-item" data-suite="feedback" onclick="showSuite('feedback',this);loadFeedback()">
     <div class="sb-dot skip" id="dot-feedback"></div>
     Feedback
@@ -659,6 +664,27 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
         <span id="networth-summary" style="font-size:.72rem;color:var(--text-m)"></span>
       </div>
       <div id="networth-content" style="margin-top:.75rem"></div>
+    </div>
+
+    <div id="suite-wikicheck" class="suite">
+      <div class="suite-title">WIKI CHECK</div>
+      <div class="suite-desc">Compares MixelParse data with the live P99 wiki (wiki.project1999.com) — item stats and flags, parked-buff values, and bag capacities. Pages are fetched 50 at a time, one request per second.</div>
+      <div class="suite-actions" style="display:flex;flex-wrap:wrap;align-items:center;gap:.5rem">
+        <select id="wk-mode" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-d);padding:.3rem .4rem;border-radius:3px" onchange="wkModeChanged()">
+          <option value="one">Items — one item</option>
+          <option value="char">Items — worn by a character</option>
+          <option value="sample" selected>Items — smart sample (~400)</option>
+          <option value="all">Items — all (~4 min)</option>
+          <option value="buffs">Parked buffs</option>
+          <option value="bags">Bag capacities</option>
+        </select>
+        <input id="wk-item" placeholder="Item name" style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text-d);padding:.3rem .4rem;border-radius:3px;min-width:220px">
+        <select id="wk-char" style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text-d);padding:.3rem .4rem;border-radius:3px"></select>
+        <button class="btn primary" id="wk-run" onclick="wkRun()">&#9654; Run check</button>
+        <button class="btn" id="wk-stop" onclick="wkStop()" style="display:none">&#9632; Stop</button>
+        <span id="wk-status" style="font-size:.74rem;color:var(--text-m)"></span>
+      </div>
+      <div id="wk-results" style="margin-top:.75rem"></div>
     </div>
 
     <div id="suite-feedback" class="suite">
@@ -3697,6 +3723,204 @@ async function adminUnexcludeFromNetworth(name){
   if(!A||!A.unexcludeFromNetworth){console.warn('[Admin] unexcludeFromNetworth not available on A');return;}
   await A.unexcludeFromNetworth(name);
   loadNetworth();
+}
+
+// ── WIKI CHECK ────────────────────────────────────────────────────────────────
+// Live comparison against wiki.project1999.com via the MediaWiki API (origin=* for
+// CORS). Batches of 50 titles, 1 s apart. Built from the 2026-09-24 audit scripts.
+// "Apply" writes ONE item_db row, MERGING the wiki fields into the stored record —
+// never replacing it (see the 2026-09-25 stub-overwrite incident).
+let _wkStop = false;
+const WK_API = 'https://wiki.project1999.com/api.php';
+const WK_STAT = { STR:'str', STA:'sta', AGI:'agi', DEX:'dex', WIS:'wis', INT:'int', CHA:'cha', HP:'hpbonus', MANA:'manabonus', AC:'ac',
+  'SV FIRE':'svfire', 'SV COLD':'svcold', 'SV MAGIC':'svmagic', 'SV POISON':'svpoison', 'SV DISEASE':'svdisease' };
+const wkEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function wkModeChanged() {
+  const m = document.getElementById('wk-mode').value;
+  document.getElementById('wk-item').style.display = m === 'one' ? '' : 'none';
+  const cs = document.getElementById('wk-char');
+  cs.style.display = m === 'char' ? '' : 'none';
+  if (m === 'char' && A && A.charNames) cs.innerHTML = A.charNames().map(n => `<option>${wkEsc(n)}</option>`).join('');
+}
+function wkStop() { _wkStop = true; }
+function wkStatus(t) { document.getElementById('wk-status').textContent = t; }
+
+async function wkFetchPages(titles) {
+  const out = {};
+  for (let i = 0; i < titles.length; i += 50) {
+    if (_wkStop) break;
+    const batch = titles.slice(i, i + 50);
+    wkStatus(`Fetching wiki pages ${i + 1}–${Math.min(i + 50, titles.length)} of ${titles.length}…`);
+    // The wiki sends no CORS headers, so in the app the request goes through the desktop
+    // layer (wiki:query); a plain fetch is only a fallback for non-Electron contexts.
+    let j;
+    const bridge = window.MixelParseApp && window.MixelParseApp.wikiQuery;
+    if (bridge) {
+      const r = await bridge(batch);
+      if (!r || !r.ok) throw new Error('wiki request failed: ' + (r && r.error || 'unknown'));
+      j = r.data;
+    } else {
+      const u = WK_API + '?action=query&format=json&origin=*&redirects=1&prop=revisions&rvprop=content&titles=' + encodeURIComponent(batch.join('|'));
+      j = await (await fetch(u)).json();
+    }
+    const q = j.query || {}, norm = {}, redir = {}, byTitle = {};
+    (q.normalized || []).forEach(n => norm[n.from] = n.to);
+    (q.redirects || []).forEach(r => redir[r.from] = r.to);
+    Object.values(q.pages || {}).forEach(p => byTitle[p.title] = p);
+    for (const t of batch) {
+      const n = norm[t] || t, p = byTitle[redir[n] || n];
+      out[t] = { exists: !!(p && !('missing' in p)), text: p && p.revisions ? p.revisions[0]['*'] : '' };
+    }
+    if (i + 50 < titles.length) await new Promise(r => setTimeout(r, 1000));
+  }
+  return out;
+}
+
+// Wiki item statsblock → the same field names item_db uses.
+function wkParseItem(text) {
+  const m = text.match(/\{\{Itempage[\s\S]*?\|\s*statsblock\s*=([\s\S]*?)\n\|/); if (!m) return null;
+  const b = m[1].replace(/<br\s*\/?>/gi, '\n').replace(/\[\[([^|\]]*\|)?([^\]]*)\]\]/g, '$2');
+  const o = {};
+  for (const [lab, k] of Object.entries(WK_STAT)) { const r = b.match(new RegExp('(?:^|\\s)' + lab + ':\\s*([+-]?\\d+)', 'i')); if (r) o[k] = +r[1]; }
+  const h = b.match(/Haste:\s*\+?(\d+)%/i); if (h) o.haste = +h[1];
+  const d = b.match(/DMG:\s*(\d+)/i); if (d) o.dmg = +d[1];
+  const dl = b.match(/Delay:\s*(\d+)/i); if (dl) o.delay = +dl[1];
+  o._nodrop = /NO DROP/i.test(b); o._lore = /LORE ITEM/i.test(b);
+  const sl = b.match(/Slot:\s*([A-Z0-9 ]+?)\s*(?:\n|$)/i);
+  if (sl) { const s = sl[1].trim().toUpperCase().split(/\s+/).map(x => x === 'FINGER' ? 'FINGERS' : x); o._slot = s[0]; if (s.length > 1) o._slots = s; }
+  const cl = b.match(/Class:\s*([A-Z ]+?)\s*(?:\n|Race:|$)/i); if (cl) o._classes = cl[1].trim().toUpperCase();
+  const ra = b.match(/Race:\s*([A-Z ]+?)\s*(?:\n|Deity|$)/i); if (ra) o._races = ra[1].trim().toUpperCase();
+  const de = b.match(/Deity:?\s*([^\n]+)/i); if (de) o._deity = de[1].trim();
+  return o;
+}
+function wkItemDiffs(d, w) {
+  const out = [], num = k => +(d[k] || 0);
+  for (const k of [...Object.values(WK_STAT), 'haste', 'dmg', 'delay']) if (num(k) !== +(w[k] || 0)) out.push([k, num(k), +(w[k] || 0)]);
+  for (const k of ['_nodrop', '_lore']) if (!!d[k] !== !!w[k]) out.push([k, !!d[k], !!w[k]]);
+  if (w._slot && w._slot !== 'NONE') {
+    const has = [d._slot, ...(d._slots || [])].filter(Boolean).map(s => String(s).toUpperCase());
+    if (!has.includes(w._slot)) out.push(['_slot', d._slot || '', (w._slots || [w._slot]).join(' ')]);
+  }
+  if (w._classes && String(d._classes || 'ALL').toUpperCase() !== w._classes) out.push(['_classes', d._classes || 'ALL', w._classes]);
+  if (w._races && String(d._races || 'ALL').toUpperCase() !== w._races) out.push(['_races', d._races || 'ALL', w._races]);
+  if ((w._deity || '') !== (d._deity || '')) out.push(['_deity', d._deity || '', w._deity || '']);
+  return out;
+}
+
+async function wkRun() {
+  if (!A || !A.itemDB) { wkStatus('Not connected — open Admin from within MixelParse.'); return; }
+  _wkStop = false;
+  const mode = document.getElementById('wk-mode').value;
+  const res = document.getElementById('wk-results');
+  document.getElementById('wk-run').disabled = true; document.getElementById('wk-stop').style.display = '';
+  res.innerHTML = '';
+  try {
+    if (mode === 'buffs') await wkRunBuffs(res);
+    else if (mode === 'bags') await wkRunBags(res);
+    else await wkRunItems(mode, res);
+  } catch (e) { wkStatus('Error: ' + e.message); console.error('[WikiCheck]', e); }
+  document.getElementById('wk-run').disabled = false; document.getElementById('wk-stop').style.display = 'none';
+}
+
+let _wkLast = {};   // name -> parsed wiki fields (for Apply)
+async function wkRunItems(mode, res) {
+  const db = A.itemDB || {}, names = Object.keys(db);
+  let pick = [];
+  if (mode === 'one') {
+    const q = document.getElementById('wk-item').value.trim().toLowerCase();
+    pick = names.filter(n => n.toLowerCase() === q); if (!pick.length) pick = names.filter(n => n.toLowerCase().includes(q)).slice(0, 25);
+  } else if (mode === 'char') {
+    const cn = document.getElementById('wk-char').value;
+    pick = [...new Set((A.getEquippedItems ? A.getEquippedItems(cn) : []).map(i => i.name))].filter(n => db[n]);
+  } else if (mode === 'sample') {
+    const hasted = names.filter(n => +db[n].haste > 0);
+    const valuable = names.filter(n => +db[n].plat > 0).sort((a, b) => db[b].plat - db[a].plat).slice(0, 150);
+    const rnd = []; while (rnd.length < Math.min(200, names.length)) { const n = names[Math.floor(Math.random() * names.length)]; if (!rnd.includes(n)) rnd.push(n); }
+    pick = [...new Set([...hasted, ...valuable, ...rnd])];
+  } else pick = names;
+  if (!pick.length) { wkStatus('No matching items.'); return; }
+  const pages = await wkFetchPages(pick);
+  const rows = []; let compared = 0, clean = 0, noPage = 0;
+  for (const n of pick) {
+    const p = pages[n]; if (!p) continue;
+    if (!p.exists) { noPage++; continue; }
+    const w = wkParseItem(p.text); if (!w) continue;
+    compared++; _wkLast[n] = w;
+    const diffs = wkItemDiffs(db[n], w);
+    if (diffs.length) rows.push([n, diffs]); else clean++;
+  }
+  wkStatus(`${_wkStop ? 'Stopped. ' : ''}Compared ${compared} · match ${clean} (${compared ? Math.round(100 * clean / compared) : 0}%) · differences ${rows.length} · no wiki page ${noPage}`);
+  wkSetBadge(rows.length);
+  res.innerHTML = rows.length ? `<table style="width:100%;border-collapse:collapse;font-size:.78rem">
+    <thead><tr style="text-align:left;color:var(--text-m)"><th style="padding:.3rem">Item</th><th style="padding:.3rem">Field</th><th style="padding:.3rem">MixelParse</th><th style="padding:.3rem">Wiki</th><th></th></tr></thead><tbody>` +
+    rows.map(([n, diffs]) => diffs.map(([k, a, b], i) => `<tr style="border-top:${i ? '0' : '1px solid var(--border)'}">
+      <td style="padding:.25rem .3rem">${i ? '' : `<a href="https://wiki.project1999.com/${encodeURIComponent(n.replace(/ /g, '_'))}" target="_blank" style="color:var(--gold,#c9a84c)">${wkEsc(n)}</a>`}</td>
+      <td style="padding:.25rem .3rem;color:var(--text-m)">${wkEsc(k)}</td><td style="padding:.25rem .3rem">${wkEsc(a)}</td><td style="padding:.25rem .3rem;color:var(--ok-green,#4caf7d)">${wkEsc(b)}</td>
+      <td style="padding:.25rem .3rem">${i ? '' : `<button class="btn" style="font-size:.68rem;padding:.1rem .45rem" onclick="wkApply(${wkEsc(JSON.stringify(n))},this)">Apply wiki values</button>`}</td></tr>`).join('')).join('') + '</tbody></table>'
+    : '<div style="color:var(--ok-green,#4caf7d);padding:.5rem 0">Everything checked matches the wiki.</div>';
+}
+
+// Merge the wiki's values for the differing fields into ONE stored row.
+async function wkApply(name, btn) {
+  const w = _wkLast[name], db = A.itemDB || {};
+  if (!w || !db[name] || !A.sb) return;
+  const diffs = wkItemDiffs(db[name], w);
+  if (!diffs.length) { btn.textContent = 'Already matches'; return; }
+  if (!confirm(`Update "${name}" in the shared item database?\n\n` + diffs.map(([k, a, b]) => `${k}: ${a} → ${b}`).join('\n'))) return;
+  const merged = Object.assign({}, db[name]);
+  for (const [k] of diffs) {
+    if (k === '_slot') { merged._slot = w._slot; if (w._slots) merged._slots = w._slots; else delete merged._slots; }
+    else if (w[k] === undefined || w[k] === '' || w[k] === 0 || w[k] === false) delete merged[k];
+    else merged[k] = w[k];
+  }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const { error } = await A.sb.from('item_db').upsert([{ item_name: name, data: merged, updated_at: new Date().toISOString() }], { onConflict: 'item_name' });
+  if (error) { btn.disabled = false; btn.textContent = 'Failed — retry'; console.error('[WikiCheck] apply', error); return; }
+  Object.assign(db[name], merged); for (const k of Object.keys(db[name])) if (!(k in merged)) delete db[name][k];
+  btn.textContent = '✓ Updated';
+}
+
+async function wkRunBuffs(res) {
+  const B = (A.BUFF_DB || []).filter(b => b.cat === 'spell');
+  const MAP = [[/Max Hitpoints/i,'hpbonus'],[/Max Mana/i,'manabonus'],[/^AC$/i,'ac'],[/^STR$/i,'str'],[/^STA$/i,'sta'],[/^DEX$/i,'dex'],[/^AGI$/i,'agi'],[/^WIS$/i,'wis'],[/^INT$/i,'int'],[/^CHA$/i,'cha'],[/Magic Resist|^MR$/i,'svmagic'],[/Fire Resist|^FR$/i,'svfire'],[/Cold Resist|^CR$/i,'svcold'],[/Poison Resist|^PR$/i,'svpoison'],[/Disease Resist|^DR$/i,'svdisease']];
+  const pages = await wkFetchPages(B.map(b => b.name)); const rows = [];
+  for (const b of B) {
+    const p = pages[b.name]; if (!p || !p.exists) { rows.push([b.name, 'no wiki page', '', '']); continue; }
+    const fx = {};
+    for (const m of p.text.matchAll(/SpellSlotRow(?:Smart)?\s*\|\s*\d+\s*\|\s*(Increase|Decrease)\s+(.+?)\s+by\s+([^|}]+)/gi)) {
+      const what = m[2].trim(); if (/when cast|per tick|Attack Speed|ATK/i.test(what)) continue;
+      const lv = [...m[3].matchAll(/(-?\d+)\s*\(L\d+\)/g)].map(x => +x[1]); const first = (m[3].match(/-?\d+/) || [0])[0];
+      const v = (lv.length ? lv[lv.length - 1] : +first) * (/decrease/i.test(m[1]) ? -1 : 1);
+      const k = (MAP.find(([re]) => re.test(what)) || [])[1]; if (k) fx[k] = (fx[k] || 0) + v;
+    }
+    for (const k of new Set([...Object.keys(fx), ...Object.keys(b.fx || {})])) if ((fx[k] || 0) !== ((b.fx || {})[k] || 0)) rows.push([b.name, k, (b.fx || {})[k] || 0, fx[k] || 0]);
+  }
+  wkStatus(`Checked ${B.length} buffs · ${new Set(rows.map(r => r[0])).size} with differences (BUFF_DB lives in code — update src/index.html)`);
+  wkSetBadge(rows.length); res.innerHTML = wkSimpleTable(['Buff', 'Effect', 'MixelParse', 'Wiki'], rows);
+}
+
+async function wkRunBags(res) {
+  const BAGS = A.BAG_SLOTS || {}, db = A.itemDB || {};
+  const key = n => String(n || '').toLowerCase().replace(/[`'’]/g, '').replace(/\s+/g, ' ').trim();
+  const titleFor = {}; Object.keys(db).forEach(n => { const k = key(n); if (BAGS[k] && !titleFor[k]) titleFor[k] = n; });
+  const pages = await wkFetchPages(Object.values(titleFor)); const rows = [];
+  for (const [k, t] of Object.entries(titleFor)) {
+    const m = pages[t] && pages[t].text.match(/Capacity:\s*(\d+)/i);
+    if (m && +m[1] !== BAGS[k]) rows.push([t, 'capacity', BAGS[k], +m[1]]);
+  }
+  wkStatus(`Checked ${Object.keys(titleFor).length} of ${Object.keys(BAGS).length} bags (others not in the item DB by name) · ${rows.length} wrong (BAG_SLOTS lives in code)`);
+  wkSetBadge(rows.length); res.innerHTML = wkSimpleTable(['Bag', 'Field', 'MixelParse', 'Wiki'], rows);
+}
+function wkSimpleTable(head, rows) {
+  if (!rows.length) return '<div style="color:var(--ok-green,#4caf7d);padding:.5rem 0">Everything checked matches the wiki.</div>';
+  return `<table style="width:100%;border-collapse:collapse;font-size:.78rem"><thead><tr style="text-align:left;color:var(--text-m)">${head.map(h => `<th style="padding:.3rem">${h}</th>`).join('')}</tr></thead><tbody>` +
+    rows.map(r => `<tr style="border-top:1px solid var(--border)">${r.map((c, i) => `<td style="padding:.25rem .3rem${i === 3 ? ';color:var(--ok-green,#4caf7d)' : ''}">${wkEsc(c)}</td>`).join('')}</tr>`).join('') + '</tbody></table>';
+}
+function wkSetBadge(n) {
+  const b = document.getElementById('badge-wikicheck'), d = document.getElementById('dot-wikicheck');
+  if (b) { b.textContent = n ? n : '✓'; b.className = 'sb-badge ' + (n ? 'fail' : 'pass'); }
+  if (d) d.className = 'sb-dot ' + (n ? 'fail' : 'pass');
 }
 
 async function loadFeedback(){
