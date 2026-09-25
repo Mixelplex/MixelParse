@@ -55,7 +55,7 @@ alter table guild_data add column if not exists consolidate_banker_excl jsonb de
 
 ### P99 wiki audit — 1.5.9 (LOCAL test build, not published; installer in dist\)
 Audit scripts lived in the session scratchpad (batched wiki API fetch, 50 titles/request, cached).
-- **HP/mana:** `calcHP` now uses the classic class level factor (5 + L·F/10 + STA·L·F/3000); L·F/3000 reproduces all 28 wiki STA→HP values. Old flat 12.1·L base under-counted every non-caster (L60 WAR −1,079). `calcMana` = classic integer formula (slope 11.26/pt @60, wiki ~11.27). **Still want 2–3 real in-game HP/mana readings to confirm the base term** (wiki only publishes per-STA slopes). Hybrid mana (PAL/RNG/SHD/BRD) unverified.
+- **HP/mana:** `calcHP` now uses the classic class level factor (5 + L·F/10 + STA·L·F/3000); L·F/3000 reproduces all 28 wiki STA→HP values. Old flat 12.1·L base under-counted every non-caster (L60 WAR −1,079). `calcMana` = classic integer formula (slope 11.26/pt @60, wiki ~11.27). **Verified in-game:** Mixelmedic (CLR 52, STA 117, WIS 255) HP 1677 / mana 3288 match exactly; mana half-zone starts above 200 (not EQEmu 199). A tank/hybrid reading would confirm their factors too. Hybrid mana (PAL/RNG/SHD/BRD) unverified.
 - **Dual wield:** L50 skill caps added; matches all 10 wiki chances.
 - **Backstab (not changed — user's call):** wiki: max = dmg × (skill×0.02+2) × 2 × maxExtra, ~10s cooldown. App scores `(4.5×dmg ÷ delay) × 0.6`; dividing by delay undervalues slow high-damage daggers (backstab frequency doesn't depend on delay).
 - **Buffs:** 37/40 matched spell pages; fixed Brilliance, Insight, Berserker Spirit.
@@ -65,6 +65,9 @@ Audit scripts lived in the session scratchpad (batched wiki API fetch, 50 titles
 - **Quests:** 890/890 reward stats, 182/182 NPCs, 669/672 items match; Lyran's Mystical Lute note fixed (Silverwing, VP).
 - **Items:** 409-item sample 96% → 100%. Deity split out of `_races` (444 items; 60 "ALL Deity" items were unusable by everyone); 37 Bard instrument mods + 36 slots added (instrument scoring never fired before); 7 item corrections. `_races` now overrides like `_classes`.
 - Also: High Elf item-import files were tagged Half Elf.
+- **Deity:** per-character selector (Stats tab), saved in base_stats.deity; enforced in Gear Planner, Outfitter, Test Bench. Unset = deity gear shown.
+- **Auto-detect startup catch-up:** 6 h window, event-time pruning, 3 s settle (recovered a missed Vulak kill).
+- Not done: displayed AC/ATK/Endurance use raw sums (in-game shows computed values: AC 922 vs 456, ATK 606 vs 198 on Mixelmedic) — next formula project.
 
 ---
 
