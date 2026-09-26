@@ -938,16 +938,68 @@ function _rtLineTs(line) {
   const m = /^\[\w{3} (\w{3}) +(\d+) (\d\d):(\d\d):(\d\d) (\d{4})\]/.exec(line);
   return m ? new Date(+m[6], RT_MON[m[1]], +m[2], +m[3], +m[4], +m[5]).getTime() : Date.now();
 }
-function raidEvidence(line, charName) {
-  if (!/RAIDTICK|ENRAGED|slain|nervously|uncomfortable|yawns\.|slows down\.|tash|malo|slow/i.test(line)) return;   // cheap pre-filter
+// Parse one log line into a raid signal message (raidTick / raidEvidence), or null.
+function raidSignal(line, charName) {
+  if (!/RAIDTICK|ENRAGED|slain|nervously|uncomfortable|yawns\.|slows down\.|tash|malo|slow/i.test(line)) return null;   // cheap pre-filter
   let m; const ts = _rtLineTs(line);
-  if ((m = RE_RT_TICK.exec(line)))   { broadcast({ type:'raidTick', charName, poster:m[1], channel:m[2], text:m[3].trim(), ts }); return; }
+  if ((m = RE_RT_TICK.exec(line)))   return { type:'raidTick', charName, poster:m[1], channel:m[2], text:m[3].trim(), ts };
   // Enrage + landing lines are low-volume, so generic names pass too — some bosses are
   // "a dracoliche" / "an undead bard" in-game. Kill lines stay filtered (every trash kill).
-  if ((m = RE_RT_ENRAGE.exec(line))) { broadcast({ type:'raidEvidence', charName, kind:'enrage', mob:m[1], ts }); return; }
-  if ((m = RE_RT_SLAIN.exec(line)) || (m = RE_RT_YOUSLAIN.exec(line))) { if (!_rtGeneric(m[1])) broadcast({ type:'raidEvidence', charName, kind:'slain', mob:m[1], ts }); return; }
-  if ((m = RE_RT_LAND.exec(line)))   { broadcast({ type:'raidEvidence', charName, kind:'land', sub:RT_LAND_KIND[m[2]], mob:m[1], ts }); return; }
-  if ((m = RE_RT_CALL.exec(line)) && RE_RT_CALLKIND.test(m[3])) broadcast({ type:'raidEvidence', charName, kind:'call', text:m[3], poster:m[1], channel:m[2], ts });
+  if ((m = RE_RT_ENRAGE.exec(line))) return { type:'raidEvidence', charName, kind:'enrage', mob:m[1], ts };
+  if ((m = RE_RT_SLAIN.exec(line)) || (m = RE_RT_YOUSLAIN.exec(line))) return _rtGeneric(m[1]) ? null : { type:'raidEvidence', charName, kind:'slain', mob:m[1], ts };
+  if ((m = RE_RT_LAND.exec(line)))   return { type:'raidEvidence', charName, kind:'land', sub:RT_LAND_KIND[m[2]], mob:m[1], ts };
+  if ((m = RE_RT_CALL.exec(line)) && RE_RT_CALLKIND.test(m[3])) return { type:'raidEvidence', charName, kind:'call', text:m[3], poster:m[1], channel:m[2], ts };
+  return null;
+}
+function raidEvidence(line, charName) {
+  const msg = raidSignal(line, charName);
+  if (msg) broadcast(msg);
+}
+
+// ── Raid tick history scan (Auto-Detect → Scan logs) ─────────────────────────
+// Replays every RAIDTICK in the logs (live, rotated .old, Logs\archive) plus the boss
+// evidence around each one, so past raid nights can be attributed and checked against
+// ODKP. Sent to the renderer as ONE batch (raidScanResult): the live path finalizes
+// each tick on a timer and prunes evidence by time, which a months-long replay across
+// several files would break. Evidence is trimmed to the window around some tick.
+let _raidScanRunning = false;
+async function scanRaidHistory(sinceMs) {
+  if (_raidScanRunning) { broadcast({ type:'raidScanResult', error:'A scan is already running' }); return; }
+  if (!_config || !_config.logDir) { broadcast({ type:'raidScanResult', error:'No log directory configured' }); return; }
+  _raidScanRunning = true;
+  const since = sinceMs || 0;
+  const ticks = [], evidence = [], seen = new Set();
+  try {
+    const dirs = [_config.logDir, path.join(_config.logDir, 'archive')].filter(d => { try { return fs.statSync(d).isDirectory(); } catch { return false; } });
+    const files = [];
+    for (const d of dirs) for (const f of fs.readdirSync(d)) if (/^eqlog_.+?_P1999Green.*\.(txt|old)$/i.test(f)) files.push(path.join(d, f));
+    for (let i = 0; i < files.length; i++) {
+      const charName = (path.basename(files[i]).match(/^eqlog_(.+?)_P1999Green/i) || [])[1];
+      if (!charName) continue;
+      broadcast({ type:'raidScanProgress', charName, fileIdx:i + 1, totalFiles:files.length });
+      await new Promise((resolve) => {
+        const rl = require('readline').createInterface({ input: fs.createReadStream(files[i], { encoding:'latin1' }), crlfDelay: Infinity });
+        rl.on('line', (line) => {
+          const msg = raidSignal(line, charName);
+          if (!msg || msg.ts < since) return;
+          const key = charName + '|' + line;          // archive copies repeat live-log lines
+          if (seen.has(key)) return; seen.add(key);
+          (msg.type === 'raidTick' ? ticks : evidence).push(msg);
+        });
+        rl.on('close', resolve); rl.on('error', resolve);
+      });
+    }
+    ticks.sort((a, b) => a.ts - b.ts);
+    // keep evidence from 10 min before to 2 min after some tick (the attribution window)
+    const tt = ticks.map(t => t.ts);
+    const nearTick = ts => { let lo = 0, hi = tt.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (tt[mid] < ts - 2 * 60e3) lo = mid + 1; else hi = mid; } return lo < tt.length && tt[lo] <= ts + 10 * 60e3; };
+    const ev = evidence.filter(e => nearTick(e.ts)).sort((a, b) => a.ts - b.ts);
+    log(`[RAIDSCAN] ${files.length} file(s): ${ticks.length} RAIDTICK(s), ${ev.length} evidence line(s)`);
+    broadcast({ type:'raidScanResult', ticks, evidence: ev, files: files.length });
+  } catch (e) {
+    err('[RAIDSCAN]', e.message);
+    broadcast({ type:'raidScanResult', error: e.message });
+  } finally { _raidScanRunning = false; }
 }
 
 // Startup backfill (raid signals ONLY): the watcher seeks every log to EOF on start,
@@ -1906,6 +1958,8 @@ function command(cmd, args) {
     scanKillCountsAllLogs(args && args.chars);
   } else if (cmd === 'scanSessions') {
     scanLogsForSessions(args && args.chars, args && args.idleGapMin);
+  } else if (cmd === 'scanRaidTicks') {
+    scanRaidHistory(args && args.since);
   }
 }
 

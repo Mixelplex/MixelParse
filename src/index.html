@@ -7484,6 +7484,7 @@ window.applyDBToChar    = applyDBToChar;
         }
         if(msg.type==='raidTick') rkdOnTick(msg);
         if(msg.type==='raidEvidence') rkdOnEvidence(msg);
+        if(msg.type==='raidScanProgress'||msg.type==='raidScanResult') rkdHandleScanMsg(msg);
         if(msg.type==='killScanProgress'||msg.type==='killScanResult') handleKillScanMsg(msg);
         if(msg.type==='sessScanProgress'||msg.type==='sessScanResult') handleSessScanMsg(msg);
         if(msg.type==='logRotated') showWatcherToast('🧹 Auto-rotated '+msg.file+' ('+msg.mb+' MB) → '+msg.to);
@@ -11534,7 +11535,7 @@ window.ktSetView=function(v){sessionsView=v;renderKillsPanel();};
 // tick belongs to that tick. Backtested vs Mixelmedic logs + recorded sessions:
 // strong tier 65/66 matched, weak tier 12/20. Records only — never touches sessions.
 // Evidence is kept 40 min so the watcher's 30-min startup backfill (restart mid-raid) lands intact.
-const RKD_WIN_BEFORE=10*60e3, RKD_WIN_AFTER=2*60e3, RKD_TICK_DEDUPE=90e3, RKD_EVIDENCE_KEEP=40*60e3, RKD_LOG_MAX=300;
+const RKD_WIN_BEFORE=10*60e3, RKD_WIN_AFTER=2*60e3, RKD_TICK_DEDUPE=90e3, RKD_EVIDENCE_KEEP=40*60e3, RKD_LOG_MAX=2000;
 const RKD_RANK={slain:4,enrage:3,land:2,call:1};
 let _rkdEvidence=[];      // {ts, kind, sub, boss, raw, sameZoneOnly}
 let _rkdOpenTicks=[];     // ticks awaiting their post-tick evidence window
@@ -11609,31 +11610,165 @@ function rkdFinalize(t){
   rkdSave();
   if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
 }
-// Was this boss marked killed/failtick in a session around the suggestion? (watch-only comparison)
-function _rkdRecorded(boss,ts){
-  const all=(raidSessions||[]).slice();
-  if(activeSession&&!all.some(s=>s.id===activeSession.id))all.push(activeSession);
-  return all.some(s=>{
-    if(!(s.killState||{})[boss])return false;
-    const st=Date.parse(s.startedAt||s.date||0),end=Date.parse(s.lastKillAt||s.startedAt||s.date||0);
-    return ts>=st-3600e3&&ts<=Math.max(end,st)+12*3600e3;
-  });
-}
 window.rkdToggleNoise=function(v){try{localStorage.setItem('mp_rkd_noise',v?'1':'0');}catch(e){}renderKillsPanel();};
 window.rkdClearLog=function(){if(!confirm('Clear the auto-detect log?'))return;rkdLog=[];rkdSave();renderKillsPanel();};
+// ── Auto-Detect: history scan + ODKP credit per RAIDTICK ─────────────────────
+// ⛏ Scan logs asks the watcher to replay every RAIDTICK (and the boss evidence around
+// it) from all logs; it comes back as one batch and is attributed offline with the same
+// rkdAttribute() the live path uses. Ticks already in the log are kept.
+let _rkdScan=null;   // {state:'running'|'done'|'error', file, total, msg}
+window.rkdScanLogs=function(){
+  if(!(window.MixelParseApp&&window.MixelParseApp.watcherCommand)){alert('Log scan needs the desktop app.');return;}
+  _rkdScan={state:'running',file:0,total:0,msg:'starting…'};
+  window.MixelParseApp.watcherCommand('scanRaidTicks',{since:Date.now()-180*864e5});
+  if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
+};
+function rkdHandleScanMsg(msg){
+  if(msg.type==='raidScanProgress'){
+    _rkdScan={state:'running',file:msg.fileIdx,total:msg.totalFiles,msg:msg.charName};
+    const el=document.getElementById('rkdScanStatus');
+    if(el)el.textContent='scanning '+msg.fileIdx+'/'+msg.totalFiles+' · '+msg.charName;
+    return;
+  }
+  if(msg.error){_rkdScan={state:'error',msg:msg.error};}
+  else{const n=rkdImportScan(msg.ticks||[],msg.evidence||[]);_rkdScan={state:'done',msg:n.added+' tick'+(n.added!==1?'s':'')+' added from '+(msg.files||0)+' log files ('+n.seen+' in logs)'};}
+  if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
+}
+function rkdImportScan(ticks,evidence){
+  const saved=_rkdEvidence;
+  const ev=[];
+  for(const m of evidence){
+    const b=m.kind==='call'?_rkdBossInText(m.text):_rkdBossByMob(m.mob);
+    if(!b)continue;
+    const raw=m.kind==='call'?(m.poster+': '+m.text):m.kind==='land'?(m.mob+' ('+m.sub+')'):(m.mob+' '+(m.kind==='slain'?'slain':'ENRAGED'));
+    ev.push({ts:m.ts,kind:m.kind,sub:m.sub||null,boss:b.target,raw,char:m.charName});
+  }
+  _rkdEvidence=ev;
+  // merge the same tick heard on several channels / characters (as rkdOnTick does)
+  const merged=[];
+  for(const m of ticks.slice().sort((a,b)=>a.ts-b.ts)){
+    const sameZone=/out of character|shouts/.test(m.channel||'');
+    const p=merged[merged.length-1];
+    if(p&&m.ts-p.ts<=RKD_TICK_DEDUPE){p.sameZone=p.sameZone||sameZone;if(!p.channels.includes(m.channel))p.channels.push(m.channel);continue;}
+    merged.push({id:'rkd_'+m.ts,ts:m.ts,char:m.charName,poster:m.poster,text:m.text||'',channels:[m.channel],sameZone});
+  }
+  let added=0,prevTs=null;
+  for(const t of merged){
+    t.prevTickTs=prevTs;prevTs=t.ts;
+    const done=rkdLog.find(r=>Math.abs(t.ts-r.ts)<=RKD_TICK_DEDUPE);
+    if(done&&done.tier!=='none')continue;
+    if(done)rkdLog=rkdLog.filter(r=>r!==done);
+    const a=rkdAttribute(t);
+    rkdLog.push({id:t.id,ts:t.ts,char:t.char,poster:t.poster,channels:t.channels,sameZone:t.sameZone,text:t.text,
+      tier:a.tier,boss:a.boss||null,cands:a.cands||null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,
+      evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw})),src:'scan'});
+    if(!done)added++;
+  }
+  _rkdEvidence=saved;
+  rkdLog.sort((a,b)=>a.ts-b.ts);
+  if(rkdLog.length>RKD_LOG_MAX)rkdLog=rkdLog.slice(-RKD_LOG_MAX);
+  rkdSave();
+  return{added,seen:merged.length};
+}
+// A tick you were at: heard in OOC/shout (same zone) or the raid channel.
+function _rkdAttended(r){return !!(r.sameZone||(r.channels||[]).some(c=>/tells the raid/.test(c)));}
+const RKD_ODKP_WINDOW=15*60e3, RKD_ODKP_TZ_SLOP=10*60e3;
+// Match each RAIDTICK to a credited ODKP tick by time (label "M-D H:MM"), one-to-one,
+// nearest first within ±15 min (ODKP times often run ~10 min ahead of the call).
+// Second pass: some nights were entered exactly 1 hour off (another time zone) — a
+// leftover tick matches an ODKP tick 60 ±10 min away only when that tick is for the
+// same boss (or the RAIDTICK had no boss). Returns {byId:{rkdId→odkp tick}, offset:
+// {rkdId→true}, lastTs} (lastTs = newest ODKP tick time, so ticks after the upload read
+// "upload newer ODKP" rather than ✗).
+function rkdOdkpMatches(){
+  const O=[];let lastTs=0;
+  for(const t of (odkpTicks||[])){
+    const m=t.l.match(/^(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2})\b/);
+    if(!m)continue;
+    const ts=new Date(+t.d.slice(0,4),+m[1]-1,+m[2],+m[3],+m[4]).getTime();
+    O.push({t,ts});if(ts>lastTs)lastTs=ts;
+  }
+  O.sort((a,b)=>a.ts-b.ts);
+  const pairs=[];
+  for(const r of rkdLog){
+    let lo=0,hi=O.length;while(lo<hi){const mid=(lo+hi)>>1;if(O[mid].ts<r.ts-RKD_ODKP_WINDOW)lo=mid+1;else hi=mid;}
+    for(let j=lo;j<O.length&&O[j].ts<=r.ts+RKD_ODKP_WINDOW;j++)pairs.push({r,j,d:Math.abs(O[j].ts-r.ts)});
+  }
+  pairs.sort((a,b)=>a.d-b.d);
+  const byId={},used=new Set(),offset={};
+  for(const p of pairs){if(byId[p.r.id]||used.has(p.j))continue;used.add(p.j);byId[p.r.id]=O[p.j].t;}
+  const pairs2=[];
+  for(const r of rkdLog){
+    if(byId[r.id])continue;
+    for(let j=0;j<O.length;j++){
+      if(used.has(j))continue;
+      const d=Math.abs(Math.abs(O[j].ts-r.ts)-3600e3);
+      if(d>RKD_ODKP_TZ_SLOP)continue;
+      const tg=odkpTickTargets(O[j].t.l);
+      if(r.boss?!tg.has(r.boss):(r.tier==='strong'||r.tier==='weak'))continue;
+      pairs2.push({r,j,d});
+    }
+  }
+  pairs2.sort((a,b)=>a.d-b.d);
+  for(const p of pairs2){if(byId[p.r.id]||used.has(p.j))continue;used.add(p.j);byId[p.r.id]=O[p.j].t;offset[p.r.id]=true;}
+  return{byId,offset,lastTs};
+}
+// Recorded kills of a boss in the session(s) around ts, counting repeat spawns (#2, #3…).
+function _rkdRecordedCount(boss,ts){
+  const all=(raidSessions||[]).slice();
+  if(activeSession&&!all.some(s=>s.id===activeSession.id))all.push(activeSession);
+  let best=0;
+  for(const s of all){
+    const st=Date.parse(s.startedAt||s.date||0),end=Date.parse(s.lastKillAt||s.startedAt||s.date||0);
+    if(!(ts>=st-3600e3&&ts<=Math.max(end,st)+12*3600e3))continue;
+    const n=((s.killState||{})[boss]?1:0)+(s.extraSpawns||[]).filter(sp=>sp.base===boss&&sp.state).length;
+    if(n>best)best=n;
+  }
+  return best;
+}
+
+window.rkdToggleUncredited=function(v){try{localStorage.setItem('mp_rkd_uncredited',v?'1':'0');}catch(e){}renderKillsPanel();};
 function renderAutoDetectPanel(){
-  let showNoise=false;try{showNoise=localStorage.getItem('mp_rkd_noise')==='1';}catch(e){}
-  const rows=rkdLog.slice().reverse().filter(r=>showNoise||r.tier!=='none'||r.sameZone);
+  let showNoise=false,onlyUncredited=false;
+  try{showNoise=localStorage.getItem('mp_rkd_noise')==='1';onlyUncredited=localStorage.getItem('mp_rkd_uncredited')==='1';}catch(e){}
   const fmt=ts=>ts?new Date(ts).toLocaleString([], {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';
   const TIER={strong:['Strong','#4caf7d'],weak:['Weak','#c9a84c'],ambiguous:['Pick','#6ab4c4'],none:['No boss','var(--text-muted)']};
   const counts={strong:0,weak:0,ambiguous:0,none:0};rkdLog.forEach(r=>counts[r.tier]=(counts[r.tier]||0)+1);
+  // ODKP credit per tick
+  const hasOdkp=!!(odkpTicks&&odkpTicks.length);
+  const OM=hasOdkp?rkdOdkpMatches():{byId:{},lastTs:0};
+  const odkpState=r=>{
+    const t=OM.byId[r.id];
+    if(t)return{k:'ok',t};
+    if(!hasOdkp)return{k:'na'};
+    if(r.ts>OM.lastTs+RKD_ODKP_WINDOW)return{k:'newer'};
+    return{k:_rkdAttended(r)?'missing':'away'};
+  };
+  let nOk=0,nMiss=0,nNewer=0;
+  for(const r of rkdLog){const k=odkpState(r).k;if(k==='ok')nOk++;else if(k==='missing')nMiss++;else if(k==='newer'&&_rkdAttended(r))nNewer++;}
+  // repeat kills: the Nth suggestion of a boss in a night needs N recorded (Statue, Statue #2…)
+  const rankOf=r=>rkdLog.filter(e=>e.boss===r.boss&&(e.tier==='strong'||e.tier==='weak')&&e.ts<=r.ts&&e.ts>=r.ts-12*3600e3).length;
+  const rows=rkdLog.slice().reverse().filter(r=>{
+    if(onlyUncredited)return odkpState(r).k==='missing';
+    return showNoise||r.tier!=='none'||r.sameZone;
+  });
   const body=rows.map(r=>{
     const [tl,tc]=TIER[r.tier]||TIER.none;
     const who=r.tier==='ambiguous'?(r.cands||[]).map(esc).join(' / '):r.boss?esc(r.boss):'<span style="color:var(--text-muted)">—</span>';
-    const rec=r.boss?(_rkdRecorded(r.boss,r.tod||r.ts)?'<span style="color:#4caf7d" title="Marked in the kill tracker">✓ in tracker</span>':'<span style="color:var(--text-muted)">not recorded</span>')
-             :r.tier==='ambiguous'?(r.cands||[]).map(b=>_rkdRecorded(b,r.ts)?'✓':'·').join(' / '):'';
+    let rec='';
+    if(r.boss){
+      const n=(r.tier==='strong'||r.tier==='weak')?rankOf(r):1, have=_rkdRecordedCount(r.boss,r.tod||r.ts);
+      rec=have>=n?'<span style="color:#4caf7d" title="Marked in the kill tracker">✓ in tracker'+(n>1?' (#'+n+')':'')+'</span>'
+                 :'<span style="color:var(--text-muted)">'+(n>1?'#'+n+' not recorded':'not recorded')+'</span>';
+    }else if(r.tier==='ambiguous')rec=(r.cands||[]).map(b=>_rkdRecordedCount(b,r.ts)?'✓':'·').join(' / ');
+    const o=odkpState(r);
+    const odkp=o.k==='ok'?'<span style="color:#4caf7d" title="'+esc(o.t.l)+(OM.offset&&OM.offset[r.id]?' — ODKP time is 1 hour off from the RAIDTICK':'')+'">✓ '+(OM.offset&&OM.offset[r.id]?'<span style="color:var(--text-muted)">(±1h)</span> ':'')+esc(o.t.l.replace(/^\d{1,2}-\d{1,2}\s+\d{1,2}:\d{2}\s+/,''))+(o.t.v!=null?' <b>'+o.t.v+'</b>':'')+'</span>'
+      :o.k==='missing'?'<span style="color:#c03030;font-weight:600" title="You were in zone for this RAIDTICK but no credited ODKP tick is within 10 minutes">✗ not credited</span>'
+      :o.k==='newer'?'<span style="color:var(--text-muted)" title="After your last ODKP upload">upload newer ODKP</span>'
+      :o.k==='away'?'<span style="color:var(--text-muted)" title="Heard in guild chat only — you were not in the raid zone">not in zone</span>'
+      :'<span style="color:var(--text-muted)">—</span>';
     const ev=(r.evidence||[]).map(e=>`<div>${fmt(e.ts).split(', ').pop()} <b>${esc(e.kind)}</b> ${esc(e.raw)}</div>`).join('');
-    return `<tr style="border-bottom:1px solid var(--border)">
+    return `<tr style="border-bottom:1px solid var(--border)${o.k==='missing'?';background:rgba(180,40,40,.07)':''}">
       <td style="padding:.3rem .5rem;white-space:nowrap">${fmt(r.ts)}</td>
       <td style="padding:.3rem .5rem">${esc(r.char||'')}</td>
       <td style="padding:.3rem .5rem;font-weight:600">${who}</td>
@@ -11641,20 +11776,33 @@ function renderAutoDetectPanel(){
       <td style="padding:.3rem .5rem;white-space:nowrap">${r.tod?fmt(r.tod).split(', ').pop()+` <span style="font-size:.68rem;color:var(--text-muted)">${esc(r.todSource||'')}</span>`:'—'}</td>
       <td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted)">${r.sameZone?'OOC+':''}${esc(r.poster||'')}<div style="font-size:.68rem">${ev}</div></td>
       <td style="padding:.3rem .5rem;white-space:nowrap;font-size:.75rem">${rec}</td>
+      <td style="padding:.3rem .5rem;font-size:.75rem">${odkp}</td>
     </tr>`;
   }).join('');
+  const scanBtn=_rkdScan&&_rkdScan.state==='running'
+    ?`<span id="rkdScanStatus" style="font-size:.72rem;color:var(--gold-light)">scanning${_rkdScan.total?' '+_rkdScan.file+'/'+_rkdScan.total:''}…</span>`
+    :`<button class="kt-undo-btn" onclick="rkdScanLogs()" title="Replay every RAIDTICK from your logs (last 6 months) so past raid nights can be checked">⛏ Scan logs</button>`
+     +(_rkdScan&&_rkdScan.msg?`<span id="rkdScanStatus" style="font-size:.7rem;color:${_rkdScan.state==='error'?'#c03030':'var(--text-muted)'}">${esc(_rkdScan.msg)}</span>`:'');
+  const odkpSum=hasOdkp
+    ?`<span style="font-size:.75rem">ODKP: <span style="color:#4caf7d">✓ ${nOk} credited</span> · <span style="color:${nMiss?'#c03030':'var(--text-muted)'}">✗ ${nMiss} not credited</span>${nNewer?` · <span style="color:var(--text-muted)">${nNewer} after upload</span>`:''}</span>`
+    :`<span style="font-size:.72rem;color:var(--text-muted)">Upload dkp-details on Credit Check to see ODKP credit per tick</span>`;
   return `<div style="padding:.6rem 1rem;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
       <span style="font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.06em;color:var(--gold-light)">WATCH-ONLY</span>
-      <span style="font-size:.75rem;color:var(--text-muted)">Suggested kills from RAIDTICK + enrage/slain/tash/malo/slow. Nothing is added to your sessions.</span>
+      <span style="font-size:.75rem;color:var(--text-muted)">Suggested kills from RAIDTICK + enrage/slain/tash/malo/slow, checked against your ODKP credit. Nothing is added to your sessions.</span>
       <span style="font-size:.75rem">Strong ${counts.strong} · Weak ${counts.weak} · Pick ${counts.ambiguous} · No boss ${counts.none}</span>
-      <label style="font-size:.72rem;color:var(--text-muted);margin-left:auto;cursor:pointer"><input type="checkbox" ${showNoise?'checked':''} onchange="rkdToggleNoise(this.checked)"> show guild-only ticks with no boss</label>
-      <button class="kt-undo-btn" onclick="rkdClearLog()">Clear log</button>
+      ${odkpSum}
+      <span style="margin-left:auto;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+        <label style="font-size:.72rem;color:var(--text-muted);cursor:pointer"><input type="checkbox" ${onlyUncredited?'checked':''} onchange="rkdToggleUncredited(this.checked)"> only not credited</label>
+        <label style="font-size:.72rem;color:var(--text-muted);cursor:pointer"><input type="checkbox" ${showNoise?'checked':''} onchange="rkdToggleNoise(this.checked)"> show guild-only ticks with no boss</label>
+        ${scanBtn}
+        <button class="kt-undo-btn" onclick="rkdClearLog()">Clear log</button>
+      </span>
     </div>
     <div style="overflow:auto;max-height:72vh">${rows.length?`<table style="width:100%;border-collapse:collapse;font-size:.8rem">
       <thead><tr style="text-align:left;font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.06em;color:var(--text-muted)">
-        <th style="padding:.35rem .5rem">TICK</th><th style="padding:.35rem .5rem">CHAR</th><th style="padding:.35rem .5rem">SUGGESTED</th><th style="padding:.35rem .5rem">CONFIDENCE</th><th style="padding:.35rem .5rem">ToD</th><th style="padding:.35rem .5rem">EVIDENCE</th><th style="padding:.35rem .5rem">TRACKER</th>
+        <th style="padding:.35rem .5rem">TICK</th><th style="padding:.35rem .5rem">CHAR</th><th style="padding:.35rem .5rem">SUGGESTED</th><th style="padding:.35rem .5rem">CONFIDENCE</th><th style="padding:.35rem .5rem">ToD</th><th style="padding:.35rem .5rem">EVIDENCE</th><th style="padding:.35rem .5rem">TRACKER</th><th style="padding:.35rem .5rem">ODKP CREDIT</th>
       </tr></thead><tbody>${body}</tbody></table>`
-      :`<div style="padding:1.2rem;color:var(--text-muted);font-style:italic">No raid ticks seen yet. Suggestions appear here about 2 minutes after each RAIDTICK while MixelParse is running.</div>`}</div>`;
+      :`<div style="padding:1.2rem;color:var(--text-muted);font-style:italic">${onlyUncredited?'Every RAIDTICK you were in zone for has a credited ODKP tick.':'No raid ticks yet. Suggestions appear about 2 minutes after each RAIDTICK while MixelParse is running — or use ⛏ Scan logs to load past raid nights.'}</div>`}</div>`;
 }
 
 // ── ODKP alias map: normalizes ODKP source labels → tracker target names ──
@@ -11937,6 +12085,7 @@ Object.defineProperty(window,'activeSession',{get:()=>activeSession});
 Object.defineProperty(window,'odkpTicks',{get:()=>odkpTicks});
 Object.defineProperty(window,'odkpTicksMeta',{get:()=>odkpTicksMeta});
 Object.defineProperty(window,'BOSS_ROSTER',{get:()=>BOSS_ROSTER});
+Object.defineProperty(window,'rkdLog',{get:()=>rkdLog});
 
 // Stable identity for a credit-check event — survives re-uploads and re-renders.
 function ccEvtKey(evt){

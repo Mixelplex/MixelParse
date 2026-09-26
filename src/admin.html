@@ -2168,10 +2168,22 @@ SUITES['creditcheck'] = [
       'HOURLY / HOT / BNP NOT CREDITED:',
       ...lMiss.map(r=>`  ✗ ${r.night}  ${r.label}: tracked ${r.tracked}, credited ${r.credited}`),
     ];
+    // Auto-Detect: every RAIDTICK you were in zone for vs a credited ODKP tick at that time
+    const RL = A2.rkdLog || [];
+    let rkdMiss = [];
+    if (RL.length && A2.rkdOdkpMatches) {
+      const OM = A2.rkdOdkpMatches();
+      const att = RL.filter(A2._rkdAttended);
+      const ok = att.filter(r => OM.byId[r.id]);
+      rkdMiss = att.filter(r => !OM.byId[r.id] && r.ts <= OM.lastTs + 15*60e3);
+      lines.push('', `AUTO-DETECT RAIDTICKS (in zone): ${att.length}  →  ✓ ${ok.length} credited  ✗ ${rkdMiss.length} not credited`,
+        ...rkdMiss.map(r => `  ✗ ${new Date(r.ts).toLocaleString()}  ${r.boss || '(no boss)'}  — ${r.poster || ''}`));
+    } else lines.push('', 'AUTO-DETECT: no RAIDTICKs logged yet — Kill Tracker → 🎯 Auto-Detect → ⛏ Scan logs');
     return { asserts:[
       assert(`Kill events matched: ${cnt.strong||0}/${evts.length}`, true),
       warn(`${cnt.missing||0} kill(s) with no credited tick`, (cnt.missing||0) > 0),
       warn(`${lMiss.length} hourly/HoT/BnP night(s) short on credit`, lMiss.length > 0),
+      warn(`${rkdMiss.length} RAIDTICK(s) you were in zone for with no ODKP credit`, rkdMiss.length > 0),
     ], output: lines.join('\n') };
   }),
 ];
