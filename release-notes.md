@@ -1,8 +1,17 @@
-## 🔧 Hotfix
+## ✨ New
 
-- **Item database protection** — 1.5.9 could save a handful of item records at startup before the item database finished loading, wiping most of their details (Yelinak's Talisman, Drums of the Beast, Spiked Seahorse Hide Belt, Rubicite Breastplate, Forge Hammer of Dalnir, Ancient Venom Sack, Crown of Narandi). 1.5.10 never saves the item database before it has loaded, and automatically restores those seven items.
+- **Auto-Detect checks your DKP credit** — every RAIDTICK you were in zone for is matched to your ODKP ticks by time: ✓ credited or ✗ not credited. **⛏ Scan logs** loads the last 6 months of raid nights from your logs, and "only not credited" shows just the gaps. (Upload your ODKP dkp-details export on Credit Check first.)
+- **Hourlies, HoT Farm and Buff & Park in Credit Check** — a new section compares what you tracked with what ODKP credited, night by night.
+- **Repeat kills** — quakes and GM events can spawn a boss more than once a day. Use the ＋ next to any boss for #2, #3…; a second `/note` for the same boss adds another spawn instead of overwriting the first. Credit Check needs one ODKP tick per kill.
+- **Faydedar** — added to the Kill Tracker (Tier Eight, 0.3 + 0.2), spawn timers (7 days ±8h), and `/note faydedar` / `fayd` / `fay`.
+- **AC and ATK like the game** — the Stats tab shows AC and ATK the way the in-game Inventory window does, using combat skills read from your logs.
+- **Watch List and Inventory quantities** — Watch List shows how many you have; Inventory totals follow your search and filters.
 
-Everything from 1.5.9 is included — see the [1.5.9 release](https://github.com/Mixelplex/MixelParse/releases/tag/v1.5.9) for the full list (deity support, HP/mana matching the game, Bard instruments, Auto-Detect catch-up, and the wiki data fixes).
+## 🔧 Fixes
+
+- **`/note` in October** — notes are matched on what you typed, not the log timestamp. "Oct" would have turned every note into Cazic Thule from October 1. `/note Quake!`, `/note set` and `/note timer` work again.
+- **`/note` picks the right boss** — whole names only: Severilous no longer lands on Sevalak, Mistress of Scorn on Essedera, or Avatar of Abhorrence on Avatar of War.
+- **Credit Check matching** — Dagarn, Vilefang, High Priest M'kari and cut-off ODKP names now match; each ODKP tick counts once; raids started in the evening are no longer dated the next day.
 
 ## 💬 Feedback
 

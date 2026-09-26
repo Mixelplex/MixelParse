@@ -5090,20 +5090,20 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.5.9',
+  version:'1.5.14',
   date:'September 2026',
   features:[
-    ['Deity on your characters','Pick each character&rsquo;s deity on the <b>Stats</b> tab. The Gear Planner and Outfitter now hide gear for other deities (Imbued armor and jewelry, and more).'],
-    ['Bard instruments scored','The Gear Planner now values instrument modifiers for all 37 Bard instruments &mdash; before, instrument upgrades never showed up.'],
-    ['Raid Auto-Detect catches up','If MixelParse is closed or restarted mid-raid, it now catches up on the whole night when it starts &mdash; and recognizes more bosses (Dracoliche, Yael, Kelorek&rsquo;Dar, Kozzalym, Garzicor, Undead Bard).'],
+    ['Auto-Detect checks your DKP credit','Every RAIDTICK you were in zone for is matched to your ODKP ticks by time &mdash; &#10003; credited or &#10007; not credited. <b>&#9935; Scan logs</b> loads the last 6 months of raid nights from your logs.'],
+    ['Hourlies, HoT Farm and Buff &amp; Park in Credit Check','A new section compares what you tracked with what ODKP credited, night by night.'],
+    ['Repeat kills','Quakes and GM events can spawn a boss more than once a day. Use the &#65291; next to any boss for #2, #3&hellip; &mdash; and a second <code>/note</code> adds another spawn instead of overwriting the first.'],
+    ['Faydedar','Added to the Kill Tracker (Tier Eight), spawn timers, and <code>/note faydedar</code>.'],
+    ['AC and ATK like the game','The Stats tab shows AC and ATK the way the Inventory window does, using combat skills read from your logs.'],
+    ['Quantities in Watch List and Inventory','Watch List shows how many you have; Inventory totals follow your search and filters.'],
   ],
   fixes:[
-    ['HP and mana match the game','Rebuilt from the P99 wiki and checked against the in-game Inventory window. Non-casters were showing hundreds of HP too low (a level 60 Warrior by over 1,000).'],
-    ['60 hidden items are back','Deity items marked &ldquo;ALL races&rdquo; were being treated as unusable by everyone.'],
-    ['Food &amp; drink timers','On P99 race doesn&rsquo;t change how long food lasts &mdash; that rule is gone. Monks&rsquo; food and drink now last twice as long.'],
-    ['Bag sizes in Consolidate','Spell tomes hold 10 (not 4), and 64 more bags and kits are recognized.'],
-    ['Item and buff data','Corrected against the wiki: Yelinak&rsquo;s Talisman haste, Crown of Narandi stats, Brilliance, Insight, Berserker Spirit, and more.'],
-    ['Smaller fixes','Dual wield chance at levels 50&ndash;59; Lyran&rsquo;s Mystical Lute drop source; High Elf item imports.'],
+    ['/note in October','Notes are now matched on what you typed, not the timestamp &mdash; &ldquo;Oct&rdquo; would have turned every note into Cazic Thule. <code>/note Quake!</code>, <code>/note set</code> and <code>/note timer</code> work again.'],
+    ['/note picks the right boss','Whole names only: Severilous no longer lands on Sevalak, Mistress of Scorn on Essedera, or Avatar of Abhorrence on Avatar of War.'],
+    ['Credit Check matching','Dagarn, Vilefang, High Priest M&rsquo;kari and cut-off ODKP names now match; each ODKP tick counts once; evening raids are no longer dated the next day.'],
   ],
 };
 function showWhatsNew(){

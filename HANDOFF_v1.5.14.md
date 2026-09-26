@@ -16,13 +16,18 @@ Start here, then read the code. Git history is the source of truth for what chan
 | Version | State | Commit(s) |
 |---|---|---|
 | 1.5.8, 1.5.9, 1.5.10 | **Published** (tags on origin) | — |
-| 1.5.11 | Local test only | c2cc4c8, fa3926c — Admin → Wiki Check |
-| 1.5.12 | Local test only | d84e908 — in-game AC/ATK, combat skills from logs, admin Combat Check |
-| 1.5.13 | Local test only | 558ec2c — Watch List shows the quantity when more than one is on hand |
-| 1.5.14 | **Installed on the user's PC** (local test) | 0d4e45a — Inventory Total qty / Unique IDs / Stacks follow the search |
+| 1.5.14 | **Published 2026-09-26** (1.5.11–1.5.13 were local test builds, rolled in) | c2cc4c8 … 27e184f |
 
-- Local `main` is 6+ commits ahead of origin and **1 behind** (Pages bot commit). Merge `origin/main` before any push.
-- **Before publishing 1.5.11–1.5.14:** update `release-notes.md` (still the 1.5.10 hotfix text) and the in-app `WHATS_NEW` constant (still `version:'1.5.9'`) to cover all four. Then: merge origin/main → push main → confirm in sync → push tag `v1.5.14`.
+**Versioning rule (user, 2026-09-26):** don't bump the version per test build — rebuild/reinstall at the current unpublished version; bump once when publishing.
+
+### Session 2026-09-26 (published in 1.5.14)
+- Kill Tracker: repeat spawns for any boss (＋ per row; `/note` / kill modal add #2, #3 via `ktRecordBossState`).
+- Credit Check: `ccMatchAll` one-to-one tick matching (kill prefers kill-value tick); ODKP labels resolve any roster name, backticks, truncation (`_odkpRosterName`); sessions dated local (`localYmd`, `sessionFixDate`, old date kept in `date0` for ack keys); reverse audit = unclaimed ticks, noise filtered.
+- Hourly / HoT Farm / BnP ledger (`ccTickLedger`, per raid night 6am–6am, ±1 night offset).
+- Auto-Detect: watcher `scanRaidTicks` (all logs, one batch) + `rkdImportScan`; ODKP CREDIT column (`rkdOdkpMatches`: ±15 min, second pass exactly ±1h same-boss); tracker column counts repeat spawns. On the user's data: 307 in-zone ticks, 281 credited, 15 not (Aug 13 raid, Midayor 8/20, Prog 9/5…); Auto-Detect boss agrees with ODKP 162/166.
+- Faydedar added (Tier Eight 0.3+0.2, 7d ±8h). `/note`: timestamp stripped (`_noteBody` — fixed /note Quake!/set/timer and the "Oct"→CT bug), whole-word longest-first matching (`_noteBossMatch`).
+- Admin → Credit Check suite rewritten (engine tests + LIVE run).
+- Open from the review: missing respawn timers for Guardian of Takish (12h30m), Vilefang (1 day), Vaniki (122h); shared spawn-timer board is last-writer-wins (can lose guildies' updates); parkAck reset after a quake isn't saved; Magi P'Tasa sits in the "ToV Pulling" role list (DKP rule — ask the user). Next step offered: one-click "add to session" for Strong Auto-Detect suggestions.
 - Release CI: `release.yml` (contents: write) builds + publishes and sets notes from `release-notes.md`; `release-notes.yml` re-syncs notes when that file changes on main.
 
 ## Environment (clean-install PC)
