@@ -13,7 +13,7 @@ $files = @(
 )
 
 # Find latest handoff doc in repo root
-$handoff = Get-ChildItem -Path "." -Filter "HANDOFF_v*.md" -ErrorAction SilentlyContinue | Sort-Object Name | Select-Object -Last 1
+$handoff = Get-ChildItem -Path "." -Filter "HANDOFF_v*.md" -ErrorAction SilentlyContinue | Sort-Object { [version]($_.BaseName -replace '^HANDOFF_v','') } | Select-Object -Last 1
 
 if ($handoff) {
     Write-Host "Found handoff: $($handoff.Name)"

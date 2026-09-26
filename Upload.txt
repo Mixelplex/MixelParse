@@ -15,7 +15,7 @@ $candidates = @(
 );
 
 # Latest handoff
-$h = Get-ChildItem -Filter "HANDOFF_v*.md" | Sort-Object Name | Select-Object -Last 1;
+$h = Get-ChildItem -Filter "HANDOFF_v*.md" | Sort-Object { [version]($_.BaseName -replace '^HANDOFF_v','') } | Select-Object -Last 1;
 if ($h) { $candidates += $h.Name }
 
 # GitHub Pages deploy workflow(s) — the src->docs bot. Needed so the next Claude
