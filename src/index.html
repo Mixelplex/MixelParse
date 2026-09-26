@@ -7141,7 +7141,34 @@ window.applyDBToChar    = applyDBToChar;
     { target:'Midayor',         full:'Midayor',                     aliases:['midayor','mid'] },
     { target:'Tavekalem',       full:'Tavekalem',                   aliases:['tavekalem','tave','tav'] },
     { target:'Ymmeln',          full:'Ymmeln',                      aliases:['ymmeln','ymm'] },
+    { target:'Faydedar',        full:'Faydedar',                    aliases:['faydedar','fayd','fay'] },
   ];
+
+  // Note text without EQ's leading "[Day Mon DD HH:MM:SS YYYY ] " stamp.
+  function _noteBody(line){ const m = String(line||'').match(/^\[[^\]]*\]\s*(.*)$/); return (m ? m[1] : String(line||'')).trim(); }
+  // Whole-word boss match for a /note. Full and tracker names win first (longest first, so
+  // "Avatar of Abhorrence" beats "avatar" and "Undead Bard (Trakanon)" beats "trak"),
+  // then aliases (longest first). Whole words only: "severilous" no longer hits Sevalak's
+  // "sev", and ordinary words ("never", "dagger", "Oct") no longer hit Nev / Dag / CT.
+  const _noteNorm = s => String(s||'').toLowerCase().replace(/[`’‘]/g,"'");
+  const _noteEsc  = s => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const _noteKeys = (function(){
+    const names = [], aliases = [];
+    for(const b of _NOTES_BOSS_LIST){
+      for(const n of new Set([_noteNorm(b.full), _noteNorm(b.target)])) names.push({k:n, b});
+      for(const a of b.aliases) aliases.push({k:_noteNorm(a), b});
+    }
+    const bylen = (x,y) => y.k.length - x.k.length;
+    return names.sort(bylen).concat(aliases.sort(bylen))
+      .map(e => ({ b:e.b, rx:new RegExp('(^|[^a-z0-9])'+_noteEsc(e.k)+'($|[^a-z0-9])') }));
+  })();
+  function _noteBossMatch(text){
+    const t = _noteNorm(text);
+    for(const e of _noteKeys) if(e.rx.test(t)) return e.b;
+    return null;
+  }
+  window._noteBody = _noteBody;          // exposed for the admin Credit Check tests
+  window._noteBossMatch = _noteBossMatch;
 
   // /note aliases for Hourly Ticks DKP entries — checked after _NOTES_BOSS_LIST.
   // Mirrors NOTES_TICK_MAP in electron/ipc/watcher.js — keep in sync.
@@ -7185,9 +7212,12 @@ window.applyDBToChar    = applyDBToChar;
     if(!text) return;
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     console.log('[NOTES] handleNotesUpdate — incoming lines:', lines.length);
-    for(const line of lines){
-      if(_seenNoteLines.has(line)) continue;
-      _seenNoteLines.add(line);
+    for(const rawLine of lines){
+      if(_seenNoteLines.has(rawLine)) continue;
+      _seenNoteLines.add(rawLine);
+      // notes.txt lines carry EQ's "[Thu Oct 01 21:00:00 2026 ] " stamp — match on the note
+      // text only (the stamp broke every ^-anchored command, and "Oct" contains "ct").
+      const line = _noteBody(rawLine);
       const ll = line.toLowerCase();
       let matched = false;
 
@@ -7217,16 +7247,13 @@ window.applyDBToChar    = applyDBToChar;
       const _sfxM = ll.match(/^(.*\S)\s+(failnew|fail|add|new)\s*$/);
       const _directAct = _sfxM ? _sfxM[2] : null;
       const _bossText  = _sfxM ? _sfxM[1] : ll;
-      for(const boss of _NOTES_BOSS_LIST){
-        const hit = boss.aliases.some(a => _bossText.includes(a)) ||
-                    _bossText.includes(boss.target.toLowerCase()) ||
-                    _bossText.includes(boss.full.toLowerCase());
-        if(hit){
+      {
+        const boss = _noteBossMatch(_bossText);
+        if(boss){
           if(_directAct) todDirectNote(boss.target, _directAct, timestamp);
           else           todEnqueue(boss.target, boss.full, line, timestamp);
           btNoteTod(boss.target, timestamp);   // also advance the spawn timer (newer-wins); does not touch the kill tracker
           matched = true;
-          break;
         }
       }
       if(matched) continue;
@@ -7772,6 +7799,25 @@ function _todGetCheckedRoles(){
   return checked;
 }
 
+// Record a kill/failtick on a session. If the boss is already marked in that session
+// (quake repop, GM event, a second attempt), add it as the next extra spawn (#2, #3…)
+// instead of overwriting — ODKP pays each spawn separately. Returns the display label.
+function ktRecordBossState(session, target, state, roles){
+  if(!session.killState) session.killState = {};
+  if(!session.extraSpawns) session.extraSpawns = [];
+  if(!session.killState[target]){
+    session.killState[target] = state;
+    if(roles && roles.length){
+      if(!session.bossRoles) session.bossRoles = {};
+      session.bossRoles[target] = (session.bossRoles[target] || []).concat(roles);
+    }
+    return target;
+  }
+  const n = session.extraSpawns.filter(sp => sp.base === target).length + 2;
+  session.extraSpawns.push({ base:target, key:target+'__'+n, state, bossRoles:(roles||[]).slice() });
+  return target+' #'+n;
+}
+
 function todAddToSession(killState){
   killState = killState || 'killed';
   const overlay = document.getElementById('tod-modal-overlay');
@@ -7781,18 +7827,12 @@ function todAddToSession(killState){
   const target = overlay.dataset.target;
   const session = raidSessions.find(s => s.id === sel.value);
   if(!session) return;
-  if(!session.killState) session.killState = {};
-  session.killState[target] = killState;
+  const label = ktRecordBossState(session, target, killState, _todGetCheckedRoles());
   if(killState==='killed') session.lastKillAt = new Date().toISOString();
-  const checkedRoles = _todGetCheckedRoles();
-  if(checkedRoles.length){
-    if(!session.bossRoles) session.bossRoles = {};
-    session.bossRoles[target] = (session.bossRoles[target] || []).concat(checkedRoles);
-  }
   saveSessionsToSupabase();
   _todAdvance();
   switchTopView('kills');
-  showWatcherToast(`${killState==='failtick'?'💀':'⚔'} ${target} ${killState==='failtick'?'failtick':'marked as killed'}`);
+  showWatcherToast(`${killState==='failtick'?'💀':'⚔'} ${label} ${killState==='failtick'?'failtick':'marked as killed'}`);
 }
 
 function todStartNewSession(killState){
@@ -7831,12 +7871,11 @@ function todDirectNote(target, action, timestamp){
     if(!session){ session = newSession(); raidSessions.push(session); }
     else if(!raidSessions.some(s=>s.id===session.id)) raidSessions.push(session);
   }
-  if(!session.killState) session.killState = {};
-  session.killState[target] = killState;
+  const label = ktRecordBossState(session, target, killState, null);
   if(killState==='killed') session.lastKillAt = new Date().toISOString();
   activeSession = session;
   saveSessionsToSupabase();
-  showWatcherToast(`${killState==='failtick'?'💀':'⚔'} ${isNew?'New session · ':''}${target} ${killState==='failtick'?'failtick':'killed'}`);
+  showWatcherToast(`${killState==='failtick'?'💀':'⚔'} ${isNew?'New session · ':''}${label} ${killState==='failtick'?'failtick':'killed'}`);
 }
 
 // expose via thin wrappers so the admin panel can call them directly
@@ -9920,6 +9959,7 @@ const BOSS_ROSTER=[
   {target:'Midayor',       full:'Midayor',                     tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
   {target:'Tavekalem',     full:'Tavekalem',                   tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
   {target:'Ymmeln',        full:'Ymmeln',                      tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
+  {target:'Faydedar',      full:'Faydedar',                    tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
   // Tier Nine — Ring War checkpoints. Failtick pays 0 (attended raid but missed this wave).
   // target stays 'RW Readiness'/'RW Wave N' (internal data key — killState, BOSS_ROLES, saved
   // sessions all key off this). display is what renders as the bold name in the Kill Tracker row.
@@ -9948,6 +9988,8 @@ const BOSS_RESPAWN = {
   'Lord Bob':[72,12], Zlandicar:[108,8], Statue:[120,8], Vindi:[8,1],
   // guild-supplied + 2nd-pass wiki crawl (Alex, 8/4/2026)
   Tunare:[168,8],
+  // Timorous Deep — 7d ±8h (P99 wiki; the triggered Crusade version has no timer)
+  Faydedar:[168,8],
   // Fear/Kael named — 3d ±8h (matches guild paste 16h widths)
   "Magi P'Tasa":[72,12], Essedera:[72,8], Lepethida:[72,8], Casalen:[72,8], Grozzmel:[72,8],
   Krigara:[72,8], Midayor:[72,8], Tavekalem:[72,8], Ymmeln:[72,8],
@@ -10024,11 +10066,23 @@ function rolesForBoss(target){
   return [...fte,...roles];
 }
 
+// Local calendar date (YYYY-MM-DD). Session dates must follow the local clock, not UTC:
+// ODKP tick labels use the same Eastern clock, and a UTC date put every raid started
+// after 8pm on the next day.
+function localYmd(d){const x=d instanceof Date?d:new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');}
+// Older sessions were dated in UTC. Re-date from startedAt; keep the original in
+// date0 so Credit Check acknowledgements (keyed by date) stay attached.
+function sessionFixDate(s){
+  if(!s||!s.startedAt)return;
+  const t=new Date(s.startedAt);if(isNaN(t))return;
+  const L=localYmd(t);
+  if(s.date!==L){if(!s.date0)s.date0=s.date;s.date=L;}
+}
 function newSession(){
   // killState: {target: 'killed'|'failtick'|null}
-  // extraSpawns: [{base, key, state, bossRoles}] — Big 3 additional spawns
+  // extraSpawns: [{base, key, state, bossRoles}] — repeat spawns of any boss (quakes, GM events)
   const now=new Date();
-  return{id:Date.now().toString(),date:now.toISOString().slice(0,10),startedAt:now.toISOString(),killState:{},hourly:[],hourlyNinja:{},bossRoles:{},buffParksQty:0,buffParksNinja:false,botLoot:[],note:'',extraSpawns:[]};
+  return{id:Date.now().toString(),date:localYmd(now),startedAt:now.toISOString(),killState:{},hourly:[],hourlyNinja:{},bossRoles:{},buffParksQty:0,buffParksNinja:false,botLoot:[],note:'',extraSpawns:[]};
 }
 
 function sessionDkpTotal(session){
@@ -10062,8 +10116,8 @@ async function loadKillsFromSupabase(){
     const{data}=await sb.from('guild_data').select('raid_sessions').eq('pool','SoV').eq('user_id',currentUser.id).single();
     if(data?.raid_sessions){
       raidSessions=data.raid_sessions;
-      // Migrate old sessions that predate extraSpawns
-      raidSessions.forEach(s=>{ if(!s.extraSpawns)s.extraSpawns=[]; });
+      // Migrate old sessions that predate extraSpawns; re-date UTC-dated sessions to local
+      raidSessions.forEach(s=>{ if(!s.extraSpawns)s.extraSpawns=[]; sessionFixDate(s); });
     }
     renderKillStrip();
     loadOdkpSharedFromSupabase(); // shared tick DB + learned aliases (fire & forget)
@@ -10810,7 +10864,6 @@ function renderKillsPanel(){
   if(!activeSession.bossRoles)activeSession.bossRoles={};
   if(!activeSession.hourly)activeSession.hourly=[];
   if(!activeSession.extraSpawns)activeSession.extraSpawns=[];
-  const BIG3=['Ashenbone Broodmaster',"Magi P'Tasa",'Lord of Ire'];
   const tiers=[...new Set(BOSS_ROSTER.map(b=>b.tier))];
 
   let bossHtml='';
@@ -10838,16 +10891,17 @@ function renderKillsPanel(){
           </div>
           <span class="kt-check-name" onclick="ktToggleBossRoles('${esc(b.target)}')" style="cursor:pointer;flex:1">${esc(b.display||b.target)}</span>
           ${(b.display||b.target)!==b.full?`<span class="kt-check-full">${esc(b.full)}</span>`:''}
-          <span class="kt-check-dkp" id="ktdkp_${esc(b.target)}">${state==='killed'?killTotal+' DKP':state==='failtick'?'1 DKP':b.dkp+'+'+b.baseDkp}</span>
+          <span class="kt-check-dkp" id="ktdkp_${esc(b.target)}">${state==='killed'?killTotal+' DKP':state==='failtick'?b.baseDkp+' DKP':b.dkp+'+'+b.baseDkp}</span>
           ${state?`<button type="button" class="kt-clear-btn" data-bosstgt="${esc(b.target)}" title="Clear" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.72rem;padding:0 .2rem;line-height:1;opacity:.7" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.7'">✕</button>`:'<span style="display:inline-block;width:1.2rem"></span>'}
           <span class="kt-expand-btn" onclick="ktToggleBossRoles('${esc(b.target)}')">${isOpen?'▲':'▼'}</span>
+          <button type="button" data-bosstgt="${esc(b.target)}" onclick="ktAddSpawn(this.dataset.bosstgt)" title="Add another spawn of ${esc(b.display||b.target)} (quake repop, GM event, second attempt)" style="margin-left:.25rem;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.85rem;padding:0 .2rem;line-height:1">＋</button>
         </div>
         <div id="ktbr_${esc(b.target)}" style="display:${isOpen?'block':'none'};border-bottom:1px solid var(--border);background:var(--surface)">
           ${buildBossRoleHtml(b.target)}
         </div>
       </div>`;
-      // Extra spawns for Big 3
-      if(BIG3.includes(b.target)){
+      // Extra spawns (#2, #3…) — any boss can repop the same day (quakes, GM events)
+      {
         const extras=activeSession.extraSpawns.filter(sp=>sp.base===b.target);
         for(const sp of extras){
           const spOpen=!!ktExpanded[sp.key];
@@ -10867,7 +10921,7 @@ function renderKillsPanel(){
                   <span>Failtick</span>
                 </label>
               </div>
-              <span class="kt-check-name" data-spawnkey="${esc(sp.key)}" onclick="ktToggleBossRoles(this.dataset.spawnkey)" style="cursor:pointer;flex:1">${esc(b.target)}${spLabel}</span>
+              <span class="kt-check-name" data-spawnkey="${esc(sp.key)}" onclick="ktToggleBossRoles(this.dataset.spawnkey)" style="cursor:pointer;flex:1">${esc(b.display||b.target)}${spLabel}</span>
               <span class="kt-check-dkp" id="ktdkp_${esc(sp.key)}">${sp.state==='killed'?spKillTotal+' DKP':sp.state==='failtick'?b.baseDkp+' DKP':b.dkp+'+'+b.baseDkp}</span>
               ${sp.state?`<button type="button" class="kt-clear-btn" data-spawnkey="${esc(sp.key)}" title="Clear" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.72rem;padding:0 .2rem;line-height:1;opacity:.7" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.7'">✕</button>`:'<span style="display:inline-block;width:1.2rem"></span>'}
               <span class="kt-expand-btn" data-spawnkey="${esc(sp.key)}" onclick="ktToggleBossRoles(this.dataset.spawnkey)">${spOpen?'▲':'▼'}</span>
@@ -10879,15 +10933,6 @@ function renderKillsPanel(){
           </div>`;
         }
       }
-    }
-    // Add Big 3 spawn button at bottom of whichever tier contains Big 3 bosses
-    if(bosses.some(b=>BIG3.includes(b.target))){
-      bossHtml+=`<div style="position:relative">
-        <button type="button" onclick="ktToggleBig3Picker()" style="width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--border);padding:.45rem 1rem;font-size:.78rem;color:var(--text-muted);cursor:pointer;font-family:'Cinzel',serif;letter-spacing:.04em">＋ Add Big 3 Spawn</button>
-        <div id="big3Picker" style="display:none;position:absolute;left:0;right:0;z-index:10;background:var(--surface2);border:1px solid var(--border);border-top:none">
-          ${BIG3.map(name=>`<button type="button" data-big3name="${esc(name)}" onclick="ktAddBig3Spawn(this.dataset.big3name)" style="display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--border);padding:.5rem 1.25rem;font-size:.8rem;color:var(--text);cursor:pointer;font-family:'Cinzel',serif">${esc(name)}</button>`).join('')}
-        </div>
-      </div>`;
     }
   }
 
@@ -11058,7 +11103,8 @@ function _stripKilled(s){
   if(!s || !s.killState) return [];
   return Object.entries(s.killState)
     .filter(([k,v])=>v==='killed' && BOSS_ROSTER.some(b=>b.target===_stripBase(k)))
-    .map(([k])=>_stripBase(k));
+    .map(([k])=>_stripBase(k))
+    .concat((s.extraSpawns||[]).filter(sp=>sp.state==='killed').map(sp=>sp.base+' #'+(String(sp.key).split('__')[1]||2)));
 }
 function _stripWhen(s){ return s && (s.lastKillAt || s.startedAt || (s.date ? s.date+'T00:00:00' : null)); }
 function _stripKillSession(){
@@ -11155,6 +11201,8 @@ window.ktToggleBig3Picker=function(){
   if(p)p.style.display=p.style.display==='none'?'block':'none';
 };
 
+// Add another spawn of any boss to the active session (#2, #3…).
+window.ktAddSpawn=function(baseName){ window.ktAddBig3Spawn(baseName); };
 window.ktAddBig3Spawn=function(baseName){
   if(!activeSession.extraSpawns)activeSession.extraSpawns=[];
   // Count existing spawns for this base (including the base row which is #1)
@@ -11774,7 +11822,7 @@ const ODKP_EXACT_ONLY=new Set(['lord','master','mistress','magi','trak']);
 // ODKP_EXACT_ONLY keys). '__ignore__' overlay value = deliberately unmapped.
 function normalizeOdkpLabel(raw){
   if(!raw)return null;
-  let s=raw.trim().toLowerCase();
+  let s=raw.trim().toLowerCase().replace(/[`’‘]/g,"'");
   // Remove common suffixes ("X kill", "X no kill", "X kill plus hour", ...)
   s=s.replace(/\s+(kill plus hour|kill|no kill|nokill|bnp|b&p|quake|unity raid chaos|unity kill|am kill|natty kill|batphone|kill with bonus|kill \(.*|no kill \(.*)\s*$/i,'').trim();
   const ov0=odkpAliasOverlay[s];
@@ -11787,6 +11835,10 @@ function normalizeOdkpLabel(raw){
   const ov1=odkpAliasOverlay[s];
   if(ov1)return ov1==='__ignore__'?null:ov1;
   if(ODKP_ALIAS[s])return ODKP_ALIAS[s];
+  // Any kill-tracker boss by its own name (tracker or full) — so a boss never
+  // needs a hand-written alias just to match itself (Dagarn, Vilefang, M'kari…).
+  const rb=_odkpRosterName(s);
+  if(rb)return rb;
   // Learned-alias partial match — teaching "crusade" absorbs "crusade 7", 
   // "crusade 6 kyrrenna", etc. ('__ignore__' spreads the same way.)
   for(const[k,v] of Object.entries(odkpAliasOverlay)){
@@ -11796,6 +11848,27 @@ function normalizeOdkpLabel(raw){
   for(const[k,v] of Object.entries(ODKP_ALIAS)){
     if(ODKP_EXACT_ONLY.has(k))continue;
     if(s===k||s.startsWith(k+' ')||s.endsWith(' '+k))return v;
+  }
+  // ODKP truncates long names mid-word ("Ashenbone Broodmaste", "Mistress of Scorn ki"):
+  // drop a chopped "kill"/"no kill" tail, then accept a unique roster-name prefix (6+ chars).
+  const t=s.replace(/\s+(no( k(i(l)?)?)?|k(i(l)?)?)$/,'').trim();
+  const rt=_odkpRosterName(t);
+  if(rt)return rt;
+  if(t.length>=6){
+    const hits=new Set();
+    for(const b of BOSS_ROSTER){if(b.tier==='Tier Nine')continue;for(const n of [b.target,b.full])if(_odkpNameKey(n).startsWith(t))hits.add(b.target);}
+    if(hits.size===1)return [...hits][0];
+  }
+  return null;
+}
+function _odkpNameKey(n){return String(n||'').toLowerCase().replace(/[`’‘]/g,"'").trim();}
+// Exact tracker/full-name match against BOSS_ROSTER (also without the leading "the").
+function _odkpRosterName(s){
+  if(!s)return null;
+  const k=s.replace(/^the /,'');
+  for(const b of BOSS_ROSTER){
+    if(b.tier==='Tier Nine')continue;   // Ring War checkpoints resolve only via RW_TICK_PARENS
+    for(const n of [b.target,b.full]){const nk=_odkpNameKey(n);if(nk===s||nk.replace(/^the /,'')===k)return b.target;}
   }
   return null;
 }
@@ -11858,10 +11931,19 @@ let odkpTicks=[];          // [{d:'YYYY-MM-DD', l:'6-18 22:30 Vulak 4'}]  (credi
 let odkpTicksMeta=null;    // {updatedAt, updatedBy, raidCount}
 let odkpAliasOverlay={};   // learned aliases: cleanedLabel → target | '__ignore__'
 let ccAcks=new Set();      // acknowledged missing/weak events (per-user, odkp_personal.cc_acks)
+// Kill-tracker + ODKP state for admin.html (Credit Check suite) via window.opener.
+Object.defineProperty(window,'raidSessions',{get:()=>raidSessions});
+Object.defineProperty(window,'activeSession',{get:()=>activeSession});
+Object.defineProperty(window,'odkpTicks',{get:()=>odkpTicks});
+Object.defineProperty(window,'odkpTicksMeta',{get:()=>odkpTicksMeta});
+Object.defineProperty(window,'BOSS_ROSTER',{get:()=>BOSS_ROSTER});
 
 // Stable identity for a credit-check event — survives re-uploads and re-renders.
 function ccEvtKey(evt){
-  return evt.date+'|'+evt.target+'|'+evt.type+(evt.extra?'|x':'')+(evt.type==='hourly'?'|q'+evt.qty:'');
+  // keyDate = the session's original stored date (pre local re-date), so old acks still apply.
+  // Spawn #2 keeps the legacy '|x' key; #3+ get their own.
+  const x=evt.extra?'|x'+(evt.spawnNum>2?evt.spawnNum:''):'';
+  return (evt.keyDate||evt.date)+'|'+evt.target+'|'+evt.type+x+(evt.type==='hourly'?'|q'+evt.qty:'');
 }
 async function saveCcAcksToSupabase(){
   if(!currentUser)return;
@@ -12052,22 +12134,19 @@ function ccExpectedValue(target){
 function ccCollectSessionEvents(){
   const evts=[];
   for(const s of [...raidSessions].sort((a,b)=>(b.date||'').localeCompare(a.date||''))){
+    const keyDate=s.date0||s.date;
     for(const[target,st] of Object.entries(s.killState||{})){
       const ev=ccExpectedValue(target);
-      if(st==='killed')evts.push({date:s.date,target,type:'kill',expVal:ev?ev.kill:null});
-      else if(st==='failtick')evts.push({date:s.date,target,type:'failtick',expVal:ev?ev.failtick:null});
+      if(st==='killed')evts.push({date:s.date,keyDate,target,type:'kill',expVal:ev?ev.kill:null});
+      else if(st==='failtick')evts.push({date:s.date,keyDate,target,type:'failtick',expVal:ev?ev.failtick:null});
     }
     for(const es of (s.extraSpawns||[])){
       const ev=ccExpectedValue(es.base);
-      if(es.state==='killed')evts.push({date:s.date,target:es.base,type:'kill',extra:true,expVal:ev?ev.kill:null});
-      else if(es.state==='failtick')evts.push({date:s.date,target:es.base,type:'failtick',extra:true,expVal:ev?ev.failtick:null});
+      const spawnNum=parseInt(String(es.key||'').split('__')[1],10)||2;
+      if(es.state==='killed')evts.push({date:s.date,keyDate,target:es.base,type:'kill',extra:true,spawnNum,expVal:ev?ev.kill:null});
+      else if(es.state==='failtick')evts.push({date:s.date,keyDate,target:es.base,type:'failtick',extra:true,spawnNum,expVal:ev?ev.failtick:null});
     }
-    const hourlyCount=(s.hourly||[]).length+(s.tickSubmissions||[]).filter(t=>/hour/i.test(t.desc||'')).reduce((n,t)=>n+(t.qty||1),0);
-    if(hourlyCount>0){
-      const hourlyExp=(s.hourly||[]).reduce((sum,t)=>sum+(t.value||0)*(t.qty||1),0)
-        +(s.tickSubmissions||[]).filter(t=>/hour/i.test(t.desc||'')).reduce((sum,t)=>sum+(t.dkp!=null?t.dkp:(t.value||0)*(t.qty||1)),0);
-      evts.push({date:s.date,target:'Hourly',type:'hourly',qty:hourlyCount,expVal:Math.round(hourlyExp*10)/10});
-    }
+    // Hourlies / HoT Farm / BnP are reconciled per raid night by ccTickLedger().
   }
   return evts;
 }
@@ -12126,6 +12205,221 @@ function ccMatchEvent(evt,byDate){
   const status=ccValueStatus(evt,creditedVal);
   return{status,tick:best.t.l,creditedVal,expectedVal:evt.expVal,
     note:status==='valuemismatch'?'credited '+creditedVal+' DKP, expected '+evt.expVal:undefined};
+}
+
+// Match every event at once, one-to-one: each ODKP tick can credit a given boss only
+// once, so a boss killed 2-3 times in a day (quakes, GM events) needs 2-3 ticks, and two
+// tracker kills can't both claim the same tick. A multi-boss tick ("Terror + Dread kill")
+// can still credit each of its bosses once. Candidates are ranked like ccMatchEvent,
+// plus a value tie-break so a kill prefers the tick paid at kill value over a same-day
+// attempt tick (Statue 1 at 1.8 vs Statue 2 at 6.8), then assigned best-first.
+// Returns an array aligned with evts; claimedBy is a Map tick -> Set(targets) used.
+function ccMatchAll(evts,byDate){
+  const out=new Array(evts.length);
+  const pairs=[];
+  evts.forEach((evt,ei)=>{
+    if(evt.type==='hourly'){out[ei]=ccMatchEvent(evt,byDate);return;}
+    const days=ccDatesAround(evt.date);
+    const wrongPol=evt.type==='failtick'?'kill':'nokill';
+    for(let i=0;i<days.length;i++)for(const t of (byDate[days[i]]||[])){
+      if(!t.targets.has(evt.target))continue;
+      const valOk=evt.expVal==null||t.v==null||Math.abs(t.v-evt.expVal)<=CC_VALUE_TOLERANCE;
+      pairs.push({ei,t,dayOff:i,rank:(t.pol===wrongPol?100:0)+i*10+(valOk?0:3)+(t.pol==='neutral'?1:0)});
+    }
+  });
+  pairs.sort((a,b)=>a.rank-b.rank||a.ei-b.ei);
+  const claimed=new Map();   // tick -> Set(targets already credited from it)
+  const had=new Set();       // events that had at least one candidate
+  for(const p of pairs){
+    had.add(p.ei);
+    if(out[p.ei])continue;
+    const evt=evts[p.ei];
+    const used=claimed.get(p.t)||new Set();
+    if(used.has(evt.target))continue;
+    used.add(evt.target);claimed.set(p.t,used);
+    const wrongPol=evt.type==='failtick'?'kill':'nokill';
+    if(p.t.pol===wrongPol){out[p.ei]={status:'weak',tick:p.t.l,note:evt.type==='failtick'?'tracker failtick, but tick reads as a kill':'only a no-kill tick found'};continue;}
+    const creditedVal=p.t.v!=null?p.t.v:null;
+    const status=ccValueStatus(evt,creditedVal);
+    out[p.ei]={status,tick:p.t.l,creditedVal,expectedVal:evt.expVal,
+      note:status==='valuemismatch'?'credited '+creditedVal+' DKP, expected '+evt.expVal:undefined};
+  }
+  evts.forEach((evt,ei)=>{
+    if(out[ei])return;
+    out[ei]=had.has(ei)
+      ?{status:'missing',tick:null,note:'every matching tick is already credited to another '+evt.target+' kill'}
+      :{status:'missing',tick:null};
+  });
+  out.claimed=claimed;
+  return out;
+}
+
+// ── Tick ledger: hourlies, HoT Farm, Buff & Park — tracked vs credited per raid night ──
+// A raid night runs 6am→6am local, so a 12:30am tick belongs to the night before.
+// Tracker side: pending counters + submitted tickSubmissions (placed by submittedAt).
+// ODKP side: ticks classified by label; kill ticks with an hourly rolled in
+// ("Vulak 1 (add hourly)", 5.7) count as an hourly too, typed by the value left after
+// the kill. A shortfall on one night is offset by a surplus on the next/previous night
+// of the same type (late submits, ticks posted after midnight).
+const CC_LEDGER_CATS=[
+  {id:'ntov',    label:'NToV/Sky/VP hourly', value:2},
+  {id:'std',     label:'Standard hourly',    value:1},
+  {id:'train',   label:'Training',           value:3},
+  {id:'hot',     label:'HoT Farm',           value:1},
+  {id:'hotbonus',label:'HoT bonus',          value:1},
+  {id:'bnp',     label:'Buff & Park',        value:0.3},
+];
+const CC_NIGHT_ROLL_MS=6*3600e3;
+function ccNightOf(ms){return localYmd(ms-CC_NIGHT_ROLL_MS);}
+function ccTrackerCat(desc){
+  const d=String(desc||'').toLowerCase();
+  if(/hot farm/.test(d))return'hot';
+  if(/buff and park/.test(d))return'bnp';
+  if(/training/.test(d))return'train';
+  if(/ntov|sky|vp/.test(d))return'ntov';
+  if(/standard/.test(d))return'std';
+  return null;
+}
+function ccTickNight(t){
+  const m=t.l.match(/^(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2})\b/);
+  if(!m)return t.d;
+  return ccNightOf(new Date(+t.d.slice(0,4),+m[1]-1,+m[2],+m[3],+m[4]).getTime());
+}
+// {cat, qty} for a credited tick that belongs in the ledger, else null.
+function ccTickLedgerCat(t){
+  const l=t.l;
+  if(/^(\d{1,2}-\d{1,2}(\s+\d{1,2}:\d{2})?\s+)?(ring war|rw)\b/i.test(l))return null;
+  if(/\bbnp\b|b&p|buffs?\s*(and|&|n)\s*parks?/i.test(l))return{cat:'bnp',qty:1};
+  if(/hot farm/i.test(l))return{cat:/speed bonus|full clear/i.test(l)?'hotbonus':'hot',qty:1};
+  if(/training/i.test(l))return{cat:'train',qty:1};
+  const targets=odkpTickTargets(l);
+  const hourWord=/\bhour(ly|s)?\b|\bhr\b/i.test(l);
+  const zoneHourly=!targets.size&&!/kill/i.test(l)&&
+    /^(\d{1,2}-\d{1,2}(\s+\d{1,2}:\d{2})?\s+)?(ntov|n tov|plane of sky|sky|vp|veeshan'?s peak)\b/i.test(ccScrubOuter(l));
+  if(!hourWord&&!zoneHourly)return null;
+  let cat=null;
+  const b=targets.size?BOSS_ROSTER.find(x=>targets.has(x.target)):null;
+  if(b&&t.v!=null){
+    const base=tickPolarity(l)==='nokill'?(b.baseDkp||0):b.dkp+(b.baseDkp||0);
+    const r=Math.round((t.v-base)*10)/10;
+    if(r>=1.8)cat='ntov';else if(r>=0.8)cat='std';
+  }
+  if(!cat){
+    if(/ntov|n tov|sky|vp|veeshan/i.test(l))cat='ntov';
+    else if(/standard|\bstd\b|fear/i.test(l))cat='std';
+    else cat=t.v===2?'ntov':'std';
+  }
+  const q=l.match(/hour(?:ly|s)?\s*\((\d)\)/i);
+  return{cat,qty:q?+q[1]:1};
+}
+function ccTickLedger(sessions,ticks){
+  if(!sessions)sessions=raidSessions;
+  if(!ticks)ticks=odkpTicks;
+  const T={},C={};   // night -> cat -> {qty, dkp, items:[]}
+  const add=(M,night,cat,qty,dkp,item)=>{const n=M[night]=M[night]||{};const c=n[cat]=n[cat]||{qty:0,dkp:0,items:[]};c.qty+=qty;c.dkp+=dkp||0;if(item)c.items.push(item);};
+  let minNight=null;
+  for(const s of (sessions||[])){
+    const st=Date.parse(s.startedAt||'');
+    const sNight=isNaN(st)?s.date:ccNightOf(st);
+    if(sNight&&(!minNight||sNight<minNight))minNight=sNight;
+    for(const r of (s.hourly||[])){const c=ccTrackerCat(r.desc);if(c)add(T,sNight,c,r.qty||0,(r.value||0)*(r.qty||0),'counter');}
+    if(s.hotFarmQty>0)add(T,sNight,'hot',s.hotFarmQty,s.hotFarmQty,'counter');
+    if(s.hotSpeedBonus)add(T,sNight,'hotbonus',1,1,'counter');
+    if(s.buffParksQty>0)add(T,sNight,'bnp',s.buffParksQty,(s.buffParksNinja?0.5:0.3)*s.buffParksQty,'counter');
+    for(const sub of (s.tickSubmissions||[])){
+      const c=ccTrackerCat(sub.desc);if(!c)continue;
+      const sa=Date.parse(sub.submittedAt||'');
+      const night=isNaN(sa)?sNight:ccNightOf(sa);
+      const qty=sub.qty||1;
+      add(T,night,c,qty,c==='hot'?qty:(sub.dkp!=null?sub.dkp:(sub.value||0)*qty),'submitted');
+      if(c==='hot'&&sub.speedBonus)add(T,night,'hotbonus',1,1,'submitted');
+    }
+  }
+  if(!minNight)return{rows:[],minNight:null};
+  for(const t of (ticks||[])){
+    const k=ccTickLedgerCat(t);if(!k)continue;
+    const night=ccTickNight(t);
+    if(night<minNight)continue;
+    add(C,night,k.cat,k.qty,t.v||0,t.l+(t.v!=null?' ('+t.v+')':''));
+  }
+  const nights=[...new Set([...Object.keys(T),...Object.keys(C)])].sort();
+  const rows=[];
+  for(const cat of CC_LEDGER_CATS){
+    const d={};for(const n of nights)d[n]=((T[n]||{})[cat.id]||{qty:0}).qty-((C[n]||{})[cat.id]||{qty:0}).qty;
+    const moved={};
+    // offset a shortfall with the neighbouring nights' surplus (previous night first)
+    nights.forEach((n,i)=>{
+      for(const j of [i-1,i+1]){
+        if(d[n]<=0)break;
+        const m=nights[j];if(!m||d[m]>=0)continue;
+        const gap=Math.abs((new Date(n+'T12:00:00')-new Date(m+'T12:00:00'))/864e5);if(gap>1)continue;
+        const x=Math.min(d[n],-d[m]);d[n]-=x;d[m]+=x;
+        moved[n]=(moved[n]||[]).concat(x+' credited on '+m);moved[m]=(moved[m]||[]).concat(x+' matched to '+n);
+      }
+    });
+    for(const n of nights){
+      const tr=(T[n]||{})[cat.id],cr=(C[n]||{})[cat.id];
+      if(!tr&&!cr)continue;
+      rows.push({night:n,cat:cat.id,label:cat.label,tracked:tr?tr.qty:0,credited:cr?cr.qty:0,
+        creditedDkp:cr?Math.round(cr.dkp*10)/10:0,trackedDkp:tr?Math.round(tr.dkp*10)/10:0,
+        missing:Math.max(0,d[n]),untracked:Math.max(0,-d[n]),moved:moved[n]||[],ticks:cr?cr.items:[]});
+    }
+  }
+  rows.sort((a,b)=>b.night.localeCompare(a.night)||CC_LEDGER_CATS.findIndex(c=>c.id===a.cat)-CC_LEDGER_CATS.findIndex(c=>c.id===b.cat));
+  return{rows,minNight};
+}
+function ccLedgerKey(r){return'ledger|'+r.night+'|'+r.cat+'|'+r.missing+'|'+r.untracked;}
+// Credit Check section: hourlies / HoT Farm / BnP, tracked vs credited per raid night.
+function ccRenderLedger(){
+  const L=ccTickLedger();
+  if(!L.minNight)return'';
+  const fmtNight=n=>new Date(n+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  const issues=[],matched=[];let nMiss=0,nUntracked=0,nAcked=0;
+  for(const r of L.rows){
+    const bad=r.missing>0||r.untracked>0;
+    const acked=bad&&ccAcks.has(ccLedgerKey(r));
+    if(!bad)matched.push(r);else{issues.push({r,acked});if(acked)nAcked++;else{nMiss+=r.missing;nUntracked+=r.untracked;}}
+  }
+  const row=(r,acked)=>{
+    const key=ccLedgerKey(r);
+    const status=r.missing>0
+      ?'<span style="color:#c03030;font-weight:600">\u2717 '+r.missing+' not credited</span>'
+      :r.untracked>0
+      ?'<span style="color:#607090;font-weight:600">\u2B05 '+r.untracked+' credited, not tracked</span>'
+      :'<span style="color:#3a7a3a">\u2713</span>';
+    const moved=r.moved.length?'<div style="font-size:.64rem;color:var(--text-muted)">'+esc(r.moved.join(' \u00b7 '))+'</div>':'';
+    const ticks=r.ticks.length?esc(r.ticks.join(' \u00b7 ')):'\u2014';
+    const act=!(r.missing>0||r.untracked>0)?'<td></td>'
+      :acked?'<td style="text-align:center"><button class="cc-unack-btn" data-key="'+esc(key)+'" style="background:none;border:none;cursor:pointer;font-size:.68rem;color:var(--text-muted)">\u21A9 un-ack</button></td>'
+      :'<td style="text-align:center"><button class="cc-ack-btn" data-key="'+esc(key)+'" title="Acknowledge \u2014 I know about this one" style="background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:.66rem;color:var(--text-muted);padding:.1rem .4rem">ack</button></td>';
+    const bg=acked?'opacity:.45':r.missing>0?'background:rgba(180,40,40,.08)':r.untracked>0?'background:rgba(60,80,140,.07)':'';
+    return '<tr style="'+bg+'">'
+      +'<td style="padding:.3rem .6rem;font-size:.76rem;color:var(--text-muted);white-space:nowrap">'+fmtNight(r.night)+'</td>'
+      +'<td style="padding:.3rem .6rem;font-size:.8rem;font-weight:500;white-space:nowrap">'+esc(r.label)+'</td>'
+      +'<td style="padding:.3rem .5rem;font-size:.8rem;text-align:center" title="'+r.trackedDkp+' DKP tracked">'+r.tracked+'</td>'
+      +'<td style="padding:.3rem .5rem;font-size:.8rem;text-align:center" title="'+r.creditedDkp+' DKP credited">'+r.credited+'</td>'
+      +'<td style="padding:.3rem .6rem;font-size:.74rem;white-space:nowrap">'+status+moved+'</td>'
+      +'<td style="padding:.3rem .6rem;font-size:.68rem;color:var(--text-muted)">'+ticks+'</td>'+act+'</tr>';
+  };
+  const head='<thead><tr>'
+    +'<th style="padding:.35rem .6rem;font-size:.68rem;text-align:left">Night</th>'
+    +'<th style="padding:.35rem .6rem;font-size:.68rem;text-align:left">Type</th>'
+    +'<th style="padding:.35rem .5rem;font-size:.68rem">Tracked</th>'
+    +'<th style="padding:.35rem .5rem;font-size:.68rem">Credited</th>'
+    +'<th style="padding:.35rem .6rem;font-size:.68rem;text-align:left">Status</th>'
+    +'<th style="padding:.35rem .6rem;font-size:.68rem;text-align:left">ODKP ticks</th><th></th></tr></thead>';
+  const sum=(nMiss||nUntracked)
+    ?(nMiss?'<span style="color:#c03030">\u2717 '+nMiss+' not credited</span>':'')+(nMiss&&nUntracked?' \u00b7 ':'')+(nUntracked?'<span style="color:#607090">\u2B05 '+nUntracked+' credited but not tracked</span>':'')
+    :'<span style="color:#3a7a3a">\u2713 every tracked hourly, HoT and BnP tick is credited</span>';
+  const matchedHtml=matched.length
+    ?'<details style="margin-top:.3rem"><summary style="padding:.35rem 1rem;font-size:.72rem;color:var(--text-muted);cursor:pointer;user-select:none">\u2713 '+matched.length+' night'+(matched.length!==1?'s':'')+'/type matched</summary>'
+      +'<table style="width:100%;border-collapse:collapse"><tbody>'+matched.map(r=>row(r,false)).join('')+'</tbody></table></details>'
+    :'';
+  return '<details'+((nMiss||nUntracked)?' open':'')+' style="border-top:1px solid var(--border)">'
+    +'<summary style="padding:.55rem 1rem;font-size:.78rem;cursor:pointer;user-select:none">\u23F1 Hourlies \u00b7 HoT Farm \u00b7 Buff &amp; Park \u2014 '+sum+(nAcked?' <span style="color:var(--text-muted)">\u00b7 \u25CC '+nAcked+' acknowledged</span>':'')+'</summary>'
+    +'<div style="padding:.2rem 1rem .3rem;font-size:.68rem;color:var(--text-muted)">Tracked counters and submits vs ODKP credited ticks, per raid night (6am\u20136am, since '+fmtNight(L.minNight)+'). Kill ticks with an hourly rolled in (\u201cVulak (add hourly)\u201d) count as an hourly. A shortfall is offset by a surplus on the night before/after.</div>'
+    +(issues.length?'<div style="max-height:40vh;overflow-y:auto"><table style="width:100%;border-collapse:collapse">'+head+'<tbody>'+issues.map(x=>row(x.r,x.acked)).join('')+'</tbody></table></div>':'')
+    +matchedHtml+'</details>';
 }
 
 // Ticks that resolve to no target and aren't recognizable noise → the
@@ -14089,34 +14383,32 @@ async function loadOdkpSharedFromSupabase(){
 // in session history within ±1 day. Fenced to on/after the earliest saved session,
 // because the ledger predates the app by thousands of raids. Category-taught ticks
 // (Standard, NToV, …) are excluded — no session event can ever match a category.
-function ccReverseUntracked(byDate){
+function ccReverseUntracked(byDate,claimed){
   if(!raidSessions||!raidSessions.length)return{rows:[],minDate:null};
   const dates=raidSessions.map(s=>s.date).filter(Boolean).sort();
   const minDate=dates[0];
   if(!minDate)return{rows:[],minDate:null};
-  const evtIdx={};
-  for(const evt of ccCollectSessionEvents()){
-    if(evt.type==='hourly')continue;
-    (evtIdx[evt.target]=evtIdx[evt.target]||new Set()).add(evt.date);
-  }
+  if(!claimed)claimed=ccMatchAll(ccCollectSessionEvents(),byDate).claimed;
   const CATS=new Set(CC_TICK_CATEGORIES);
-  const out=new Map();
+  const ROSTER=new Set(BOSS_ROSTER.map(b=>b.target));
+  const out=[];
   for(const[date,ticks] of Object.entries(byDate)){
     if(date<minDate)continue;
     for(const t of ticks){
       if(!t.targets||!t.targets.size)continue;
+      // Hourly / BnP / training ticks that merely mention a boss aren't kills to track.
+      if(t.pol==='neutral'&&CC_NOISE_RE.test(t.l))continue;
+      const used=claimed.get(t);
       for(const tgt of t.targets){
-        if(CATS.has(tgt))continue;
-        const days=ccDatesAround(date);
-        const tracked=evtIdx[tgt]&&days.some(d=>evtIdx[tgt].has(d));
-        if(!tracked){
-          const k=date+'|'+tgt;
-          if(!out.has(k))out.set(k,{date,target:tgt,label:t.l});
-        }
+        // Only bosses the tracker can record (drops legacy group labels like "HoT Minis").
+        if(CATS.has(tgt)||!ROSTER.has(tgt))continue;
+        // One row per credited tick nobody tracked — the 3rd Statue of a quake day shows
+        // even when the first two were tracked.
+        if(!used||!used.has(tgt))out.push({date,target:tgt,label:t.l});
       }
     }
   }
-  return{rows:[...out.values()].sort((a,b)=>b.date.localeCompare(a.date)),minDate};
+  return{rows:out.sort((a,b)=>b.date.localeCompare(a.date)),minDate};
 }
 
 // Bulk-ignore everything left in the queue (shared with the guild).
@@ -14180,10 +14472,12 @@ function renderCreditCheckPanel(){
   }
 
   const byDate=ccBuildTickIndex();
+  const matches=ccMatchAll(evts,byDate);
   let nStrong=0,nWeak=0,nMiss=0,nAcked=0,nValMismatch=0;
   let rows='';
-  for(const evt of evts){
-    const m=ccMatchEvent(evt,byDate);
+  for(let ei=0;ei<evts.length;ei++){
+    const evt=evts[ei];
+    const m=matches[ei];
     const key=ccEvtKey(evt);
     const acked=m.status!=='strong'&&ccAcks.has(key);
     if(m.status==='strong')nStrong++;else if(acked)nAcked++;else if(m.status==='valuemismatch')nValMismatch++;else if(m.status==='weak')nWeak++;else nMiss++;
@@ -14207,9 +14501,9 @@ function renderCreditCheckPanel(){
       :`<td style="text-align:center"><button class="cc-ack-btn" data-key="${esc(key)}" title="Acknowledge — I know about this one; stop counting it as missing" style="background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:.66rem;color:var(--text-muted);font-family:'Cinzel',serif;letter-spacing:.04em;padding:.1rem .35rem">ack</button></td>`;
     rows+=`<tr style="${acked?'opacity:.45':m.status==='missing'?'background:rgba(180,40,40,.08)':m.status==='valuemismatch'?'background:rgba(210,180,20,.12)':m.status==='weak'?'background:rgba(180,130,20,.07)':''}">
       <td style="padding:.3rem .6rem;font-size:.78rem;color:var(--text-muted);white-space:nowrap">${d}</td>
-      <td style="padding:.3rem .6rem;font-size:.82rem;font-weight:500">${esc(evt.target)}${evt.extra?' <span style="font-size:.65rem;color:var(--text-muted)">(extra spawn)</span>':''}${typeBadge}</td>
+      <td style="padding:.3rem .6rem;font-size:.82rem;font-weight:500">${esc(evt.target)}${evt.extra?' <span style="font-size:.65rem;color:var(--text-muted)">#'+(evt.spawnNum||2)+'</span>':''}${typeBadge}</td>
       ${statusCell}
-      <td style="padding:.3rem .6rem;font-size:.72rem;color:var(--text-muted)">${m.tick?esc(m.tick)+(m.note?' — <i>'+esc(m.note)+'</i>':''):'—'}</td>
+      <td style="padding:.3rem .6rem;font-size:.72rem;color:var(--text-muted)">${m.tick?esc(m.tick)+(m.note?' — <i>'+esc(m.note)+'</i>':''):(m.note?'<i>'+esc(m.note)+'</i>':'—')}</td>
       ${actionCell}
     </tr>`;
   }
@@ -14250,7 +14544,7 @@ function renderCreditCheckPanel(){
   }
 
   // Reverse audit — credited but never marked in the Kill Tracker
-  const rev=ccReverseUntracked(byDate);
+  const rev=ccReverseUntracked(byDate,matches.claimed);
   let revHtml='';
   if(!rev.minDate){
     revHtml=`<div style="border-top:1px solid var(--border);padding:.55rem 1rem;font-size:.74rem;color:var(--text-muted)">⬅ Reverse audit: no saved sessions yet — save raid sessions to check which credited ticks you forgot to track.</div>`;
@@ -14283,7 +14577,7 @@ function renderCreditCheckPanel(){
         </thead>
         <tbody>${rows}</tbody>
       </table>
-    </div>`+revHtml+queueHtml;
+    </div>`+ccRenderLedger()+revHtml+queueHtml;
 }
 
 // Export weak/missing events as a plain-text report
@@ -14293,15 +14587,23 @@ window.exportCreditReport=function(){
   const lines=['MIXELPARSE — CREDIT CHECK REPORT (personal dkp-details engine)','Generated: '+new Date().toLocaleString(),''];
   let found=false;
   let nAckedSkipped=0;
-  for(const evt of ccCollectSessionEvents()){
-    const m=ccMatchEvent(evt,byDate);
+  const evts=ccCollectSessionEvents(),matches=ccMatchAll(evts,byDate);
+  for(let ei=0;ei<evts.length;ei++){
+    const evt=evts[ei],m=matches[ei];
     if(m.status==='strong')continue;
     if(ccAcks.has(ccEvtKey(evt))){nAckedSkipped++;continue;}
     found=true;
     const tag=evt.type==='failtick'?' [fail tick]':evt.type==='hourly'?' [hourly x'+evt.qty+']':'';
-    lines.push(`${m.status==='missing'?'MISSING':m.status==='valuemismatch'?'VALUE  ':'WEAK   '}  ${evt.date}  ${(evt.target+tag).padEnd(32)}  ${m.tick?m.tick+(m.note?' — '+m.note:''):'no matching tick within ±1 day'}`);
+    lines.push(`${m.status==='missing'?'MISSING':m.status==='valuemismatch'?'VALUE  ':'WEAK   '}  ${evt.date}  ${(evt.target+tag).padEnd(32)}  ${m.tick?m.tick+(m.note?' — '+m.note:''):(m.note||'no matching tick within ±1 day')}`);
   }
-  if(!found)lines.push('None — every kill, fail tick, and hourly is accounted for.');
+  const LG=ccTickLedger();
+  for(const r of LG.rows){
+    if(!(r.missing>0||r.untracked>0))continue;
+    if(ccAcks.has(ccLedgerKey(r))){nAckedSkipped++;continue;}
+    found=true;
+    lines.push((r.missing>0?'MISSING':'UNTRACK')+'  '+r.night+'  '+(r.label+' ('+r.tracked+' tracked / '+r.credited+' credited)').padEnd(32)+'  '+(r.missing>0?r.missing+' not credited':r.untracked+' credited, not tracked')+(r.ticks.length?' — '+r.ticks.join('; '):''));
+  }
+  if(!found)lines.push('None — every kill, fail tick, hourly, HoT and BnP tick is accounted for.');
   if(nAckedSkipped)lines.push('','('+nAckedSkipped+' acknowledged event'+(nAckedSkipped!==1?'s':'')+' omitted)');
   const blob=new Blob([lines.join('\n')],{type:'text/plain'});
   const a=document.createElement('a');
