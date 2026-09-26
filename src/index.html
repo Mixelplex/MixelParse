@@ -12518,7 +12518,10 @@ function ccTickLedger(sessions,ticks){
   return{rows,minNight};
 }
 function ccLedgerKey(r){return'ledger|'+r.night+'|'+r.cat+'|'+r.missing+'|'+r.untracked;}
-// Credit Check right column: hourlies / HoT Farm / BnP, tracked vs credited per raid night.
+// Credit Check → ⚙ → "Show hourlies · HoT Farm · Buff & Park" (off by default, remembered per PC).
+function ccLedgerOn(){try{return localStorage.getItem('mp_cc_ledger')==='1';}catch(e){return false;}}
+window.ccSetLedgerOn=function(on){try{localStorage.setItem('mp_cc_ledger',on?'1':'0');}catch(e){}renderKillsPanel();};
+// Credit Check section (opt-in): hourlies / HoT Farm / BnP, tracked vs credited per raid night.
 // Compact for a half-width column — the ODKP tick labels sit in a small line under the
 // status (full list in the row tooltip). Problems first; matched nights fold away below.
 function ccRenderLedger(){
@@ -14608,7 +14611,13 @@ function renderCreditCheckPanel(){
     </span>`:''}
     ${odkpTicksMeta&&!odkpTicksMeta.dkp&&odkpTicks&&odkpTicks.length?`<span style="font-size:.68rem;color:var(--text-muted);font-style:italic">re-upload dkp-details to see your DKP balance</span>`:''}
     ${odkpTicksMeta?`<span style="font-size:.72rem;color:var(--text-muted)">${(odkpTicks||[]).length.toLocaleString()} credited ticks from ${(odkpTicksMeta.raidCount||0).toLocaleString()} raids${odkpTicksMeta.charNames&&odkpTicksMeta.charNames.length?' · '+esc(odkpTicksMeta.charNames.join(', ')):''} · updated ${odkpTicksMeta.updatedAt?new Date(odkpTicksMeta.updatedAt).toLocaleDateString():'?'}</span>`:''}
-    ${!noTicks?`<button class="kt-save-btn" style="margin-left:auto;background:rgba(60,30,10,.15);border-color:#806030;color:#705020" onclick="exportCreditReport()">📄 Export Report</button>`:''}
+    ${!noTicks?`<details class="cc-gear" style="margin-left:auto;position:relative">
+      <summary title="Credit Check options" style="list-style:none;cursor:pointer;font-size:1rem;color:var(--text-muted);padding:.1rem .35rem;user-select:none">⚙</summary>
+      <div style="position:absolute;right:0;top:1.7rem;z-index:20;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:.5rem .7rem;box-shadow:0 4px 14px rgba(0,0,0,.25);white-space:nowrap">
+        <label style="font-size:.76rem;cursor:pointer;display:flex;gap:.45rem;align-items:center"><input type="checkbox" ${ccLedgerOn()?'checked':''} onchange="ccSetLedgerOn(this.checked)"> Show hourlies · HoT Farm · Buff &amp; Park</label>
+      </div>
+    </details>
+    <button class="kt-save-btn" style="background:rgba(60,30,10,.15);border-color:#806030;color:#705020" onclick="exportCreditReport()">📄 Export Report</button>`:''}
   </div>`;
 
   if(noTicks){
@@ -14717,20 +14726,15 @@ function renderCreditCheckPanel(){
     </details>`;
   }
 
-  // Kills (left) and hourlies / HoT / BnP (right) side by side; stacked on narrow windows.
-  const ccSplitCss='<style>#killsPanel .cc-split{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);border-bottom:1px solid var(--border)}'
-    +'#killsPanel .cc-col{min-width:0;display:flex;flex-direction:column}'
-    +'#killsPanel .cc-col+.cc-col{border-left:1px solid var(--border)}'
-    +'#killsPanel .cc-col-h{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap;padding:.5rem .75rem;background:var(--surface2);border-bottom:1px solid var(--border)}'
-    +'#killsPanel .cc-col-t{font-family:\'Cinzel\',serif;font-size:.74rem;letter-spacing:.05em;color:var(--gold-light)}'
-    +'#killsPanel .cc-col-s{font-size:.74rem}'
-    +'#killsPanel .cc-col-body{overflow:auto;max-height:60vh;flex:1}'
-    +'@media (max-width:1100px){#killsPanel .cc-split{grid-template-columns:1fr}#killsPanel .cc-col+.cc-col{border-left:none;border-top:1px solid var(--border)}}</style>';
-  return uploadBtn+ccSplitCss+`<div class="cc-split">
-    <section class="cc-col">
-      <div class="cc-col-h"><span class="cc-col-t">⚔ Kills &amp; Fail Ticks</span></div>
-      ${summary}
-      <div class="cc-col-body">
+  // Hourlies / HoT Farm / BnP section is opt-in (⚙ in the toolbar), full width under the kills.
+  const ledgerHtml=ccLedgerOn()
+    ?'<style>#killsPanel .cc-col-h{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap;padding:.5rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)}'
+      +'#killsPanel .cc-col-t{font-family:\'Cinzel\',serif;font-size:.74rem;letter-spacing:.05em;color:var(--gold-light)}'
+      +'#killsPanel .cc-col-s{font-size:.74rem}#killsPanel .cc-col-body{overflow:auto;max-height:45vh}</style>'
+      +'<section style="border-top:1px solid var(--border)">'+ccRenderLedger()+'</section>'
+    :'';
+  return uploadBtn+summary+`
+    <div style="overflow-x:auto;max-height:60vh;overflow-y:auto">
       <table style="width:100%;border-collapse:collapse;font-family:'Cinzel',serif">
         <thead style="position:sticky;top:0;background:var(--surface2);z-index:1">
           <tr>
@@ -14743,10 +14747,7 @@ function renderCreditCheckPanel(){
         </thead>
         <tbody>${rows}</tbody>
       </table>
-      </div>
-    </section>
-    <section class="cc-col">${ccRenderLedger()}</section>
-  </div>`+revHtml+queueHtml;
+    </div>`+ledgerHtml+revHtml+queueHtml;
 }
 
 // Export weak/missing events as a plain-text report
@@ -14765,14 +14766,14 @@ window.exportCreditReport=function(){
     const tag=evt.type==='failtick'?' [fail tick]':evt.type==='hourly'?' [hourly x'+evt.qty+']':'';
     lines.push(`${m.status==='missing'?'MISSING':m.status==='valuemismatch'?'VALUE  ':'WEAK   '}  ${evt.date}  ${(evt.target+tag).padEnd(32)}  ${m.tick?m.tick+(m.note?' — '+m.note:''):(m.note||'no matching tick within ±1 day')}`);
   }
-  const LG=ccTickLedger();
+  const LG=ccLedgerOn()?ccTickLedger():{rows:[]};
   for(const r of LG.rows){
     if(!(r.missing>0||r.untracked>0))continue;
     if(ccAcks.has(ccLedgerKey(r))){nAckedSkipped++;continue;}
     found=true;
     lines.push((r.missing>0?'MISSING':'UNTRACK')+'  '+r.night+'  '+(r.label+' ('+r.tracked+' tracked / '+r.credited+' credited)').padEnd(32)+'  '+(r.missing>0?r.missing+' not credited':r.untracked+' credited, not tracked')+(r.ticks.length?' — '+r.ticks.join('; '):''));
   }
-  if(!found)lines.push('None — every kill, fail tick, hourly, HoT and BnP tick is accounted for.');
+  if(!found)lines.push(ccLedgerOn()?'None — every kill, fail tick, hourly, HoT and BnP tick is accounted for.':'None — every kill and fail tick is accounted for.');
   if(nAckedSkipped)lines.push('','('+nAckedSkipped+' acknowledged event'+(nAckedSkipped!==1?'s':'')+' omitted)');
   const blob=new Blob([lines.join('\n')],{type:'text/plain'});
   const a=document.createElement('a');
