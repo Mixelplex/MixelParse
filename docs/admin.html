@@ -265,6 +265,16 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
     Networth Audit
     <span class="sb-badge skip" id="badge-networth">—</span>
   </div>
+  <div class="sb-item" data-suite="wikicheck" onclick="showSuite('wikicheck',this)">
+    <div class="sb-dot skip" id="dot-wikicheck"></div>
+    Wiki Check
+    <span class="sb-badge skip" id="badge-wikicheck">—</span>
+  </div>
+  <div class="sb-item" data-suite="combatcheck" onclick="showSuite('combatcheck',this);ccInit()">
+    <div class="sb-dot skip" id="dot-combatcheck"></div>
+    Combat Check
+    <span class="sb-badge skip" id="badge-combatcheck">—</span>
+  </div>
   <div class="sb-item" data-suite="feedback" onclick="showSuite('feedback',this);loadFeedback()">
     <div class="sb-dot skip" id="dot-feedback"></div>
     Feedback
@@ -609,7 +619,7 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
 
     <div id="suite-creditcheck" class="suite">
       <div class="suite-title">CREDIT CHECK</div>
-      <div class="suite-desc">Validates the ODKP credit check system — alias map correctness, creditData parse integrity, Supabase column presence, and kill coverage against your session history.</div>
+      <div class="suite-desc">Credit Check engine tests: ODKP label matching, /note boss routing (incl. October timestamps), local session dates, repeat spawns, one-to-one tick matching, the hourly / HoT / BnP ledger, Faydedar — plus a LIVE run of your saved sessions against your ODKP upload.</div>
       <div class="suite-actions"><button class="btn primary" onclick="runSuite('creditcheck')">&#9658; Run Suite</button></div>
       <div id="results-creditcheck"></div>
     </div>
@@ -659,6 +669,39 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
         <span id="networth-summary" style="font-size:.72rem;color:var(--text-m)"></span>
       </div>
       <div id="networth-content" style="margin-top:.75rem"></div>
+    </div>
+
+    <div id="suite-wikicheck" class="suite">
+      <div class="suite-title">WIKI CHECK</div>
+      <div class="suite-desc">Compares MixelParse data with the live P99 wiki (wiki.project1999.com) — item stats and flags, parked-buff values, and bag capacities. Pages are fetched 50 at a time, one request per second.</div>
+      <div class="suite-actions" style="display:flex;flex-wrap:wrap;align-items:center;gap:.5rem">
+        <select id="wk-mode" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-d);padding:.3rem .4rem;border-radius:3px" onchange="wkModeChanged()">
+          <option value="one">Items — one item</option>
+          <option value="char">Items — worn by a character</option>
+          <option value="sample" selected>Items — smart sample (~400)</option>
+          <option value="all">Items — all (~4 min)</option>
+          <option value="buffs">Parked buffs</option>
+          <option value="bags">Bag capacities</option>
+        </select>
+        <input id="wk-item" placeholder="Item name" style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text-d);padding:.3rem .4rem;border-radius:3px;min-width:220px">
+        <select id="wk-char" style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text-d);padding:.3rem .4rem;border-radius:3px"></select>
+        <button class="btn primary" id="wk-run" onclick="wkRun()">&#9654; Run check</button>
+        <button class="btn" id="wk-stop" onclick="wkStop()" style="display:none">&#9632; Stop</button>
+        <span id="wk-status" style="font-size:.74rem;color:var(--text-m)"></span>
+      </div>
+      <div id="wk-results" style="margin-top:.75rem"></div>
+    </div>
+
+    <div id="suite-combatcheck" class="suite">
+      <div class="suite-title">COMBAT CHECK — AC / ATK / SKILLS</div>
+      <div class="suite-desc">Shows how the app works out a character's AC and ATK, and every input it used. Type the numbers from your in-game Inventory window to see the difference. Skills come from your logs ("You have become better at…") unless typed on the Stats tab. The Calcs suite also checks these formulas against 8 known in-game readings.</div>
+      <div class="suite-actions" style="display:flex;flex-wrap:wrap;align-items:center;gap:.5rem">
+        <select id="cc-char" onchange="ccRender()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-d);padding:.3rem .4rem;border-radius:3px;min-width:180px"></select>
+        <button class="btn" onclick="ccRender()">&#8635; Refresh</button>
+        <button class="btn" onclick="ccRescan()">&#128269; Rescan logs for skills</button>
+        <span id="cc-status" style="font-size:.74rem;color:var(--text-m)"></span>
+      </div>
+      <div id="cc-results" style="margin-top:.75rem"></div>
     </div>
 
     <div id="suite-feedback" class="suite">
@@ -777,6 +820,18 @@ function makeTest(name, fn) {
 
 // ── SUITE DEFINITIONS ──
 const SUITES = {};
+
+// In-game Inventory-window readings used by the Calcs suite and the Combat Check tab.
+const COMBAT_REFS = [
+  {n:'Mixelmedic (CLR52, unbuffed)',ac:{cls:'Cleric',level:52,defense:165,gearAC:291,agi:100},AC:922, atk:{offense:140,str:85,weaponSkill:144},ATK:606},
+  {n:'Mixelmedic (CLR52, PotG)',ac:{cls:'Cleric',level:52,defense:165,gearAC:291,agi:100,buffAC:24},AC:945},
+  {n:'Mixelplex (DRU60, PotG+Grim Aura)',ac:{cls:'Druid',level:60,defense:200,gearAC:156,agi:119,buffAC:24},AC:821, atk:{offense:78,str:166,weaponSkill:20,spellATK:10},ATK:262},
+  {n:'Mixelshank (ROG54, PotG, Ragebringer)',ac:{cls:'Rogue',level:54,defense:206,gearAC:196,agi:145,buffAC:24,wornAC:9},AC:929, atk:{offense:225,str:206,weaponSkill:220,wornATK:40},ATK:1073},
+  {n:'Mixelflop (MNK59 Iksar, PotG+VoG)',ac:{cls:'Monk',race:'Iksar',level:59,defense:252,gearAC:132,agi:212,buffAC:24},AC:1075, atk:{offense:252,str:199,weaponSkill:252,spellATK:20},ATK:1155},
+  {n:'Mixelreaper (SHD48)',ac:{cls:'Shadow Knight',level:48,defense:210,gearAC:200,agi:120},AC:846, atk:{offense:200,str:141,weaponSkill:147,wornATK:10},ATK:745},
+  {n:'Mixelboom (WIZ54)',ac:{cls:'Wizard',level:54,defense:122,gearAC:119,agi:124},AC:525, atk:{offense:22,str:83,weaponSkill:33},ATK:134},
+  {n:'Mixelmez (ENC60, PotG+Shadow)',ac:{cls:'Enchanter',level:60,defense:145,gearAC:154,agi:99,buffAC:43},AC:678, atk:{offense:140,str:70,weaponSkill:1},ATK:200},
+];
 
 // PARSING
 SUITES.parsing = [
@@ -1013,6 +1068,20 @@ SUITES.calcs = [
       assert('r55 between r50 and r60', r55 >= Math.min(r50,r60) && r55 <= Math.max(r50,r60)),
     ], output: `Warrior staRatio: lvl50=${r50.toFixed(3)}, lvl55=${r55.toFixed(3)}, lvl60=${r60.toFixed(3)}` };
   }),
+  // In-game Inventory-window readings (2026-09-25). Exact AC must match to the point;
+  // "≈" AC (casters, level 50 and under) and ATK report the gap as a warning.
+  ...COMBAT_REFS.map(r => makeTest('In-game AC/ATK — ' + r.n, () => {
+    if (typeof A.calcDisplayAC !== 'function') return { asserts: [assert('calcDisplayAC exposed by the app', false, 'missing — app older than 1.5.12')] };
+    const a = A.calcDisplayAC(r.ac), asserts = [];
+    if (a.exact) asserts.push(assertEq('AC (exact formula)', a.value, r.AC));
+    else asserts.push(warn(`AC ≈ (${a.why.join('; ')})`, a.value !== r.AC, `app ${a.value} vs in-game ${r.AC} (Δ${a.value - r.AC})`));
+    if (r.atk) {
+      const t = A.calcDisplayATK(r.atk), d = t.value - r.ATK;
+      asserts.push(Math.abs(d) <= 6 ? assert('ATK within ±6', true, `app ${t.value} vs in-game ${r.ATK} (Δ${d})`)
+                                    : warn('ATK within ±6', true, `app ${t.value} vs in-game ${r.ATK} (Δ${d})`));
+    }
+    return { asserts, output: 'AC parts: ' + JSON.stringify(a.parts) };
+  })),
 ];
 
 // UPGRADES
@@ -1954,88 +2023,168 @@ SUITES['creditcheck'] = [
     return { status: asserts.every(a=>a.ok)?'pass':'fail', asserts };
   }),
 
-  makeTest('creditData — structure and integrity', () => {
+  makeTest('ODKP labels — names, backticks, truncation, Faydedar', () => {
     const A2 = gcGetApp();
-    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
-    const cd = A2.creditData;
-    if (!cd) return { status:'warn', msg:'No creditData loaded — upload ODKP Details CSV in Credit Check tab first', asserts:[ assert('creditData exists', false) ] };
-    const chars = Object.keys(cd);
-    let totalDates = 0, totalKills = 0;
-    for (const c of chars) {
-      const dates = Object.keys(cd[c]);
-      totalDates += dates.length;
-      for (const d of dates) totalKills += cd[c][d].size;
-    }
-    const asserts = [
-      assert('creditData has at least one character', chars.length > 0),
-      assert('All values are Sets', chars.every(c => Object.values(cd[c]).every(v => v instanceof Set))),
-      assert('Total kill credits > 0', totalKills > 0),
+    if (!A2 || !A2.normalizeOdkpLabel) return { status:'warn', msg:'No opener', asserts:[] };
+    const cases = [
+      ['7-20 0:37 Dagarn 1','Dagarn'], ['Dagarn the Destroyer','Dagarn'],
+      ['High Priest M`kari',"High Priest M'kari"], ['Vilefang','Vilefang'],
+      ['Lord Koi`Doken','Koi'], ['Keldor Dek`Torek','KDT'],
+      ['Ashenbone Broodmaste','Ashenbone Broodmaster'], ['Mistress of Scorn ki','Mistress of Scorn'],
+      ['8-24 13:51 Faydedar 1','Faydedar'], ['Faydedar ki','Faydedar'],
+      ['Readiness',null], ['Lord of',null],
     ];
-    return { status: asserts.every(a=>a.ok)?'pass':'fail', asserts,
-      output: `Characters in CSV: ${chars.map(c=>c.charAt(0).toUpperCase()+c.slice(1)).join(', ')}\nDate buckets: ${totalDates}\nTotal kill credits indexed: ${totalKills}` };
+    const bad = cases.filter(([i,e]) => A2.normalizeOdkpLabel(i) !== e).map(([i,e]) => `"${i}" → ${JSON.stringify(A2.normalizeOdkpLabel(i))}, expected ${JSON.stringify(e)}`);
+    return { asserts:[ assert(`${cases.length} label cases (${bad.length} wrong)`, !bad.length) ], output: bad.join('\n') || 'All label cases resolve correctly' };
   }),
 
-  makeTest('Supabase credit_data column — query test', async () => {
+  makeTest('/note matcher — October timestamps, name collisions', () => {
     const A2 = gcGetApp();
-    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
-    const sb = A2.sb;
-    if (!sb) return { status:'fail', msg:'Supabase client not found', asserts:[ assert('sb exists', false) ] };
-    try {
-      const { data, error } = await sb.from('guild_data').select('credit_data').eq('pool','SoV').single();
-      if (error && error.code === 'PGRST116') {
-        // No row yet — column exists but empty, that's fine
-        return { status:'warn', msg:'No SoV row in guild_data yet — save a session first', asserts:[ assert('credit_data column reachable', true) ] };
-      }
-      if (error) {
-        const isMissingCol = error.message?.includes('credit_data') || error.code === '42703';
-        const asserts = [ assert('credit_data column exists in guild_data', !isMissingCol) ];
-        return { status:'fail', asserts, output: `Error: ${error.message}\n\nFix: Run in Supabase SQL editor:\nALTER TABLE guild_data ADD COLUMN IF NOT EXISTS credit_data jsonb;` };
-      }
-      const hasData = data?.credit_data != null;
-      const asserts = [ assert('credit_data column exists', true), assert('credit_data has saved data', hasData) ];
-      return { status: asserts.every(a=>a.ok)?'pass':'warn', asserts,
-        output: hasData ? `credit_data present — ${Object.keys(data.credit_data).length} character(s) stored` : 'Column exists but empty — upload CSV in Credit Check tab' };
-    } catch(e) {
-      return { status:'fail', asserts:[ assert('Query succeeded', false) ], output: String(e) };
-    }
+    if (!A2 || !A2._noteBossMatch) return { status:'warn', msg:'No opener / matcher not exposed', asserts:[] };
+    const m = line => { const b = A2._noteBossMatch(A2._noteBody(line).replace(/\s+(failnew|fail|add|new)\s*$/i,'')); return b ? b.target : null; };
+    const cases = [
+      ['[Thu Oct 01 21:00:00 2026 ] vox','Vox'], ['[Thu Oct 01 21:00:00 2026 ] trak','Trakanon'],
+      ['[Thu Oct 01 21:00:00 2026 ] ladym add','Mirenilla'], ['[Thu Oct 01 21:00:00 2026 ] zlexak new','Zlexak'],
+      ['[Thu Oct 01 21:00:00 2026 ] Severilous','Severilous'], ['[Thu Oct 01 21:00:00 2026 ] Mistress of Scorn','Mistress of Scorn'],
+      ['[Thu Oct 01 21:00:00 2026 ] Avatar of Abhorrence','Avatar of Abhorrence'], ["[Thu Oct 01 21:00:00 2026 ] Grandmaster R'Tal","Grandmaster R'Tal"],
+      ['[Thu Oct 01 21:00:00 2026 ] Undead Bard (Trakanon)','UDB'], ['[Thu Oct 01 21:00:00 2026 ] fay','Faydedar'],
+      ['[Thu Oct 01 21:00:00 2026 ] Quake!',null], ['[Thu Oct 01 21:00:00 2026 ] never mind',null],
+      ['[Thu Oct 01 21:00:00 2026 ] dagger',null], ['[Fri Oct 02 21:00:00 2026 ] hot',null],
+    ];
+    const bad = cases.filter(([l,e]) => m(l) !== e).map(([l,e]) => `"${A2._noteBody(l)}" → ${m(l)}, expected ${e}`);
+    const body = A2._noteBody('[Thu Oct 01 21:00:00 2026 ] Quake!');
+    return { asserts:[
+      assert(`${cases.length} note cases (${bad.length} wrong)`, !bad.length),
+      assertEq('Timestamp stripped (so /note Quake! / set / timer work)', body, 'Quake!'),
+    ], output: bad.join('\n') || 'All /note cases route to the right boss (or none)' };
   }),
 
-  makeTest('Kill coverage — sessions vs creditData', () => {
+  makeTest('Session dates — local, UTC sessions re-dated', () => {
     const A2 = gcGetApp();
-    if (!A2) return { status:'warn', msg:'No opener', asserts:[] };
-    const sessions = A2.raidSessions || [];
-    const cd = A2.creditData;
-    const chars = Object.keys(A2.chars || {}).filter(n=>n!=='__all__');
-    if (!sessions.length) return { status:'warn', msg:'No raid sessions saved', asserts:[] };
-    if (!cd) return { status:'warn', msg:'No creditData loaded — upload ODKP Details CSV first', asserts:[] };
-    if (!chars.length) return { status:'warn', msg:'No characters loaded', asserts:[] };
+    if (!A2 || !A2.localYmd) return { status:'warn', msg:'No opener', asserts:[] };
+    const d = new Date(2026, 6, 19, 22, 39);           // 10:39pm local, Jul 19
+    const s = { date: d.toISOString().slice(0,10), startedAt: d.toISOString(), killState:{} };
+    const utcDate = s.date;
+    A2.sessionFixDate(s);
+    return { asserts:[
+      assertEq('newSession() date is today (local)', A2.newSession().date, A2.localYmd(new Date())),
+      assertEq('Evening session dated by local day', s.date, '2026-07-19'),
+      assertEq('Original stored date kept for acks (date0)', s.date0 || s.date, utcDate),
+    ]};
+  }),
 
-    let totalKills = 0, missing = [], covered = 0;
-    for (const s of sessions) {
-      const killed = Object.entries(s.killState||{}).filter(([,v])=>v==='killed').map(([k])=>k);
-      for (const target of killed) {
-        totalKills++;
-        for (const cn of chars) {
-          const key = cn.toLowerCase();
-          if (cd[key] === undefined) continue; // char not in CSV
-          const credited = cd[key]?.[s.date]?.has(target);
-          if (!credited) missing.push(`${s.date}  ${target.padEnd(22)}  ${cn}`);
-          else covered++;
-        }
-      }
-    }
-    const missingCount = missing.length;
-    const asserts = [
-      assert(`Sessions scanned: ${sessions.length}`, true),
-      assert(`Kill credits checked: ${totalKills * chars.length}`, true),
-      assert(`No missing credits`, missingCount === 0),
+  makeTest('Repeat spawns — 3× Statue in one session', () => {
+    const A2 = gcGetApp();
+    if (!A2 || !A2.ktRecordBossState) return { status:'warn', msg:'No opener', asserts:[] };
+    const s = A2.newSession();                        // scratch session — never saved
+    const labels = [
+      A2.ktRecordBossState(s,'Statue','killed',null),
+      A2.ktRecordBossState(s,'Statue','failtick',null),
+      A2.ktRecordBossState(s,'Statue','killed',null),
     ];
+    return { asserts:[
+      assertEq('Labels', labels.join(' | '), 'Statue | Statue #2 | Statue #3'),
+      assertEq('Extra spawns', s.extraSpawns.map(x=>x.key+':'+x.state).join(' '), 'Statue__2:failtick Statue__3:killed'),
+      assertEq('DKP total (6.8 + 1.8 + 6.8)', A2.sessionDkpTotal(s), 15.4),
+    ]};
+  }),
+
+  makeTest('One-to-one matching — repeat kills need their own ticks', () => {
+    const A2 = gcGetApp();
+    if (!A2 || !A2.ccMatchAll) return { status:'warn', msg:'No opener', asserts:[] };
+    const D = '2026-08-04';
+    const T = l => ({ d:D, l, v:null, targets:A2.odkpTickTargets(l), pol:A2.tickPolarity(l) });
+    const ticks = [ T('8-4 14:03 Statue 1'), T('8-4 14:28 Statue 2 (Statue kill)'), T('8-4 20:00 Vulak 1 (Vulak kill)') ];
+    ticks[0].v = 1.8; ticks[1].v = 6.8; ticks[2].v = 3.7;
+    const byDate = { [D]: ticks };
+    const ev = (target,type,expVal,extra) => ({ date:D, target, type, expVal, extra });
+    const evts = [ ev('Statue','kill',6.8), ev('Statue','failtick',1.8,true), ev('Vulak','kill',3.7), ev('Vulak','kill',3.7,true) ];
+    const r = A2.ccMatchAll(evts, byDate);
+    return { asserts:[
+      assertEq('Statue kill → the 6.8 kill tick', r[0].tick, '8-4 14:28 Statue 2 (Statue kill)'),
+      assertEq('Statue #2 failtick → the 1.8 attempt tick', r[1].tick, '8-4 14:03 Statue 1'),
+      assertEq('Vulak kill matched', r[2].status, 'strong'),
+      assertEq('Vulak #2 has no tick left → missing', r[3].status, 'missing'),
+    ], output: evts.map((e,i)=>`${e.target}${e.extra?' (extra)':''} ${e.type}: ${r[i].status} ${r[i].tick||''} ${r[i].note||''}`).join('\n') };
+  }),
+
+  makeTest('Hourly / HoT / BnP ledger — synthetic night', () => {
+    const A2 = gcGetApp();
+    if (!A2 || !A2.ccTickLedger) return { status:'warn', msg:'No opener', asserts:[] };
+    const at = (m,d,h,mi) => new Date(2026,m-1,d,h,mi).toISOString();
+    const sessions = [
+      { date:'2026-09-05', startedAt:at(9,5,19,0), killState:{}, hotFarmQty:3, buffParksQty:1,
+        tickSubmissions:[{desc:'Ticks - NToV/Sky/VP (hourly)',value:2,qty:2,dkp:4,submittedAt:at(9,6,0,30)}] },
+    ];
+    const ticks = [
+      {d:'2026-09-05', l:'9-5 20:00 NToV 1 (NToV hourly)', v:2},
+      {d:'2026-09-05', l:'9-5 21:30 Vulak 1 (add hourly)', v:5.7},     // kill + hourly rolled in
+      {d:'2026-09-05', l:'9-5 19:30 HoT Farm 1 (End of hour 1)', v:1},
+      {d:'2026-09-05', l:'9-5 20:30 HoT Farm 2 (End of hour 2)', v:1},
+      {d:'2026-09-05', l:'9-5 19:10 BnP 1 (VS BnP)', v:0.3},
+      {d:'2026-09-06', l:'9-6 0:45 BnP 2 (Fear BnP)', v:0.3},          // after midnight → same raid night
+    ];
+    const L = A2.ccTickLedger(sessions, ticks);
+    const row = cat => L.rows.find(r => r.night==='2026-09-05' && r.cat===cat) || {};
+    return { asserts:[
+      assertEq('NToV hourlies: 2 tracked, 2 credited (one rolled into Vulak)', `${row('ntov').tracked}/${row('ntov').credited}`, '2/2'),
+      assertEq('HoT Farm: 1 not credited', row('hot').missing, 1),
+      assertEq('BnP: 1 tracked, 2 credited → 1 not tracked', row('bnp').untracked, 1),
+    ], output: L.rows.map(r=>`${r.night} ${r.label}: tracked ${r.tracked}, credited ${r.credited}${r.missing?', MISSING '+r.missing:''}${r.untracked?', untracked '+r.untracked:''}`).join('\n') };
+  }),
+
+  makeTest('Faydedar — roster, timer, /note', () => {
+    const A2 = gcGetApp();
+    if (!A2 || !A2.BOSS_ROSTER) return { status:'warn', msg:'No opener', asserts:[] };
+    const b = A2.BOSS_ROSTER.find(x => x.target === 'Faydedar');
+    return { asserts:[
+      assert('In the kill tracker (Tier Eight)', b && b.tier === 'Tier Eight'),
+      assertEq('Kill / fail DKP', b ? `${Math.round((b.dkp+b.baseDkp)*10)/10}/${b.baseDkp}` : null, '0.5/0.2'),
+      assertEq('Spawn timer', b ? `${b.respawnHours}±${b.varianceHours}h` : null, '168±8h'),
+      assertEq('/note fayd', (A2._noteBossMatch && A2._noteBossMatch('fayd') || {}).target, 'Faydedar'),
+    ]};
+  }),
+
+  makeTest('LIVE — your sessions vs your ODKP upload', () => {
+    const A2 = gcGetApp();
+    if (!A2 || !A2.ccMatchAll) return { status:'warn', msg:'No opener', asserts:[] };
+    const sessions = A2.raidSessions || [], ticks = A2.odkpTicks || [];
+    if (!sessions.length) return { asserts:[ warn('No saved raid sessions', true) ] };
+    if (!ticks.length) return { asserts:[ warn('No ODKP upload — Kill Tracker → Credit Check → Upload dkp-details', true) ] };
+    const evts = A2.ccCollectSessionEvents(), byDate = A2.ccBuildTickIndex(), M = A2.ccMatchAll(evts, byDate);
+    const cnt = {}; M.forEach(m => cnt[m.status] = (cnt[m.status]||0)+1);
+    const L = A2.ccTickLedger();
+    const lMiss = L.rows.filter(r=>r.missing), lUn = L.rows.filter(r=>r.untracked);
+    const meta = A2.odkpTicksMeta || {};
     const lines = [
-      `Sessions: ${sessions.length}  |  Unique kills: ${totalKills}  |  Characters: ${chars.join(', ')}`,
-      `Covered: ${covered}  |  Missing: ${missingCount}`,
-      ...(missingCount ? ['', 'MISSING CREDITS:', ...missing.slice(0,20), ...(missing.length>20?[`...and ${missing.length-20} more`]:[])] : ['', '✓ All kill credits accounted for']),
+      `Sessions: ${sessions.length}  |  ODKP ticks: ${ticks.length}  |  upload: ${meta.updatedAt ? new Date(meta.updatedAt).toLocaleString() : '?'}`,
+      `Kills/fails: ${evts.length}  →  ✓ ${cnt.strong||0}  value-diff ${cnt.valuemismatch||0}  ⚠ ${cnt.weak||0}  ✗ ${cnt.missing||0}`,
+      `Hourly/HoT/BnP nights: ${L.rows.length} rows  →  ✗ ${lMiss.reduce((s,r)=>s+r.missing,0)} not credited  ⬅ ${lUn.reduce((s,r)=>s+r.untracked,0)} credited, not tracked`,
+      '',
+      'KILLS NOT CREDITED / DISAGREEING:',
+      ...evts.map((e,i)=>({e,m:M[i]})).filter(x=>x.m.status==='missing'||x.m.status==='weak')
+        .map(x=>`  ${x.m.status==='missing'?'✗':'⚠'} ${x.e.date}  ${x.e.target}${x.e.extra?' #'+(x.e.spawnNum||2):''} ${x.e.type}  ${x.m.tick||x.m.note||''}`),
+      '',
+      'HOURLY / HOT / BNP NOT CREDITED:',
+      ...lMiss.map(r=>`  ✗ ${r.night}  ${r.label}: tracked ${r.tracked}, credited ${r.credited}`),
     ];
-    return { status: missingCount===0?'pass':'warn', asserts, output: lines.join('\n') };
+    // Auto-Detect: every RAIDTICK you were in zone for vs a credited ODKP tick at that time
+    const RL = A2.rkdLog || [];
+    let rkdMiss = [];
+    if (RL.length && A2.rkdOdkpMatches) {
+      const OM = A2.rkdOdkpMatches();
+      const att = RL.filter(A2._rkdAttended);
+      const ok = att.filter(r => OM.byId[r.id]);
+      rkdMiss = att.filter(r => !OM.byId[r.id] && r.ts <= OM.lastTs + 15*60e3);
+      lines.push('', `AUTO-DETECT RAIDTICKS (in zone): ${att.length}  →  ✓ ${ok.length} credited  ✗ ${rkdMiss.length} not credited`,
+        ...rkdMiss.map(r => `  ✗ ${new Date(r.ts).toLocaleString()}  ${r.boss || '(no boss)'}  — ${r.poster || ''}`));
+    } else lines.push('', 'AUTO-DETECT: no RAIDTICKs logged yet — Kill Tracker → 🎯 Auto-Detect → ⛏ Scan logs');
+    return { asserts:[
+      assert(`Kill events matched: ${cnt.strong||0}/${evts.length}`, true),
+      warn(`${cnt.missing||0} kill(s) with no credited tick`, (cnt.missing||0) > 0),
+      warn(`${lMiss.length} hourly/HoT/BnP night(s) short on credit`, lMiss.length > 0),
+      warn(`${rkdMiss.length} RAIDTICK(s) you were in zone for with no ODKP credit`, rkdMiss.length > 0),
+    ], output: lines.join('\n') };
   }),
 ];
 
@@ -3697,6 +3846,295 @@ async function adminUnexcludeFromNetworth(name){
   if(!A||!A.unexcludeFromNetworth){console.warn('[Admin] unexcludeFromNetworth not available on A');return;}
   await A.unexcludeFromNetworth(name);
   loadNetworth();
+}
+
+// ── WIKI CHECK ────────────────────────────────────────────────────────────────
+// Live comparison against wiki.project1999.com via the MediaWiki API (origin=* for
+// CORS). Batches of 50 titles, 1 s apart. Built from the 2026-09-24 audit scripts.
+// "Apply" writes ONE item_db row, MERGING the wiki fields into the stored record —
+// never replacing it (see the 2026-09-25 stub-overwrite incident).
+let _wkStop = false;
+const WK_API = 'https://wiki.project1999.com/api.php';
+const WK_STAT = { STR:'str', STA:'sta', AGI:'agi', DEX:'dex', WIS:'wis', INT:'int', CHA:'cha', HP:'hpbonus', MANA:'manabonus', AC:'ac',
+  'SV FIRE':'svfire', 'SV COLD':'svcold', 'SV MAGIC':'svmagic', 'SV POISON':'svpoison', 'SV DISEASE':'svdisease' };
+const wkEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function wkModeChanged() {
+  const m = document.getElementById('wk-mode').value;
+  document.getElementById('wk-item').style.display = m === 'one' ? '' : 'none';
+  const cs = document.getElementById('wk-char');
+  cs.style.display = m === 'char' ? '' : 'none';
+  if (m === 'char' && A && A.charNames) cs.innerHTML = A.charNames().map(n => `<option>${wkEsc(n)}</option>`).join('');
+}
+function wkStop() { _wkStop = true; }
+function wkStatus(t) { document.getElementById('wk-status').textContent = t; }
+
+async function wkFetchPages(titles) {
+  const out = {};
+  for (let i = 0; i < titles.length; i += 50) {
+    if (_wkStop) break;
+    const batch = titles.slice(i, i + 50);
+    wkStatus(`Fetching wiki pages ${i + 1}–${Math.min(i + 50, titles.length)} of ${titles.length}…`);
+    // The wiki sends no CORS headers, so in the app the request goes through the desktop
+    // layer (wiki:query); a plain fetch is only a fallback for non-Electron contexts.
+    let j;
+    const bridge = window.MixelParseApp && window.MixelParseApp.wikiQuery;
+    if (bridge) {
+      const r = await bridge(batch);
+      if (!r || !r.ok) throw new Error('wiki request failed: ' + (r && r.error || 'unknown'));
+      j = r.data;
+    } else {
+      const u = WK_API + '?action=query&format=json&origin=*&redirects=1&prop=revisions&rvprop=content&titles=' + encodeURIComponent(batch.join('|'));
+      j = await (await fetch(u)).json();
+    }
+    const q = j.query || {}, norm = {}, redir = {}, byTitle = {};
+    (q.normalized || []).forEach(n => norm[n.from] = n.to);
+    (q.redirects || []).forEach(r => redir[r.from] = r.to);
+    Object.values(q.pages || {}).forEach(p => byTitle[p.title] = p);
+    for (const t of batch) {
+      const n = norm[t] || t, p = byTitle[redir[n] || n];
+      out[t] = { exists: !!(p && !('missing' in p)), text: p && p.revisions ? p.revisions[0]['*'] : '' };
+    }
+    if (i + 50 < titles.length) await new Promise(r => setTimeout(r, 1000));
+  }
+  return out;
+}
+
+// Wiki item statsblock → the same field names item_db uses.
+function wkParseItem(text) {
+  const m = text.match(/\{\{Itempage[\s\S]*?\|\s*statsblock\s*=([\s\S]*?)\n\|/); if (!m) return null;
+  const b = m[1].replace(/<br\s*\/?>/gi, '\n').replace(/\[\[([^|\]]*\|)?([^\]]*)\]\]/g, '$2');
+  const o = {};
+  for (const [lab, k] of Object.entries(WK_STAT)) { const r = b.match(new RegExp('(?:^|\\s)' + lab + ':\\s*([+-]?\\d+)', 'i')); if (r) o[k] = +r[1]; }
+  const h = b.match(/Haste:\s*\+?(\d+)%/i); if (h) o.haste = +h[1];
+  const d = b.match(/DMG:\s*(\d+)/i); if (d) o.dmg = +d[1];
+  const dl = b.match(/Delay:\s*(\d+)/i); if (dl) o.delay = +dl[1];
+  o._nodrop = /NO DROP/i.test(b); o._lore = /LORE ITEM/i.test(b);
+  const sl = b.match(/Slot:\s*([A-Z0-9 ]+?)\s*(?:\n|$)/i);
+  if (sl) { const s = sl[1].trim().toUpperCase().split(/\s+/).map(x => x === 'FINGER' ? 'FINGERS' : x); o._slot = s[0]; if (s.length > 1) o._slots = s; }
+  const cl = b.match(/Class:\s*([A-Z ]+?)\s*(?:\n|Race:|$)/i); if (cl) o._classes = cl[1].trim().toUpperCase();
+  const ra = b.match(/Race:\s*([A-Z ]+?)\s*(?:\n|Deity|$)/i); if (ra) o._races = ra[1].trim().toUpperCase();
+  const de = b.match(/Deity:?\s*([^\n]+)/i); if (de) o._deity = de[1].trim();
+  return o;
+}
+function wkItemDiffs(d, w) {
+  const out = [], num = k => +(d[k] || 0);
+  for (const k of [...Object.values(WK_STAT), 'haste', 'dmg', 'delay']) if (num(k) !== +(w[k] || 0)) out.push([k, num(k), +(w[k] || 0)]);
+  for (const k of ['_nodrop', '_lore']) if (!!d[k] !== !!w[k]) out.push([k, !!d[k], !!w[k]]);
+  if (w._slot && w._slot !== 'NONE') {
+    const has = [d._slot, ...(d._slots || [])].filter(Boolean).map(s => String(s).toUpperCase());
+    if (!has.includes(w._slot)) out.push(['_slot', d._slot || '', (w._slots || [w._slot]).join(' ')]);
+  }
+  if (w._classes && String(d._classes || 'ALL').toUpperCase() !== w._classes) out.push(['_classes', d._classes || 'ALL', w._classes]);
+  if (w._races && String(d._races || 'ALL').toUpperCase() !== w._races) out.push(['_races', d._races || 'ALL', w._races]);
+  if ((w._deity || '') !== (d._deity || '')) out.push(['_deity', d._deity || '', w._deity || '']);
+  return out;
+}
+
+async function wkRun() {
+  if (!A || !A.itemDB) { wkStatus('Not connected — open Admin from within MixelParse.'); return; }
+  _wkStop = false;
+  const mode = document.getElementById('wk-mode').value;
+  const res = document.getElementById('wk-results');
+  document.getElementById('wk-run').disabled = true; document.getElementById('wk-stop').style.display = '';
+  res.innerHTML = '';
+  try {
+    if (mode === 'buffs') await wkRunBuffs(res);
+    else if (mode === 'bags') await wkRunBags(res);
+    else await wkRunItems(mode, res);
+  } catch (e) { wkStatus('Error: ' + e.message); console.error('[WikiCheck]', e); }
+  document.getElementById('wk-run').disabled = false; document.getElementById('wk-stop').style.display = 'none';
+}
+
+let _wkLast = {};   // name -> parsed wiki fields (for Apply)
+async function wkRunItems(mode, res) {
+  const db = A.itemDB || {}, names = Object.keys(db);
+  let pick = [];
+  if (mode === 'one') {
+    const q = document.getElementById('wk-item').value.trim().toLowerCase();
+    pick = names.filter(n => n.toLowerCase() === q); if (!pick.length) pick = names.filter(n => n.toLowerCase().includes(q)).slice(0, 25);
+  } else if (mode === 'char') {
+    const cn = document.getElementById('wk-char').value;
+    pick = [...new Set((A.getEquippedItems ? A.getEquippedItems(cn) : []).map(i => i.name))].filter(n => db[n]);
+  } else if (mode === 'sample') {
+    const hasted = names.filter(n => +db[n].haste > 0);
+    const valuable = names.filter(n => +db[n].plat > 0).sort((a, b) => db[b].plat - db[a].plat).slice(0, 150);
+    const rnd = []; while (rnd.length < Math.min(200, names.length)) { const n = names[Math.floor(Math.random() * names.length)]; if (!rnd.includes(n)) rnd.push(n); }
+    pick = [...new Set([...hasted, ...valuable, ...rnd])];
+  } else pick = names;
+  if (!pick.length) { wkStatus('No matching items.'); return; }
+  const pages = await wkFetchPages(pick);
+  const rows = []; let compared = 0, clean = 0, noPage = 0;
+  for (const n of pick) {
+    const p = pages[n]; if (!p) continue;
+    if (!p.exists) { noPage++; continue; }
+    const w = wkParseItem(p.text); if (!w) continue;
+    compared++; _wkLast[n] = w;
+    const diffs = wkItemDiffs(db[n], w);
+    if (diffs.length) rows.push([n, diffs]); else clean++;
+  }
+  wkStatus(`${_wkStop ? 'Stopped. ' : ''}Compared ${compared} · match ${clean} (${compared ? Math.round(100 * clean / compared) : 0}%) · differences ${rows.length} · no wiki page ${noPage}`);
+  wkSetBadge(rows.length);
+  res.innerHTML = rows.length ? `<table style="width:100%;border-collapse:collapse;font-size:.78rem">
+    <thead><tr style="text-align:left;color:var(--text-m)"><th style="padding:.3rem">Item</th><th style="padding:.3rem">Field</th><th style="padding:.3rem">MixelParse</th><th style="padding:.3rem">Wiki</th><th></th></tr></thead><tbody>` +
+    rows.map(([n, diffs]) => diffs.map(([k, a, b], i) => `<tr style="border-top:${i ? '0' : '1px solid var(--border)'}">
+      <td style="padding:.25rem .3rem">${i ? '' : `<a href="https://wiki.project1999.com/${encodeURIComponent(n.replace(/ /g, '_'))}" target="_blank" style="color:var(--gold,#c9a84c)">${wkEsc(n)}</a>`}</td>
+      <td style="padding:.25rem .3rem;color:var(--text-m)">${wkEsc(k)}</td><td style="padding:.25rem .3rem">${wkEsc(a)}</td><td style="padding:.25rem .3rem;color:var(--ok-green,#4caf7d)">${wkEsc(b)}</td>
+      <td style="padding:.25rem .3rem">${i ? '' : `<button class="btn" style="font-size:.68rem;padding:.1rem .45rem" onclick="wkApply(${wkEsc(JSON.stringify(n))},this)">Apply wiki values</button>`}</td></tr>`).join('')).join('') + '</tbody></table>'
+    : '<div style="color:var(--ok-green,#4caf7d);padding:.5rem 0">Everything checked matches the wiki.</div>';
+}
+
+// Merge the wiki's values for the differing fields into ONE stored row.
+async function wkApply(name, btn) {
+  const w = _wkLast[name], db = A.itemDB || {};
+  if (!w || !db[name] || !A.sb) return;
+  const diffs = wkItemDiffs(db[name], w);
+  if (!diffs.length) { btn.textContent = 'Already matches'; return; }
+  if (!confirm(`Update "${name}" in the shared item database?\n\n` + diffs.map(([k, a, b]) => `${k}: ${a} → ${b}`).join('\n'))) return;
+  const merged = Object.assign({}, db[name]);
+  for (const [k] of diffs) {
+    if (k === '_slot') { merged._slot = w._slot; if (w._slots) merged._slots = w._slots; else delete merged._slots; }
+    else if (w[k] === undefined || w[k] === '' || w[k] === 0 || w[k] === false) delete merged[k];
+    else merged[k] = w[k];
+  }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const { error } = await A.sb.from('item_db').upsert([{ item_name: name, data: merged, updated_at: new Date().toISOString() }], { onConflict: 'item_name' });
+  if (error) { btn.disabled = false; btn.textContent = 'Failed — retry'; console.error('[WikiCheck] apply', error); return; }
+  Object.assign(db[name], merged); for (const k of Object.keys(db[name])) if (!(k in merged)) delete db[name][k];
+  btn.textContent = '✓ Updated';
+}
+
+async function wkRunBuffs(res) {
+  const B = (A.BUFF_DB || []).filter(b => b.cat === 'spell');
+  const MAP = [[/Max Hitpoints/i,'hpbonus'],[/Max Mana/i,'manabonus'],[/^AC$/i,'ac'],[/^STR$/i,'str'],[/^STA$/i,'sta'],[/^DEX$/i,'dex'],[/^AGI$/i,'agi'],[/^WIS$/i,'wis'],[/^INT$/i,'int'],[/^CHA$/i,'cha'],[/Magic Resist|^MR$/i,'svmagic'],[/Fire Resist|^FR$/i,'svfire'],[/Cold Resist|^CR$/i,'svcold'],[/Poison Resist|^PR$/i,'svpoison'],[/Disease Resist|^DR$/i,'svdisease']];
+  const pages = await wkFetchPages(B.map(b => b.name)); const rows = [];
+  for (const b of B) {
+    const p = pages[b.name]; if (!p || !p.exists) { rows.push([b.name, 'no wiki page', '', '']); continue; }
+    const fx = {};
+    for (const m of p.text.matchAll(/SpellSlotRow(?:Smart)?\s*\|\s*\d+\s*\|\s*(Increase|Decrease)\s+(.+?)\s+by\s+([^|}]+)/gi)) {
+      const what = m[2].trim(); if (/when cast|per tick|Attack Speed|ATK/i.test(what)) continue;
+      const lv = [...m[3].matchAll(/(-?\d+)\s*\(L\d+\)/g)].map(x => +x[1]); const first = (m[3].match(/-?\d+/) || [0])[0];
+      const v = (lv.length ? lv[lv.length - 1] : +first) * (/decrease/i.test(m[1]) ? -1 : 1);
+      const k = (MAP.find(([re]) => re.test(what)) || [])[1]; if (k) fx[k] = (fx[k] || 0) + v;
+    }
+    for (const k of new Set([...Object.keys(fx), ...Object.keys(b.fx || {})])) if ((fx[k] || 0) !== ((b.fx || {})[k] || 0)) rows.push([b.name, k, (b.fx || {})[k] || 0, fx[k] || 0]);
+  }
+  wkStatus(`Checked ${B.length} buffs · ${new Set(rows.map(r => r[0])).size} with differences (BUFF_DB lives in code — update src/index.html)`);
+  wkSetBadge(rows.length); res.innerHTML = wkSimpleTable(['Buff', 'Effect', 'MixelParse', 'Wiki'], rows);
+}
+
+async function wkRunBags(res) {
+  const BAGS = A.BAG_SLOTS || {}, db = A.itemDB || {};
+  const key = n => String(n || '').toLowerCase().replace(/[`'’]/g, '').replace(/\s+/g, ' ').trim();
+  const titleFor = {}; Object.keys(db).forEach(n => { const k = key(n); if (BAGS[k] && !titleFor[k]) titleFor[k] = n; });
+  const pages = await wkFetchPages(Object.values(titleFor)); const rows = [];
+  for (const [k, t] of Object.entries(titleFor)) {
+    const m = pages[t] && pages[t].text.match(/Capacity:\s*(\d+)/i);
+    if (m && +m[1] !== BAGS[k]) rows.push([t, 'capacity', BAGS[k], +m[1]]);
+  }
+  wkStatus(`Checked ${Object.keys(titleFor).length} of ${Object.keys(BAGS).length} bags (others not in the item DB by name) · ${rows.length} wrong (BAG_SLOTS lives in code)`);
+  wkSetBadge(rows.length); res.innerHTML = wkSimpleTable(['Bag', 'Field', 'MixelParse', 'Wiki'], rows);
+}
+function wkSimpleTable(head, rows) {
+  if (!rows.length) return '<div style="color:var(--ok-green,#4caf7d);padding:.5rem 0">Everything checked matches the wiki.</div>';
+  return `<table style="width:100%;border-collapse:collapse;font-size:.78rem"><thead><tr style="text-align:left;color:var(--text-m)">${head.map(h => `<th style="padding:.3rem">${h}</th>`).join('')}</tr></thead><tbody>` +
+    rows.map(r => `<tr style="border-top:1px solid var(--border)">${r.map((c, i) => `<td style="padding:.25rem .3rem${i === 3 ? ';color:var(--ok-green,#4caf7d)' : ''}">${wkEsc(c)}</td>`).join('')}</tr>`).join('') + '</tbody></table>';
+}
+// ── COMBAT CHECK ──
+const _ccGame = {}; // charName -> {ac, atk} typed from the in-game Inventory window
+function ccEsc(v) { return String(v == null ? '' : v).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function ccInit() {
+  const sel = document.getElementById('cc-char');
+  if (!A || typeof A.charNames !== 'function' || typeof A.combatDisplayFor !== 'function') {
+    document.getElementById('cc-results').innerHTML = '<div style="color:var(--amber-l);font-size:.8rem">⚠ Open admin with the ⚙ Admin button in MixelParse 1.5.12 or newer.</div>';
+    return;
+  }
+  const cur = sel.value, names = A.charNames();
+  sel.innerHTML = names.map(n => `<option${n === cur ? ' selected' : ''}>${ccEsc(n)}</option>`).join('');
+  if (!cur && A.activeTab && names.includes(A.activeTab)) sel.value = A.activeTab;
+  ccRender();
+}
+function ccSkillCell(s) {
+  if (!s || s.v == null) return '<span style="color:var(--red-l)">unknown</span>';
+  return `${s.v} <span style="color:var(--text-m);font-size:.7rem">(${s.src === 'entered' ? 'typed on Stats tab' : 'from logs'})</span>`;
+}
+function ccDiff(app, game, exact) {
+  if (game === '' || game == null || isNaN(+game)) return '<span style="color:var(--text-m)">—</span>';
+  const d = app - (+game);
+  const col = d === 0 ? 'var(--green-l)' : (exact || Math.abs(d) > 6) ? 'var(--red-l)' : 'var(--amber-l)';
+  return `<span style="color:${col};font-weight:600">${d === 0 ? '✓ match' : (d > 0 ? '+' : '') + d}</span>`;
+}
+function ccRender() {
+  const out = document.getElementById('cc-results'), name = document.getElementById('cc-char').value;
+  if (!name || typeof A.combatDisplayFor !== 'function') return;
+  const r = A.combatDisplayFor(name);
+  const info = A._skillsScanInfo;
+  document.getElementById('cc-status').textContent = info
+    ? `Last log scan: ${new Date(info.at).toLocaleTimeString()} · ${info.files} files${info.error ? ' · error: ' + info.error : ''}`
+    : 'Log scan has not reported yet this session.';
+  if (!r) { out.innerHTML = '<div style="color:var(--amber-l);font-size:.8rem">This character needs a class, level and base stats on the Stats tab first.</div>'; return; }
+  const g = _ccGame[name] || {}, i = r.inputs;
+  const row = (k, v) => `<tr><td style="color:var(--text-m);padding:.15rem .6rem .15rem 0">${k}</td><td>${v}</td></tr>`;
+  const inp = (key, val) => `<input type="number" value="${ccEsc(val)}" data-k="${key}" onchange="ccSet(this)" style="width:80px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.2rem .3rem;text-align:center">`;
+  const box = 'background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.6rem .8rem;font-size:.8rem';
+  const parts = p => Object.entries(p).map(([k, v]) => `${k} ${typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(1)) : v}`).join(' · ');
+  const meta = (A.charMeta || {})[name] || {}, logged = meta.skills || {}, manual = meta.skillsManual || {};
+  const skillNames = [...new Set([...Object.keys(logged), ...Object.keys(manual)])].sort();
+  out.innerHTML = `
+    <div style="${box};margin-bottom:.6rem">
+      <table style="border-collapse:collapse;font-size:.85rem">
+        <tr style="color:var(--text-m);font-size:.72rem"><td></td><td style="padding:0 .8rem">APP</td><td style="padding:0 .8rem">IN-GAME</td><td style="padding:0 .8rem">DIFF</td><td></td></tr>
+        <tr><td style="font-weight:600">AC</td><td style="padding:.25rem .8rem;font-weight:600">${r.ac.exact ? '' : '≈'}${r.ac.value}</td><td style="padding:0 .8rem">${inp('ac', g.ac || '')}</td><td style="padding:0 .8rem">${ccDiff(r.ac.value, g.ac, r.ac.exact)}</td><td style="font-size:.72rem;color:var(--text-m)">${r.ac.exact ? 'exact formula' : ccEsc(r.ac.why.join('; '))}</td></tr>
+        <tr><td style="font-weight:600">ATK</td><td style="padding:.25rem .8rem;font-weight:600">≈${r.atk.value}</td><td style="padding:0 .8rem">${inp('atk', g.atk || '')}</td><td style="padding:0 .8rem">${ccDiff(r.atk.value, g.atk, false)}</td><td style="font-size:.72rem;color:var(--text-m)">${ccEsc(r.atk.why.join('; '))}</td></tr>
+      </table>
+      <div style="font-size:.7rem;color:var(--text-m);margin-top:.4rem">Tip: take the reading with the same buffs the app has parked for this character, or the numbers will not line up.</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:.6rem">
+      <div style="${box}"><div style="color:var(--gold);font-size:.7rem;letter-spacing:.06em;margin-bottom:.3rem">INPUTS</div><table>
+        ${row('Class / level', ccEsc(i.cls + ' ' + i.level + (i.race ? ' · ' + i.race : '')))}
+        ${row('Defense', ccSkillCell(i.defense))}
+        ${row('Offense', ccSkillCell(i.offense))}
+        ${row('Weapon', ccEsc(i.weapon) + ' → ' + ccEsc(i.weaponSkillName) + ' ' + ccSkillCell(i.weaponSkill))}
+        ${row('AGI / STR (capped 255)', i.agi + ' / ' + i.str)}
+        ${row('Gear AC', i.gearAC)}
+        ${row('Item ATK', i.itemATK)}
+        ${row('Buff AC (parked)', i.buffAC)}
+        ${row('Worn effects', i.worn.length ? ccEsc(i.worn.join(', ')) + ` <span style="color:var(--text-m)">(AC ${i.wornAC}, ATK ${i.wornATK})</span>` : '<span style="color:var(--text-m)">none</span>')}
+      </table></div>
+      <div style="${box}"><div style="color:var(--gold);font-size:.7rem;letter-spacing:.06em;margin-bottom:.3rem">HOW THE NUMBERS ARE BUILT</div>
+        <div style="margin-bottom:.4rem"><b>AC</b> = (sum) × 1000/847<br><span style="color:var(--text-m)">${ccEsc(parts(r.ac.parts))}</span></div>
+        <div><b>ATK</b><br><span style="color:var(--text-m)">${ccEsc(parts(r.atk.parts))}</span></div>
+      </div>
+      <div style="${box}"><div style="color:var(--gold);font-size:.7rem;letter-spacing:.06em;margin-bottom:.3rem">ALL SKILLS FOR ${ccEsc(name.toUpperCase())}</div>
+        ${skillNames.length ? '<table>' + skillNames.map(s => row(ccEsc(s), (manual[s] != null ? `<b>${manual[s]}</b> <span style="color:var(--text-m);font-size:.7rem">typed</span>` : '') + (logged[s] != null ? ` <span style="color:var(--text-m)">${manual[s] != null ? '(logs ' + logged[s] + ')' : logged[s] + ' <span style="font-size:.7rem">logs</span>'}</span>` : ''))).join('') + '</table>'
+          : '<span style="color:var(--text-m)">No skills found in the logs yet. Press "Rescan logs for skills", or type them on the Stats tab.</span>'}
+      </div>
+    </div>`;
+  const known = r.ac.exact && g.ac !== undefined && g.ac !== '' ? (r.ac.value === +g.ac) : null;
+  const b = document.getElementById('badge-combatcheck'), d = document.getElementById('dot-combatcheck');
+  if (known === null) { b.textContent = '—'; b.className = 'sb-badge skip'; d.className = 'sb-dot skip'; }
+  else { b.textContent = known ? '✓' : 'Δ'; b.className = 'sb-badge ' + (known ? 'pass' : 'fail'); d.className = 'sb-dot ' + (known ? 'pass' : 'fail'); }
+}
+function ccSet(el) {
+  const name = document.getElementById('cc-char').value;
+  (_ccGame[name] = _ccGame[name] || {})[el.dataset.k] = el.value.trim();
+  ccRender();
+}
+function ccRescan() {
+  if (typeof A.rescanSkills !== 'function' || !A.rescanSkills()) { document.getElementById('cc-status').textContent = 'Rescan needs the desktop app.'; return; }
+  const before = (A._skillsScanInfo || {}).at || 0;
+  document.getElementById('cc-status').textContent = 'Scanning logs…';
+  let n = 0;
+  const t = setInterval(() => {
+    const at = (A._skillsScanInfo || {}).at || 0;
+    if (at > before || ++n > 120) { clearInterval(t); ccRender(); }
+  }, 500);
+}
+
+function wkSetBadge(n) {
+  const b = document.getElementById('badge-wikicheck'), d = document.getElementById('dot-wikicheck');
+  if (b) { b.textContent = n ? n : '✓'; b.className = 'sb-badge ' + (n ? 'fail' : 'pass'); }
+  if (d) d.className = 'sb-dot ' + (n ? 'fail' : 'pass');
 }
 
 async function loadFeedback(){
