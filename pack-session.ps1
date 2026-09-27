@@ -8,8 +8,7 @@ $files = @(
     "src\setup.html",
     "electron\main.js",
     "electron\preload.js",
-    "electron\ipc\watcher.js",
-    "watcher\mixelparse-watcher.js"
+    "electron\ipc\watcher.js"
 )
 
 # Find latest handoff doc in repo root

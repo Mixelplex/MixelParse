@@ -1,6 +1,6 @@
 'use strict';
 // ipc/watcher.js
-// Electron main-process version of mixelparse-watcher.js.
+// Log / notes / inventory watcher (Electron main process).
 // Replaces the WebSocket server with a direct IPC callback (onMessage).
 // Called by main.js:  watcherModule.start({ config, logPosPath, factionPath, onMessage })
 //
@@ -30,9 +30,9 @@ function log(...a)  { console.log('[Watcher]', ...a); }
 function err(...a)  { console.error('[Watcher]', ...a); }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Below: the full watcher logic from mixelparse-watcher.js v3,
-// with CONFIG replaced by _config, WebSocketServer removed,
-// and broadcast() pointing to the IPC shim above.
+// Below: the watcher logic (originally the standalone WebSocket watcher,
+// retired in v1.3.5), with CONFIG replaced by _config and broadcast()
+// pointing to the IPC shim above.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Faction level definitions ─────────────────────────────────────────────────
