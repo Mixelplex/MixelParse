@@ -5090,11 +5090,11 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.5.14',
+  version:'1.5.15',
   date:'September 2026',
   features:[
     ['Auto-Detect checks your DKP credit','Every RAIDTICK you were in zone for is matched to your ODKP ticks by time &mdash; &#10003; credited or &#10007; not credited. <b>&#9935; Scan logs</b> loads the last 6 months of raid nights from your logs.'],
-    ['Hourlies, HoT Farm and Buff &amp; Park in Credit Check','A new section compares what you tracked with what ODKP credited, night by night.'],
+    ['Hourlies, HoT Farm and Buff &amp; Park in Credit Check','Optional section (turn it on with the <b>&#9881;</b> next to Export Report) that compares what you tracked with what ODKP credited, night by night.'],
     ['Repeat kills','Quakes and GM events can spawn a boss more than once a day. Use the &#65291; next to any boss for #2, #3&hellip; &mdash; and a second <code>/note</code> adds another spawn instead of overwriting the first.'],
     ['Faydedar','Added to the Kill Tracker (Tier Eight), spawn timers, and <code>/note faydedar</code>.'],
     ['AC and ATK like the game','The Stats tab shows AC and ATK the way the Inventory window does, using combat skills read from your logs.'],
@@ -12518,10 +12518,16 @@ function ccTickLedger(sessions,ticks){
   return{rows,minNight};
 }
 function ccLedgerKey(r){return'ledger|'+r.night+'|'+r.cat+'|'+r.missing+'|'+r.untracked;}
-// Credit Check section: hourlies / HoT Farm / BnP, tracked vs credited per raid night.
+// Credit Check → ⚙ → "Show hourlies · HoT Farm · Buff & Park" (off by default, remembered per PC).
+function ccLedgerOn(){try{return localStorage.getItem('mp_cc_ledger')==='1';}catch(e){return false;}}
+window.ccSetLedgerOn=function(on){try{localStorage.setItem('mp_cc_ledger',on?'1':'0');}catch(e){}renderKillsPanel();};
+// Credit Check section (opt-in): hourlies / HoT Farm / BnP, tracked vs credited per raid night.
+// Compact for a half-width column — the ODKP tick labels sit in a small line under the
+// status (full list in the row tooltip). Problems first; matched nights fold away below.
 function ccRenderLedger(){
   const L=ccTickLedger();
-  if(!L.minNight)return'';
+  const head=(sum)=>'<div class="cc-col-h"><span class="cc-col-t">⏱ Hourlies · HoT Farm · Buff &amp; Park</span>'+sum+'</div>';
+  if(!L.minNight)return head('')+'<div style="padding:1.5rem 1rem;font-size:.8rem;color:var(--text-muted)">No saved sessions yet.</div>';
   const fmtNight=n=>new Date(n+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
   const issues=[],matched=[];let nMiss=0,nUntracked=0,nAcked=0;
   for(const r of L.rows){
@@ -12531,44 +12537,46 @@ function ccRenderLedger(){
   }
   const row=(r,acked)=>{
     const key=ccLedgerKey(r);
+    const bad=r.missing>0||r.untracked>0;
     const status=r.missing>0
-      ?'<span style="color:#c03030;font-weight:600">\u2717 '+r.missing+' not credited</span>'
+      ?'<span style="color:#c03030;font-weight:600">✗ '+r.missing+' not credited</span>'
       :r.untracked>0
-      ?'<span style="color:#607090;font-weight:600">\u2B05 '+r.untracked+' credited, not tracked</span>'
-      :'<span style="color:#3a7a3a">\u2713</span>';
-    const moved=r.moved.length?'<div style="font-size:.64rem;color:var(--text-muted)">'+esc(r.moved.join(' \u00b7 '))+'</div>':'';
-    const ticks=r.ticks.length?esc(r.ticks.join(' \u00b7 ')):'\u2014';
-    const act=!(r.missing>0||r.untracked>0)?'<td></td>'
-      :acked?'<td style="text-align:center"><button class="cc-unack-btn" data-key="'+esc(key)+'" style="background:none;border:none;cursor:pointer;font-size:.68rem;color:var(--text-muted)">\u21A9 un-ack</button></td>'
-      :'<td style="text-align:center"><button class="cc-ack-btn" data-key="'+esc(key)+'" title="Acknowledge \u2014 I know about this one" style="background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:.66rem;color:var(--text-muted);padding:.1rem .4rem">ack</button></td>';
+      ?'<span style="color:#607090;font-weight:600">⬅ '+r.untracked+' not tracked</span>'
+      :'<span style="color:#3a7a3a">✓</span>';
+    const sub=[];
+    if(r.moved.length)sub.push(esc(r.moved.join(' · ')));
+    if(r.ticks.length)sub.push(esc(r.ticks.map(t=>t.replace(/^\d{1,2}-\d{1,2}\s+/,'')).join(' · ')));
+    const subHtml=sub.length?'<div style="font-size:.64rem;color:var(--text-muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere">'+sub.join(' — ')+'</div>':'';
+    const act=!bad?'<td></td>'
+      :acked?'<td style="text-align:center"><button class="cc-unack-btn" data-key="'+esc(key)+'" style="background:none;border:none;cursor:pointer;font-size:.66rem;color:var(--text-muted)">↩</button></td>'
+      :'<td style="text-align:center"><button class="cc-ack-btn" data-key="'+esc(key)+'" title="Acknowledge — I know about this one" style="background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:.64rem;color:var(--text-muted);padding:.05rem .35rem">ack</button></td>';
     const bg=acked?'opacity:.45':r.missing>0?'background:rgba(180,40,40,.08)':r.untracked>0?'background:rgba(60,80,140,.07)':'';
-    return '<tr style="'+bg+'">'
-      +'<td style="padding:.3rem .6rem;font-size:.76rem;color:var(--text-muted);white-space:nowrap">'+fmtNight(r.night)+'</td>'
-      +'<td style="padding:.3rem .6rem;font-size:.8rem;font-weight:500;white-space:nowrap">'+esc(r.label)+'</td>'
-      +'<td style="padding:.3rem .5rem;font-size:.8rem;text-align:center" title="'+r.trackedDkp+' DKP tracked">'+r.tracked+'</td>'
-      +'<td style="padding:.3rem .5rem;font-size:.8rem;text-align:center" title="'+r.creditedDkp+' DKP credited">'+r.credited+'</td>'
-      +'<td style="padding:.3rem .6rem;font-size:.74rem;white-space:nowrap">'+status+moved+'</td>'
-      +'<td style="padding:.3rem .6rem;font-size:.68rem;color:var(--text-muted)">'+ticks+'</td>'+act+'</tr>';
+    return '<tr style="border-bottom:1px solid var(--border);'+bg+'" title="'+esc(r.ticks.join('\n')||'no credited ticks')+'">'
+      +'<td style="padding:.3rem .5rem;font-size:.74rem;color:var(--text-muted);white-space:nowrap">'+fmtNight(r.night)+'</td>'
+      +'<td style="padding:.3rem .5rem;font-size:.78rem;font-weight:500">'+esc(r.label)+'</td>'
+      +'<td style="padding:.3rem .4rem;font-size:.8rem;text-align:center">'+r.tracked+'</td>'
+      +'<td style="padding:.3rem .4rem;font-size:.8rem;text-align:center">'+r.credited+'</td>'
+      +'<td style="padding:.3rem .5rem;font-size:.74rem">'+status+subHtml+'</td>'+act+'</tr>';
   };
-  const head='<thead><tr>'
-    +'<th style="padding:.35rem .6rem;font-size:.68rem;text-align:left">Night</th>'
-    +'<th style="padding:.35rem .6rem;font-size:.68rem;text-align:left">Type</th>'
-    +'<th style="padding:.35rem .5rem;font-size:.68rem">Tracked</th>'
-    +'<th style="padding:.35rem .5rem;font-size:.68rem">Credited</th>'
-    +'<th style="padding:.35rem .6rem;font-size:.68rem;text-align:left">Status</th>'
-    +'<th style="padding:.35rem .6rem;font-size:.68rem;text-align:left">ODKP ticks</th><th></th></tr></thead>';
+  const thead='<thead style="position:sticky;top:0;background:var(--surface2);z-index:1"><tr>'
+    +'<th style="padding:.4rem .5rem;font-size:.68rem;letter-spacing:.05em;text-align:left">Night</th>'
+    +'<th style="padding:.4rem .5rem;font-size:.68rem;letter-spacing:.05em;text-align:left">Type</th>'
+    +'<th style="padding:.4rem .4rem;font-size:.68rem;letter-spacing:.05em" title="Tracked in the Kill Tracker">Trk</th>'
+    +'<th style="padding:.4rem .4rem;font-size:.68rem;letter-spacing:.05em" title="Credited in ODKP">ODKP</th>'
+    +'<th style="padding:.4rem .5rem;font-size:.68rem;letter-spacing:.05em;text-align:left">Status</th><th></th></tr></thead>';
   const sum=(nMiss||nUntracked)
-    ?(nMiss?'<span style="color:#c03030">\u2717 '+nMiss+' not credited</span>':'')+(nMiss&&nUntracked?' \u00b7 ':'')+(nUntracked?'<span style="color:#607090">\u2B05 '+nUntracked+' credited but not tracked</span>':'')
-    :'<span style="color:#3a7a3a">\u2713 every tracked hourly, HoT and BnP tick is credited</span>';
+    ?'<span class="cc-col-s" style="color:#c03030">'+(nMiss?'✗ '+nMiss+' not credited':'')+(nMiss&&nUntracked?' · ':'')+(nUntracked?'<span style="color:#607090">⬅ '+nUntracked+' not tracked</span>':'')+(nAcked?' <span style="color:var(--text-muted)">· ◌ '+nAcked+'</span>':'')+'</span>'
+    :'<span class="cc-col-s" style="color:#3a7a3a">✓ all credited'+(nAcked?' <span style="color:var(--text-muted)">· ◌ '+nAcked+'</span>':'')+'</span>';
   const matchedHtml=matched.length
-    ?'<details style="margin-top:.3rem"><summary style="padding:.35rem 1rem;font-size:.72rem;color:var(--text-muted);cursor:pointer;user-select:none">\u2713 '+matched.length+' night'+(matched.length!==1?'s':'')+'/type matched</summary>'
+    ?'<details><summary style="padding:.45rem .75rem;font-size:.72rem;color:var(--text-muted);cursor:pointer;user-select:none">✓ '+matched.length+' night'+(matched.length!==1?'s':'')+' matched</summary>'
       +'<table style="width:100%;border-collapse:collapse"><tbody>'+matched.map(r=>row(r,false)).join('')+'</tbody></table></details>'
     :'';
-  return '<details'+((nMiss||nUntracked)?' open':'')+' style="border-top:1px solid var(--border)">'
-    +'<summary style="padding:.55rem 1rem;font-size:.78rem;cursor:pointer;user-select:none">\u23F1 Hourlies \u00b7 HoT Farm \u00b7 Buff &amp; Park \u2014 '+sum+(nAcked?' <span style="color:var(--text-muted)">\u00b7 \u25CC '+nAcked+' acknowledged</span>':'')+'</summary>'
-    +'<div style="padding:.2rem 1rem .3rem;font-size:.68rem;color:var(--text-muted)">Tracked counters and submits vs ODKP credited ticks, per raid night (6am\u20136am, since '+fmtNight(L.minNight)+'). Kill ticks with an hourly rolled in (\u201cVulak (add hourly)\u201d) count as an hourly. A shortfall is offset by a surplus on the night before/after.</div>'
-    +(issues.length?'<div style="max-height:40vh;overflow-y:auto"><table style="width:100%;border-collapse:collapse">'+head+'<tbody>'+issues.map(x=>row(x.r,x.acked)).join('')+'</tbody></table></div>':'')
-    +matchedHtml+'</details>';
+  return head(sum)
+    +'<div class="cc-col-body">'
+    +(issues.length?'<table style="width:100%;border-collapse:collapse;font-family:\'Cinzel\',serif">'+thead+'<tbody>'+issues.map(x=>row(x.r,x.acked)).join('')+'</tbody></table>'
+      :'<div style="padding:1rem;font-size:.78rem;color:#3a7a3a">Every tracked hourly, HoT and BnP tick is credited.</div>')
+    +matchedHtml+'</div>'
+    +'<div style="padding:.35rem .75rem;font-size:.64rem;color:var(--text-muted);border-top:1px solid var(--border)">Per raid night (6am–6am) since '+fmtNight(L.minNight)+'. Kill ticks with an hourly rolled in count as an hourly; a short night is offset by the night before/after.</div>';
 }
 
 // Ticks that resolve to no target and aren't recognizable noise → the
@@ -14603,7 +14611,13 @@ function renderCreditCheckPanel(){
     </span>`:''}
     ${odkpTicksMeta&&!odkpTicksMeta.dkp&&odkpTicks&&odkpTicks.length?`<span style="font-size:.68rem;color:var(--text-muted);font-style:italic">re-upload dkp-details to see your DKP balance</span>`:''}
     ${odkpTicksMeta?`<span style="font-size:.72rem;color:var(--text-muted)">${(odkpTicks||[]).length.toLocaleString()} credited ticks from ${(odkpTicksMeta.raidCount||0).toLocaleString()} raids${odkpTicksMeta.charNames&&odkpTicksMeta.charNames.length?' · '+esc(odkpTicksMeta.charNames.join(', ')):''} · updated ${odkpTicksMeta.updatedAt?new Date(odkpTicksMeta.updatedAt).toLocaleDateString():'?'}</span>`:''}
-    ${!noTicks?`<button class="kt-save-btn" style="margin-left:auto;background:rgba(60,30,10,.15);border-color:#806030;color:#705020" onclick="exportCreditReport()">📄 Export Report</button>`:''}
+    ${!noTicks?`<details class="cc-gear" style="margin-left:auto;position:relative">
+      <summary title="Credit Check options" style="list-style:none;cursor:pointer;font-size:1rem;color:var(--text-muted);padding:.1rem .35rem;user-select:none">⚙</summary>
+      <div style="position:absolute;right:0;top:1.7rem;z-index:20;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:.5rem .7rem;box-shadow:0 4px 14px rgba(0,0,0,.25);white-space:nowrap">
+        <label style="font-size:.76rem;cursor:pointer;display:flex;gap:.45rem;align-items:center"><input type="checkbox" ${ccLedgerOn()?'checked':''} onchange="ccSetLedgerOn(this.checked)"> Show hourlies · HoT Farm · Buff &amp; Park</label>
+      </div>
+    </details>
+    <button class="kt-save-btn" style="background:rgba(60,30,10,.15);border-color:#806030;color:#705020" onclick="exportCreditReport()">📄 Export Report</button>`:''}
   </div>`;
 
   if(noTicks){
@@ -14660,7 +14674,7 @@ function renderCreditCheckPanel(){
   const ackedNote=nAcked>0?` · <span style="color:var(--text-muted)">◌ ${nAcked} acknowledged</span>`:'';
   const summary=(nMiss>0||nWeak>0||nValMismatch>0)
     ?`<div style="padding:.5rem 1rem;background:rgba(180,40,40,.1);border-bottom:1px solid rgba(180,40,40,.25);font-size:.78rem;color:#c03030">${nMiss>0?`✗ ${nMiss} missing`:''}${nMiss>0&&(nWeak>0||nValMismatch>0)?' · ':''}${nValMismatch>0?`<span style="color:#c9a800">✓ ${nValMismatch} value differs</span>`:''}${nValMismatch>0&&nWeak>0?' · ':''}${nWeak>0?`<span style="color:#b08020">⚠ ${nWeak} weak</span>`:''}${ackedNote} — ${nStrong} of ${evts.length} events fully matched</div>`
-    :`<div style="padding:.5rem 1rem;background:rgba(40,120,40,.08);border-bottom:1px solid rgba(40,120,40,.2);font-size:.78rem;color:#3a7a3a">✓ All ${evts.length} events credited${ackedNote?ackedNote:' — every kill, fail tick, and hourly you tracked has a matching credited tick'}</div>`;
+    :`<div style="padding:.5rem 1rem;background:rgba(40,120,40,.08);border-bottom:1px solid rgba(40,120,40,.2);font-size:.78rem;color:#3a7a3a">✓ All ${evts.length} events credited${ackedNote?ackedNote:' — every kill and fail tick you tracked has a matching credited tick'}</div>`;
 
   // Unmatched-ticks queue — click-to-teach aliases (saved to shared Supabase)
   const unmatched=ccUnmatchedTicks(byDate);
@@ -14712,6 +14726,13 @@ function renderCreditCheckPanel(){
     </details>`;
   }
 
+  // Hourlies / HoT Farm / BnP section is opt-in (⚙ in the toolbar), full width under the kills.
+  const ledgerHtml=ccLedgerOn()
+    ?'<style>#killsPanel .cc-col-h{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap;padding:.5rem 1rem;background:var(--surface2);border-bottom:1px solid var(--border)}'
+      +'#killsPanel .cc-col-t{font-family:\'Cinzel\',serif;font-size:.74rem;letter-spacing:.05em;color:var(--gold-light)}'
+      +'#killsPanel .cc-col-s{font-size:.74rem}#killsPanel .cc-col-body{overflow:auto;max-height:45vh}</style>'
+      +'<section style="border-top:1px solid var(--border)">'+ccRenderLedger()+'</section>'
+    :'';
   return uploadBtn+summary+`
     <div style="overflow-x:auto;max-height:60vh;overflow-y:auto">
       <table style="width:100%;border-collapse:collapse;font-family:'Cinzel',serif">
@@ -14726,7 +14747,7 @@ function renderCreditCheckPanel(){
         </thead>
         <tbody>${rows}</tbody>
       </table>
-    </div>`+ccRenderLedger()+revHtml+queueHtml;
+    </div>`+ledgerHtml+revHtml+queueHtml;
 }
 
 // Export weak/missing events as a plain-text report
@@ -14745,14 +14766,14 @@ window.exportCreditReport=function(){
     const tag=evt.type==='failtick'?' [fail tick]':evt.type==='hourly'?' [hourly x'+evt.qty+']':'';
     lines.push(`${m.status==='missing'?'MISSING':m.status==='valuemismatch'?'VALUE  ':'WEAK   '}  ${evt.date}  ${(evt.target+tag).padEnd(32)}  ${m.tick?m.tick+(m.note?' — '+m.note:''):(m.note||'no matching tick within ±1 day')}`);
   }
-  const LG=ccTickLedger();
+  const LG=ccLedgerOn()?ccTickLedger():{rows:[]};
   for(const r of LG.rows){
     if(!(r.missing>0||r.untracked>0))continue;
     if(ccAcks.has(ccLedgerKey(r))){nAckedSkipped++;continue;}
     found=true;
     lines.push((r.missing>0?'MISSING':'UNTRACK')+'  '+r.night+'  '+(r.label+' ('+r.tracked+' tracked / '+r.credited+' credited)').padEnd(32)+'  '+(r.missing>0?r.missing+' not credited':r.untracked+' credited, not tracked')+(r.ticks.length?' — '+r.ticks.join('; '):''));
   }
-  if(!found)lines.push('None — every kill, fail tick, hourly, HoT and BnP tick is accounted for.');
+  if(!found)lines.push(ccLedgerOn()?'None — every kill, fail tick, hourly, HoT and BnP tick is accounted for.':'None — every kill and fail tick is accounted for.');
   if(nAckedSkipped)lines.push('','('+nAckedSkipped+' acknowledged event'+(nAckedSkipped!==1?'s':'')+' omitted)');
   const blob=new Blob([lines.join('\n')],{type:'text/plain'});
   const a=document.createElement('a');
