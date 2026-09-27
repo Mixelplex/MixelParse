@@ -2170,9 +2170,9 @@ function calcMana(intWis,lvl){
 // Classic EQ client formulas, fitted to in-game Inventory + Skills windows
 // (2026-09-25/27). EXACT for non-casters level 40+ (Mixelmedic, Mixelplex, Mixelshank,
 // Mixelflop incl. Monk + Iksar bonuses; Mixelreaper L48 with and without Boots of the
-// Vindicator: 846/799 AC, 745/740 ATK). Casters: gear ×1 and Defense ÷2, exact on
-// Mixelboom's three readings; still flagged ≈ until a second caster confirms (Mixelmez).
-// Level <40 (AGI tiers untested) is approximate.
+// Vindicator: 846/799 AC, 745/740 ATK). Casters: gear ×1 and Defense ÷2, exact unbuffed
+// on Mixelboom (3 readings) and Mixelmez; flagged ≈ only with buff/worn AC (caster buff
+// scaling unconfirmed). Level <40 (AGI tiers untested) is approximate.
 // ATK within ±3 on 6 of 7 characters.
 // Worn effects whose AC/ATK/haste count like buffs — from a scan of every item page
 // in item_db (the item export did not carry worn effects).
@@ -2194,9 +2194,9 @@ function acAgiBonus(agi,lvl){
 function calcDisplayAC(o){
   const caster=CASTER_AC_CLASSES.has(o.cls),lvl=o.level||1,def=o.defense||0;
   const parts={};
-  // Casters (WIZ/MAG/NEC/ENC): gear AC counts 1:1 and Defense ÷2 — fitted to three in-game
-  // readings of Mixelboom (WIZ54: 525 / Orb off 484 / Gloves off 517, all exact, 2026-09-27).
-  // Defense ÷2 is from one Defense value (122); Mixelmez (145) is the second check.
+  // Casters (WIZ/MAG/NEC/ENC): gear AC counts 1:1 and Defense ÷2 — exact on four unbuffed
+  // in-game readings (2026-09-27): Mixelboom WIZ54 Def 122 (525 / Orb off 484 / Gloves off
+  // 517) and Mixelmez ENC60 Def 145 (622). How casters count buff AC is still open.
   parts.defenseMit=Math.trunc(def/(caster?2:3));
   parts.gear=caster?(o.gearAC||0):Math.trunc((o.gearAC||0)*4/3);
   parts.monk=o.cls==='Monk'?Math.trunc(lvl*13/10):0;
@@ -2205,7 +2205,7 @@ function calcDisplayAC(o){
   parts.agi=acAgiBonus(o.agi||0,lvl);
   parts.spells=Math.trunc(((o.buffAC||0)+(o.wornAC||0))*5/6);
   const sum=Object.values(parts).reduce((a,b)=>a+b,0);
-  const why=[];if(caster)why.push('caster formula confirmed on one character so far');if(lvl<40)why.push('below level 40 not yet confirmed (AGI bonus tiers)');
+  const why=[];if(caster&&((o.buffAC||0)+(o.wornAC||0)))why.push('caster buff / worn-effect AC not yet confirmed');if(lvl<40)why.push('below level 40 not yet confirmed (AGI bonus tiers)');
   return{value:Math.trunc(sum*1000/847),exact:!why.length,why,parts};
 }
 // o: {offense,str,weaponSkill,itemATK,wornATK,spellATK}. Worn/item ATK ×1.342, spell 1:1.
