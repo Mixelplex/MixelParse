@@ -71,6 +71,8 @@ Plan: Phase 1 source research (done) → Phase 2 in-game screenshots (user) → 
 ### Phase 2/3 update (2026-09-27)
 - Mixelreaper SHD48 unbuffed, in-game: AC 846 / ATK 745 with Boots of the Vindicator, 799 / 740 without (also max HP −68, mana −47). App formulas match all six exactly. Applied: COMBAT_REFS Reaper gearAC 170 + a boots-off case; calcDisplayAC caveat now only below L40 and casters.
 
+- AC/ATK status 2026-09-27: casters fitted (gear ×1, Defense ÷2) on Mixelboom ×3 + Mixelmez; Mixelmedic ATK 592 exact (old 606 ref wrong); Mixelems CLR21 AC 676 / ATK 422 exact (L20–39 AGI column). 12/13 AC refs exact; only open: caster buff AC (old buffed Mez ref), level <20, spell ATK / no-weapon ATK edge cases (Plex −4, Mez +6).
+
 ### Phase 3 changes agreed (APPLIED 2026-09-27)
 - `COMBAT_REFS` in `admin.html`: Mixelreaper `gearAC:200` → `170`.
 - `calcDisplayAC`: drop the "level 50 and under" caveat; keep "≈" only below level 40 (AGI tiers untested there) and for casters.
