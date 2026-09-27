@@ -29,7 +29,7 @@ Start here, then read the code. Git history is the source of truth for what chan
 - Auto-Detect: watcher `scanRaidTicks` (all logs, one batch) + `rkdImportScan`; ODKP CREDIT column (`rkdOdkpMatches`: ±15 min, second pass exactly ±1h same-boss); tracker column counts repeat spawns. On the user's data: 307 in-zone ticks, 281 credited, 15 not (Aug 13 raid, Midayor 8/20, Prog 9/5…); Auto-Detect boss agrees with ODKP 162/166.
 - Faydedar added (Tier Eight 0.3+0.2, 7d ±8h). `/note`: timestamp stripped (`_noteBody` — fixed /note Quake!/set/timer and the "Oct"→CT bug), whole-word longest-first matching (`_noteBossMatch`).
 - Admin → Credit Check suite rewritten (engine tests + LIVE run).
-- Open from the review: missing respawn timers for Guardian of Takish (12h30m), Vilefang (1 day), Vaniki (122h); shared spawn-timer board is last-writer-wins (can lose guildies' updates); parkAck reset after a quake isn't saved; Magi P'Tasa sits in the "ToV Pulling" role list (DKP rule — ask the user). Next step offered: one-click "add to session" for Strong Auto-Detect suggestions.
+- Open from the review: missing respawn timers for Guardian of Takish (12h30m), Vilefang (1 day), Vaniki (122h); shared spawn-timer board is last-writer-wins (can lose guildies' updates); parkAck reset after a quake isn't saved; Magi P'Tasa sits in the "ToV Pulling" role list (DKP rule — ask the user). Auto-Detect stays WATCH-ONLY until it has survived a couple of quakes / natural spawns live (user, 2026-09-27) — no auto-add yet; after a quake night, compare its log with what was tracked.
 - Release CI: `release.yml` (contents: write) builds + publishes and sets notes from `release-notes.md`; `release-notes.yml` re-syncs notes when that file changes on main.
 
 ## Environment (clean-install PC)
