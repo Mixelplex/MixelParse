@@ -15973,7 +15973,12 @@ function _wlBadge(res, big){
   const sz=big?'1.1rem':'1.05rem';
   if(status==='na')      return `<span class="rc-check-na" style="flex-shrink:0;font-size:${big?'1rem':'.8rem'}">N/A</span>`;
   // More than one on hand: the check stays primary, with the quantity beside it — ✔ (3).
-  if(status==='present' && res.count>1) return `<span class="rc-check-green" title="${res.count} on hand" style="flex-shrink:0;white-space:nowrap"><span style="font-size:${sz};font-weight:700">✔</span><span style="font-size:${big?'.9rem':'.85rem'};font-weight:600;font-family:'Crimson Pro',serif;margin-left:.2rem">(${res.count})</span></span>`;
+  // In the table the count hangs off the check's right edge (absolute), so the check stays
+  // centred in line with the ✘ / ✔ of the other rows.
+  if(status==='present' && res.count>1){
+    const cnt=`<span style="font-size:${big?'.9rem':'.85rem'};font-weight:600;font-family:'Crimson Pro',serif;${big?'position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:.45rem;':'margin-left:.35rem;'}white-space:nowrap">(${res.count})</span>`;
+    return `<span class="rc-check-green" title="${res.count} on hand" style="flex-shrink:0;white-space:nowrap;${big?'position:relative;display:inline-block;':''}"><span style="font-size:${sz};font-weight:700">✔</span>${cnt}</span>`;
+  }
   if(status==='present') return `<span class="rc-check-green" style="flex-shrink:0;font-size:${sz};font-weight:700">\u2714</span>`;
   if(status==='missing_yellow'||status==='missing_tracked'){
     // Show have/target so a partial explains itself (e.g. 2/3); fall back to the
