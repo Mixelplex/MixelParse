@@ -1,8 +1,11 @@
-## 1.5.15
+## 1.5.16
 
-- **Credit Check layout** — back to a single kill table; the hourlies / HoT Farm / Buff & Park section is now optional (⚙ next to Export Report).
+- **AC matches the game for every class** — checked against the in-game Inventory window on six characters (11 readings). Wizards, Magicians, Necromancers and Enchanters now count gear AC and Defense the way the game does; their AC was off before. AC below level 50 is no longer marked approximate.
+- **Watch List counts** — the green ✔ stays in line with the rest of the column, with the count beside it when you have more than one: ✔ (3).
 
-Everything from 1.5.14 is included:
+Everything from 1.5.14 and 1.5.15 is included:
+
+- **Credit Check layout** — single kill table; the hourlies / HoT Farm / Buff & Park section is optional (⚙ next to Export Report).
 
 ## ✨ New
 

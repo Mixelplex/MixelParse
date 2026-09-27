@@ -5095,20 +5095,16 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.5.15',
+  version:'1.5.16',
   date:'September 2026',
   features:[
-    ['Auto-Detect checks your DKP credit','Every RAIDTICK you were in zone for is matched to your ODKP ticks by time &mdash; &#10003; credited or &#10007; not credited. <b>&#9935; Scan logs</b> loads the last 6 months of raid nights from your logs.'],
-    ['Hourlies, HoT Farm and Buff &amp; Park in Credit Check','Optional section (turn it on with the <b>&#9881;</b> next to Export Report) that compares what you tracked with what ODKP credited, night by night.'],
-    ['Repeat kills','Quakes and GM events can spawn a boss more than once a day. Use the &#65291; next to any boss for #2, #3&hellip; &mdash; and a second <code>/note</code> adds another spawn instead of overwriting the first.'],
-    ['Faydedar','Added to the Kill Tracker (Tier Eight), spawn timers, and <code>/note faydedar</code>.'],
-    ['AC and ATK like the game','The Stats tab shows AC and ATK the way the Inventory window does, using combat skills read from your logs.'],
-    ['Quantities in Watch List and Inventory','Watch List shows how many you have; Inventory totals follow your search and filters.'],
+    ['AC matches the game for every class','Checked against the in-game Inventory window on six characters. Wizards, Magicians, Necromancers and Enchanters now count gear AC and Defense the way the game does &mdash; their AC was off before.'],
+    ['Watch List counts','A green &#10004; stays in line with the rest of the column, with the count beside it when you have more than one &mdash; &#10004; (3).'],
+    ['Recently added','DKP credit check in Auto-Detect (&#9935; Scan logs), repeat kills with &#65291;, Faydedar, and the optional hourlies / HoT Farm / Buff &amp; Park section in Credit Check (&#9881;).'],
   ],
   fixes:[
-    ['/note in October','Notes are now matched on what you typed, not the timestamp &mdash; &ldquo;Oct&rdquo; would have turned every note into Cazic Thule. <code>/note Quake!</code>, <code>/note set</code> and <code>/note timer</code> work again.'],
-    ['/note picks the right boss','Whole names only: Severilous no longer lands on Sevalak, Mistress of Scorn on Essedera, or Avatar of Abhorrence on Avatar of War.'],
-    ['Credit Check matching','Dagarn, Vilefang, High Priest M&rsquo;kari and cut-off ODKP names now match; each ODKP tick counts once; evening raids are no longer dated the next day.'],
+    ['AC below level 50','No longer marked &ldquo;approximate&rdquo; &mdash; confirmed exact at level 48.'],
+    ['/note in October','Notes are matched on what you typed, not the timestamp, and whole boss names only &mdash; <code>/note Quake!</code>, <code>/note set</code> and <code>/note timer</code> work again.'],
   ],
 };
 function showWhatsNew(){
