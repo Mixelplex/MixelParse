@@ -2167,10 +2167,11 @@ function calcMana(intWis,lvl){
 }
 
 // ── Displayed AC / ATK (the numbers in the in-game Inventory window) ──────────────
-// Classic EQ client formulas, fitted to 8 in-game Inventory + Skills windows
-// (2026-09-25). EXACT for non-casters level 51+ (Mixelmedic, Mixelplex, Mixelshank,
-// Mixelflop incl. Monk + Iksar bonuses); casters (Mixelboom 525/app 534, Mixelmez
-// 678/681) and level <=50 (Mixelreaper 846/app 893) are approximate.
+// Classic EQ client formulas, fitted to in-game Inventory + Skills windows
+// (2026-09-25/27). EXACT for non-casters level 40+ (Mixelmedic, Mixelplex, Mixelshank,
+// Mixelflop incl. Monk + Iksar bonuses; Mixelreaper L48 with and without Boots of the
+// Vindicator: 846/799 AC, 745/740 ATK). Casters (Mixelboom 525/app 534, Mixelmez
+// 678/681) and level <40 (AGI tiers untested) are approximate.
 // ATK within ±3 on 6 of 7 characters.
 // Worn effects whose AC/ATK/haste count like buffs — from a scan of every item page
 // in item_db (the item export did not carry worn effects).
@@ -2200,7 +2201,7 @@ function calcDisplayAC(o){
   parts.agi=acAgiBonus(o.agi||0,lvl);
   parts.spells=Math.trunc(((o.buffAC||0)+(o.wornAC||0))*5/6);
   const sum=Object.values(parts).reduce((a,b)=>a+b,0);
-  const why=[];if(caster)why.push('caster formula not yet confirmed');if(lvl<=50)why.push('level 50 and under not yet confirmed');
+  const why=[];if(caster)why.push('caster formula not yet confirmed');if(lvl<40)why.push('below level 40 not yet confirmed (AGI bonus tiers)');
   return{value:Math.trunc(sum*1000/847),exact:!why.length,why,parts};
 }
 // o: {offense,str,weaponSkill,itemATK,wornATK,spellATK}. Worn/item ATK ×1.342, spell 1:1.

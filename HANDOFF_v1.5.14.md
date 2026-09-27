@@ -67,7 +67,10 @@ Plan: Phase 1 source research (done) → Phase 2 in-game screenshots (user) → 
 5. **AGI bonus above 137:** EQEmu's table rises gradually (L40+: 138→51 … 240+→65); ours returns a flat 65. Ours matches Shank (145) and Flop (212) exactly, so **keep ours**; note it's only confirmed at L40+.
 6. **Possible DB issue:** Spiked Seahorse Hide Belt showed AC 0 (wiki: 10) in a snapshot taken 2026-09-25 00:22. It's one of the 7 incident items that 1.5.10 self-heals, so **check the live row first** (Admin → Wiki Check → one item). Fix only with the user's OK.
 
-### Phase 3 changes agreed but NOT yet applied
+### Phase 2/3 update (2026-09-27)
+- Mixelreaper SHD48 unbuffed, in-game: AC 846 / ATK 745 with Boots of the Vindicator, 799 / 740 without (also max HP −68, mana −47). App formulas match all six exactly. Applied: COMBAT_REFS Reaper gearAC 170 + a boots-off case; calcDisplayAC caveat now only below L40 and casters.
+
+### Phase 3 changes agreed (APPLIED 2026-09-27)
 - `COMBAT_REFS` in `admin.html`: Mixelreaper `gearAC:200` → `170`.
 - `calcDisplayAC`: drop the "level 50 and under" caveat; keep "≈" only below level 40 (AGI tiers untested there) and for casters.
 
