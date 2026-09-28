@@ -93,6 +93,7 @@ Plan: Phase 1 source research (done) → Phase 2 in-game screenshots (user) → 
 ---
 
 ## Other open items (carried)
+- **Spawn timers — ON HOLD (user, 2026-09-28).** Discord timer feed: the timer bot's owner agreed to think about a read-only feed (JSON link / webhook / announcement channel / sheet); nothing to build until they answer. No self-bot / token / automated account access — user-account automation was ruled out. Separate, still open: shared board is last-writer-wins (btEnsureLoaded loads once, btSave writes the whole board) — independent of Discord; plus missing respawn timers (Takish 12h30, Vilefang 1d, Vaniki 122h) and parkAck reset after a quake not saved.
 - **Session auto-start on fresh PC — WATCH** (watcher tails every `eqlog_*`; confirm toast on a toon with no inventory file; watch mule auto-starts / CPU).
 - **Raid kill Auto-Detect — WATCH-ONLY trial** (Kill Tracker → 🎯 Auto-Detect). Next: collect a few raids → decide on pre-filled ToD prompts for Strong, pick-list for Pick/Weak.
 - Backstab scoring rework — user's decision pending (wiki: damage doesn't depend on delay; app divides by delay).
