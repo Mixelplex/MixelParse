@@ -2167,11 +2167,13 @@ function calcMana(intWis,lvl){
 }
 
 // ── Displayed AC / ATK (the numbers in the in-game Inventory window) ──────────────
-// Classic EQ client formulas, fitted to 8 in-game Inventory + Skills windows
-// (2026-09-25). EXACT for non-casters level 51+ (Mixelmedic, Mixelplex, Mixelshank,
-// Mixelflop incl. Monk + Iksar bonuses); casters (Mixelboom 525/app 534, Mixelmez
-// 678/681) and level <=50 (Mixelreaper 846/app 893) are approximate.
-// ATK within ±3 on 6 of 7 characters.
+// Classic EQ client formulas, fitted to in-game Inventory + Skills windows
+// (2026-09-25/27). EXACT for non-casters level 40+ (Mixelmedic, Mixelplex, Mixelshank,
+// Mixelflop incl. Monk + Iksar bonuses; Mixelreaper L48 with and without Boots of the
+// Vindicator: 846/799 AC, 745/740 ATK). Casters: gear ×1 and Defense ÷2, exact unbuffed
+// on Mixelboom (3 readings) and Mixelmez; flagged ≈ only with buff/worn AC (caster buff
+// scaling unconfirmed). Level <40 (AGI tiers untested) is approximate.
+// ATK within ±1 on 7 of 9 readings (Mixelplex −4; Mixelmez +6 — no weapon in primary).
 // Worn effects whose AC/ATK/haste count like buffs — from a scan of every item page
 // in item_db (the item export did not carry worn effects).
 const WORN_EFFECT_STATS={"Aura of Battle":{"atk":10},"Rage of Tallon":{"atk":30,"ac":12},"Seething Fury":{"haste":40,"ac":9,"atk":40},"Swift Spirit":{"haste":40,"atk":30},"Blessing of the Grove":{"haste":40,"ac":30}};
@@ -2192,15 +2194,18 @@ function acAgiBonus(agi,lvl){
 function calcDisplayAC(o){
   const caster=CASTER_AC_CLASSES.has(o.cls),lvl=o.level||1,def=o.defense||0;
   const parts={};
-  parts.defenseMit=Math.trunc(def/(caster?4:3));
-  parts.gear=Math.trunc((o.gearAC||0)*4/3);
+  // Casters (WIZ/MAG/NEC/ENC): gear AC counts 1:1 and Defense ÷2 — exact on four unbuffed
+  // in-game readings (2026-09-27): Mixelboom WIZ54 Def 122 (525 / Orb off 484 / Gloves off
+  // 517) and Mixelmez ENC60 Def 145 (622). How casters count buff AC is still open.
+  parts.defenseMit=Math.trunc(def/(caster?2:3));
+  parts.gear=caster?(o.gearAC||0):Math.trunc((o.gearAC||0)*4/3);
   parts.monk=o.cls==='Monk'?Math.trunc(lvl*13/10):0;
   parts.iksar=o.race==='Iksar'?12+Math.trunc(Math.min(Math.max(lvl-10,0),25)*12/10):0;
   parts.defenseAvoid=Math.trunc(def*16/9);
   parts.agi=acAgiBonus(o.agi||0,lvl);
   parts.spells=Math.trunc(((o.buffAC||0)+(o.wornAC||0))*5/6);
   const sum=Object.values(parts).reduce((a,b)=>a+b,0);
-  const why=[];if(caster)why.push('caster formula not yet confirmed');if(lvl<=50)why.push('level 50 and under not yet confirmed');
+  const why=[];if(caster&&((o.buffAC||0)+(o.wornAC||0)))why.push('caster buff / worn-effect AC not yet confirmed');if(lvl<40)why.push('below level 40 not yet confirmed (AGI bonus tiers)');
   return{value:Math.trunc(sum*1000/847),exact:!why.length,why,parts};
 }
 // o: {offense,str,weaponSkill,itemATK,wornATK,spellATK}. Worn/item ATK ×1.342, spell 1:1.
@@ -5090,20 +5095,16 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.5.15',
+  version:'1.5.16',
   date:'September 2026',
   features:[
-    ['Auto-Detect checks your DKP credit','Every RAIDTICK you were in zone for is matched to your ODKP ticks by time &mdash; &#10003; credited or &#10007; not credited. <b>&#9935; Scan logs</b> loads the last 6 months of raid nights from your logs.'],
-    ['Hourlies, HoT Farm and Buff &amp; Park in Credit Check','Optional section (turn it on with the <b>&#9881;</b> next to Export Report) that compares what you tracked with what ODKP credited, night by night.'],
-    ['Repeat kills','Quakes and GM events can spawn a boss more than once a day. Use the &#65291; next to any boss for #2, #3&hellip; &mdash; and a second <code>/note</code> adds another spawn instead of overwriting the first.'],
-    ['Faydedar','Added to the Kill Tracker (Tier Eight), spawn timers, and <code>/note faydedar</code>.'],
-    ['AC and ATK like the game','The Stats tab shows AC and ATK the way the Inventory window does, using combat skills read from your logs.'],
-    ['Quantities in Watch List and Inventory','Watch List shows how many you have; Inventory totals follow your search and filters.'],
+    ['AC matches the game for every class','Checked against the in-game Inventory window on six characters. Wizards, Magicians, Necromancers and Enchanters now count gear AC and Defense the way the game does &mdash; their AC was off before.'],
+    ['Watch List counts','A green &#10004; stays in line with the rest of the column, with the count beside it when you have more than one &mdash; &#10004; (3).'],
+    ['Recently added','DKP credit check in Auto-Detect (&#9935; Scan logs), repeat kills with &#65291;, Faydedar, and the optional hourlies / HoT Farm / Buff &amp; Park section in Credit Check (&#9881;).'],
   ],
   fixes:[
-    ['/note in October','Notes are now matched on what you typed, not the timestamp &mdash; &ldquo;Oct&rdquo; would have turned every note into Cazic Thule. <code>/note Quake!</code>, <code>/note set</code> and <code>/note timer</code> work again.'],
-    ['/note picks the right boss','Whole names only: Severilous no longer lands on Sevalak, Mistress of Scorn on Essedera, or Avatar of Abhorrence on Avatar of War.'],
-    ['Credit Check matching','Dagarn, Vilefang, High Priest M&rsquo;kari and cut-off ODKP names now match; each ODKP tick counts once; evening raids are no longer dated the next day.'],
+    ['AC below level 50','No longer marked &ldquo;approximate&rdquo; &mdash; confirmed exact at level 48.'],
+    ['/note in October','Notes are matched on what you typed, not the timestamp, and whole boss names only &mdash; <code>/note Quake!</code>, <code>/note set</code> and <code>/note timer</code> work again.'],
   ],
 };
 function showWhatsNew(){
@@ -7057,7 +7058,6 @@ window.applyDBToChar    = applyDBToChar;
   window._watcherWSSend = () => false;
 
   // ── Minimal boss list for /note fuzzy matching (IPC notesUpdate path) ──────
-  // Mirrors NOTES_BOSS_LIST in electron/ipc/watcher.js — keep in sync.
   const _NOTES_BOSS_LIST = [
     { target:'Dozekar',         full:'Dozekar the Cursed',          aliases:['dozekar','doze'] },
     { target:'Avatar of War',   full:'Avatar of War',               aliases:['avatar','aow','avt'] },
@@ -7171,7 +7171,6 @@ window.applyDBToChar    = applyDBToChar;
   window._noteBossMatch = _noteBossMatch;
 
   // /note aliases for Hourly Ticks DKP entries — checked after _NOTES_BOSS_LIST.
-  // Mirrors NOTES_TICK_MAP in electron/ipc/watcher.js — keep in sync.
   // desc/value must match HOURLY_ROLES exactly.
   const _NOTES_TICK_MAP = [
     { desc:'Ticks - Standard (hourly)',        value:1, aliases:['standard','hourly','std'] },
@@ -7182,7 +7181,6 @@ window.applyDBToChar    = applyDBToChar;
   // /note aliases for Ring War checkpoints — toggles the checkpoint directly
   // (no kill modal — the generic '/note rw' boss-modal entry was removed; rwready/rw1/rw2/rw3
   // are the only valid Ring War aliases now). key must match RW_CHECKPOINTS keys exactly.
-  // Mirrors NOTES_RW_MAP in electron/ipc/watcher.js.
   const _NOTES_RW_MAP = [
     { key:'readiness', aliases:['rwready','rw ready'] },
     { key:'wave1',      aliases:['rw1','rw wave 1'] },
@@ -7191,7 +7189,6 @@ window.applyDBToChar    = applyDBToChar;
   ];
 
   // /note alias for HoT Farm Ticks — mirrors clicking + on the HoT Farm Ticks row.
-  // Mirrors NOTES_HOT_MAP in electron/ipc/watcher.js.
   const _NOTES_HOT_MAP = [
     { aliases:['hotfarm','hot'] },
   ];
@@ -15972,8 +15969,13 @@ function _wlBadge(res, big){
   const status=res&&res.status;
   const sz=big?'1.1rem':'1.05rem';
   if(status==='na')      return `<span class="rc-check-na" style="flex-shrink:0;font-size:${big?'1rem':'.8rem'}">N/A</span>`;
-  // More than one on hand: show the quantity instead of the check.
-  if(status==='present' && res.count>1) return `<span class="rc-check-green" title="${res.count} on hand" style="flex-shrink:0;font-size:${big?'.95rem':'.9rem'};font-weight:700;font-family:'Crimson Pro',serif">${res.count}</span>`;
+  // More than one on hand: the check stays primary, with the quantity beside it — ✔ (3).
+  // In the table the count hangs off the check's right edge (absolute), so the check stays
+  // centred in line with the ✘ / ✔ of the other rows.
+  if(status==='present' && res.count>1){
+    const cnt=`<span style="font-size:${big?'.9rem':'.85rem'};font-weight:600;font-family:'Crimson Pro',serif;${big?'position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:.45rem;':'margin-left:.35rem;'}white-space:nowrap">(${res.count})</span>`;
+    return `<span class="rc-check-green" title="${res.count} on hand" style="flex-shrink:0;white-space:nowrap;${big?'position:relative;display:inline-block;':''}"><span style="font-size:${sz};font-weight:700">✔</span>${cnt}</span>`;
+  }
   if(status==='present') return `<span class="rc-check-green" style="flex-shrink:0;font-size:${sz};font-weight:700">\u2714</span>`;
   if(status==='missing_yellow'||status==='missing_tracked'){
     // Show have/target so a partial explains itself (e.g. 2/3); fall back to the
