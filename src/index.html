@@ -4383,7 +4383,10 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
 // Rank-by-stat comparator: net UPGRADES first (eff score > 0), then by raw stat desc,
 // then by eff score desc — downgrades sink below all upgrades regardless of stat value.
 // Gear Planner Build / Target / 🔒 lock controls → charMeta[char].plan (saved with the character).
-window.upgSetPlan=function(c,k,v){const m=charMeta[c]||(charMeta[c]={});const p=m.plan||(m.plan={});p[k]=v;saveState();renderUpgradesPanel();};
+window.upgSetPlan=function(c,k,v){const m=charMeta[c]||(charMeta[c]={});const p=m.plan||(m.plan={});p[k]=v;
+  // A raw-stat Sort would keep ordering each slot by that stat and hide the Build's effect.
+  if(k==='build'&&window['_upgSortBy_'+c]&&window['_upgSortBy_'+c]!=='proc')window['_upgSortBy_'+c]='';
+  saveState();renderUpgradesPanel();};
 window.upgToggleLock=function(btn){
   const c=btn.dataset.char,it=btn.dataset.item;if(!c||!it)return;
   const m=charMeta[c]||(charMeta[c]={});const p=m.plan||(m.plan={});
@@ -5663,7 +5666,7 @@ async function loadFromSupabase(){
           }
         }
         if(row.base_stats?.questData)questData[row.char_name]=row.base_stats.questData;
-        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,factionValues:_fv,questData:_qd,buffs:_bu,planBuffed:_pb,spellbook:_sb,spellIgnore:_si,customWeights:_cw,consumeOverrides:_co,deity:_de,skills:_sk,skillsManual:_skm,...bs}=row.base_stats||{};
+        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,factionValues:_fv,questData:_qd,buffs:_bu,planBuffed:_pb,plan:_pl,spellbook:_sb,spellIgnore:_si,customWeights:_cw,consumeOverrides:_co,deity:_de,skills:_sk,skillsManual:_skm,...bs}=row.base_stats||{};
         const hasRealStats=bs.stats||bs.resists;
         charMeta[row.char_name]={
           class:row.class||'',race:row.race||'',level:row.level||1,
@@ -5679,6 +5682,7 @@ async function loadFromSupabase(){
           customWeights:row.base_stats?.customWeights||null,
           consumeOverrides:row.base_stats?.consumeOverrides||null,
           planBuffed:row.base_stats?.planBuffed??undefined,
+          plan:row.base_stats?.plan||undefined,            // Gear Planner Build / Target / Tradeable / 🔒 locks
           deity:row.base_stats?.deity||'',
           skills:row.base_stats?.skills||{},
           skillsManual:row.base_stats?.skillsManual||{},
@@ -5800,6 +5804,7 @@ function _charSaveRow(cn){
         customWeights:charMeta[cn]?.customWeights||null,
         consumeOverrides:charMeta[cn]?.consumeOverrides||null,
         planBuffed:charMeta[cn]?.planBuffed,
+        plan:charMeta[cn]?.plan||null,
         deity:charMeta[cn]?.deity||null,
         skills:charMeta[cn]?.skills||null,              // highest value per skill, from logs
         skillsManual:charMeta[cn]?.skillsManual||null,  // typed from the in-game Skills window
