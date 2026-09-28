@@ -15973,7 +15973,7 @@ function _wlBadge(res, big){
   // In the table the count hangs off the check's top-right (absolute), so the check stays
   // centred in line with the ✘ / ✔ of the other rows.
   if(status==='present' && res.count>1){
-    const cnt=`<span style="font-size:${big?'.72rem':'.68rem'};font-weight:700;font-family:'Crimson Pro',serif;line-height:1;${big?'position:absolute;left:100%;top:-.55em;margin-left:-.04rem;':'vertical-align:super;margin-left:.05rem;'}white-space:nowrap">${res.count}</span>`;
+    const cnt=`<span style="font-size:${big?'.72rem':'.68rem'};font-weight:700;font-family:'Crimson Pro',serif;line-height:1;${big?'position:absolute;left:100%;top:-.55em;margin-left:.08rem;':'vertical-align:super;margin-left:.15rem;'}white-space:nowrap">${res.count}</span>`;
     return `<span class="rc-check-green" title="${res.count} on hand" style="flex-shrink:0;white-space:nowrap;${big?'position:relative;display:inline-block;':''}"><span style="font-size:${sz};font-weight:700">✔</span>${cnt}</span>`;
   }
   if(status==='present') return `<span class="rc-check-green" style="flex-shrink:0;font-size:${sz};font-weight:700">\u2714</span>`;
