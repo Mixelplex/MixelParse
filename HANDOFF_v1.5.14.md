@@ -49,6 +49,13 @@ Start here, then read the code. Git history is the source of truth for what chan
 
 ---
 
+### Session 2026-09-28 (local, after 1.5.16 — not yet published)
+- Watch List: count display option (⚙ → ✔³ / ✔ (3) / ✔ only, localStorage mp_wl_count). Stats tab COMBAT SKILLS row hidden (short-circuited; logs fill skills).
+- Gear Planner: Build (Balanced / Max proc / Leveling), Target (Any / Undead / Summoned), Tradeable only, 🔒 locks — all in charMeta[name].plan. Proc% sort. Weapon card "dps" → "wpn score".
+- Proc data: WEAPON_PROC_FIXES (67 weapons missing their proc; applied only to scoring copies via procFixFor — never written to item_db), PROC_DMG_EXTRA (+20), CONDITIONAL_PROCS (Banish Undead 585 etc.), PROC_UTILITY_RULES (buff/debuff/control damage-equivalents — user can re-tune), WORN_REGEN (Fungal Regrowth 5/tick = 100 HP-equiv).
+- Proc scoring units (proc DPS vs ratio/10) left as-is on purpose: tested against the wiki Velious BiS lists (Rogue/Monk/Warrior) — the current weighting matches them as well or better (Baton of Flame #26 vs #33 fixed). Remaining BiS gaps are stat weights and 41% haste weapons, not procs.
+- admin.html gcScoreItem does NOT mirror the new proc/Target/build logic yet.
+
 ## 1.5.12 — in-game AC / ATK (details)
 - **Skills from logs:** watcher `scanSkillsAllLogs()` reads every log (+ `Logs\archive`, .txt/.old) for `You have become better at X! (N)` and keeps the max per skill. Runs 6 s after sign-in; admin can call `window.rescanSkills()`. Live `skillUp` events after that. Stored per character in `characters.base_stats.skills` (logs, only ever raises) and `skillsManual` (typed on the Stats tab COMBAT SKILLS row — wins over logs). Both are in the explicit save/load field lists (same lesson as deity).
 - Logs can miss skills that never rose in the logged period (e.g. Mixelboom Offense/1H Blunt, Mixelmez Offense/Piercing; Mixelreaper Defense logs 200 vs 210 in-game) → user types them.
