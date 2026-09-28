@@ -2263,10 +2263,10 @@ function combatDisplayFor(name){
   const inputs={cls,race:m.race||'',level:lvl,agi:tot('agi'),str:tot('str'),gearAC,itemATK,wornAC,wornATK,buffAC:+(bsum.ac||0),worn,
     weapon:primary?primary.name||'(weapon)':'(none)',weaponSkillName:wSkill,defense:sDef,offense:sOff,weaponSkill:sW};
   const ac=calcDisplayAC({cls,race:m.race,level:lvl,defense:sDef.v||0,gearAC,agi:inputs.agi,buffAC:inputs.buffAC,wornAC});
-  if(sDef.v==null){ac.exact=false;ac.why.unshift('Defense skill unknown — enter it from the Skills window');}
+  if(sDef.v==null){ac.exact=false;ac.why.unshift('Defense skill not in your logs yet — it fills in as it rises');}
   const atk=calcDisplayATK({offense:sOff.v||0,str:inputs.str,weaponSkill:sW.v||0,itemATK,wornATK});
   atk.exact=false;atk.why=['ATK is an estimate (±3 in testing; spell ATK from buffs not included)'];
-  if(sOff.v==null||sW.v==null)atk.why.unshift((sOff.v==null?'Offense':wSkill)+' skill unknown — enter it from the Skills window');
+  if(sOff.v==null||sW.v==null)atk.why.unshift((sOff.v==null?'Offense':wSkill)+' skill not in your logs yet — it fills in as it rises');
   return{ac,atk,inputs};
 }
 window.combatDisplayFor=combatDisplayFor;
@@ -2876,7 +2876,7 @@ panel.innerHTML=`<div class="char-setup" style="flex-direction:column;align-item
   <label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Level<input type="number" id="levelInput" min="1" max="60" value="${selLevel}" style="width:55px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .4rem;font-family:\'Crimson Pro\',serif;font-size:.9rem;text-align:center;outline:none"></label>
   <label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">\u2693 Bind<input type="text" id="bindInput" list="mpZonesDL" value="${esc((getCharBind(name)||{}).zone||'')}" placeholder="Bind zone" style="width:150px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:\'Crimson Pro\',serif;font-size:.9rem;outline:none"></label>
 </div>
-${(()=>{const _cdi=(typeof combatDisplayFor==='function')?combatDisplayFor(name):null;const _wsn=_cdi?_cdi.inputs.weaponSkillName:'';
+${/* COMBAT SKILLS row hidden 2026-09-28 — skills are read from the logs; admin Combat Check keeps manual entry */''&&(()=>{const _cdi=(typeof combatDisplayFor==='function')?combatDisplayFor(name):null;const _wsn=_cdi?_cdi.inputs.weaponSkillName:'';
   const box=sk=>{const man=(meta.skillsManual||{})[sk],lg=(meta.skills||{})[sk];return '<label style="font-size:.8rem;color:var(--text-dim);display:flex;align-items:center;gap:.35rem">'+esc(sk)+'<input type="number" class="skillInput" data-skill="'+esc(sk)+'" min="0" max="300" value="'+(man!=null&&man!==''?man:'')+'" placeholder="'+(lg!=null?lg+' logs':'?')+'" title="'+(lg!=null?'From your logs: '+lg+'. Type the value from the in-game Skills window to override.':'Not found in your logs — type the value from the in-game Skills window.')+'" style="width:72px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.25rem .35rem;font-size:.85rem;text-align:center"></label>';};
   return '<div style="display:flex;gap:.8rem;flex-wrap:wrap;align-items:center"><span style="font-size:.62rem;letter-spacing:.06em;color:var(--gold)" title="Used for the in-game AC and ATK values. Filled from your logs automatically; type a value from the Skills window to override it.">COMBAT SKILLS</span>'+box('Defense')+box('Offense')+(_wsn?box(_wsn):'')+'</div>';})()}
 
