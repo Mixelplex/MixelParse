@@ -96,6 +96,11 @@ Plan: Phase 1 source research (done) → Phase 2 in-game screenshots (user) → 
 - **Resist check** — each character's resists vs what a raid target needs, with the easiest upgrades from gear already owned across characters.
 - **Corpse tracker** — deaths from logs: where / when / decay timer / rez window; items stored on corpses count toward inventory.
 - **Keys & flags board** — VP key, Sleeper's Tomb, ToV access etc. across characters (optionally guild).
+- **Weight / encumbrance check** — flag characters over/near max weight (Mixelmez 73/70 on 2026-09-27), heaviest items, coin weight → bank suggestion.
+- **Loot alerts** — toast when a loot line ("X has looted Y" / own loot) matches a Watch List item or a Gear Planner pick.
+- **XP per hour by camp** — from session data: XP/hr per zone/camp at the character's level (personal complement to the Leveling Guide).
+- **Tradeskill tracker** — tradeskill levels from log skill-ups, components held across mules, what can be made / skilled up next.
+- Not picked (2026-09-28): quest turn-in finder, epic progress tracker, zone companion.
 - Rejected (don't re-suggest): auction watcher (Discord has one), raid night recap and exact gear preview (MixelParse already has them), splitting index.html.
 
 ## Other open items (carried)
