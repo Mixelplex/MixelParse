@@ -1121,6 +1121,12 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
       <div>Quick add from Raid Consumes:</div>
       <div class="wl-shortcut-chips" id="wlShortcuts"></div>
     </div>
+    <div id="wlCountStyleRow" style="display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .8rem;margin:.1rem 0 .7rem;font-size:.8rem">
+      <span style="color:var(--text-muted)">When you have more than one:</span>
+      <label style="cursor:pointer;display:flex;align-items:center;gap:.25rem"><input type="radio" name="wlCountStyle" value="sup" onchange="wlSetCountStyle(this.value)"> <span class="rc-check-green" style="font-weight:700">&#10004;<sup style="font-size:.7em">3</sup></span></label>
+      <label style="cursor:pointer;display:flex;align-items:center;gap:.25rem"><input type="radio" name="wlCountStyle" value="paren" onchange="wlSetCountStyle(this.value)"> <span class="rc-check-green" style="font-weight:700">&#10004; <span style="font-size:.85em">(3)</span></span></label>
+      <label style="cursor:pointer;display:flex;align-items:center;gap:.25rem"><input type="radio" name="wlCountStyle" value="none" onchange="wlSetCountStyle(this.value)"> <span class="rc-check-green" style="font-weight:700">&#10004;</span> only</label>
+    </div>
     <div class="wl-item-list" id="wlItemList"></div>
     <div style="display:flex;justify-content:flex-end">
       <button class="btn" id="wlCloseBtn">Done</button>
@@ -15965,18 +15971,26 @@ function watchlistStatus(charName, itemName){
   }
   return {status: charHasItem(charName, itemName) ? 'present' : 'missing_red', count:charItemCount(charName, itemName)};
 }
+// Watch List ⚙ → "When you have more than one": 'sup' ✔³ (default) | 'paren' ✔ (3) | 'none' ✔.
+// A per-PC display choice, so it lives in localStorage.
+function wlCountStyle(){try{const v=localStorage.getItem('mp_wl_count');return v==='paren'||v==='none'?v:'sup';}catch(e){return'sup';}}
+window.wlSetCountStyle=function(v){try{localStorage.setItem('mp_wl_count',v);}catch(e){}renderWatchlistBar();};
 function _wlBadge(res, big){
   const status=res&&res.status;
   const sz=big?'1.1rem':'1.05rem';
   if(status==='na')      return `<span class="rc-check-na" style="flex-shrink:0;font-size:${big?'1rem':'.8rem'}">N/A</span>`;
-  // More than one on hand: the check stays primary, with the quantity as a superscript — ✔³.
-  // In the table the count hangs off the check's top-right (absolute), so the check stays
-  // centred in line with the ✘ / ✔ of the other rows.
-  if(status==='present' && res.count>1){
-    const cnt=`<span style="font-size:${big?'.72rem':'.68rem'};font-weight:700;font-family:'Crimson Pro',serif;line-height:1;${big?'position:absolute;left:100%;top:-.55em;margin-left:.08rem;':'vertical-align:super;margin-left:.15rem;'}white-space:nowrap">${res.count}</span>`;
+  // More than one on hand: the check stays primary, with the quantity per the Watch List ⚙
+  // "When you have more than one" option — ✔³ (default), ✔ (3), or ✔ only.
+  // In the table the count hangs off the check (absolute), so the check stays centred in
+  // line with the ✘ / ✔ of the other rows.
+  const cstyle=wlCountStyle();
+  if(status==='present' && res.count>1 && cstyle!=='none'){
+    const cnt=cstyle==='paren'
+      ?`<span style="font-size:${big?'.9rem':'.85rem'};font-weight:600;font-family:'Crimson Pro',serif;${big?'position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:.45rem;':'margin-left:.35rem;'}white-space:nowrap">(${res.count})</span>`
+      :`<span style="font-size:${big?'.72rem':'.68rem'};font-weight:700;font-family:'Crimson Pro',serif;line-height:1;${big?'position:absolute;left:100%;top:-.55em;margin-left:.08rem;':'vertical-align:super;margin-left:.15rem;'}white-space:nowrap">${res.count}</span>`;
     return `<span class="rc-check-green" title="${res.count} on hand" style="flex-shrink:0;white-space:nowrap;${big?'position:relative;display:inline-block;':''}"><span style="font-size:${sz};font-weight:700">✔</span>${cnt}</span>`;
   }
-  if(status==='present') return `<span class="rc-check-green" style="flex-shrink:0;font-size:${sz};font-weight:700">\u2714</span>`;
+  if(status==='present') return `<span class="rc-check-green"${res.count>1?` title="${res.count} on hand"`:''} style="flex-shrink:0;font-size:${sz};font-weight:700">\u2714</span>`;
   if(status==='missing_yellow'||status==='missing_tracked'){
     // Show have/target so a partial explains itself (e.g. 2/3); fall back to the
     // half-circle for soft/zero-count cases where a ratio isn't meaningful.
@@ -16055,6 +16069,7 @@ function renderWlModal(){
 
 function wlOpen(){
   renderWlModal();
+  const cs=wlCountStyle();document.querySelectorAll('input[name="wlCountStyle"]').forEach(r=>{r.checked=r.value===cs;});
   document.getElementById('wlModalOverlay').style.display='flex';
   document.getElementById('wlInput').focus();
 }
