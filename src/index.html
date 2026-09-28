@@ -5220,16 +5220,18 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.5.16',
+  version:'1.5.17',
   date:'September 2026',
   features:[
-    ['AC matches the game for every class','Checked against the in-game Inventory window on six characters. Wizards, Magicians, Necromancers and Enchanters now count gear AC and Defense the way the game does &mdash; their AC was off before.'],
-    ['Watch List counts','A green &#10004; stays in line with the rest of the column, with the count beside it when you have more than one &mdash; &#10004; (3).'],
-    ['Recently added','DKP credit check in Auto-Detect (&#9935; Scan logs), repeat kills with &#65291;, Faydedar, and the optional hourlies / HoT Farm / Buff &amp; Park section in Credit Check (&#9881;).'],
+    ['Gear Planner builds','New toolbar options: <b>Build</b> (Balanced, Max proc, Leveling), <b>Target</b> (Any, Undead, Summoned) and <b>Tradeable only</b>. Max proc puts DEX first for your weapon&rsquo;s proc &mdash; even for casters and priests.'],
+    ['Lock gear you&rsquo;re keeping','Click &#128275; on any worn item in the Gear Planner to lock it. That slot stops getting suggestions, everywhere in the planner.'],
+    ['Sort by Proc%','Armor shows how many more procs its DEX gives you; weapons show their proc damage per minute.'],
+    ['Watch List counts, your way','Watch List &#9881; &rarr; &ldquo;When you have more than one&rdquo;: &#10004;<sup>3</sup>, &#10004; (3), or just &#10004;.'],
   ],
   fixes:[
-    ['AC below level 50','No longer marked &ldquo;approximate&rdquo; &mdash; confirmed exact at level 48.'],
-    ['/note in October','Notes are matched on what you typed, not the timestamp, and whole boss names only &mdash; <code>/note Quake!</code>, <code>/note set</code> and <code>/note timer</code> work again.'],
+    ['67 weapons had no proc','Procs missing from the item data are now filled in from the P99 wiki for scoring (Baton of Flame, the Coldain Velium weapons, Dagarn&rsquo;s Tail and more).'],
+    ['Buff and debuff procs count','Avatar, Rage of Vallon, stun, snare, tash and similar procs now add value instead of zero. Worn regen (Fungal Regrowth) counts as HP.'],
+    ['Cleaner Stats tab','The Combat Skills row is gone &mdash; skills are read from your logs automatically.'],
   ],
 };
 function showWhatsNew(){

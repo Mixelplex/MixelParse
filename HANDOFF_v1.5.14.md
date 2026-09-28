@@ -17,6 +17,7 @@ Start here, then read the code. Git history is the source of truth for what chan
 |---|---|---|
 | 1.5.8, 1.5.9, 1.5.10 | **Published** (tags on origin) | — |
 | 1.5.14 | **Published 2026-09-26** (1.5.11–1.5.13 were local test builds, rolled in) | c2cc4c8 … 27e184f |
+| 1.5.17 | **Published 2026-09-28** — Gear Planner Build/Target/Tradeable/🔒 locks/Proc% sort, 67 weapon proc fixes, utility proc values, worn regen, Watch List count option, Combat Skills row hidden | 72068b0 … 10f7208 |
 | 1.5.16 | **Published 2026-09-27** — caster AC (gear ×1, Defense ÷2), AC/ATK refs confirmed (Reaper, Boom ×3, Mez, Medic ATK 592), Watch List ✔ (n), old watcher/ removed | 45b05ad … 39b329e |
 | 1.5.15 | **Published 2026-09-26** — Credit Check back to one column; hourly/HoT/BnP section opt-in (⚙, localStorage mp_cc_ledger) | d3bc946, 2b56377 |
 
