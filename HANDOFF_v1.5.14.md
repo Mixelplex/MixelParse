@@ -138,3 +138,9 @@ Plan: Phase 1 source research (done) → Phase 2 in-game screenshots (user) → 
 - Ties are ambiguous only when the runner-up has ≥1/3 the evidence.
 - 6-month replay (scratchpad scansig.js + preview): all 255 previously attributed ticks keep their boss; +68 in-zone ticks attributed (40 enrage, 18 rampage/flurry, 5 slain, 2 faction, 2 call, 1 landed); ambiguous 19 → 7. Zlandicar = strong (faction hit, ToD 17:04:31); AoW = weak (rampage/flurry).
 - Existing users: ⛏ Scan logs backfills — "No boss" rows are re-evaluated and unseen ticks added. Still watch-only.
+
+
+## Guild DKP update 2026-09-29 (local, unpublished)
+- Severilous + Gorenaire Tier Five → Four (2.5+1.2, race FTE 25 = Tier Four race value, camp 5). Klandicar, Sontalak, Zlandicar Tier Four → Three (4+1.5, camp 8, no race FTE — same as Yelinak).
+- Roles: PR Trainout 0.5→1, Low HP Train 1→2, Bonewalk 1→2 (announcement says "outside of minis"; the app has one Bonewalk role, Dozekar), LTK Coth / Pets 1→2.
+- BOSS_VALUE_HISTORY + bossValueOn(b,date): raids dated before 2026-09-29 keep the old boss values in session totals and Credit Check expected values (roles are stored with their value, so no history needed). Assumed effective date = announcement day; change `until` if the guild says otherwise.
