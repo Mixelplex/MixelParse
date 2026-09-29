@@ -1121,6 +1121,12 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
       <div>Quick add from Raid Consumes:</div>
       <div class="wl-shortcut-chips" id="wlShortcuts"></div>
     </div>
+    <div id="wlCountStyleRow" style="display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .8rem;margin:.1rem 0 .7rem;font-size:.8rem">
+      <span style="color:var(--text-muted)">When you have more than one:</span>
+      <label style="cursor:pointer;display:flex;align-items:center;gap:.25rem"><input type="radio" name="wlCountStyle" value="sup" onchange="wlSetCountStyle(this.value)"> <span class="rc-check-green" style="font-weight:700">&#10004;<sup style="font-size:.7em">3</sup></span></label>
+      <label style="cursor:pointer;display:flex;align-items:center;gap:.25rem"><input type="radio" name="wlCountStyle" value="paren" onchange="wlSetCountStyle(this.value)"> <span class="rc-check-green" style="font-weight:700">&#10004; <span style="font-size:.85em">(3)</span></span></label>
+      <label style="cursor:pointer;display:flex;align-items:center;gap:.25rem"><input type="radio" name="wlCountStyle" value="none" onchange="wlSetCountStyle(this.value)"> <span class="rc-check-green" style="font-weight:700">&#10004;</span> only</label>
+    </div>
     <div class="wl-item-list" id="wlItemList"></div>
     <div style="display:flex;justify-content:flex-end">
       <button class="btn" id="wlCloseBtn">Done</button>
@@ -1631,6 +1637,47 @@ const ZONE_SHORTNAME_MAP = {
 // DoT procs use total duration damage at level 60.
 // Utility procs (stun/snare/haste/buff) = 0.
 const PROC_DB={"Affliction":0,"Anarchy":40,"Avatar":0,"Banish Summoned":0,"Banish Undead":0,"Berserker Madness I":0,"Berserker Madness II":0,"Berserker Madness III":0,"Berserker Madness IV":0,"Berserker Strength":0,"Blessing of Nature":0,"Blessing of the Theurgist":0,"Blaze":50,"Blinding Poison I":0,"Blinding Poison II":0,"Blinding Poison III":0,"Blood Claw":50,"Boil Blood":96,"Bone Melt":75,"Boneshear":30,"Bone Shatter":0,"Braid of Golden Hair":0,"Breath of the Sea":60,"Brittle Haste I":0,"Brittle Haste II":0,"Brittle Haste III":0,"Brittle Haste IV":0,"Burn":40,"Burst of Flame":25,"Call of Bones":0,"Cancel Magic":0,"Cannibalize II":0,"Careless Lightning":96,"Chaos Flux":60,"Chant of Battle":0,"Chill Sight":0,"Choke":0,"Choking":0,"Clockwork Poison":0,"Color Shift":0,"Combust":182,"Conflagration":150,"Contact Poison I":0,"Contact Poison II":0,"Contact Poison III":0,"Contact Poison IV":0,"Curse of the Garou":0,"Dance of the Blade":0,"Dawncall":0,"Deadly Poison":190,"Disease":15,"Disease Cloud":0,"Dismiss Summoned":0,"Dismiss Undead":0,"Doljon's Rage":140,"Dizzy I":0,"Dizzy II":0,"Dizzy III":0,"Dizzy IV":0,"Dooming Darkness":0,"Drones of Doom":0,"Drowsy":0,"Earthcall":50,"Earthquake":80,"Energy Sap":40,"Engulfing Darkness":0,"Engulfing Roots":0,"Ensnare":0,"Ensnaring Roots":0,"Envenomed Breath":100,"Essence Tap":60,"Expel Undead":0,"Fear":0,"Feeble Mind I":0,"Feeble Mind II":0,"Feeble Mind III":0,"Feeble Mind IV":0,"Feet like Cat":0,"Fire Bolt":48,"Flames of Ro":400,"Fellspine":67,"Fingers of Fire":55,"Firestrike":70,"Flame Shock":60,"Flamesong":80,"Fleeting Fury":0,"Flesh Rot I":30,"Flesh Rot II":60,"Flesh Rot III":90,"Force":55,"Force Shock":88,"Froglok Poison":0,"Frost Shards":620,"Frost Shock":178,"Frost Strike":149,"Frostbite":60,"Gale of Poison":0,"Garzicor's Vengeance":120,"Glamour":0,"Greater Wolf Form":0,"Greenmist":0,"Guard":0,"Haste":0,"Heat Blood":17,"Holy Might":60,"Holy Shock":80,"Hungry Earth":0,"Ice Rend":30,"Ignite":50,"Ikatiar's Revenge":69,"Incapacitate":0,"Infectious Cloud":0,"Inferno Shock":120,"Injected Poison I":0,"Injected Poison II":0,"Injected Poison III":0,"Injected Poison IV":0,"Injected Poison V":0,"Insidious Fever":40,"Invoke Fear":0,"Jolt":40,"Judgment of Ice":150,"Knight's Blessing":0,"Leech":20,"Lifedraw":45,"Lifespike":11,"Lifetap":4,"Lightning Strike":173,"Lightning Storm":100,"Liquid Silver I":40,"Liquid Silver II":60,"Liquid Silver III":80,"Lower Resists I":0,"Lower Resists II":0,"Lower Resists III":0,"Lower Resists IV":0,"Major Shielding":0,"Malaisement":0,"Mana Sink":0,"Melodious Befuddlement":0,"Mistwalker":0,"Muscle Lock I":0,"Muscle Lock II":0,"Muscle Lock III":0,"Muscle Lock IV":0,"Nature's Holy Wrath":150,"Nature's Wrath":100,"Neutralize Magic":0,"Obsidian Shatter":90,"One Hundred Blows":0,"Overthere":0,"Pain":60,"Paralyzing Earth":0,"Paralyzing Poison I":0,"Paralyzing Poison II":0,"Paralyzing Poison III":0,"Poison":30,"Poison Animal I":0,"Poison Animal II":0,"Poison Animal III":0,"Poison Summoned I":0,"Poison Summoned II":0,"Poison Summoned III":0,"Poisonous Chill":50,"Project Lightning":80,"Rage of Vallon":0,"Rage of Xyzith":0,"Rage of Zek":0,"Rain of Fire":100,"Rain of Swords":100,"Rampage":0,"Reckless Strength":0,"Root":0,"Rune III":0,"Scourge":0,"Sear":1,"Screaming Mace":0,"Sebilite Pox":110,"Shadow":0,"Shadow Vortex":0,"Shards of Sorrow":80,"Shield of Brambles":50,"Shield of Thistles":0,"Shiftless Deeds":0,"Shock of Flame":88,"Shock of Frost":60,"Shock of Ice":88,"Shock of Spikes":60,"Shrieking Howl":40,"Sicken":0,"Siphon":80,"Smite":55,"Smolder":80,"Snare":0,"Soul Bond":40,"Soul Consumption":100,"Soul Leech":60,"Specter Lifetap":21,"Spirit Armor":0,"Spirit Strike":85,"Spirit Tap":141,"Static Strike":70,"Steal Strength":0,"Steelskin":0,"Storm Strike":80,"Strike of Thunder":125,"Strike of the Chosen":80,"Strong Disease":0,"Strong Poison":0,"Stun":0,"Stunning Blow":0,"Suffocate":50,"Summon Bandages":0,"Swarming Pain":50,"Symphonic Harmony":0,"System Shock I":40,"System Shock II":60,"System Shock III":80,"System Shock IV":100,"System Shock V":120,"Tagar's Insects":0,"Tashani":0,"Tashania":0,"Tepid Deeds":0,"Thunder Strike":90,"Tishan\'s Clash":60,"Torment":60,"Velium Shards":12,"Venom":50,"Walking Sleep":0,"Waves of the Deep Sea":65,"Weak Poison":20,"Weaken":0,"Weakening Poison I":0,"Weakening Poison II":0,"Weakening Poison III":0,"Weakening Poison IV":0,"Whirlwind":70,"Winter's Roar":80,"Word of Pain":50,"Word of Shadow":0,"Yaulp":0,"Yaulp II":0,"Yaulp III":0,"Yaulp IV":0,"Ykesha":70,"Flame of the Efreeti":100,"Rage of the Sky":179,"Boiling Blood":36,"Essence Drain":0,"Feast of Blood":90,"Shock of Fire":97}
+// ── Weapon proc data (P99 "Weapon Procs" page vs item_db, 2026-09-28) ─────────────
+// 67 proc weapons are stored without their proc. procFixFor() fills the proc into the
+// in-memory COPIES the Gear Planner scores — never into itemDB — so nothing is written to
+// the shared item_db. Value: [proc, level it procs at when above 1].
+const WEAPON_PROC_FIXES={"Ancient Fire Etched Flamberge":["Flame of the Efreeti"],"Baton of Flame":["Flame of the Efreeti"],"Blackstar, Mace of Night":["Blessing of the Blackstar"],"Blood Runed Scimitar":["Lifedraw"],"Blood Runed Short Sword":["Lifespike"],"Braid of Golden Hair":["Swarming Pain"],"Burynaibane Spider Fang":["Sear"],"Charred Black Staff":["Shield of Flame"],"Club of the Ice Ocean":["Frost Strike",50],"Coldain Velium Dagger":["Velium Shards"],"Coldain Velium Great Staff":["Velium Shards"],"Coldain Velium Long Sword":["Velium Shards"],"Coldain Velium Morning Star":["Velium Shards"],"Coldain Velium Scimitar":["Velium Shards"],"Coldain Velium Short Sword":["Velium Shards"],"Crookstinger":["Weak Poison"],"Dagarn's Tail":["Fire Bolt"],"Di`zok Oracle Shillelagh":["Togor's Insects",51],"Dirk of the Dain":["Frost Strike"],"Dirk of the Traitor":["Rodrick's Gift"],"Doljonijiarnimorinar":["Doljon's Rage"],"Dragonspine Rapier":["Kylie's Venom"],"Drakkel Icegrinder":["Ice Rend"],"Essence Blade":["Essence Drain"],"Falgiron Staff":["Tashani"],"Fire Crystal Staff":["Shock of Fire"],"Fist of Nature":["Engulfing Roots"],"Frost Giant Femur":["Yaulp II"],"Garduk":["Tagar's Insects"],"Gaudralek, Sword of the Sky":["Rage of the Sky"],"Gharn's Rock of Smashing":["Strike of the Chosen"],"Hammer of Exoneration":["Bone Shatter"],"Ice Crystal Staff":["Blast of Cold"],"Ivory Handled Falchion":["Heat Blood"],"Jaelen's Katana":["Strike of the Chosen"],"Kreizenn's Flame":["Flame of the Efreeti"],"Magnetic Dirk of Distraction":["Distraction"],"Mystical Laig Staff":["Fire Spiral of Al'Kabor"],"Narandi's Lance":["Boiling Blood"],"Nature's Melody":["Song of the Deep Seas"],"Petrified Heartwood Flamberge":["Engulfing Roots"],"Poisoned Whip":["Tainted Breath"],"Primal Velium Battle Axe":["Avatar"],"Primal Velium Battlehammer":["Avatar"],"Primal Velium Brawl Stick":["Avatar"],"Primal Velium Claidhmore":["Avatar"],"Primal Velium Knight's Sword":["Avatar"],"Primal Velium Spear":["Avatar"],"Primal Velium War Lance":["Avatar"],"Primal Velium Warsword":["Avatar"],"Sarnak Devastator":["Holy Might"],"Scourgetail Whip":["Weak Poison"],"Shadow Rager":["Berserker Strength"],"Shining Star of Light":["Cleanse"],"Silver Whip of Rage":["Silver Skin"],"Siren Song, Dagger of the Sea":["Song of the Deep Seas"],"Skullcrusher of Kragg":["Stun"],"Sledge of Smashing":["Wrath"],"Slime Crystal Staff":["Sicken"],"Smoldering Brand":["Burn"],"Staff of the Silent Star":["Flames of Ro"],"Stalagterror Spine Spear":["Disempower"],"Stronghorn's Horn":["Knockback"],"Twisted Oaken Staff":["Shadow Vortex"],"Very Rusty Dagger":["Disease Cloud"],"Vindication":["Cancel Magic"],"Water Crystal Staff":["Shallow Breath"]};
+const PROC_DMG_EXTRA={"Blessing of the Blackstar":0,"Shield of Flame":0,"Rodrick's Gift":0,"Kylie's Venom":45,"Blast of Cold":11,"Distraction":0,"Fire Spiral of Al'Kabor":71,"Song of the Deep Seas":0,"Tainted Breath":8,"Cleanse":0,"Silver Skin":0,"Wrath":198,"Disempower":0,"Knockback":10,"Shallow Breath":0,"Ward Undead":35,"Ward Summoned":35,"Chaotic Feedback":43,"Fangol's Breath":120,"Togor's Insects":0};
+// PROC_DMG_EXTRA: damage for procs PROC_DB lacked (wiki spell pages); 0 = not a damage proc.
+for(const k in PROC_DMG_EXTRA)if(!(k in PROC_DB))PROC_DB[k]=PROC_DMG_EXTRA[k];
+// Conditional nukes: full damage only against that target type — Gear Planner "Target".
+// Damage from each spell's wiki page (Banish Undead 585 is DawnFire's proc).
+const CONDITIONAL_PROCS={'Banish Undead':['undead',585],'Expel Undead':['undead',261],'Dismiss Undead':['undead',140],'Expulse Undead':['undead',88],'Ward Undead':['undead',35],
+  'Banish Summoned':['summoned',585],'Dismiss Summoned':['summoned',140],'Ward Summoned':['summoned',35]};
+for(const k in CONDITIONAL_PROCS)PROC_DB[k]=0;
+// Buff / debuff / control procs deal 0 damage but aren't worthless. Damage-equivalent
+// values by kind (judgment values, 2026-09-28) — first matching rule wins; edit to re-rank.
+const PROC_UTILITY_RULES=[
+  [/^Avatar$/i,150],                                   // big STR / ATK self-buff
+  [/^Rage of (Vallon|Zek)$/i,100],
+  [/Berserker|Reckless Strength|Chant of Battle|Dance of the Blade|Fleeting Fury|^Haste$|Blessing of (the Theurgist|the Blackstar|Nature)|Knight's Blessing|Spirit Armor|Steelskin|Silver Skin|^Guard$|Major Shielding|^Rune|Shield of (Thistles|Flame)|Rodrick's Gift|Dawncall|Yaulp|Greater Wolf Form|Feet like Cat|Mistwalker|Song of the Deep Seas/i,40],   // self buffs
+  [/Stun|Incapacitate|Shiftless|Tepid|Melodious|Walking Sleep|Drowsy|Color Shift|Glamour|Fear|Shadow Vortex|Distraction|Knockback|Disempower/i,30],   // control / interrupt
+  [/Tash|Malais|Weaken|Muscle Lock|Steal Strength|Lower Resists|Feeble|Scourge|Sicken|Disease|Poison|Affliction|Drones|Tagar|Togor|Dooming|Greenmist|Choke|Curse|Blinding|Bone Shatter|Word of Shadow|Engulfing Darkness|Cancel Magic|Neutralize Magic|Chill Sight|Infectious Cloud|Mana Sink|Shallow Breath/i,20],   // debuffs
+  [/Snare|Ensnar|Root|Paralyz|Hungry Earth/i,15],      // snare / root
+];
+function procUtilityValue(name){for(const [re,v] of PROC_UTILITY_RULES)if(re.test(name))return v;return 0;}
+// Proc value for scoring. target: 'any' | 'undead' | 'summoned' (Gear Planner Target).
+function procDamageFor(effect,target){
+  const c=CONDITIONAL_PROCS[effect];
+  if(c)return target===c[0]?c[1]:0;
+  if(effect in PROC_DB)return PROC_DB[effect]>0?PROC_DB[effect]:procUtilityValue(effect);
+  return 35;   // proc not in the table: generic estimate
+}
+// Fields to spread into a scoring copy when an item is missing its proc (see above).
+function procFixFor(name,data){
+  const f=WEAPON_PROC_FIXES[name];
+  if(!f||(data&&data._effect))return {};
+  return {_effect:f[0],_effectType:'Combat, Casting Time: Instant',...(f[1]?{_procLevel:f[1]}:{})};
+}
+// Worn regen effects, HP per tick (wiki spell page). Valued as HP: 1 HP/tick ≈ 20 HP.
+const WORN_REGEN={'Fungal Regrowth':5};
+const REGEN_HP_EQUIV=20;
+function wornRegenOf(d){if(!d||!d._effect||!/worn/i.test(d._effectType||''))return 0;return WORN_REGEN[d._effect]||0;}
 const SPELL_DB={"Enchanter":[[1,"Lull"],[1,"Minor Illusion"],[1,"Minor Shielding"],[1,"Pendril`s Animation"],[1,"Reclaim Energy"],[1,"Shallow Breath"],[1,"Strengthen"],[1,"Taper Enchantment"],[1,"True North"],[1,"Weaken"],[4,"Color Flux"],[4,"Enfeeblement"],[4,"Fear"],[4,"Gate"],[4,"Haze"],[4,"Illusion: Half-Elf"],[4,"Illusion: Human"],[4,"Invisibility"],[4,"Juli`s Animation"],[4,"Mesmerize"],[4,"Suffocating Sphere"],[4,"Tashan"],[8,"Alliance"],[8,"Bind Sight"],[8,"Cancel Magic"],[8,"Chaotic Feedback"],[8,"Enchant Clay"],[8,"Enchant Silver"],[8,"Eye of Confusion"],[8,"Illusion: Gnome"],[8,"Illusion: Wood Elf"],[8,"Lesser Shielding"],[8,"Mircyl`s Animation"],[8,"Root"],[8,"See Invisible"],[8,"Sentinel"],[8,"Soothe"],[12,"Bind Affinity"],[12,"Charm"],[12,"Choke"],[12,"Ebbing Strength"],[12,"Enduring Breath"],[12,"Illusion: Dark Elf"],[12,"Illusion: Erudite"],[12,"Illusion: Halfling"],[12,"Illusion: High Elf"],[12,"Kilan`s Animation"],[12,"Languid Pace"],[12,"Memory Blur"],[12,"Mist"],[12,"Serpent Sight"],[12,"Thicken Mana"],[12,"Whirl Till You Hurl"],[16,"Breeze"],[16,"Chase the Moon"],[16,"Disempower"],[16,"Enchant Electrum"],[16,"Enthrall"],[16,"Identify"],[16,"Illusion: Barbarian"],[16,"Illusion: Dwarf"],[16,"Illusion: Tree"],[16,"Invisibility versus Undead"],[16,"Levitate"],[16,"Mesmerization"],[16,"Quickness"],[16,"Rune I"],[16,"Sanity Warp"],[16,"Shalee`s Animation"],[16,"Shielding"],[20,"Benevolence"],[20,"Berserker Strength"],[20,"Calm"],[20,"Cloud"],[20,"Color Shift"],[20,"Crystallize Mana"],[20,"Endure Magic"],[20,"Feckless Might"],[20,"Illusion: Iksar"],[20,"Illusion: Ogre"],[20,"Illusion: Troll"],[20,"Shifting Sight"],[20,"Sisna`s Animation"],[20,"Sympathetic Aura"],[20,"Tashani"],[24,"Alacrity"],[24,"Beguile"],[24,"Chaos Flux"],[24,"Enchant Gold"],[24,"Illusion: Earth Elemental"],[24,"Illusion: Skeleton"],[24,"Invigor"],[24,"Major Shielding"],[24,"Rune II"],[24,"Sagar`s Animation"],[24,"Strip Enchantment"],[24,"Tepid Deeds"],[29,"Augmentation"],[29,"Clarify Mana"],[29,"Clarity"],[29,"Curse of the Simple Mind"],[29,"Dyn`s Dizzying Draught"],[29,"Enstill"],[29,"Feedback"],[29,"Illusion: Air Elemental"],[29,"Illusion: Water Elemental"],[29,"Listless Power"],[29,"Nullify Magic"],[29,"Obscure"],[29,"Suffocate"],[29,"Uleen`s Animation"],[29,"Ultravision"],[34,"Anarchy"],[34,"Boltran`s Animation"],[34,"Cast Sight"],[34,"Enchant Platinum"],[34,"Entrance"],[34,"Gift of Magic"],[34,"Greater Shielding"],[34,"Illusion: Fire Elemental"],[34,"Insipid Weakness"],[34,"Mana Sieve"],[34,"Radiant Visage"],[34,"Rune III"],[39,"Aanya`s Animation"],[39,"Cajoling Whispers"],[39,"Celerity"],[39,"Distill Mana"],[39,"Gravity Flux"],[39,"Illusion: Dry Bone"],[39,"Illusion: Spirit Wolf"],[39,"Immobilize"],[39,"Insight"],[39,"Invoke Fear"],[39,"Mind Wipe"],[39,"Pacify"],[39,"Rampage"],[39,"Resist Magic"],[39,"Shade"],[39,"Wandering Mind"],[44,"Arch Shielding"],[44,"Boon of the Garou"],[44,"Brilliance"],[44,"Color Skew"],[44,"Discordant Mind"],[44,"Enchant Velium"],[44,"Extinguish Fatigue"],[44,"Illusion: Werewolf"],[44,"Incapacitate"],[44,"Pillage Enchantment"],[44,"Rune IV"],[44,"Shiftless Deeds"],[44,"Summon Companion"],[44,"Tashania"],[44,"Weakness"],[44,"Yegoreff`s Animation"],[49,"Adorning Grace"],[49,"Allure"],[49,"Berserker Spirit"],[49,"Blanket of Forgetfulness"],[49,"Dazzle"],[49,"Enchant Adamantite"],[49,"Enchant Brellium"],[49,"Enchant Mithril"],[49,"Enchant Steel"],[49,"Gasping Embrace"],[49,"Group Resist Magic"],[49,"Kintaz`s Animation"],[49,"Paralyzing Earth"],[49,"Purify Mana"],[49,"Reoccurring Amnesia"],[49,"Shadow"],[49,"Swift Like The Wind"],[50,"Improved Invisibility"],[51,"Collaboration"],[51,"Theft of Thought"],[51,"Wake of Tranquility"],[52,"Boon of the Clear Mind"],[52,"Color Slant"],[52,"Fascination"],[52,"Rune V"],[53,"Aanya`s Quickening"],[53,"Boltran`s Agacerie"],[53,"Cripple"],[53,"Recant Magic"],[54,"Clarity II"],[54,"Dementia"],[54,"Glamour of Kintaz"],[54,"Shield of the Magi"],[55,"Gift of Insight"],[55,"Largarn`s Lamentation"],[55,"Memory Flux"],[55,"Wind of Tishani"],[55,"Zumaik`s Animation"],[56,"Augment"],[56,"Overwhelming Splendor"],[56,"Torment of Argli"],[56,"Trepidation"],[57,"Enlightenment"],[57,"Forlorn Deeds"],[57,"Tashanian"],[57,"Umbra"],[58,"Bedlam"],[58,"Fetter"],[58,"Wonderous Rapidity"],[59,"Asphyxiate"],[59,"Gift of Pure Thought"],[59,"Rapture"],[60,"Dictate"],[60,"Gift of Brilliance"],[60,"Visions of Grandeur"],[60,"Wind of Tishanian"]],"Magician":[[1,"Burst of Flame"],[1,"Flare"],[1,"Minor Shielding"],[1,"Reclaim Energy"],[1,"Summon Dagger"],[1,"Summon Drink"],[1,"Summon Food"],[1,"True North"],[4,"Burn"],[4,"Elementalkin: Air"],[4,"Elementalkin: Earth"],[4,"Elementalkin: Fire"],[4,"Elementalkin: Water"],[4,"Fire Flux"],[4,"Gate"],[4,"Sense Summoned"],[4,"Summon Bandages"],[4,"Summon Wisp"],[8,"Dimensional Pocket"],[8,"Elementaling: Air"],[8,"Elementaling: Earth"],[8,"Elementaling: Fire"],[8,"Elementaling: Water"],[8,"Eye of Zomm"],[8,"Flame Bolt"],[8,"Invisibility"],[8,"Lesser Shielding"],[8,"Renew Elements"],[8,"Shield of Fire"],[8,"Shock of Blades"],[8,"Staff of Tracing"],[12,"Bind Affinity"],[12,"Burnout"],[12,"Cancel Magic"],[12,"Column of Fire"],[12,"Elemental: Air"],[12,"Elemental: Earth"],[12,"Elemental: Fire"],[12,"Elemental: Water"],[12,"Rain of Blades"],[12,"Summon Fang"],[12,"Ward Summoned"],[16,"Identify"],[16,"Minor Summoning: Air"],[16,"Minor Summoning: Earth"],[16,"Minor Summoning: Fire"],[16,"Minor Summoning: Water"],[16,"Phantom Leather"],[16,"See Invisible"],[16,"Shielding"],[16,"Shock of Flame"],[16,"Staff of Warding"],[16,"Summon Heatstone"],[16,"Summon Throwing Dagger"],[20,"Bolt of Flame"],[20,"Elemental Shield"],[20,"Expulse Summoned"],[20,"Lesser Summoning: Air"],[20,"Lesser Summoning: Earth"],[20,"Lesser Summoning: Fire"],[20,"Lesser Summoning: Water"],[20,"Rain of Fire"],[20,"Renew Summoning"],[20,"Shield of Flame"],[20,"Spear of Warding"],[20,"Summon Arrows"],[20,"Summon Waterstone"],[24,"Cornucopia"],[24,"Everfount"],[24,"Flame Flux"],[24,"Major Shielding"],[24,"Malaise","Malise"],[24,"Shock of Spikes"],[24,"Staff of Runes"],[24,"Summoning: Air"],[24,"Summoning: Earth"],[24,"Summoning: Fire"],[24,"Summoning: Water"],[29,"Burnout II"],[29,"Dismiss Summoned"],[29,"Expedience"],[29,"Greater Summoning: Air"],[29,"Greater Summoning: Earth"],[29,"Greater Summoning: Fire"],[29,"Greater Summoning: Water"],[29,"Inferno Shield"],[29,"Phantom Chain"],[29,"Rain of Spikes"],[29,"Summon Coldstone"],[29,"Sword of Runes"],[34,"Blaze"],[34,"Cinder Bolt"],[34,"Dimensional Hole"],[34,"Greater Shielding"],[34,"Minor Conjuration: Air"],[34,"Minor Conjuration: Earth"],[34,"Minor Conjuration: Fire"],[34,"Minor Conjuration: Water"],[34,"Monster Summoning I"],[34,"Nullify Magic"],[34,"Staff of Symbols"],[34,"Summon Shard of the Core"],[39,"Barrier of Combustion"],[39,"Dagger of Symbols"],[39,"Expel Summoned"],[39,"Flame Arc"],[39,"Lesser Conjuration: Air"],[39,"Lesser Conjuration: Earth"],[39,"Lesser Conjuration: Fire"],[39,"Lesser Conjuration: Water"],[39,"Rain of Lava"],[39,"Summon Companion"],[39,"Summon Ring of Flight"],[44,"Arch Shielding"],[44,"Conjuration: Air"],[44,"Conjuration: Earth"],[44,"Conjuration: Fire"],[44,"Conjuration: Water"],[44,"Elemental Armor"],[44,"Elemental Maelstrom"],[44,"Malaisement"],[44,"Modulating Rod"],[44,"Phantom Plate"],[44,"Shock of Swords"],[46,"Summon Orb"],[49,"Banish Summoned"],[49,"Burnout III"],[49,"Greater Conjuration: Air"],[49,"Greater Conjuration: Earth"],[49,"Greater Conjuration: Fire"],[49,"Greater Conjuration: Water"],[49,"Lava Bolt"],[49,"Rain of Swords"],[49,"Shield of Lava"],[50,"Monster Summoning II"],[51,"Gift of Xev"],[51,"Malosi"],[51,"Scintillation"],[51,"Vocarate: Earth"],[52,"Bristlebane`s Bundle"],[52,"Char"],[52,"Phantom Armor"],[52,"Vocarate: Fire"],[53,"Annul Magic"],[53,"Boon of Immolation"],[53,"Quiver of Marr"],[53,"Vocarate: Air"],[54,"Bandoleer of Luclin"],[54,"Scars of Sigil"],[54,"Shield of the Magi"],[54,"Vocarate: Water"],[55,"Burnout IV"],[55,"Call of the Hero"],[55,"Pouch of Quellious"],[55,"Rage of Zomm"],[55,"Sirocco"],[55,"Wrath of the Elements"],[56,"Cadeau of Flame"],[56,"Dyzil`s Deafening Decoy"],[56,"Exile Summoned"],[56,"Muzzle of Mardu"],[57,"Eye of Tallon"],[57,"Greater Vocaration: Earth"],[57,"Shock of Steel"],[58,"Greater Vocaration: Fire"],[58,"Malosini"],[58,"Velocity"],[59,"Greater Vocaration: Air"],[59,"Manastorm"],[59,"Seeking Flame of Seukor"],[59,"Valiant Companion"],[60,"Aegis of Ro"],[60,"Banishment"],[60,"Greater Vocaration: Water"],[60,"Mala"],[60,"Monster Summoning III"]],"Necromancer":[[1,"Cavorting Bones"],[1,"Coldlight"],[1,"Disease Cloud"],[1,"Invisibility versus Undead"],[1,"Lifetap"],[1,"Locate Corpse"],[1,"Minor Shielding"],[1,"Reclaim Energy"],[1,"Sense the Dead"],[1,"Siphon Strength"],[4,"Clinging Darkness"],[4,"Endure Cold"],[4,"Fear"],[4,"Gate"],[4,"Grim Aura"],[4,"Leering Corpse"],[4,"Lifespike"],[4,"Numb the Dead"],[4,"Poison Bolt"],[4,"True North"],[8,"Bone Walk"],[8,"Dark Empathy"],[8,"Dark Pact"],[8,"Deadeye"],[8,"Gather Shadows"],[8,"Impart Strength"],[8,"Lesser Shielding"],[8,"Mend Bones"],[8,"Shadow Step"],[8,"Vampiric Embrace"],[8,"Ward Undead"],[12,"Bind Affinity"],[12,"Convoke Shadow"],[12,"Endure Disease"],[12,"Engulfing Darkness"],[12,"Heat Blood"],[12,"Leach"],[12,"Lifedraw"],[12,"Scent of Dusk"],[12,"Sight Graft"],[12,"Spook the Dead"],[12,"Wave of Enfeeblement"],[16,"Banshee Aura"],[16,"Cancel Magic"],[16,"Cure Disease"],[16,"Feign Death"],[16,"Heart Flutter"],[16,"Hungry Earth"],[16,"Infectious Cloud"],[16,"Restless Bones"],[16,"Shielding"],[16,"Shieldskin"],[16,"Spirit Armor"],[16,"Voice Graft"],[20,"Allure of Death"],[20,"Animate Dead"],[20,"Dominate Undead"],[20,"Expulse Undead"],[20,"Harmshield"],[20,"Identify"],[20,"Shadow Compact"],[20,"Shadow Vortex"],[20,"Siphon Life"],[20,"Track Corpse"],[20,"Word of Shadow"],[24,"Breath of the Dead"],[24,"Haunting Corpse"],[24,"Intensify Death"],[24,"Leatherskin"],[24,"Major Shielding"],[24,"Rapacious Subversion"],[24,"Resist Cold"],[24,"Rest the Dead"],[24,"Scent of Shadow"],[24,"Screaming Terror"],[24,"Shadow Sight"],[24,"Shock of Poison"],[29,"Boil Blood"],[29,"Dismiss Undead"],[29,"Dooming Darkness"],[29,"Panic the Dead"],[29,"Renew Bones"],[29,"Spirit Tap"],[29,"Summon Dead"],[29,"Vampiric Curse"],[29,"Word of Spirit"],[34,"Beguile Undead"],[34,"Call of Bones"],[34,"Greater Shielding"],[34,"Invoke Fear"],[34,"Invoke Shadow"],[34,"Resist Disease"],[34,"Root"],[34,"Steelskin"],[34,"Surge of Enfeeblement"],[34,"Torbas` Acid Blast"],[34,"Venom of the Snake"],[39,"Augment Death"],[39,"Chilling Embrace"],[39,"Counteract Disease"],[39,"Drain Spirit"],[39,"Expel Undead"],[39,"Malignant Dead"],[39,"Nullify Magic"],[39,"Scent of Darkness"],[39,"Scourge"],[39,"Summon Corpse"],[39,"Word of Souls"],[44,"Arch Shielding"],[44,"Asystole"],[44,"Cackling Bones"],[44,"Corporeal Empathy","Corpal Empathy"],[44,"Covetous Subversion"],[44,"Dead Man Floating"],[44,"Diamondskin"],[44,"Ignite Bones"],[44,"Incinerate Bones"],[44,"Pact of Shadow"],[44,"Summon Companion"],[49,"Banish Undead"],[49,"Bond of Death"],[49,"Cajole Undead"],[49,"Cascading Darkness"],[49,"Dead Men Floating"],[49,"Drain Soul"],[49,"Ignite Blood"],[49,"Invoke Death"],[49,"Lich"],[49,"Paralyzing Earth"],[50,"Improved Invis to Undead"],[51,"Dread of Night"],[51,"Envenomed Bolt"],[51,"Sacrifice"],[51,"Splurt"],[52,"Defoliation"],[52,"Manaskin"],[52,"Plague"],[52,"Scent of Terris"],[53,"Annul Magic"],[53,"Convergence"],[53,"Enstill"],[53,"Minion of Shadows"],[54,"Deflux"],[54,"Shadowbond"],[54,"Shield of the Magi"],[54,"Thrall of Bones"],[55,"Augmentation of Death"],[55,"Chill Bones"],[55,"Conglaciation of Bone"],[55,"Infusion"],[55,"Levant"],[55,"Skin of the Shadow"],[56,"Cessation of Cor"],[56,"Sedulous Subversion"],[56,"Servant of Bones"],[56,"Trepidation"],[57,"Conjure Corpse"],[57,"Exile Undead"],[57,"Vexing Mordinia"],[58,"Immobilize"],[58,"Pyrocruor"],[58,"Quivering Veil of Xarn"],[59,"Devouring Darkness"],[59,"Emissary of Thule"],[59,"Touch of Night"],[60,"Arch Lich"],[60,"Banishment of Shadows"],[60,"Demi Lich"],[60,"Enslave Death"],[60,"Gangrenous Touch of Zum`uul"],[60,"Trucidation"]],"Wizard":[[1,"Frost Bolt"],[1,"Minor Shielding"],[1,"Numbing Cold"],[1,"Shock of Frost"],[1,"Sphere of Light"],[1,"True North"],[4,"Fade"],[4,"Gate"],[4,"Glimpse"],[4,"Icestrike"],[4,"O`Keils Radiation"],[4,"Root"],[4,"See Invisible"],[4,"Shock of Fire"],[8,"Column of Frost"],[8,"Eye of Zomm"],[8,"Fingers of Fire"],[8,"Fire Bolt"],[8,"Lesser Shielding"],[8,"Sense Summoned"],[8,"Shadow Step"],[8,"Shock of Ice"],[12,"Bind Affinity"],[12,"Cancel Magic"],[12,"Firestorm"],[12,"Frost Spiral of Al`Kabor"],[12,"Gaze"],[12,"Halo of Light"],[12,"Resistant Skin"],[12,"Shock of Lightning"],[16,"Bind Sight"],[16,"Flame Shock"],[16,"Heat Sight"],[16,"Identify"],[16,"Invisibility"],[16,"Lightning Bolt"],[16,"Pillar of Fire"],[16,"Project Lightning"],[16,"Shielding"],[16,"Shieldskin"],[20,"Elemental Shield"],[20,"Enstill"],[20,"Fay Gate"],[20,"Fire Spiral of Al`Kabor"],[20,"Force Shock"],[20,"North Gate"],[20,"Sight"],[20,"Tishan`s Clash"],[20,"Tox Gate"],[24,"Cast Force"],[24,"Cazic Gate"],[24,"Column of Lightning"],[24,"Combine Gate"],[24,"Common Gate"],[24,"Frost Shock"],[24,"Leatherskin"],[24,"Levitate"],[24,"Lightning Storm"],[24,"Major Shielding"],[24,"Nek Gate"],[24,"Ro Gate"],[24,"West Gate"],[29,"Bonds of Force"],[29,"Energy Storm"],[29,"Evacuate: North"],[29,"Fay Portal"],[29,"Imbue Fire Opal"],[29,"Inferno Shock"],[29,"Magnify"],[29,"North Portal"],[29,"Shock Spiral of Al`Kabor"],[29,"Thunder Strike"],[29,"Tox Portal"],[29,"Yonder"],[34,"Cazic Portal"],[34,"Circle of Force"],[34,"Combine Portal"],[34,"Evacuate: Fay"],[34,"Great Divide Gate"],[34,"Greater Shielding"],[34,"Harvest"],[34,"Ice Shock"],[34,"Iceclad Gate"],[34,"Iceclad Portal"],[34,"Lava Storm"],[34,"Nek Portal"],[34,"Nullify Magic"],[34,"O`Keils Flickering Flame"],[34,"Steelskin"],[34,"Thunderclap"],[39,"Chill Sight"],[39,"Cobalt Scar Gate"],[39,"Common Portal"],[39,"Concussion"],[39,"Evacuate: Ro"],[39,"Force Spiral of Al`Kabor"],[39,"Great Divide Portal"],[39,"Immobilize"],[39,"Invisibility to Undead"],[39,"Lightning Shock"],[39,"Markar`s Relocation"],[39,"Ro Portal"],[39,"Shifting Sight"],[39,"Tishan`s Relocation"],[39,"Translocate: Combine"],[39,"Translocate: Fay"],[39,"Translocate: North"],[39,"Translocate: Tox"],[39,"Wakening Lands Gate"],[39,"West Portal"],[44,"Arch Shielding"],[44,"Cobalt Scar Portal"],[44,"Conflagration"],[44,"Diamondskin"],[44,"Elemental Armor"],[44,"Enticement of Flame"],[44,"Evacuate: Nek"],[44,"Force Strike"],[44,"Frost Storm"],[44,"Gravity Flux"],[44,"Translocate: Cazic"],[44,"Translocate: Common"],[44,"Translocate: Nek"],[44,"Translocate: Ro"],[44,"Translocate: West"],[44,"Wakening Lands Portal"],[46,"Alter Plane: Hate"],[46,"Alter Plane: Sky"],[49,"Evacuate: West"],[49,"Ice Comet"],[49,"Markar`s Clash"],[49,"Paralyzing Earth"],[49,"Rend"],[49,"Supernova"],[49,"Translocate: Cobalt Scar"],[49,"Translocate: Great Divide"],[49,"Translocate: Iceclad"],[49,"Translocate: Wakening Lands"],[49,"Wrath of Al`Kabor"],[50,"Translocate"],[51,"Atol`s Spectral Shackles"],[51,"Draught of Fire"],[51,"ishan`s Discord"],[51,"Pillar of Frost"],[52,"Abscond"],[52,"Lure of Frost"],[52,"Manaskin"],[52,"Tears of Druzzil"],[52,"Translocate: Group"],[53,"Annul Magic"],[53,"Inferno of Al`Kabor"],[53,"Jyll`s Static Pulse"],[54,"Pillar of Lightning"],[54,"Shield of the Magi"],[54,"Thunderbold"],[54,"Voltaic Draught","Voltaic Draugh"],[55,"Draught of Jiva"],[55,"Improved Invisibility"],[55,"Lure of Flame"],[55,"Plainsight"],[55,"Tears of Solusek"],[56,"Jyll`s Zephyr of Ice"],[56,"Markar`s Discord"],[56,"Retribution of Al`Kabor"],[57,"Draught of Ice"],[57,"Evacuate"],[57,"Eye of Tallon"],[57,"Pillar of Flame"],[58,"Fetter"],[58,"Lure of Lightning"],[58,"Manasink"],[58,"Tears of Prexus"],[59,"Flaming Sword of Xuzl"],[59,"Invert Gravity"],[59,"Jyll`s Wave of Heat"],[59,"Vengeance of Al`Kabor"],[60,"Disintegrate"],[60,"Hsagra`s Wrath"],[60,"Ice Spear of Solist"],[60,"Lure of Ice"],[60,"Porlos` Fury"],[60,"Sunstrike"],[60,"Winds of Gelid"]],"Cleric":[[1,"Courage"],[1,"Cure Poison"],[1,"Divine Aura"],[1,"Flash of Light"],[1,"Lull"],[1,"Minor Healing"],[1,"Spook the Dead"],[1,"Strike"],[1,"True North"],[1,"Yaulp"],[5,"Cure Blindness"],[5,"Cure Disease"],[5,"Furor"],[5,"Gate"],[5,"Holy Armor"],[5,"Light Healing"],[5,"Reckless Strength"],[5,"Stun"],[5,"Summon Drink"],[5,"Ward Undead"],[9,"Center"],[9,"Endure Fire"],[9,"Endure Poison"],[9,"Fear"],[9,"Hammer of Wrath"],[9,"Invigor"],[9,"Root"],[9,"Sense the Dead"],[9,"Soothe"],[9,"Summon Food"],[9,"Word of Pain"],[14,"Bind Affinity"],[14,"Cancel Magic"],[14,"Endure Cold"],[14,"Endure Disease"],[14,"Expulse Undead"],[14,"Halo of Light"],[14,"Healing"],[14,"Invisibility versus Undead"],[14,"Sense Summoned"],[14,"Smite"],[14,"Symbol of Transal"],[19,"Calm"],[19,"Daring"],[19,"Endure Magic"],[19,"Extinguish Fatigue"],[19,"Holy Might"],[19,"Spirit Armor"],[19,"Ward Summoned"],[19,"Word of Shadow"],[19,"Yaulp II"],[24,"Bravery"],[24,"Counteract Poison"],[24,"Dismiss Undead"],[24,"Greater Healing"],[24,"Hammer of Striking"],[24,"Inspire Fear"],[24,"Symbol of Ryltan"],[24,"Wave of Fear"],[29,"Abundant Drink"],[29,"Counteract Disease"],[29,"Divine Barrier"],[29,"Enstill"],[29,"Expulse Summoned"],[29,"Guard"],[29,"Imbue Amber"],[29,"Imbue Black Pearl"],[29,"Imbue Black Sapphire"],[29,"Imbue Diamond"],[29,"Imbue Emerald"],[29,"Imbue Opal"],[29,"Imbue Peridot"],[29,"Imbue Plains Pebble"],[29,"Imbue Rose Quartz"],[29,"Imbue Ruby"],[29,"Imbue Sapphire"],[29,"Imbue Topaz"],[29,"Panic the Dead"],[29,"Revive"],[29,"Word of Spirit"],[29,"Wrath"],[34,"Abundant Food"],[34,"Armor of Protection"],[34,"Atone"],[34,"Blinding Luminance"],[34,"Expel Undead"],[34,"Force"],[34,"Frenzied Strength"],[34,"Resist Fire"],[34,"Resist Poison"],[34,"Superior Healing"],[34,"Symbol of Pinzarn"],[34,"Tremor"],[34,"Valor"],[34,"Word of Health"],[39,"Armor of Faith"],[39,"Complete Healing"],[39,"Dismiss Summoned"],[39,"Invoke Fear"],[39,"Nullify Magic"],[39,"Pacify"],[39,"Resist Cold"],[39,"Resist Disease"],[39,"Resuscitate"],[39,"Turning of the Unnatural"],[39,"Word of Souls"],[44,"Banish Undead"],[44,"Celestial Healing"],[44,"Earthquake"],[44,"Hammer of Requital"],[44,"Resist Magic"],[44,"Resolution"],[44,"Retribution"],[44,"Symbol of Naltron"],[44,"Yaulp III"],[49,"Abolish Poison"],[49,"Expel Summoned"],[49,"Immobilize"],[49,"Resurrection"],[49,"Shield of Words"],[49,"Sound of Force"],[49,"Word Divine"],[49,"Word of Healing"],[50,"Improved Invis to Undead"],[51,"Death Pact"],[51,"Dread of Night"],[51,"Remedy"],[51,"Sunskin"],[52,"Heroic Bond"],[52,"Heroism"],[52,"Upheaval"],[52,"Word of Vigor"],[53,"Annul Magic"],[53,"Divine Light"],[53,"Yaulp IV"],[54,"Reckoning"],[54,"Symbol of Marzin"],[54,"Unswerving Hammer"],[55,"Exile Undead"],[55,"Fortitude"],[55,"Stun Command"],[55,"Wake of Tranquility"],[56,"Banish Summoned"],[56,"Mark of Karn"],[56,"Paralyzing Earth"],[56,"Reviviscence"],[57,"Aegis"],[57,"Bulwark of Faith"],[57,"Trepidation"],[57,"Word of Restoration"],[58,"Antidote"],[58,"Enforced Reverence"],[58,"Naltron`s Mark"],[59,"Celestial Elixir"],[59,"The Unspoken Word"],[60,"Aegolism"],[60,"Banishment of Shadows"],[60,"Divine Intervention"],[60,"Word of Redemption"]],"Druid":[[1,"Burst of Flame"],[1,"Dance of the Fireflies"],[1,"Endure Fire"],[1,"Flame Lick"],[1,"Lull Animal"],[1,"Minor Healing"],[1,"Panic Animal"],[1,"Sense Animals"],[1,"Skin Like Wood","Skin like Wood"],[1,"Snare"],[5,"Burst of Fire"],[5,"Camouflage"],[5,"Cure Disease"],[5,"Cure Poison"],[5,"Gate"],[5,"Grasping Roots"],[5,"Harmony"],[5,"Invoke Lightning"],[5,"Ward Summoned"],[5,"Whirling Wind"],[9,"Endure Cold"],[9,"Enduring Breath"],[9,"Firefist"],[9,"Ignite"],[9,"Invisibility versus Animals"],[9,"Light Healing"],[9,"Shield of Thistles"],[9,"Starshine"],[9,"Strength of Earth"],[9,"Thistlecoat"],[9,"Treeform"],[14,"Befriend Animal"],[14,"Bind Affinity"],[14,"Cascade of Hail"],[14,"Expulse Summoned"],[14,"Halo of Light"],[14,"Invigor"],[14,"Levitate"],[14,"See Invisible"],[14,"Skin Like Rock","Skin like Rock"],[14,"Spirit of Wolf"],[14,"Stinging Swarm"],[14,"Summon Drink"],[14,"Summon Food"],[19,"Barbcoat"],[19,"Calm Animal"],[19,"Cancel Magic"],[19,"Careless Lightning"],[19,"Dizzying Wind"],[19,"Endure Disease"],[19,"Endure Poison"],[19,"Feral Spirit"],[19,"Healing"],[19,"Ring of Butcher"],[19,"Ring of Commons"],[19,"Ring of Karana"],[19,"Ring of Surefall Glade"],[19,"Ring of Toxxulia"],[19,"Shield of Barbs"],[19,"Superior Camouflage"],[19,"Terrorize Animal"],[24,"Charm Animals"],[24,"Creeping Crud"],[24,"Dismiss Summoned"],[24,"Ensnaring Roots"],[24,"Pogonip"],[24,"Resist Fire"],[24,"Ring of Feerrott"],[24,"Ring of Lavastorm"],[24,"Ring of Ro"],[24,"Ring of Steamfont"],[24,"Ring of the Combines"],[24,"Scale of Wolf"],[24,"Skin Like Steel","Skin like Steel"],[24,"Spirit of Cheetah"],[24,"Sunbeam"],[24,"Tremor"],[24,"Wolf Form"],[29,"Beguile Plants"],[29,"Bramblecoat"],[29,"Circle of Butcher"],[29,"Circle of Commons"],[29,"Circle of Karana"],[29,"Circle of Surefall Glade"],[29,"Circle of Toxxulia"],[29,"Combust"],[29,"Counteract Disease"],[29,"Counteract Poison"],[29,"Ensnare"],[29,"Extinguish Fatigue"],[29,"Greater Healing"],[29,"Imbue Emerald"],[29,"Imbue Plains Pebble"],[29,"Immolate"],[29,"Ring of Misty"],[29,"Shield of Brambles"],[29,"Succor: East"],[34,"Beguile Animals"],[34,"Circle of Feerrott"],[34,"Circle of Iceclad"],[34,"Circle of Lavastorm"],[34,"Circle of Ro"],[34,"Circle of Steamfont"],[34,"Circle of the Combines"],[34,"Drones of Doom"],[34,"Earthquake"],[34,"Endure Magic"],[34,"Expel Summoned"],[34,"Fury of Air"],[34,"Greater Wolf Form"],[34,"Lightning Strike"],[34,"Regeneration"],[34,"Resist Cold"],[34,"Ring of Great Divide"],[34,"Ring of Iceclad"],[34,"Strength of Stone"],[34,"Succor: Butcher"],[39,"Avalanche"],[39,"Circle of Great Divide"],[39,"Circle of Misty"],[39,"Enveloping Roots"],[39,"Firestrike"],[39,"Pack Regeneration"],[39,"Pack Spirit"],[39,"Ring of Cobalt Scar"],[39,"Ring of Wakening Lands"],[39,"Ro`s Fiery Sundering"],[39,"Share Wolf Form"],[39,"Shield of Spikes"],[39,"Skin Like Diamond","Skin like Diamond"],[39,"Spikecoat"],[39,"Succor: Ro"],[39,"Wind of the North"],[39,"Wind of the South"],[44,"Allure of the Wild"],[44,"Banish Summoned"],[44,"Calefaction"],[44,"Chloroplast"],[44,"Circle of Cobalt Scar"],[44,"Circle of Wakening Lands"],[44,"Drifting Death"],[44,"Fixation of Ro"],[44,"Form of the Great Wolf"],[44,"Nullify Magic"],[44,"Resist Disease"],[44,"Resist Poison"],[44,"Savage Spirit"],[44,"Storm Strength"],[44,"Succor: Lavastorm"],[49,"Engulfing Roots"],[49,"Fire"],[49,"Ice"],[49,"Lightning Blast"],[49,"Pack Chloroplast"],[49,"Resist Magic"],[49,"Shield of Thorns"],[49,"Skin Like Nature","Skin like Nature"],[49,"Starfire"],[49,"Succor: North"],[49,"Thorncoat"],[50,"Improved Superior Camouflage"],[51,"Circle of Winter"],[51,"Legacy of Spike"],[51,"Repulse Animal"],[51,"Superior Healing"],[51,"Upheaval"],[52,"Breath of Ro"],[52,"Call of Karana"],[52,"Circle of Summer"],[52,"Egress"],[53,"Glamour of Tunare"],[53,"Spirit of Scale"],[53,"Winged Death"],[54,"Blizzard"],[54,"Form of the Howler"],[54,"Regrowth"],[54,"Scoriae"],[55,"Annul Magic"],[55,"Chloroblast"],[55,"Exile Summoned"],[55,"Girdle of Karana"],[55,"Nature Walkers Behest"],[55,"Tunare`s Request"],[56,"Bladecoat"],[56,"Breath of Karana"],[56,"Engorging Roots"],[56,"Wake of Karana"],[57,"Bonds of Tunare"],[57,"Frost"],[57,"Natureskin"],[57,"Succor"],[58,"Fist of Karana"],[58,"Regrowth of the Grove"],[58,"Shield of Blades"],[59,"Legacy of Thorn"],[59,"Spirit of Oak"],[59,"Wildfire"],[60,"Banishment"],[60,"Entrapping Roots"],[60,"Form of the Hunter"],[60,"Mask of the Hunter"],[60,"Nature`s Touch"],[60,"Protection of the Glades"]],"Shaman":[[1,"Burst of Flame"],[1,"Cure Disease"],[1,"Dexterous Aura"],[1,"Endure Cold"],[1,"Flash of Light"],[1,"Inner Fire"],[1,"Minor Healing"],[1,"Strengthen"],[1,"True North"],[5,"Cure Poison"],[5,"Drowsy"],[5,"Endure Fire"],[5,"Feet like Cat"],[5,"Fleeting Fury"],[5,"Frost Rift"],[5,"Gate"],[5,"Scale Skin"],[5,"Sicken"],[5,"Spirit Pouch"],[5,"Summon Drink"],[9,"Cure Blindness"],[9,"Endure Disease"],[9,"Light Healing"],[9,"Sense Animals"],[9,"Serpent Sight"],[9,"Spirit of Bear"],[9,"Spirit of Wolf"],[9,"Spirit Sight"],[9,"Summon Food"],[9,"Tainted Breath"],[14,"Bind Affinity"],[14,"Burst of Strength"],[14,"Disempower"],[14,"Endure Poison"],[14,"Enduring Breath"],[14,"Invisibility versus Animals"],[14,"Levitate"],[14,"Root"],[14,"Spirit of Snake"],[14,"Spirit Strike"],[14,"Turtle Skin"],[14,"Walking Sleep"],[19,"Affliction"],[19,"Cancel Magic"],[19,"Endure Magic"],[19,"Frenzy"],[19,"Healing"],[19,"Infectious Cloud"],[19,"Insidious Fever"],[19,"Malaise"],[19,"Shrink"],[19,"Spirit of Cat"],[19,"Spirit Strength"],[19,"Vision"],[24,"Cannibalize"],[24,"Counteract Disease"],[24,"Creeping Vision"],[24,"Envenomed Breath"],[24,"Frost Strike"],[24,"Invigor"],[24,"Poison Storm"],[24,"Protect"],[24,"Regeneration"],[24,"Resist Cold"],[24,"Scale of Wolf"],[24,"Spirit of Cheetah"],[24,"Spirit of Monkey"],[24,"Spirit of Ox"],[29,"Alluring Aura"],[29,"Befriend Animal"],[29,"Counteract Poison"],[29,"Greater Healing"],[29,"Imbue Amber"],[29,"Imbue Ivory"],[29,"Imbue Jade"],[29,"Imbue Sapphire"],[29,"Invisibility"],[29,"Listless Power"],[29,"Quickness"],[29,"Raging Strength"],[29,"Resist Fire"],[29,"Rising Dexterity"],[29,"Tagar`s Insects"],[29,"Ultravision"],[34,"Charm Animals"],[34,"Companion Spirit"],[34,"Enstill"],[34,"Fury"],[34,"Health"],[34,"Malaisement","Malisement"],[34,"Nimble"],[34,"Resist Disease"],[34,"Scourge"],[34,"Shifting Shield"],[34,"Shock of the Tainted"],[34,"Talisman of Tnarg"],[34,"Winter`s Roar"],[39,"Assiduous Vision"],[39,"Blinding Luminance"],[39,"Cannibalize II"],[39,"Chloroplast"],[39,"Deftness"],[39,"Extinguish Fatigue"],[39,"Furious Strength"],[39,"Gale of Poison"],[39,"Glamour"],[39,"Insidious Malady"],[39,"Resist Poison"],[39,"Togor`s Insects"],[39,"Tumultuous Strength"],[39,"Venom of the Snake"],[39,"Vigilant Spirit"],[44,"Agility"],[44,"Alacrity"],[44,"Blast of Poison"],[44,"Blizzard Blast"],[44,"Guardian"],[44,"Guardian Spirit"],[44,"Incapacitate"],[44,"Nullify Magic"],[44,"Resist Magic"],[44,"Stamina"],[44,"Summon Companion"],[44,"Talisman of Altuna"],[49,"Abolish Disease"],[49,"Charisma"],[49,"Dexterity"],[49,"Envenomed Bolt"],[49,"Frenzied Spirit"],[49,"Malosi"],[49,"Plague"],[49,"Rage"],[49,"Strength"],[50,"Spirit Quickening"],[51,"Immobilize"],[51,"Superior Healing"],[51,"Talisman of Jasinth"],[51,"Turgur`s Insects"],[52,"Insidious Decay"],[52,"Regrowth"],[52,"Spirit of Scale"],[53,"Cripple"],[53,"Deliriously Nimble"],[53,"Talisman of Shadoo"],[54,"Cannibalize III"],[54,"Ice Strike"],[54,"Riotous Health"],[54,"Shroud of the Spirits"],[55,"Annul Magic"],[55,"Chloroblast"],[55,"Form of the Great Bear"],[55,"Spirit of the Howler"],[55,"Talisman of Kragg"],[55,"Torrent of Poison"],[56,"Acumen"],[56,"Bane of Nife"],[56,"Celerity"],[56,"Paralyzing Earth"],[57,"Malosini"],[57,"Maniacal Strength","Manical Strength"],[57,"Talisman of the Brute"],[57,"Talisman of the Cat"],[58,"Cannibalize IV"],[58,"Mortal Deftness"],[58,"Talisman of the Rhino"],[58,"Talisman of the Serpent"],[58,"Tigir`s Insects"],[59,"Pox of Bertoxxulous"],[59,"Talisman of the Raptor"],[59,"Unfailing Reverence"],[59,"Voice of the Berserker"],[60,"Avatar"],[60,"Focus of Spirit"],[60,"Malo"],[60,"Primal Avatar"],[60,"Torpor"]],"Bard":[[1,"Chant of Battle"],[2,"Chords of Dissonance"],[3,"Jaxan`s Jig o` Vigor"],[4,"Lyssa`s Locating Lyric"],[5,"Selo`s Accelerando"],[6,"Hymn of Restoration"],[7,"Jonthan`s Whistling Warsong"],[8,"Kelin`s Lugubrious Lament"],[9,"Elemental Rhythms"],[10,"Anthem De Arms"],[11,"Cinda`s Charismatic Carillon"],[12,"Brusco`s Boastful Bellow"],[13,"Purifying Rhythms"],[14,"Lyssa`s Cataloging Libretto"],[15,"Kelin`s Lucid Lullaby"],[16,"Tarew`s Aquatic Ayre"],[17,"Guardian Rhythms"],[18,"Denon`s Disruptive Discord"],[19,"Shauri`s Sonorous Clouding"],[20,"Cassindra`s Chant of Clarity"],[20,"Largo`s Melodic Binding"],[21,"Melanie`s Mellifluous Motion"],[22,"Alenia`s Disenchanting Melody"],[23,"Selo`s Consonant Chain"],[24,"Lyssa`s Veracious Concord"],[25,"Psalm of Warmth"],[26,"Angstlich`s Appalling Screech"],[27,"Solon`s Song of the Sirens"],[28,"Crission`s Pixie Strike"],[29,"Psalm of Vitality"],[30,"Fufil`s Curtailing Chant"],[31,"Agilmente`s Aria of Eagles"],[32,"Cassindra`s Chorus of Clarity"],[33,"Psalm of Cooling"],[34,"Cantana of Soothing\" class=\"mw-redirect"],[34,"Lyssa`s Solidarity of Vision"],[35,"Denon`s Dissension"],[36,"Vilia`s Verses of Celerity"],[37,"Psalm of Purity"],[38,"Tuyen`s Chant of Flame"],[39,"Solon`s Bewitching Bravura"],[40,"Syvelian`s Anti-Magic Aria"],[41,"Psalm of Mystic Shielding"],[42,"McVaxius` Berserker Crescendo"],[43,"Denon`s Desperate Dirge"],[44,"Cassindra`s Elegy"],[45,"Jonthan`s Provocation"],[46,"Tuyen`s Chant of Frost"],[47,"Niv`s Melody of Preservation"],[48,"Selo`s Chords of Cessation"],[49,"Shield of Song"],[50,"Melody of Ervaj"],[50,"Verses of Victory"],[51,"Largo`s Absonant Binding"],[51,"Selo`s Song of Travel"],[52,"Nillipus` March of the Wee"],[53,"Song of Dawn"],[53,"Song of Twilight"],[54,"Selo`s Assonant Strane"],[54,"Vilia`s Chorus of Celerity"],[55,"Brusco`s Bombastic Bellow"],[55,"Cantata of Replenishment"],[55,"Occlusion of Sound"],[56,"Song of Highsun"],[56,"Song of Midnight"],[57,"Cassindra`s Insipid Ditty"],[57,"McVaxius` Rousing Rondo"],[58,"Jonthan`s Inspiration"],[58,"Niv`s Harmonic"],[59,"Denon`s Bereavement"],[59,"Solon`s Charismatic Concord"],[60,"Angstlich`s Assonance"],[60,"Composition of Ervaj"],[60,"Kazumi`s Note of Preservation"]],"Ranger":[[9,"Endure Fire"],[9,"Flame Lick"],[9,"Glimpse"],[9,"Lull Animal"],[9,"Minor Healing"],[9,"Skin Like Wood","Skin like Wood"],[9,"Snare"],[15,"Burst of Fire"],[15,"Camouflage"],[15,"Cure Poison"],[15,"Dance of the Fireflies"],[15,"Feet like Cat"],[15,"Grasping Roots"],[15,"Invoke Lightning"],[15,"Thistlecoat"],[22,"Bind Sight"],[22,"Endure Cold"],[22,"Enduring Breath"],[22,"Firefist"],[22,"Harmony"],[22,"Ignite"],[22,"Light Healing"],[22,"Panic Animal"],[22,"Skin Like Rock","Skin like Rock"],[22,"Ward Summoned"],[30,"Barbcoat"],[30,"Cancel Magic"],[30,"Eyes of the Cat"],[30,"Invigor"],[30,"Shield of Thistles"],[30,"Spirit of Wolf"],[30,"Stinging Swarm"],[30,"Strength of Earth"],[39,"Bramblecoat"],[39,"Call of Sky"],[39,"Calm Animal"],[39,"Careless Lightning"],[39,"Dismiss Summoned"],[39,"Healing"],[39,"Levitate"],[39,"See Invisible"],[39,"Skin Like Steel","Skin like Steel"],[49,"Call of Flame"],[49,"Ensnaring Roots"],[49,"Immolate"],[49,"Improved Superior Camouflage"],[49,"Resist Fire"],[49,"Shield of Brambles"],[49,"Spikecoat"],[49,"Wolf Form"],[50,"Call of Earth"],[51,"Ensnare"],[51,"Jolt"],[51,"Strength of Nature"],[52,"Extinguish Fatigue"],[52,"Firestrike"],[53,"Storm Strength"],[54,"Drones of Doom"],[54,"Skin Like Diamond","Skin like Diamond"],[55,"Call of Fire"],[55,"Chloroplast"],[55,"Cinder Jolt"],[55,"Resist Cold"],[56,"Chill Sight"],[56,"Greater Wolf Form"],[57,"Greater Healing"],[58,"Nullify Magic"],[58,"Shield of Spikes"],[59,"Calefaction"],[59,"Skin Like Nature","Skin like Nature"],[60,"Call of the Predator"],[60,"Enveloping Roots"],[60,"Thorncoat"]],"Paladin":[[9,"Courage"],[9,"Cure Poison"],[9,"Flash of Light"],[9,"Minor Healing"],[9,"Spook the Dead"],[9,"True North"],[9,"Yaulp"],[15,"Cure Disease"],[15,"Hammer of Wrath"],[15,"Holy Armor"],[15,"Light Healing"],[15,"Lull"],[15,"Sense the Dead"],[15,"Ward Undead"],[22,"Center"],[22,"Endure Poison"],[22,"Halo of Light"],[22,"Invigor"],[22,"Invisibility versus Undead"],[22,"Reckless Strength"],[22,"Root"],[30,"Endure Magic"],[30,"Expulse Undead"],[30,"Hammer of Striking"],[30,"Healing"],[30,"Soothe"],[30,"Spirit Armor"],[30,"Stun"],[30,"Symbol of Transal"],[39,"Cancel Magic"],[39,"Counteract Poison"],[39,"Daring"],[39,"Divine Purpose"],[39,"Endure Disease"],[39,"Greater Healing"],[39,"Guard"],[39,"Symbol of Ryltan"],[39,"Yaulp II"],[49,"Armor of Faith"],[49,"Calm"],[49,"Dismiss Undead"],[49,"Divine Might"],[49,"Holy Might"],[49,"Revive"],[49,"Symbol of Pinzarn"],[49,"Valor"],[51,"Pacify"],[52,"Force"],[52,"Frenzied Strength"],[54,"Enstill"],[54,"Expel Undead"],[55,"Divine Aura"],[55,"Divine Favor"],[55,"Resist Magic"],[55,"Wave of Healing"],[56,"Counteract Disease"],[56,"Yaulp III"],[57,"Superior Healing"],[58,"Nullify Magic"],[58,"Symbol of Naltron"],[59,"Celestial Cleansing"],[59,"Resurrection"],[60,"Divine Strength"],[60,"Resolution"],[60,"Shield of Words"],[60,"Yaulp IV"]],"Shadow Knight":[[9,"Disease Cloud"],[9,"Invisibility versus Undead"],[9,"Leering Corpse"],[9,"Lifetap"],[9,"Locate Corpse"],[9,"Siphon Strength"],[15,"Bone Walk"],[15,"Clinging Darkness"],[15,"Endure Cold"],[15,"Fear"],[15,"Lifespike"],[15,"Numb the Dead"],[15,"Shadow Step"],[22,"Convoke Shadow"],[22,"Dark Empathy"],[22,"Deadeye"],[22,"Engulfing Darkness"],[22,"Grim Aura"],[22,"Spook the Dead"],[22,"Vampiric Embrace"],[22,"Ward Undead"],[29,"Strengthen Death"],[30,"Endure Disease"],[30,"Feign Death"],[30,"Gather Shadows"],[30,"Heat Blood"],[30,"Lifedraw"],[30,"Restless Bones"],[30,"Wave of Enfeeblement"],[34,"Shieldskin"],[39,"Animate Dead"],[39,"Cancel Magic"],[39,"Expulse Undead"],[39,"Heart Flutter"],[39,"Resist Cold"],[39,"Shadow Vortex"],[39,"Shroud of Hate"],[49,"Breath of the Dead"],[49,"Dismiss Undead"],[49,"Dooming Darkness"],[49,"Invoke Fear"],[49,"Life Leech"],[49,"Shadow Sight"],[49,"Summon Dead"],[49,"Word of Spirit"],[50,"Shroud of Pain"],[51,"Siphon Life"],[51,"Summon Corpse"],[52,"Malignant Dead"],[52,"Rest the Dead"],[52,"Summon Companion"],[53,"Boil Blood"],[54,"Banshee Aura"],[54,"Panic the Dead"],[55,"Bobbing Corpse"],[55,"Expel Undead"],[55,"Shroud of Death"],[55,"Shroud of Undeath"],[55,"Spirit Tap"],[56,"Steelskin"],[57,"Drain Spirit"],[57,"Vampiric Curse"],[58,"Cackling Bones"],[58,"Nullify Magic"],[59,"Cascading Darkness"],[59,"Diamondskin"],[60,"Asystole"],[60,"Death Peace"],[60,"Drain Soul"]]};
 
 // Monk weight limits by level (Velious/post-April-2001 P1999 values)
@@ -1752,14 +1799,15 @@ const PURE_DPS_WEP_STAT_MULT=0.15;
 // Compute weapon DPS score for a single item in a given slot context.
 // Returns a numeric score suitable for adding to effectiveGain.
 // slot: 'PRIMARY', 'SECONDARY', or 'RANGE'; charClass string; charLevel number
-function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
+function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals, opts){
+  // opts (Gear Planner): {force: score for any class (Max proc build), target: proc Target}
   // TWOHANDER is the virtual card slot — treat as PRIMARY for DPS scoring
   if(slot==='TWOHANDER')slot='PRIMARY';
   const dmg=Number(itemData.dmg||0);
   const delay=Number(itemData.delay||0);
   const lv=Math.min(charLevel||60,60);
 
-  if(!MELEE_DPS_CLASSES.has(charClass))return 0;
+  if(!MELEE_DPS_CLASSES.has(charClass)&&!(opts&&opts.force))return 0;
 
   const itype=(itemData._skill||itemData._itemType||'').toLowerCase();
   const is2h=itype.includes('2h')||itype.includes('two');
@@ -1831,7 +1879,7 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals){
   const effect=itemData._effect||'';
   const effectType=itemData._effectType||'';
   const hasCombatProc=effect&&effectType&&effectType.toLowerCase().includes('combat');
-  const procDmg=hasCombatProc?(PROC_DB[effect]!==undefined?PROC_DB[effect]:35):0;
+  const procDmg=hasCombatProc?procDamageFor(effect,(opts&&opts.target)||'any'):0;
   const dex=Math.min(255,baseTotals&&baseTotals.dex?baseTotals.dex:175);
   const ppm=(dex/170)+0.5;
   // DW chance = (level + skill) / MaxSkill; skill and MaxSkill are class-specific.
@@ -2168,11 +2216,11 @@ function calcMana(intWis,lvl){
 
 // ── Displayed AC / ATK (the numbers in the in-game Inventory window) ──────────────
 // Classic EQ client formulas, fitted to in-game Inventory + Skills windows
-// (2026-09-25/27). EXACT for non-casters level 40+ (Mixelmedic, Mixelplex, Mixelshank,
+// (2026-09-25/27). EXACT for non-casters level 20+ (Mixelmedic, Mixelplex, Mixelshank,
 // Mixelflop incl. Monk + Iksar bonuses; Mixelreaper L48 with and without Boots of the
 // Vindicator: 846/799 AC, 745/740 ATK). Casters: gear ×1 and Defense ÷2, exact unbuffed
 // on Mixelboom (3 readings) and Mixelmez; flagged ≈ only with buff/worn AC (caster buff
-// scaling unconfirmed). Level <40 (AGI tiers untested) is approximate.
+// scaling unconfirmed). Exact at L21 (Mixelems, AGI L20–39 column); level <20 untested.
 // ATK within ±1 on 7 of 9 readings (Mixelplex −4; Mixelmez +6 — no weapon in primary).
 // Worn effects whose AC/ATK/haste count like buffs — from a scan of every item page
 // in item_db (the item export did not carry worn effects).
@@ -2205,7 +2253,7 @@ function calcDisplayAC(o){
   parts.agi=acAgiBonus(o.agi||0,lvl);
   parts.spells=Math.trunc(((o.buffAC||0)+(o.wornAC||0))*5/6);
   const sum=Object.values(parts).reduce((a,b)=>a+b,0);
-  const why=[];if(caster&&((o.buffAC||0)+(o.wornAC||0)))why.push('caster buff / worn-effect AC not yet confirmed');if(lvl<40)why.push('below level 40 not yet confirmed (AGI bonus tiers)');
+  const why=[];if(caster&&((o.buffAC||0)+(o.wornAC||0)))why.push('caster buff / worn-effect AC not yet confirmed');if(lvl<20)why.push('below level 20 not yet confirmed (AGI bonus tiers)');
   return{value:Math.trunc(sum*1000/847),exact:!why.length,why,parts};
 }
 // o: {offense,str,weaponSkill,itemATK,wornATK,spellATK}. Worn/item ATK ×1.342, spell 1:1.
@@ -2257,10 +2305,10 @@ function combatDisplayFor(name){
   const inputs={cls,race:m.race||'',level:lvl,agi:tot('agi'),str:tot('str'),gearAC,itemATK,wornAC,wornATK,buffAC:+(bsum.ac||0),worn,
     weapon:primary?primary.name||'(weapon)':'(none)',weaponSkillName:wSkill,defense:sDef,offense:sOff,weaponSkill:sW};
   const ac=calcDisplayAC({cls,race:m.race,level:lvl,defense:sDef.v||0,gearAC,agi:inputs.agi,buffAC:inputs.buffAC,wornAC});
-  if(sDef.v==null){ac.exact=false;ac.why.unshift('Defense skill unknown — enter it from the Skills window');}
+  if(sDef.v==null){ac.exact=false;ac.why.unshift('Defense skill not in your logs yet — it fills in as it rises');}
   const atk=calcDisplayATK({offense:sOff.v||0,str:inputs.str,weaponSkill:sW.v||0,itemATK,wornATK});
   atk.exact=false;atk.why=['ATK is an estimate (±3 in testing; spell ATK from buffs not included)'];
-  if(sOff.v==null||sW.v==null)atk.why.unshift((sOff.v==null?'Offense':wSkill)+' skill unknown — enter it from the Skills window');
+  if(sOff.v==null||sW.v==null)atk.why.unshift((sOff.v==null?'Offense':wSkill)+' skill not in your logs yet — it fills in as it rises');
   return{ac,atk,inputs};
 }
 window.combatDisplayFor=combatDisplayFor;
@@ -2870,7 +2918,7 @@ panel.innerHTML=`<div class="char-setup" style="flex-direction:column;align-item
   <label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">Level<input type="number" id="levelInput" min="1" max="60" value="${selLevel}" style="width:55px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .4rem;font-family:\'Crimson Pro\',serif;font-size:.9rem;text-align:center;outline:none"></label>
   <label style="font-size:.82rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem">\u2693 Bind<input type="text" id="bindInput" list="mpZonesDL" value="${esc((getCharBind(name)||{}).zone||'')}" placeholder="Bind zone" style="width:150px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.35rem .5rem;font-family:\'Crimson Pro\',serif;font-size:.9rem;outline:none"></label>
 </div>
-${(()=>{const _cdi=(typeof combatDisplayFor==='function')?combatDisplayFor(name):null;const _wsn=_cdi?_cdi.inputs.weaponSkillName:'';
+${/* COMBAT SKILLS row hidden 2026-09-28 — skills are read from the logs; admin Combat Check keeps manual entry */''&&(()=>{const _cdi=(typeof combatDisplayFor==='function')?combatDisplayFor(name):null;const _wsn=_cdi?_cdi.inputs.weaponSkillName:'';
   const box=sk=>{const man=(meta.skillsManual||{})[sk],lg=(meta.skills||{})[sk];return '<label style="font-size:.8rem;color:var(--text-dim);display:flex;align-items:center;gap:.35rem">'+esc(sk)+'<input type="number" class="skillInput" data-skill="'+esc(sk)+'" min="0" max="300" value="'+(man!=null&&man!==''?man:'')+'" placeholder="'+(lg!=null?lg+' logs':'?')+'" title="'+(lg!=null?'From your logs: '+lg+'. Type the value from the in-game Skills window to override.':'Not found in your logs — type the value from the in-game Skills window.')+'" style="width:72px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.25rem .35rem;font-size:.85rem;text-align:center"></label>';};
   return '<div style="display:flex;gap:.8rem;flex-wrap:wrap;align-items:center"><span style="font-size:.62rem;letter-spacing:.06em;color:var(--gold)" title="Used for the in-game AC and ATK values. Filled from your logs automatically; type a value from the Skills window to override it.">COMBAT SKILLS</span>'+box('Defense')+box('Offense')+(_wsn?box(_wsn):'')+'</div>';})()}
 
@@ -3089,6 +3137,27 @@ function renderUpgradesPanel(){
   const CLASS_MAP={'BARD':'BRD','CLERIC':'CLR','DRUID':'DRU','ENCHANTER':'ENC','MAGICIAN':'MAG','MONK':'MNK','NECROMANCER':'NEC','PALADIN':'PAL','RANGER':'RNG','ROGUE':'ROG','SHADOW KNIGHT':'SHD','SHAMAN':'SHM','WARRIOR':'WAR','WIZARD':'WIZ'};
   const charClassAbbr=CLASS_MAP[(charClass||'').toUpperCase()]||'';
   const charRaceAbbr=RACE_ABBR_MAP[meta.race||'']||'';
+  // ── Build / Target / 🔒 locks (charMeta[name].plan, saved with the character) ──────
+  // build: 'balanced' (class weights) | 'proc' (max my weapon's proc) | 'leveling'
+  // target: 'any' | 'undead' | 'summoned' — conditional proc nukes (Banish Undead…) count
+  //         only against that target. locks: names of worn items the planner must keep.
+  const plan=Object.assign({build:'balanced',target:'any',tradeable:false,locks:[]},meta.plan||{});
+  const PLAN_W={force:plan.build==='proc',target:plan.target};
+  window._upgPlanOpts=PLAN_W;
+  // Reshape the class weights for the chosen build.
+  //  proc     — DEX is the top stat (proc rate rises in a straight line to 255, so no soft
+  //             cap); weapon procs score for every class; everything else ×0.2 as tie-breakers.
+  //  leveling — survivability first: HP and AC ×1.5 (regen ×2 in effectiveGain); NO DROP hidden.
+  function planAdjustWeights(w){
+    if(plan.build==='proc'){
+      const top=Math.max(5,...Object.entries(w).filter(([k])=>k!=='dmg'&&k!=='haste').map(([,v])=>+v||0));
+      const o={};for(const [k,v] of Object.entries(w))o[k]=(+v||0)*0.2;
+      o.dex=top;o.dmg=Math.max(10,+w.dmg||0);o.haste=+w.haste||0;
+      return o;
+    }
+    if(plan.build==='leveling'){const o={...w};o.hpbonus=(+w.hpbonus||1)*1.5;o.ac=(+w.ac||0.25)*1.5;return o;}
+    return w;
+  }
 
   function itemUsableByChar(data){
     if(!deityOk(data._deity,meta.deity))return false;
@@ -3150,14 +3219,14 @@ function renderUpgradesPanel(){
   const sortBy=window['_upgSortBy_'+name]||'';
   const baselineTotals=buildTotals(null);
   const _ebw=effectiveBaseWeights(name,charClass)||CLASS_STAT_WEIGHTS[charClass]||{};
-  const weights=getStatWeights(charClass,baselineTotals,_ebw);
+  const weights=planAdjustWeights(getStatWeights(charClass,baselineTotals,_ebw));
   const NO_CAP=new Set(['hpbonus','manabonus']);
   const SOFTCAP=200,HARDCAP=255,SOFTCAP_MULT=0.33;
   // Per-totals weight memo: cascade & Upgrade Path pass PROJECTED totals, so weights
   // (incl. the INT/WIS mana formula) must derive from the totals being scored against,
   // not the render-time baseline.
   const _wCache=new WeakMap();
-  function weightsFor(t){if(!t||t===baselineTotals)return weights;let w=_wCache.get(t);if(!w){w=getStatWeights(charClass,t,_ebw);_wCache.set(t,w);}return w;}
+  function weightsFor(t){if(!t||t===baselineTotals)return weights;let w=_wCache.get(t);if(!w){w=planAdjustWeights(getStatWeights(charClass,t,_ebw));_wCache.set(t,w);}return w;}
   // Class stat caps ("205 at all times"): CLASS_STAT_THRESHOLDS act as TRUE HARD CAPS in
   // the zone math — full base weight up to the cap, zero past it, losses charged for every
   // point below it. In Buffed mode the parked buff for that stat is already inside the
@@ -3179,6 +3248,7 @@ function renderUpgradesPanel(){
   // Add to NO_CAP when formula weight applies (below 200 and softcap zone 200-255).
   // Above 255: w=0 for gains, losses handled separately in effectiveGain.
   if(_manaKey&&weights[_manaKey]>=2.0&&_manaTotal<=255)NO_CAP.add(_manaKey);
+  if(plan.build==='proc')NO_CAP.add('dex');   // proc rate is linear in DEX up to 255
 
   // HP-per-STA at this character's level — used to convert raw STA delta into real HP delta
   // so effectiveGain doesn't double-count STA (once via sta weight, once via hpbonus weight).
@@ -3246,6 +3316,8 @@ function renderUpgradesPanel(){
     if(!skipStats){
     const acW=weights.ac||0;
     if(acW){const ca=Number(curItemData.ac||0),na=Number(candData.ac||0);if(na-ca)total+=(na-ca)*acW;}
+    // Worn regen (Fungal Regrowth…): HP-equivalent, doubled in the Leveling build.
+    {const rg=wornRegenOf(candData)-wornRegenOf(curItemData);if(rg)total+=rg*REGEN_HP_EQUIV*(weights.hpbonus||1)*(plan.build==='leveling'?2:1);}
     } // end if(!skipStats) ac block
     // Haste always scored regardless of skipStats. Held OUT of `total` so the
     // pure-DPS suppression below never scales it: effective haste (up to the 41%
@@ -3288,8 +3360,8 @@ function renderUpgradesPanel(){
     // Score the delta in effective ratio between candidate and current item.
     const dmgW=weights.dmg||0;
     if(dmgW>0&&(evalSlot==='PRIMARY'||evalSlot==='SECONDARY'||evalSlot==='RANGE'||evalSlot==='TWOHANDER')){
-      const candRatio=weaponDpsScore(candData,evalSlot,charClass,charLevel,baseTotals);
-      const curRatio=weaponDpsScore(curItemData,evalSlot,charClass,charLevel,baseTotals);
+      const candRatio=weaponDpsScore(candData,evalSlot,charClass,charLevel,baseTotals,PLAN_W);
+      const curRatio=weaponDpsScore(curItemData,evalSlot,charClass,charLevel,baseTotals,PLAN_W);
       total+=(candRatio-curRatio)*dmgW;
     }
     // Flowing Thought mana regen — only scores for mana classes
@@ -3333,17 +3405,17 @@ function renderUpgradesPanel(){
         const newUse=itemUsableByChar(data),exUse=itemUsableByChar(existing);
         const newBad=_unob(itemName,data),exBad=_unob(existing.name,existing);
         if(newUse!==exUse){
-          if(!exUse)bySlot[slot][idx]={name:itemName,...data};
+          if(!exUse)bySlot[slot][idx]={name:itemName,...data,...procFixFor(itemName,data)};
         } else if(newBad!==exBad){
-          if(exBad)bySlot[slot][idx]={name:itemName,...data};
+          if(exBad)bySlot[slot][idx]={name:itemName,...data,...procFixFor(itemName,data)};
         } else {
           const newPref=ERA_PREF.indexOf(data._era||'');
           const exPref=ERA_PREF.indexOf(existing._era||'');
-          if(newPref>=0&&(exPref<0||newPref<exPref))bySlot[slot][idx]={name:itemName,...data};
+          if(newPref>=0&&(exPref<0||newPref<exPref))bySlot[slot][idx]={name:itemName,...data,...procFixFor(itemName,data)};
         }
       } else {
         slotMap.set(sig,bySlot[slot].length);
-        bySlot[slot].push({name:itemName,...data});
+        bySlot[slot].push({name:itemName,...data,...procFixFor(itemName,data)});
       }
     }
   }
@@ -3386,6 +3458,7 @@ function renderUpgradesPanel(){
       if(ftM){const r={'I':1,'II':2,'III':3,'IV':4,'V':5,'VI':6};currentData._ft=r[ftM[1].toUpperCase()]||0;}
     }
     currentData.ac=Number(_db.ac||0)||Number(_cg.ac||0)||undefined;
+    Object.assign(currentData,procFixFor(item.name,currentData));
     // Weapon-slot skill filter: MNK (H2H/1HB/2HB only) and ROG (1H+piercing only)
     const wepSkillFilter=CLASS_WEAPON_SKILLS[charClass];
     function wepSkillOk(c){
@@ -3419,7 +3492,7 @@ function renderUpgradesPanel(){
       :[];
     const candidatePool=[...(bySlot[dbSlot]||[]),...ohExtra.filter(c=>!(bySlot[dbSlot]||[]).some(x=>x.name===c.name))];
     const candidates=candidatePool
-      .filter(c=>(!slotEquippedNames.has(c.name)||(!c._lore&&c.name!==item.name))&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._nonp99&&!c._gm&&!UNOBTAINABLE_ITEMS.has(c.name)&&(c.name==='Custom Cowl of Mortality'||!c.name.startsWith('Custom ')))
+      .filter(c=>(!slotEquippedNames.has(c.name)||(!c._lore&&c.name!==item.name))&&itemUsableByChar(c)&&wepSkillOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._nonp99&&!c._gm&&!UNOBTAINABLE_ITEMS.has(c.name)&&(c.name==='Custom Cowl of Mortality'||!c.name.startsWith('Custom '))&&!((plan.build==='leveling'||plan.tradeable)&&c._nodrop))
       .map(c=>({...c,_effGain:effectiveGain(currentData,c,baselineTotals,dbSlot)}))
       .sort((a,b)=>b._effGain-a._effGain);
     slotResults.push({item,dbSlot,currentData,candidates});
@@ -3464,13 +3537,17 @@ function renderUpgradesPanel(){
         :[];
       const emptyPool=[...(bySlot[slot]||[]),...ohExtraEmpty.filter(c=>!(bySlot[slot]||[]).some(x=>x.name===c.name))];
       const candidates=emptyPool
-        .filter(c=>(!slotAlreadyEquipped.has(c.name)||!c._lore)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._nonp99&&!c._gm&&!UNOBTAINABLE_ITEMS.has(c.name)&&(c.name==='Custom Cowl of Mortality'||!c.name.startsWith('Custom ')))
+        .filter(c=>(!slotAlreadyEquipped.has(c.name)||!c._lore)&&itemUsableByChar(c)&&emptyWepOk(c)&&(!c._lore||!equippedLoreDBNames.has(c.name))&&!c._legacy&&!/no longer drops/i.test(c._from||'')&&!c._nonp99&&!c._gm&&!UNOBTAINABLE_ITEMS.has(c.name)&&(c.name==='Custom Cowl of Mortality'||!c.name.startsWith('Custom '))&&!((plan.build==='leveling'||plan.tradeable)&&c._nodrop))
         .map(c=>({...c,_effGain:effectiveGain({},c,baselineTotals,slot)}))
         .sort((a,b)=>b._effGain-a._effGain);
       if(!candidates.length)continue;
       slotResults.push({item:{name:'(empty)',location:slot},dbSlot:slot,currentData:{},candidates,isEmpty:true});
     }
   }
+  // 🔒 Locked items: keep what's worn — no suggestions for that slot, so Biggest Upgrades
+  // and Upgrade Path skip it too.
+  {const _locks=new Set(plan.locks||[]);
+   for(const sr of slotResults){if(!sr.isEmpty&&_locks.has(sr.item.name)){sr.locked=true;sr.candidates=[];}}}
   window._upgSlots=slotResults;
   window._upgPaneStats=paneStats;
   window._upgEffGain=effectiveGain;
@@ -3490,7 +3567,7 @@ function renderUpgradesPanel(){
     const unarmedItem={name:'Unarmed (Fists)',dmg:fistDmg,delay:fistDelay,_slot:'PRIMARY',_skill:'Hand to Hand',_classes:'MNK',_races:'ALL',_magic:charLevel>=30};
     for(const sr of slotResults){
       if(sr.dbSlot!=='PRIMARY'&&sr.dbSlot!=='SECONDARY')continue;
-      if(sr.is2hCard)continue;
+      if(sr.is2hCard||sr.locked)continue;
       const slotForUnarmed=sr.dbSlot;
       const unarmedForSlot={...unarmedItem,_slot:slotForUnarmed};
       const alreadyIn=sr.candidates.some(c=>c.name==='Unarmed (Fists)');
@@ -3696,6 +3773,25 @@ function renderUpgradesPanel(){
   }
   window._upgInvAvail=_invAvail;
 
+  // Sort → Proc%: weapons by proc damage per minute at the character's DEX; everything else
+  // by how many more procs its DEX gives (relative to the current rate).
+  if(sortBy==='proc'){
+    const _dexNow=Math.min(255,baselineTotals.dex||0),_ppmNow=_dexNow/170+0.5;
+    for(const sr of slotResults){
+      const _wep=sr.dbSlot==='PRIMARY'||sr.dbSlot==='SECONDARY'||sr.dbSlot==='TWOHANDER';
+      for(const c of sr.candidates){
+        if(_wep&&c.dmg){
+          const e=c._effect||'';
+          c.proc=(e&&/combat/i.test(c._effectType||''))?Math.round(_ppmNow*procDamageFor(e,plan.target)*(sr.dbSlot==='SECONDARY'?0.5:1)):0;
+          c._procLbl=c.proc?c.proc+' proc dmg/min':'';
+        } else {
+          const dd=Math.min(255,_dexNow+Number(c.dex||0)-Number((sr.currentData||{}).dex||0))-_dexNow;
+          c.proc=Math.round(dd/170/_ppmNow*1000)/10;
+          c._procLbl=c.proc?(c.proc>0?'+':'')+c.proc+'% procs':'';
+        }
+      }
+    }
+  }
   // Rank-by-stat: re-order candidate lists by raw stat when a sort override is active
   if(sortBy){for(const sr of slotResults){sr.candidates.sort(upgSortCmp(sortBy));}}
 
@@ -3717,7 +3813,8 @@ function renderUpgradesPanel(){
     const opts=candidates.length?`<option value="">— Select —</option>`+candidates.map((c,i)=>{
       const prefix=c._effGain>0?'▲ ':c._effGain<0?'▼ ':'';
       let label=prefix+esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
-      if(isWepSlotCard&&(c.dmg||c.delay)){const dps=weaponDpsScore(c,dbSlot,charClass,charLevel,baselineTotals);if(dps>0)label+=` [${Math.round(dps*100)/10} dps]`;}
+      if(isWepSlotCard&&(c.dmg||c.delay)){const dps=weaponDpsScore(c,dbSlot,charClass,charLevel,baselineTotals,PLAN_W);if(dps>0)label+=` [wpn ${Math.round(dps*100)/10}]`;}
+      if(sortBy==='proc'&&c._procLbl)label+=` [${c._procLbl}]`;
       const _avOpt=_invAvail[c.name];
       if(_avOpt&&_avOpt.length){
         const _chars=[...new Set(_avOpt.filter(a=>a.type!=='banker').map(a=>a.char))];
@@ -3726,11 +3823,12 @@ function renderUpgradesPanel(){
       return `<option value="${i}">${label}</option>`;
     }).join(''):'';
     const cost=hasBest?(best.plat?`${best.plat}k pp`:''):'';
-    const equippedDpsVal=(isWepSlotCard&&(currentData.dmg||currentData.delay))?weaponDpsScore(currentData,dbSlot,charClass,charLevel,baselineTotals):0;
-    const equippedDpsHtml=equippedDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0;text-align:right">${Math.round(equippedDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)">dps</span></div>`:'';
+    const equippedDpsVal=(isWepSlotCard&&(currentData.dmg||currentData.delay))?weaponDpsScore(currentData,dbSlot,charClass,charLevel,baselineTotals,PLAN_W):0;
+    const equippedDpsHtml=equippedDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0;text-align:right">${Math.round(equippedDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)" title="Weapon score: damage/delay plus proc value — not literal DPS">wpn score</span></div>`:'';
     cardsHtml+=`<div class="upg-slot-card${isWepDisabled?' upg-wep-disabled':''}" id="upgcard_${cardId}">
       <div class="upg-slot-head">
         <span class="upg-slot-label${slotLabelExtra}">${slotLabelText}</span>
+        ${sr.isEmpty?'':`<button type="button" data-char="${esc(name)}" data-item="${esc(item.name)}" onclick="upgToggleLock(this)" title="${sr.locked?'Locked — kept in every build. Click to unlock.':'Lock: keep this item and skip suggestions for this slot'}" style="margin-left:auto;margin-right:.35rem;background:none;border:none;cursor:pointer;font-size:.85rem;opacity:${sr.locked?1:.4};padding:0;line-height:1">${sr.locked?'&#128274;':'&#128275;'}</button>`}
         <span class="upg-score-pill ${sc}" id="upgscore_${cardId}">${scoreStr}</span>
       </div>
       <div class="upg-panes">
@@ -3743,7 +3841,7 @@ function renderUpgradesPanel(){
         </div>
         <div class="upg-pane-divider"></div>
         <div class="upg-pane" id="upgpane_${cardId}">
-          <div class="upg-pane-name upg-pane-bis" style="opacity:.5">— select upgrade —</div>
+          <div class="upg-pane-name upg-pane-bis" style="opacity:.5">${sr.locked?'&#128274; Locked — kept in every build':'— select upgrade —'}</div>
         </div>
       </div>
       ${candidates.length?`<div class="upg-alt-row" id="upgalt_${cardId}">
@@ -3793,9 +3891,25 @@ function renderUpgradesPanel(){
       <span class="upg-2h-track"><span class="upg-2h-thumb"></span></span>
       <span class="upg-2h-label">Buffed</span>
     </label>`:''}
+    <label style="display:flex;align-items:center;gap:.35rem;font-size:.72rem;color:var(--text-dim)" title="Balanced: normal class weights · Max proc: DEX first, for your weapon's proc · Leveling: tradeable gear only, HP / AC / regen first">Build
+      <select style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.15rem .3rem;font-family:'Crimson Pro',serif;font-size:.75rem;outline:none;cursor:pointer" onchange="upgSetPlan('${name}','build',this.value)">
+        <option value="balanced"${plan.build==='balanced'?' selected':''}>Balanced</option>
+        <option value="proc"${plan.build==='proc'?' selected':''}>Max proc</option>
+        <option value="leveling"${plan.build==='leveling'?' selected':''}>Leveling</option>
+      </select>
+    </label>
+    <label style="display:flex;align-items:center;gap:.35rem;font-size:.72rem;color:var(--text-dim)" title="Undead- and summoned-only proc nukes (Banish Undead, Dismiss Summoned…) only count against that target">Target
+      <select style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.15rem .3rem;font-family:'Crimson Pro',serif;font-size:.75rem;outline:none;cursor:pointer" onchange="upgSetPlan('${name}','target',this.value)">
+        <option value="any"${plan.target==='any'?' selected':''}>Any</option>
+        <option value="undead"${plan.target==='undead'?' selected':''}>Undead</option>
+        <option value="summoned"${plan.target==='summoned'?' selected':''}>Summoned</option>
+      </select>
+    </label>
+    <label style="display:flex;align-items:center;gap:.3rem;font-size:.72rem;color:var(--text-dim);cursor:pointer" title="Hide NO DROP items — only gear you can buy or trade (always on in the Leveling build)"><input type="checkbox" ${(plan.tradeable||plan.build==='leveling')?'checked':''} ${plan.build==='leveling'?'disabled':''} onchange="upgSetPlan('${name}','tradeable',this.checked)" style="accent-color:var(--gold-light)">Tradeable only</label>
     <label style="display:flex;align-items:center;gap:.35rem;font-size:.72rem;color:var(--text-dim)" title="Rank each slot's candidates by a raw stat instead of blended score">Sort
       <select id="upgSortSelect" style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.15rem .3rem;font-family:'Crimson Pro',serif;font-size:.75rem;outline:none;cursor:pointer" onchange="window['_upgSortBy_'+'${name}']=this.value;upgCascadeRescore()">
         <option value="">Score</option>
+        <option value="proc"${sortBy==='proc'?' selected':''}>Proc%</option>
         ${[...STAT_KEYS,'ac','hpbonus','manabonus',...RESIST_KEYS].map(k=>`<option value="${k}"${sortBy===k?' selected':''}>${BUFF_FX_LABELS[k]||k.toUpperCase()}</option>`).join('')}
       </select>
     </label>
@@ -4213,7 +4327,7 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
   const cost=_candPlat?`${Math.round(Number(_candPlat)*100)/100}k pp`:'';
   const isWepSlotUpg=sr.dbSlot==='PRIMARY'||sr.dbSlot==='SECONDARY'||sr.dbSlot==='TWOHANDER';
   const charLevel=meta.level||60;
-  const candDpsVal=(isWepSlotUpg&&(cand.dmg||cand.delay))?weaponDpsScore(cand,sr.dbSlot,meta.class||'',charLevel,null):0;
+  const candDpsVal=(isWepSlotUpg&&(cand.dmg||cand.delay))?weaponDpsScore(cand,sr.dbSlot,meta.class||'',charLevel,null,window._upgPlanOpts):0;
   const candDpsHtml=candDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0;text-align:right">${Math.round(candDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)">dps</span></div>`:'';
   const _avPane=window._upgInvAvail&&window._upgInvAvail[cand.name];
   const _avPaneHtml=_avPane&&_avPane.length
@@ -4268,6 +4382,17 @@ window.upgSwapAlt=function(dbSlot,idx,selectEl){
 // Limitations (see handoff): weights captured from render-time baseline; haste not re-projected.
 // Rank-by-stat comparator: net UPGRADES first (eff score > 0), then by raw stat desc,
 // then by eff score desc — downgrades sink below all upgrades regardless of stat value.
+// Gear Planner Build / Target / 🔒 lock controls → charMeta[char].plan (saved with the character).
+window.upgSetPlan=function(c,k,v){const m=charMeta[c]||(charMeta[c]={});const p=m.plan||(m.plan={});p[k]=v;
+  // A raw-stat Sort would keep ordering each slot by that stat and hide the Build's effect.
+  if(k==='build'&&window['_upgSortBy_'+c]&&window['_upgSortBy_'+c]!=='proc')window['_upgSortBy_'+c]='';
+  saveState();renderUpgradesPanel();};
+window.upgToggleLock=function(btn){
+  const c=btn.dataset.char,it=btn.dataset.item;if(!c||!it)return;
+  const m=charMeta[c]||(charMeta[c]={});const p=m.plan||(m.plan={});
+  const s=new Set(p.locks||[]);if(s.has(it))s.delete(it);else s.add(it);
+  p.locks=[...s];saveState();renderUpgradesPanel();
+};
 window.upgSortCmp=function(sortBy){return function(a,b){
   const ua=(a._effGain||0)>0?0:1,ub=(b._effGain||0)>0?0:1;
   if(ua!==ub)return ua-ub;
@@ -5095,16 +5220,18 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.5.16',
+  version:'1.5.17',
   date:'September 2026',
   features:[
-    ['AC matches the game for every class','Checked against the in-game Inventory window on six characters. Wizards, Magicians, Necromancers and Enchanters now count gear AC and Defense the way the game does &mdash; their AC was off before.'],
-    ['Watch List counts','A green &#10004; stays in line with the rest of the column, with the count beside it when you have more than one &mdash; &#10004; (3).'],
-    ['Recently added','DKP credit check in Auto-Detect (&#9935; Scan logs), repeat kills with &#65291;, Faydedar, and the optional hourlies / HoT Farm / Buff &amp; Park section in Credit Check (&#9881;).'],
+    ['Gear Planner builds','New toolbar options: <b>Build</b> (Balanced, Max proc, Leveling), <b>Target</b> (Any, Undead, Summoned) and <b>Tradeable only</b>. Max proc puts DEX first for your weapon&rsquo;s proc &mdash; even for casters and priests.'],
+    ['Lock gear you&rsquo;re keeping','Click &#128275; on any worn item in the Gear Planner to lock it. That slot stops getting suggestions, everywhere in the planner.'],
+    ['Sort by Proc%','Armor shows how many more procs its DEX gives you; weapons show their proc damage per minute.'],
+    ['Watch List counts, your way','Watch List &#9881; &rarr; &ldquo;When you have more than one&rdquo;: &#10004;<sup>3</sup>, &#10004; (3), or just &#10004;.'],
   ],
   fixes:[
-    ['AC below level 50','No longer marked &ldquo;approximate&rdquo; &mdash; confirmed exact at level 48.'],
-    ['/note in October','Notes are matched on what you typed, not the timestamp, and whole boss names only &mdash; <code>/note Quake!</code>, <code>/note set</code> and <code>/note timer</code> work again.'],
+    ['67 weapons had no proc','Procs missing from the item data are now filled in from the P99 wiki for scoring (Baton of Flame, the Coldain Velium weapons, Dagarn&rsquo;s Tail and more).'],
+    ['Buff and debuff procs count','Avatar, Rage of Vallon, stun, snare, tash and similar procs now add value instead of zero. Worn regen (Fungal Regrowth) counts as HP.'],
+    ['Cleaner Stats tab','The Combat Skills row is gone &mdash; skills are read from your logs automatically.'],
   ],
 };
 function showWhatsNew(){
@@ -5541,7 +5668,7 @@ async function loadFromSupabase(){
           }
         }
         if(row.base_stats?.questData)questData[row.char_name]=row.base_stats.questData;
-        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,factionValues:_fv,questData:_qd,buffs:_bu,planBuffed:_pb,spellbook:_sb,spellIgnore:_si,customWeights:_cw,consumeOverrides:_co,deity:_de,skills:_sk,skillsManual:_skm,...bs}=row.base_stats||{};
+        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,factionValues:_fv,questData:_qd,buffs:_bu,planBuffed:_pb,plan:_pl,spellbook:_sb,spellIgnore:_si,customWeights:_cw,consumeOverrides:_co,deity:_de,skills:_sk,skillsManual:_skm,...bs}=row.base_stats||{};
         const hasRealStats=bs.stats||bs.resists;
         charMeta[row.char_name]={
           class:row.class||'',race:row.race||'',level:row.level||1,
@@ -5557,6 +5684,7 @@ async function loadFromSupabase(){
           customWeights:row.base_stats?.customWeights||null,
           consumeOverrides:row.base_stats?.consumeOverrides||null,
           planBuffed:row.base_stats?.planBuffed??undefined,
+          plan:row.base_stats?.plan||undefined,            // Gear Planner Build / Target / Tradeable / 🔒 locks
           deity:row.base_stats?.deity||'',
           skills:row.base_stats?.skills||{},
           skillsManual:row.base_stats?.skillsManual||{},
@@ -5678,6 +5806,7 @@ function _charSaveRow(cn){
         customWeights:charMeta[cn]?.customWeights||null,
         consumeOverrides:charMeta[cn]?.consumeOverrides||null,
         planBuffed:charMeta[cn]?.planBuffed,
+        plan:charMeta[cn]?.plan||null,
         deity:charMeta[cn]?.deity||null,
         skills:charMeta[cn]?.skills||null,              // highest value per skill, from logs
         skillsManual:charMeta[cn]?.skillsManual||null,  // typed from the in-game Skills window
@@ -15965,18 +16094,26 @@ function watchlistStatus(charName, itemName){
   }
   return {status: charHasItem(charName, itemName) ? 'present' : 'missing_red', count:charItemCount(charName, itemName)};
 }
+// Watch List ⚙ → "When you have more than one": 'sup' ✔³ (default) | 'paren' ✔ (3) | 'none' ✔.
+// A per-PC display choice, so it lives in localStorage.
+function wlCountStyle(){try{const v=localStorage.getItem('mp_wl_count');return v==='paren'||v==='none'?v:'sup';}catch(e){return'sup';}}
+window.wlSetCountStyle=function(v){try{localStorage.setItem('mp_wl_count',v);}catch(e){}renderWatchlistBar();};
 function _wlBadge(res, big){
   const status=res&&res.status;
   const sz=big?'1.1rem':'1.05rem';
   if(status==='na')      return `<span class="rc-check-na" style="flex-shrink:0;font-size:${big?'1rem':'.8rem'}">N/A</span>`;
-  // More than one on hand: the check stays primary, with the quantity beside it — ✔ (3).
-  // In the table the count hangs off the check's right edge (absolute), so the check stays
-  // centred in line with the ✘ / ✔ of the other rows.
-  if(status==='present' && res.count>1){
-    const cnt=`<span style="font-size:${big?'.9rem':'.85rem'};font-weight:600;font-family:'Crimson Pro',serif;${big?'position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:.45rem;':'margin-left:.35rem;'}white-space:nowrap">(${res.count})</span>`;
+  // More than one on hand: the check stays primary, with the quantity per the Watch List ⚙
+  // "When you have more than one" option — ✔³ (default), ✔ (3), or ✔ only.
+  // In the table the count hangs off the check (absolute), so the check stays centred in
+  // line with the ✘ / ✔ of the other rows.
+  const cstyle=wlCountStyle();
+  if(status==='present' && res.count>1 && cstyle!=='none'){
+    const cnt=cstyle==='paren'
+      ?`<span style="font-size:${big?'.9rem':'.85rem'};font-weight:600;font-family:'Crimson Pro',serif;${big?'position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:.45rem;':'margin-left:.35rem;'}white-space:nowrap">(${res.count})</span>`
+      :`<span style="font-size:${big?'.72rem':'.68rem'};font-weight:700;font-family:'Crimson Pro',serif;line-height:1;${big?'position:absolute;left:100%;top:-.55em;margin-left:.08rem;':'vertical-align:super;margin-left:.15rem;'}white-space:nowrap">${res.count}</span>`;
     return `<span class="rc-check-green" title="${res.count} on hand" style="flex-shrink:0;white-space:nowrap;${big?'position:relative;display:inline-block;':''}"><span style="font-size:${sz};font-weight:700">✔</span>${cnt}</span>`;
   }
-  if(status==='present') return `<span class="rc-check-green" style="flex-shrink:0;font-size:${sz};font-weight:700">\u2714</span>`;
+  if(status==='present') return `<span class="rc-check-green"${res.count>1?` title="${res.count} on hand"`:''} style="flex-shrink:0;font-size:${sz};font-weight:700">\u2714</span>`;
   if(status==='missing_yellow'||status==='missing_tracked'){
     // Show have/target so a partial explains itself (e.g. 2/3); fall back to the
     // half-circle for soft/zero-count cases where a ratio isn't meaningful.
@@ -16055,6 +16192,7 @@ function renderWlModal(){
 
 function wlOpen(){
   renderWlModal();
+  const cs=wlCountStyle();document.querySelectorAll('input[name="wlCountStyle"]').forEach(r=>{r.checked=r.value===cs;});
   document.getElementById('wlModalOverlay').style.display='flex';
   document.getElementById('wlInput').focus();
 }
