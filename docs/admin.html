@@ -1185,7 +1185,7 @@ SUITES.upgrades = [
     let bonus=0;
     if(lvCap>=28&&slot==='PRIMARY'){
       if(window.lucyDmgBonus){
-        bonus=window.lucyDmgBonus(delay,lvCap);
+        bonus=window.lucyDmgBonus(delay,lvCap,is2h);
       } else {
         // Fallback: power curve for standalone mode (no app connection)
         const _2hFactor=0.000515*Math.pow(lvCap-28,2.135);
@@ -1203,20 +1203,22 @@ SUITES.upgrades = [
     const dwMaxSkill=_DW_MAX_SKILL[cls]||400;
     const dwSkill=Math.min((lvCap+1)*7,dwSkillCap);
     const dwChance=Math.min((dwSkill+lvCap)/dwMaxSkill,1.0);
-    const procDps=slot==='SECONDARY'?(ppm*0.5*dwChance*procDmg/60):(ppm*procDmg/60);
+    // Same units as the swing ratio below: damage per 0.1 s (delay is in tenths of a second),
+    // so ratio+proc ×10 is real DPS. (Was per second — 10× too heavy; it buried SK 2H BiS
+    // Palladius / Petrified Heartwood under proc weapons, 2026-09-28.)
+    const procDps=slot==='SECONDARY'?(ppm*0.5*dwChance*procDmg/600):(ppm*procDmg/600);
     // Ratio: OH scaled by dwChance and h2hFactor; MH scaled by h2hFactor only
     const ratio=slot==='SECONDARY'?(d/delay)*h2hFactor*dwChance:(((d+bonus)/delay)*h2hFactor);
+    // Backstab — mirrors index.html backstabDps (wiki Game Mechanics formula × BACKSTAB_WEIGHT).
+    const _bsDps=(dm,l)=>{const sk=Math.min(225,(l+1)*5),mx=l>=60?285:l>=56?265:l>=51?245:210;const mxd=Math.floor(dm*(sk*0.02+2))*2*mx/100,mn=l>=51?Math.floor(1.5*l):0;return 0.3*((Math.max(mn,mxd)+mn)/2)/100;};
     let bs=0;
-    if(cls==='Rogue'&&slot==='PRIMARY'&&itype.includes('piercing')){
-      const bsAvg=Math.max(90,(225*d)/50);
-      bs=(bsAvg/delay)*0.6;
-    }
+    if(cls==='Rogue'&&slot==='PRIMARY'&&itype.includes('piercing'))bs=_bsDps(d,lvCap);
     // ROG non-piercing PRIMARY penalty — mirrors index.html weaponDpsScore.
     // A rogue main-hand blunt/slash forfeits backstab; subtract the backstab a
     // comparable piercer would give, floored at 0, so it ranks strictly below
     // any real piercer. Off-hand and non-weapons unaffected.
     if(cls==='Rogue'&&slot==='PRIMARY'&&dmg&&delay&&!itype.includes('piercing')){
-      const foregoneBs=(Math.max(90,(225*d)/50)/delay)*0.6;
+      const foregoneBs=_bsDps(d,lvCap);
       return Math.max(0, ratio+procDps-foregoneBs);
     }
     return ratio+procDps+bs;
@@ -1360,10 +1362,11 @@ SUITES.upgrades = [
       const wep = {dmg:10,delay:24,_skill:'1H Slashing'};
       const sMH = _wdps(wep,'PRIMARY',  'Warrior',60,175);
       const sOH = _wdps(wep,'SECONDARY','Warrior',60,175);
-      // MH ratio = (2*10+11)/24 = 31/24 = 1.2917; OH ratio = (2*10)/24 = 0.8333
+      // MH ratio = (10+11)/24 = 0.875 (1H bonus +11 at 60); OH = 10/24 × dual-wield chance, no bonus.
+      // (Was (2×dmg+11)/24 from an old model — the app has scored (dmg+bonus)/delay for a while.)
       return { asserts: [
-        assertRange('MH ratio ~1.292', sMH, 1.290, 1.295),
-        assertRange('OH ratio ~0.833', sOH, 0.832, 0.835),
+        assertRange('MH ratio ~0.875', sMH, 0.874, 0.876),
+        assertRange('OH ratio ≤ 10/24 (no bonus, × DW chance)', sOH, 0.01, 0.4167),
         { label:`MH=${sMH.toFixed(4)}  OH=${sOH.toFixed(4)}  bonus-effect=${(sMH-sOH).toFixed(4)}`, status:'pass', val:'' },
       ]};
     }),
@@ -2653,11 +2656,12 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
   const INT_CLASSES = A2?.INT_CLASSES || new Set(['Enchanter','Magician','Necromancer','Wizard','Shadow Knight','Bard']);
   const _manaKey = WIS_CLASSES.has(cls) ? 'wis' : INT_CLASSES.has(cls) ? 'int' : null;
   if (_manaKey && weights[_manaKey] >= 2.0 && (baseTotals[_manaKey] || 0) <= 255) NO_CAP.add(_manaKey);
-  // Hybrid classes: 2H weapons score ratio-only — stats and AC skipped, haste always scores.
+  // Hybrid classes: 2H weapons score mostly on dps — stats and AC × HYBRID_2H_STAT_MULT
+  // (wiki-calibrated, mirrors index.html), haste always scores in full.
   const HYBRID_2H_CLASSES_gc = A2?.HYBRID_2H_CLASSES || new Set(['Paladin','Shadow Knight','Bard','Ranger']);
   const gcItype = (itemData._skill || itemData._itemType || '').toLowerCase();
   const gcIs2h = gcItype.includes('2h') || gcItype.includes('two');
-  const skipStats = gcIs2h && HYBRID_2H_CLASSES_gc.has(cls);
+  const hybrid2h = gcIs2h && HYBRID_2H_CLASSES_gc.has(cls), skipStats = false;
   let total = 0;
   if (!skipStats) for (const k of STAT_KEYS_ALL) {
     const v = Number(itemData[k] || 0); if (!v) continue;
@@ -2692,6 +2696,7 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
     } else { total += v * w; }
   } // end if (!skipStats) stat loop
   if (!skipStats && weights.ac && itemData.ac) total += Number(itemData.ac) * weights.ac;
+  if (hybrid2h) total *= (A2?.HYBRID_2H_STAT_MULT ?? 0.005);
   let hastePts = 0;
   if (weights.haste && itemData.haste) {
     const hasteVal = Number(itemData.haste || 0);
@@ -2721,12 +2726,12 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
   // ── Pure-DPS weapon-slot stat suppression — mirrors index.html effectiveGain ──
   // ROG/MNK judge a weapon slot on DPS, not the stats a stat-stick carries. Scale
   // the stat total (everything accumulated so far) down before adding DPS below.
-  const _PURE_DPS_GC = new Set(['Rogue','Monk']);
-  const _PURE_DPS_WEP_STAT_MULT_GC = 0.15;
+  // Per-class fraction (wiki-calibrated) — mirrors index.html WEP_STAT_MULT; Ranger bows too.
+  const _WEP_STAT_MULT_GC = {Rogue:0.05, Monk:0.005, Ranger:0.005};
   const WEP_SLOTS_GC = new Set(['PRIMARY','SECONDARY','RANGE','TWOHANDER']);
   const _STAT_SLOTS_GC = new Set(['PRIMARY','SECONDARY','TWOHANDER']);
-  if (slot && _STAT_SLOTS_GC.has(slot) && _PURE_DPS_GC.has(cls)) {
-    total *= _PURE_DPS_WEP_STAT_MULT_GC;
+  if (slot && (_STAT_SLOTS_GC.has(slot) || (slot === 'RANGE' && cls === 'Ranger')) && _WEP_STAT_MULT_GC[cls] !== undefined && !hybrid2h) {
+    total *= _WEP_STAT_MULT_GC[cls];
   }
   // Effective haste added at FULL weight, after suppression — up to the 41% cap it
   // is real DPS, not a stat-stick perk (over-cap already scored 0 via the clamp).
