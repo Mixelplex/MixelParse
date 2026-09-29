@@ -1,4 +1,15 @@
-## 1.5.17
+## 1.5.18
+
+- **Weapons ranked like the P99 wiki** — the Gear Planner's weapon picks were checked against the wiki gear lists and now follow them: Palladius > Petrified Heartwood > Innoruuk's Curse for Shadow Knights, Mrylokar's Dagger for Rogues, Baton of Flame and the War Bow of Rallos Zek for Rangers, Gharn's Rock for Monks.
+- **Real DPS on weapon cards** — the dps next to a weapon is actual damage per second: swings, damage bonus and procs at your DEX. Proc damage was counting about 10× too much, which buried Shadow Knight two-handers under proc weapons.
+- **Damage-over-time procs** — valued from their wiki spell pages. Many counted as a single tick (Boiling Blood 36 instead of 648; Soul Consumption 100 instead of 250). Dawncall counts against undead only.
+- **Slow one-handers were overrated** — 1H weapons with delay 25 or more got the two-hander damage bonus (+28 instead of +11 at level 60).
+- **Backstab** — follows the wiki formula and scales with dagger damage, so the higher-damage dagger wins.
+- **Innoruuk's Curse can bash** — counted for Shadow Knights. Procs above your level no longer count (Soul Consumption starts at 50).
+- **Avatar and stats on weapons** — Avatar (Primal Velium weapons) counts as a buff that stays up. Hybrid two-handers weigh stats a little instead of not at all; Rogues, Monks and Rangers judge weapons mostly on damage.
+- **Items not in the game** — 37 items the wiki marks "Does Not Exist" (GM-event items like Oakwynd) are never suggested.
+
+Everything from 1.5.17 and earlier is included:
 
 - **Gear Planner builds** — new toolbar options: **Build** (Balanced, Max proc, Leveling), **Target** (Any, Undead, Summoned) and **Tradeable only**. Max proc puts DEX first for your weapon's proc, even for casters and priests (e.g. a cleric with DawnFire against undead).
 - **Lock gear you're keeping** — click 🔓 on any worn item in the Gear Planner to lock it; that slot stops getting suggestions everywhere in the planner. Your Build, Target and locks are saved with the character.
@@ -6,8 +17,6 @@
 - **67 weapons had no proc** — procs missing from the item data are filled in from the P99 wiki for scoring (Baton of Flame, the Coldain Velium weapons, Dagarn's Tail and more). Buff and debuff procs (Avatar, Rage of Vallon, stuns, snares, tash…) now add value instead of zero, and worn regen (Fungal Regrowth) counts as HP.
 - **Watch List counts, your way** — Watch List ⚙ → "When you have more than one": ✔³, ✔ (3), or just ✔.
 - **Cleaner Stats tab** — the Combat Skills row is gone; skills are read from your logs automatically.
-
-Everything from 1.5.16 and earlier is included:
 
 - **AC matches the game for every class** — checked against the in-game Inventory window on six characters (11 readings). Wizards, Magicians, Necromancers and Enchanters now count gear AC and Defense the way the game does; their AC was off before. AC below level 50 is no longer marked approximate.
 - **Watch List counts** — the green ✔ stays in line with the rest of the column, with the count beside it when you have more than one: ✔ (3).
