@@ -1469,6 +1469,11 @@ const WIS_CLASSES=new Set(['Cleric','Druid','Paladin','Ranger','Shaman']);
 // Hybrid melee classes: 2H weapon scoring is ratio-only (no stat contribution).
 // Stats on 1H weapons still score normally for these classes.
 const HYBRID_2H_CLASSES=new Set(['Paladin','Shadow Knight','Bard','Ranger']);
+// Hybrid 2H: stats count at this fraction next to dps. Calibrated to the wiki gear lists
+// (2026-09-28): 0 (dps only) put Frostreaver / Narandi on top for SK; full weight put
+// Rocksmasher-type stat sticks there. 0.004–0.006 gives the wiki SK order Palladius >
+// Petrified > Inny > Narandi and PAL Palladius > Petrified.
+let HYBRID_2H_STAT_MULT=0.005;
 
 // ─── Parked Buff Database (P99 wiki) ─────────────────────────────────────────
 // fx keys: STAT_KEYS + 'ac' + hpbonus/manabonus (flat HP/Mana) + resist keys.
@@ -1660,14 +1665,18 @@ const PROC_UTILITY_RULES=[
   [/Tash|Malais|Weaken|Muscle Lock|Steal Strength|Lower Resists|Feeble|Scourge|Sicken|Disease|Poison|Affliction|Drones|Tagar|Togor|Dooming|Greenmist|Choke|Curse|Blinding|Bone Shatter|Word of Shadow|Engulfing Darkness|Cancel Magic|Neutralize Magic|Chill Sight|Infectious Cloud|Mana Sink|Shallow Breath/i,20],   // debuffs
   [/Snare|Ensnar|Root|Paralyz|Hungry Earth/i,15],      // snare / root
 ];
-// DoT procs: [damage per tick, ticks] (wiki spell pages). A re-proc while the DoT is still
-// running only refreshes it, so each proc is worth total × (1−e^−x)/x, where x = procs
-// expected within one duration. Soul Consumption (Innoruuk's Curse) is 50×5 at magic −200.
-const PROC_DOTS={'Soul Consumption':[50,5]};
-// 2H weapons that still allow Bash (wiki item notes). Bash damage is minor; the value is the
-// stun / interrupt a 2H normally gives up. Credited as dps-equivalent (judgment value).
+// DoT procs from every PROC_DB spell's wiki page (2026-09-28): [damage per tick, ticks,
+// direct damage on landing, target-only]. Max per-tick and max duration. PROC_DB had most of
+// these as one tick or a guess (Boiling Blood 36 = 1 of 18 ticks; Soul Consumption 100 vs
+// 50×5). A re-proc while the DoT runs only refreshes it, so the DoT part of a proc is worth
+// total × (1−e^−x)/x, x = procs expected within one duration. Self-harm buffs (Berserker
+// Madness, Call of Bones) are left out. Dawncall is undead-only (wiki target_type).
+const PROC_DOTS={"Affliction":[6,21,30],"Blood Claw":[15,2,20],"Boil Blood":[24,21],"Breath of the Sea":[20,10],"Choke":[12,6,20],"Choking":[12,6,20],"Clockwork Poison":[1,3,5],"Dawncall":[125,6,0,"undead"],"Deadly Poison":[30,37,100],"Disease":[2,150,10],"Disease Cloud":[1,60,5],"Dooming Darkness":[20,16],"Earthcall":[20,25],"Engulfing Darkness":[11,11],"Envenomed Breath":[27,7,30],"Flesh Rot I":[4,38,5],"Flesh Rot II":[4,46,5],"Flesh Rot III":[4,58,5],"Froglok Poison":[20,4,80],"Garzicor's Vengeance":[30,8],"Heat Blood":[17,10],"Ikatiar's Revenge":[20,6],"Infectious Cloud":[5,21,20],"Injected Poison I":[38,5,38],"Injected Poison II":[46,5,46],"Injected Poison III":[49,5,49],"Injected Poison IV":[59,5,59],"Injected Poison V":[125,5,121],"Leech":[8,9],"Poison":[10,15,12],"Scourge":[24,21,40],"Sear":[1,5],"Sicken":[2,21,8],"Soul Consumption":[50,5],"Strike of Thunder":[125,3],"Strong Disease":[3,150,20],"Strong Poison":[14,20,30],"Suffocate":[11,18,65],"Swarming Pain":[50,4],"Torment":[10,5,20],"Waves of the Deep Sea":[20,25],"Weak Poison":[6,10,6],"Boiling Blood":[36,18],"Feast of Blood":[30,3],"Kylie's Venom":[45,10],"Tainted Breath":[8,7,10]};
+// 2H weapons that still allow Bash (wiki item notes). Bash base damage is skill/10 (~20 at
+// the SK 200 cap) on the kick/bash timer, ≈2 dps, before the stun / interrupt a 2H normally
+// gives up. 2.0 puts Inny above Narandi's Lance and below Petrified, as the wiki lists do.
 const WEAPON_BASH_2H={"Innoruuk's Curse":1};
-const BASH_2H_DPS=0.5;
+let BASH_2H_DPS=2;
 // Proc level from the item's "Effect: … at Level N" line, for items whose stored data lacks it
 // (the fixes above carry theirs as _procLevel). Below that level the proc doesn't fire.
 const WEAPON_PROC_LEVEL={"Innoruuk's Curse":50};
@@ -1675,7 +1684,7 @@ function procUtilityValue(name){for(const [re,v] of PROC_UTILITY_RULES)if(re.tes
 // Proc value for scoring. target: 'any' | 'undead' | 'summoned' (Gear Planner Target).
 function procDamageFor(effect,target,ppm){
   const dot=PROC_DOTS[effect];
-  if(dot){const x=(ppm||1.5)*dot[1]*6/60;return dot[0]*dot[1]*(1-Math.exp(-x))/x;}
+  if(dot){if(dot[3]&&target!==dot[3])return 0;const x=(ppm||1.5)*dot[1]*6/60;return (dot[2]||0)+dot[0]*dot[1]*(1-Math.exp(-x))/x;}
   const c=CONDITIONAL_PROCS[effect];
   if(c)return target===c[0]?c[1]:0;
   if(effect in PROC_DB)return PROC_DB[effect]>0?PROC_DB[effect]:procUtilityValue(effect);
@@ -3278,11 +3287,11 @@ function renderUpgradesPanel(){
   // off the card, not the item — mirrors admin.html gcScoreItem. Falls back to _slot.
   function effectiveGain(curItemData,candData,baseTotals,cardSlot){
     const evalSlot=cardSlot||candData._slot;
-    // For hybrid classes, 2H weapons score ratio-only — stats ignored.
+    // For hybrid classes, 2H weapons score mostly on dps: stats × HYBRID_2H_STAT_MULT (below).
     // 1H weapons on hybrid classes still score stats normally.
     const candItype=(candData._skill||candData._itemType||'').toLowerCase();
     const candIs2h=candItype.includes('2h')||candItype.includes('two');
-    const skipStats=candIs2h&&HYBRID_2H_CLASSES.has(charClass);
+    const hybrid2h=candIs2h&&HYBRID_2H_CLASSES.has(charClass), skipStats=false;
     const weights=weightsFor(baseTotals); // shadows render-time weights with totals-correct ones
     let total=0;
     if(!skipStats) for(const k of STAT_KEYS_ALL){
@@ -3338,6 +3347,7 @@ function renderUpgradesPanel(){
     // Worn regen (Fungal Regrowth…): HP-equivalent, doubled in the Leveling build.
     {const rg=wornRegenOf(candData)-wornRegenOf(curItemData);if(rg)total+=rg*REGEN_HP_EQUIV*(weights.hpbonus||1)*(plan.build==='leveling'?2:1);}
     } // end if(!skipStats) ac block
+    if(hybrid2h)total*=HYBRID_2H_STAT_MULT;
     // Haste always scored regardless of skipStats. Held OUT of `total` so the
     // pure-DPS suppression below never scales it: effective haste (up to the 41%
     // cap) is real DPS, not a survivability stat, so it counts at full weight.
@@ -3393,6 +3403,7 @@ function renderUpgradesPanel(){
     }
     return Math.round(total*10)/10;
   }
+  window._upgGain=effectiveGain;   // admin / wiki-ranking checks score with the planner's own math
 
   // Build candidate list per slot
   const bySlot={};

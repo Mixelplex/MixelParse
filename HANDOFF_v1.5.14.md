@@ -55,6 +55,12 @@ Start here, then read the code. Git history is the source of truth for what chan
 - Gear Planner: Build (Balanced / Max proc / Leveling), Target (Any / Undead / Summoned), Tradeable only, 🔒 locks — all in charMeta[name].plan. Proc% sort. Weapon card "dps" → "wpn score".
 - Proc data: WEAPON_PROC_FIXES (67 weapons missing their proc; applied only to scoring copies via procFixFor — never written to item_db), PROC_DMG_EXTRA (+20), CONDITIONAL_PROCS (Banish Undead 585 etc.), PROC_UTILITY_RULES (buff/debuff/control damage-equivalents — user can re-tune), WORN_REGEN (Fungal Regrowth 5/tick = 100 HP-equiv).
 - Proc scoring units FIXED (2026-09-29, local): procDps now /600 (damage per 0.1 s, same as the swing ratio) in index.html weaponDpsScore and admin.html. The R/M/W wiki test barely moved; the decisive test was SK 2H (hybrid 2H = weapon damage only): before, Palladius #13 / Petrified #26 at L48; after, #1 / #2 like the wiki. Card "dps" is real DPS again. Avatar utility 150 → 80.
+- Wiki is the source of truth for weapon ranking (owner, 2026-09-28). Local, unpublished:
+  - PROC_DOTS: every DoT proc from its wiki spell page ([per tick, ticks, direct, target-only]); value = direct + total × (1−e^−x)/x (re-procs only refresh). PROC_DB had DoTs as one tick or a guess (Boiling Blood 36 of 648; Soul Consumption 100 vs 50×5). Dawncall is undead-only (750). R/M/W wiki ranks unchanged.
+  - Proc level gate: procs above the character's level score 0 (WEAPON_PROC_LEVEL, fixes' _procLevel).
+  - Innoruuk's Curse can bash with a 2H (wiki): WEAPON_BASH_2H, BASH_2H_DPS=2 (skill/10 base ≈ 2 dps + stun/interrupt).
+  - Hybrid 2H no longer ignores stats: × HYBRID_2H_STAT_MULT=0.005 (admin Gear Check mirrored). Calibrated on the wiki: SK L60 Palladius > Petrified > Inny > Narandi, PAL Palladius > Petrified. Still off vs wiki (lists may not be strict ranks): SK L55 Soul Leech > Ashenbone Axe, PAL L55 Truvinan > Theologian Claymore.
+  - window._upgGain exposes the planner's effectiveGain for wiki-ranking checks (preview harness: render a Wikitest char, then score).
 - admin.html gcScoreItem does NOT mirror the new proc/Target/build logic yet.
 - User verdict (2026-09-28): Builds feature probably low-use — leave as is, don't invest more unprompted. If revisited, the missing piece is showing absolute procs/min and proc dmg/min (current → with item, e.g. 1.02 → 1.30) in the stat sheet and per candidate; Proc% sort only gives a relative %.
 
