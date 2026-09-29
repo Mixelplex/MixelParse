@@ -1203,7 +1203,10 @@ SUITES.upgrades = [
     const dwMaxSkill=_DW_MAX_SKILL[cls]||400;
     const dwSkill=Math.min((lvCap+1)*7,dwSkillCap);
     const dwChance=Math.min((dwSkill+lvCap)/dwMaxSkill,1.0);
-    const procDps=slot==='SECONDARY'?(ppm*0.5*dwChance*procDmg/60):(ppm*procDmg/60);
+    // Same units as the swing ratio below: damage per 0.1 s (delay is in tenths of a second),
+    // so ratio+proc ×10 is real DPS. (Was per second — 10× too heavy; it buried SK 2H BiS
+    // Palladius / Petrified Heartwood under proc weapons, 2026-09-28.)
+    const procDps=slot==='SECONDARY'?(ppm*0.5*dwChance*procDmg/600):(ppm*procDmg/600);
     // Ratio: OH scaled by dwChance and h2hFactor; MH scaled by h2hFactor only
     const ratio=slot==='SECONDARY'?(d/delay)*h2hFactor*dwChance:(((d+bonus)/delay)*h2hFactor);
     let bs=0;

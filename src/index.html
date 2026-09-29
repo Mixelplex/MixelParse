@@ -1653,7 +1653,7 @@ for(const k in CONDITIONAL_PROCS)PROC_DB[k]=0;
 // Buff / debuff / control procs deal 0 damage but aren't worthless. Damage-equivalent
 // values by kind (judgment values, 2026-09-28) — first matching rule wins; edit to re-rank.
 const PROC_UTILITY_RULES=[
-  [/^Avatar$/i,150],                                   // big STR / ATK self-buff
+  [/^Avatar$/i,80],                                    // big STR / ATK self-buff
   [/^Rage of (Vallon|Zek)$/i,100],
   [/Berserker|Reckless Strength|Chant of Battle|Dance of the Blade|Fleeting Fury|^Haste$|Blessing of (the Theurgist|the Blackstar|Nature)|Knight's Blessing|Spirit Armor|Steelskin|Silver Skin|^Guard$|Major Shielding|^Rune|Shield of (Thistles|Flame)|Rodrick's Gift|Dawncall|Yaulp|Greater Wolf Form|Feet like Cat|Mistwalker|Song of the Deep Seas/i,40],   // self buffs
   [/Stun|Incapacitate|Shiftless|Tepid|Melodious|Walking Sleep|Drowsy|Color Shift|Glamour|Fear|Shadow Vortex|Distraction|Knockback|Disempower/i,30],   // control / interrupt
@@ -1891,7 +1891,10 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals, opts){
   const dwMaxSkill=DW_MAX_SKILL[charClass]||400;
   const dwSkill=Math.min((lv+1)*7,dwSkillCap);
   const dwChance=Math.min((dwSkill+lv)/dwMaxSkill,1.0);
-  const procDps=slot==='SECONDARY'?(ppm*0.5*dwChance*procDmg/60):(ppm*procDmg/60);
+  // Same units as the swing ratio below: damage per 0.1 s (delay is in tenths of a second),
+  // so ratio+proc ×10 is real DPS. (Was per second — 10× too heavy; it buried SK 2H BiS
+  // Palladius / Petrified Heartwood under proc weapons, 2026-09-28.)
+  const procDps=slot==='SECONDARY'?(ppm*0.5*dwChance*procDmg/600):(ppm*procDmg/600);
 
   // Ratio: OH gets no damage bonus; H2H weapons scaled by h2hFactor (~0.9722)
   const ratio=slot==='SECONDARY'?(d/delay)*h2hFactor*dwChance:(((d+bonus)/delay)*h2hFactor);
@@ -3813,7 +3816,7 @@ function renderUpgradesPanel(){
     const opts=candidates.length?`<option value="">— Select —</option>`+candidates.map((c,i)=>{
       const prefix=c._effGain>0?'▲ ':c._effGain<0?'▼ ':'';
       let label=prefix+esc(c.name)+` (${c._effGain>=0?'+':''}${c._effGain})`;
-      if(isWepSlotCard&&(c.dmg||c.delay)){const dps=weaponDpsScore(c,dbSlot,charClass,charLevel,baselineTotals,PLAN_W);if(dps>0)label+=` [wpn ${Math.round(dps*100)/10}]`;}
+      if(isWepSlotCard&&(c.dmg||c.delay)){const dps=weaponDpsScore(c,dbSlot,charClass,charLevel,baselineTotals,PLAN_W);if(dps>0)label+=` [${Math.round(dps*100)/10} dps]`;}
       if(sortBy==='proc'&&c._procLbl)label+=` [${c._procLbl}]`;
       const _avOpt=_invAvail[c.name];
       if(_avOpt&&_avOpt.length){
@@ -3824,7 +3827,7 @@ function renderUpgradesPanel(){
     }).join(''):'';
     const cost=hasBest?(best.plat?`${best.plat}k pp`:''):'';
     const equippedDpsVal=(isWepSlotCard&&(currentData.dmg||currentData.delay))?weaponDpsScore(currentData,dbSlot,charClass,charLevel,baselineTotals,PLAN_W):0;
-    const equippedDpsHtml=equippedDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0;text-align:right">${Math.round(equippedDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)" title="Weapon score: damage/delay plus proc value — not literal DPS">wpn score</span></div>`:'';
+    const equippedDpsHtml=equippedDpsVal>0?`<div style="font-size:2rem;font-weight:700;font-family:'Crimson Pro',serif;color:var(--text);line-height:1.1;margin:.15rem 0;text-align:right">${Math.round(equippedDpsVal*100)/10} <span style="font-size:1rem;font-weight:400;color:var(--text-dim)" title="Damage per second: swings (with the damage bonus) plus proc damage at your DEX">dps</span></div>`:'';
     cardsHtml+=`<div class="upg-slot-card${isWepDisabled?' upg-wep-disabled':''}" id="upgcard_${cardId}">
       <div class="upg-slot-head">
         <span class="upg-slot-label${slotLabelExtra}">${slotLabelText}</span>
