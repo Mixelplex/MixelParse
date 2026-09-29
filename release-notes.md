@@ -1,12 +1,16 @@
-## 1.5.19
+## 1.5.20
+
+- **Guild DKP update** — Severilous and Gorenaire move from Tier Five to Tier Four (race FTE 25). Klandicar, Sontalak and Zlandicar move from Tier Four to Tier Three, matching Yelinak.
+- **Role values** — PR Trainout 0.5 → 1; Low HP Train, Bonewalk and LTK Coth / Pets 1 → 2.
+- **Past raids keep their values** — raid nights before September 29 keep the old boss values, so session totals and Credit Check still match what ODKP paid at the time.
+
+Everything from 1.5.19 and earlier is included:
 
 - **Auto-Detect catches more kills** — raid ticks posted with the guild name in front ("Castle & Co. RAIDTICK", "Castle and Co: Raid Tick", "CASTLE RAIDTICK") are recognized now. Before, about a third of ticks were never seen, so those kills had nothing to attach to. Run **⛏ Scan logs** once to fill in past raid nights.
 - **Kill time from the faction hit** — for bosses with their own faction (Zlandicar and the other Velious dragons), "Your faction standing with … got worse" gives the exact second of the kill.
 - **Long fights** — a boss's rampages and flurries count as evidence, so a tick posted mid-fight (Avatar of War) still finds its boss.
 - **Fewer toss-ups** — two bosses only tie when both have real evidence; one stray line no longer makes a kill "ambiguous".
 - **Trash faction hits ignored** — killing ordinary mobs in Permafrost or Skyshrine hits the Vox / Yelinak factions; that alone never counts as a boss kill.
-
-Everything from 1.5.18 and earlier is included:
 
 - **Weapons ranked like the P99 wiki** — the Gear Planner's weapon picks were checked against the wiki gear lists and now follow them: Palladius > Petrified Heartwood > Innoruuk's Curse for Shadow Knights, Mrylokar's Dagger for Rogues, Baton of Flame and the War Bow of Rallos Zek for Rangers, Gharn's Rock for Monks.
 - **Real DPS on weapon cards** — the dps next to a weapon is actual damage per second: swings, damage bonus and procs at your DEX. Proc damage was counting about 10× too much, which buried Shadow Knight two-handers under proc weapons.

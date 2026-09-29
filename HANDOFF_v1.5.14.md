@@ -20,6 +20,7 @@ Start here, then read the code. Git history is the source of truth for what chan
 | 1.5.17 | **Published 2026-09-28** — Gear Planner Build/Target/Tradeable/🔒 locks/Proc% sort, 67 weapon proc fixes, utility proc values, worn regen, Watch List count option, Combat Skills row hidden | 72068b0 … 10f7208 |
 | 1.5.18 | **Published 2026-09-29** — weapon ranking calibrated to the P99 wiki (SK/PAL hybrid 2H stats ×0.005, Inny bash, DoT procs from wiki, proc level gate, proc units /600, 1H damage-bonus fix, wiki backstab ×0.3, ROG 0.05 / MNK+RNG 0.005 weapon stats, Avatar by uptime, 37 Does-Not-Exist items hidden) |
 | 1.5.19 | **Published 2026-09-29** — Auto-Detect: guild-prefixed RAIDTICKs (+935 in the owner's logs), faction-hit kill evidence (with corroboration), rampage/flurry fight evidence (90 s rule), tie needs comparable evidence |
+| 1.5.20 | **Published 2026-09-29** — guild DKP update: Sev/Gore → Tier Four (race FTE 25), Klandicar/Sontalak/Zlandicar → Tier Three; PR Trainout 1, Low HP Train / Bonewalk / LTK Coth 2; BOSS_VALUE_HISTORY keeps pre-9/29 raids at old values |
 | 1.5.16 | **Published 2026-09-27** — caster AC (gear ×1, Defense ÷2), AC/ATK refs confirmed (Reaper, Boom ×3, Mez, Medic ATK 592), Watch List ✔ (n), old watcher/ removed | 45b05ad … 39b329e |
 | 1.5.15 | **Published 2026-09-26** — Credit Check back to one column; hourly/HoT/BnP section opt-in (⚙, localStorage mp_cc_ledger) | d3bc946, 2b56377 |
 
@@ -140,7 +141,7 @@ Plan: Phase 1 source research (done) → Phase 2 in-game screenshots (user) → 
 - Existing users: ⛏ Scan logs backfills — "No boss" rows are re-evaluated and unseen ticks added. Still watch-only.
 
 
-## Guild DKP update 2026-09-29 (local, unpublished)
+## Guild DKP update 2026-09-29 (published in 1.5.20)
 - Severilous + Gorenaire Tier Five → Four (2.5+1.2, race FTE 25 = Tier Four race value, camp 5). Klandicar, Sontalak, Zlandicar Tier Four → Three (4+1.5, camp 8, no race FTE — same as Yelinak).
 - Roles: PR Trainout 0.5→1, Low HP Train 1→2, Bonewalk 1→2 (announcement says "outside of minis"; the app has one Bonewalk role, Dozekar), LTK Coth / Pets 1→2.
 - BOSS_VALUE_HISTORY + bossValueOn(b,date): raids dated before 2026-09-29 keep the old boss values in session totals and Credit Check expected values (roles are stored with their value, so no history needed). Assumed effective date = announcement day; change `until` if the guild says otherwise.
