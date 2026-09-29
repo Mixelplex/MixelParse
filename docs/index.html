@@ -5274,19 +5274,16 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.5.18',
+  version:'1.5.19',
   date:'September 2026',
   features:[
-    ['Weapons ranked like the P99 wiki','The Gear Planner&rsquo;s weapon picks were checked against the wiki gear lists and now follow them: Palladius &gt; Petrified Heartwood &gt; Innoruuk&rsquo;s Curse for Shadow Knights, Mrylokar&rsquo;s Dagger for Rogues, Baton of Flame and the War Bow of Rallos Zek for Rangers, Gharn&rsquo;s Rock for Monks.'],
-    ['Real DPS on weapon cards','The dps shown next to a weapon is actual damage per second: swings, damage bonus and procs at your DEX.'],
+    ['Auto-Detect catches more kills','Raid ticks posted with the guild name in front (&ldquo;Castle &amp; Co. RAIDTICK&rdquo;, &ldquo;Castle and Co: Raid Tick&rdquo;, &ldquo;CASTLE RAIDTICK&rdquo;) are recognized now &mdash; before, about a third of ticks were never seen. Run <b>&#9935; Scan logs</b> once to fill in past raid nights.'],
+    ['Kill time from the faction hit','For bosses with their own faction (Zlandicar and the other Velious dragons), &ldquo;Your faction standing with &hellip; got worse&rdquo; gives the exact second of the kill.'],
+    ['Long fights','A boss&rsquo;s rampages and flurries count as evidence, so a tick posted mid-fight (Avatar of War) still finds its boss.'],
   ],
   fixes:[
-    ['Damage-over-time procs','DoT procs are valued from their wiki spell pages. Many counted as one tick (Boiling Blood 36 instead of 648; Soul Consumption 100 instead of 250). Dawncall counts against undead only.'],
-    ['Slow one-handers overrated','1H weapons with delay 25 or more got the two-hander damage bonus (+28 instead of +11 at 60).'],
-    ['Backstab','Rogue backstab follows the wiki formula and scales with dagger damage, so the higher-damage dagger wins.'],
-    ['Innoruuk&rsquo;s Curse can bash','Counted for Shadow Knights, and procs above your level no longer count (Soul Consumption at 50).'],
-    ['Avatar and stats on weapons','Avatar (Primal Velium weapons) counts as a buff that stays up. Hybrid two-handers weigh stats a little instead of not at all; Rogues, Monks and Rangers judge weapons mostly on damage.'],
-    ['Items not in the game','37 items the wiki marks &ldquo;Does Not Exist&rdquo; (GM-event items like Oakwynd) are never suggested.'],
+    ['Fewer toss-ups','Two bosses only tie when both have real evidence; one stray line no longer makes a kill &ldquo;ambiguous&rdquo;.'],
+    ['Trash faction hits ignored','Killing ordinary mobs in Permafrost or Skyshrine hits the Vox / Yelinak factions &mdash; that alone is never counted as a boss kill.'],
   ],
 };
 function showWhatsNew(){
@@ -11715,9 +11712,17 @@ window.ktSetView=function(v){sessionsView=v;renderKillsPanel();};
 // tick was also seen in OOC (poster in your zone). Evidence before the previous
 // tick belongs to that tick. Backtested vs Mixelmedic logs + recorded sessions:
 // strong tier 65/66 matched, weak tier 12/20. Records only — never touches sessions.
+// 2026-09-29 (Zlandicar + AoW missed): guild-prefixed ticks ("Castle & Co. RAIDTICK") are parsed now
+// (+935 ticks in the owner's logs), plus faction-hit (kill) and rampage/flurry evidence. 6-month
+// replay: all 255 previously attributed ticks keep their boss; +68 in-zone ticks get one; ambiguous 19 → 7.
 // Evidence is kept 40 min so the watcher's 30-min startup backfill (restart mid-raid) lands intact.
 const RKD_WIN_BEFORE=10*60e3, RKD_WIN_AFTER=2*60e3, RKD_TICK_DEDUPE=90e3, RKD_EVIDENCE_KEEP=40*60e3, RKD_LOG_MAX=2000;
-const RKD_RANK={slain:4,enrage:3,land:2,call:1};
+// faction = "Your faction standing with <boss> …got worse" (the kill, v1.5.18+); fight = the boss's
+// rampage / flurry in melee range — shows which boss a mid-fight tick is about.
+const RKD_RANK={slain:4,faction:4,enrage:3,land:2,fight:2,call:1};
+const RKD_BASIS={slain:'slain',faction:'faction hit',enrage:'enrage',land:'landed',fight:'rampage/flurry',call:'call'};
+function _rkdRaw(m){return m.kind==='call'?`${m.poster}: ${m.text}`:m.kind==='land'?`${m.mob} (${m.sub})`:
+  `${m.mob} ${{slain:'slain',faction:'faction hit (kill)',fight:'rampage/flurry',enrage:'ENRAGED'}[m.kind]||m.kind}`;}
 let _rkdEvidence=[];      // {ts, kind, sub, boss, raw, sameZoneOnly}
 let _rkdOpenTicks=[];     // ticks awaiting their post-tick evidence window
 let _rkdLastTickTs=null;  // previous tick — evidence before it is already spent
@@ -11738,7 +11743,7 @@ function rkdSave(){try{localStorage.setItem('mp_rkd_log',JSON.stringify(rkdLog.s
 function rkdOnEvidence(msg){
   const b=msg.kind==='call'?_rkdBossInText(msg.text):_rkdBossByMob(msg.mob);
   if(!b)return;
-  const raw=msg.kind==='call'?`${msg.poster}: ${msg.text}`:msg.kind==='land'?`${msg.mob} (${msg.sub})`:`${msg.mob} ${msg.kind==='slain'?'slain':'ENRAGED'}`;
+  const raw=_rkdRaw(msg);
   _rkdEvidence.push({ts:msg.ts||Date.now(),kind:msg.kind,sub:msg.sub||null,boss:b.target,raw,char:msg.charName});
   // Prune by the event's own time, not the wall clock — backfilled evidence from hours ago
   // must survive long enough to be matched to its tick.
@@ -11771,13 +11776,26 @@ function rkdAttribute(t){
   const win=_rkdEvidence.filter(e=>e.ts>=from&&e.ts<=t.ts+RKD_WIN_AFTER&&(e.kind!=='call'||t.sameZone));
   const per={};
   for(const e of win){const p=per[e.boss]||(per[e.boss]={boss:e.boss,best:0,events:[]});p.best=Math.max(p.best,RKD_RANK[e.kind]);p.events.push(e);}
+  // Rampage/flurry only counts for a fight already under way 90 s before the tick — a boss pulled
+  // just before it is the next pull (backtest 2026-08-12: KDT tick, Vindicator pulled 39 s earlier).
+  for(const k of Object.keys(per)){const p=per[k],f=p.events.filter(e=>e.kind==='fight');
+    if(!f.length||Math.min(...f.map(e=>e.ts))<=t.ts-90e3)continue;
+    p.events=p.events.filter(e=>e.kind!=='fight');
+    if(!p.events.length){delete per[k];continue;}
+    p.best=Math.max(...p.events.map(e=>RKD_RANK[e.kind]));}
+  // A faction hit alone isn't a boss kill — trash in Permafrost / Skyshrine hits the Vox / Yelinak
+  // factions too (backtest: 11 "Vox kills" in one day). It counts only next to other evidence.
+  for(const k of Object.keys(per))if(per[k].events.every(e=>e.kind==='faction'))delete per[k];
   const lastTs=c=>Math.max(...c.events.map(e=>e.ts));
-  const cands=Object.values(per).sort((a,b)=>b.best-a.best||lastTs(b)-lastTs(a));
+  const cands=Object.values(per).sort((a,b)=>b.best-a.best||b.events.length-a.events.length||lastTs(b)-lastTs(a));
   if(!cands.length)return{tier:'none'};
-  if(cands.length>1&&cands[1].best===cands[0].best)return{tier:'ambiguous',cands:cands.filter(c=>c.best===cands[0].best).map(c=>c.boss),events:win};
-  const top=cands[0],slain=top.events.find(e=>e.kind==='slain');
-  return{tier:top.best>=3?'strong':'weak',boss:top.boss,basis:['','call','land','enrage','slain'][top.best],
-         tod:slain?slain.ts:t.ts,todSource:slain?'slain':'tick',events:top.events};
+  // Same rank is only a toss-up when the runner-up has comparable evidence (one stray rampage from
+  // another character's log doesn't tie ~35 Statue lines).
+  if(cands.length>1&&cands[1].best===cands[0].best&&cands[1].events.length*3>cands[0].events.length)return{tier:'ambiguous',cands:cands.filter(c=>c.best===cands[0].best).map(c=>c.boss),events:win};
+  const top=cands[0],slain=top.events.find(e=>e.kind==='slain'||e.kind==='faction');
+  const bestEv=top.events.filter(e=>RKD_RANK[e.kind]===top.best).pop();
+  return{tier:top.best>=3?'strong':'weak',boss:top.boss,basis:RKD_BASIS[bestEv.kind]||bestEv.kind,
+         tod:slain?slain.ts:t.ts,todSource:slain?RKD_BASIS[slain.kind]:'tick',events:top.events};
 }
 function rkdFinalize(t){
   if(!_rkdOpenTicks.includes(t))return;
@@ -11821,7 +11839,7 @@ function rkdImportScan(ticks,evidence){
   for(const m of evidence){
     const b=m.kind==='call'?_rkdBossInText(m.text):_rkdBossByMob(m.mob);
     if(!b)continue;
-    const raw=m.kind==='call'?(m.poster+': '+m.text):m.kind==='land'?(m.mob+' ('+m.sub+')'):(m.mob+' '+(m.kind==='slain'?'slain':'ENRAGED'));
+    const raw=_rkdRaw(m);
     ev.push({ts:m.ts,kind:m.kind,sub:m.sub||null,boss:b.target,raw,char:m.charName});
   }
   _rkdEvidence=ev;
