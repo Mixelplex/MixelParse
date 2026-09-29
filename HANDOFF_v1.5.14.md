@@ -128,3 +128,12 @@ Plan: Phase 1 source research (done) → Phase 2 in-game screenshots (user) → 
 - User's remaining wiki recommendations #4–8 (from the 1.5.9 recap).
 - Consolidate smart routing · watcher de-level message · Fist Wraps override · LORE flags (Regal Band, Spirit Wracked Cord) · leveling bands/guide · spellbook checker · DKP normalization · WinEQ2 24H2 crash.
 - `Upload.txt` / `session-upload.zip` are for web-chat handoffs only; working locally, read the repo directly.
+
+
+## Auto-Detect misses: Zlandicar + Avatar of War (2026-09-29, local, unpublished)
+- Zlandicar 2026-09-28 17:04: the kill tick "Castle & Co. RAIDTICK - …" (Eldrius) was never parsed — RE_RT_TICK only allowed a ≤4-char prefix ("CA RAIDTICK"). Survey of all logs: 1,048 of 2,692 RAIDTICK channel lines missed (guild-name prefixes, "Raid Tick", RAIDTICKK). New pattern: +935, the only 2 dropped are questions; remaining misses are chatter ("who took raid tick?").
+- Avatar of War 2026-09-29: tick 03:14:43 came mid-fight (kill ~03:18, no slain line, no faction). Only trash evidence in the window.
+- New evidence (watcher raidSignal): faction = "Your faction standing with <X> …got worse" (rank 4, ToD source; ignored unless the same boss has other evidence — trash hits Vox/Yelinak faction); fight = "<boss> goes on a RAMPAGE / executes a FLURRY" (rank 2, only if under way 90 s before the tick).
+- Ties are ambiguous only when the runner-up has ≥1/3 the evidence.
+- 6-month replay (scratchpad scansig.js + preview): all 255 previously attributed ticks keep their boss; +68 in-zone ticks attributed (40 enrage, 18 rampage/flurry, 5 slain, 2 faction, 2 call, 1 landed); ambiguous 19 → 7. Zlandicar = strong (faction hit, ToD 17:04:31); AoW = weak (rampage/flurry).
+- Existing users: ⛏ Scan logs backfills — "No boss" rows are re-evaluated and unseen ticks added. Still watch-only.

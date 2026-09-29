@@ -921,8 +921,18 @@ function parsePlatAmount(str) {
 // the attribution (RAIDTICK anchor + boss evidence). Nothing is recorded here.
 // Landing text per P99 spell pages: Tashanian/Wind of Tishanian "glances nervously
 // about", Malo/Malosini "looks very uncomfortable", Turgur's "yawns", Forlorn "slows down".
-// Allows a short prefix — Tokkaa's OOC copy reads "CA RAIDTICK - Your attendance…".
-const RE_RT_TICK     = /^\[.+?\] (\w+) (tells the guild|says out of character|tells the raid|shouts), '\s*(?:\S{1,4}\s+)?RAIDTICK\b(.*)'$/i;
+// Prefix: a short tag ("CA RAIDTICK") or the guild name — "Castle & Co. RAIDTICK", "Castle and Co:
+// Raidtick", "CASTLE RAIDTICK", "<X> <Y> Department: Raid Tick!". "RAID TICK" and the RAIDTICKK typo
+// count. Questions ("who took raidtick?") and chat words as a prefix ("need raidtick") don't.
+// (Before 2026-09-29 only the short tag was allowed: 935 of ~2,700 ticks in the owner's logs were
+// never seen — Zlandicar 2026-09-28, "Castle & Co. RAIDTICK", had no anchor.)
+const RE_RT_TICK     = /^\[.+?\] (\w+) (tells the guild|says out of character|tells the raid|shouts), '\s*(?:(?:<?castle>?(?: alliance)?|\w+ (?:&|and|n) co\.?|\w+ \w+ department|(?!(?:need|who|was|did|the|and|any|took|is|a)\b)\S{1,4})(?:\s*(?:&|and|n)\s*co\.?)?[\s:.\-*]*)?RAID ?TICK+\b(?![^']*\?)(.*)'$/i;
+// The kill itself: a named mob with its own faction (the Velious dragons) — "Your faction
+// standing with Zlandicar could not possibly get any worse." lands the second it dies.
+const RE_RT_FACTION  = /^\[.+?\] Your faction standing with (.+?) (?:could not possibly get any worse|got worse)\.$/;
+// Boss specials in melee range: rampage / flurry. Low volume, and only roster bosses count, so a
+// long fight with the tick mid-fight (Avatar of War 2026-09-29) still has evidence.
+const RE_RT_FIGHT    = /^\[.+?\] (.+?) (?:goes on a RAMPAGE|executes a FLURRY of attacks on .+)!$/;
 const RE_RT_ENRAGE   = /^\[.+?\] (.+?) has become ENRAGED\.$/;
 const RE_RT_SLAIN    = /^\[.+?\] (.+?) has been slain by .+!$/;
 const RE_RT_YOUSLAIN = /^\[.+?\] You have slain (.+)!$/;
@@ -940,7 +950,7 @@ function _rtLineTs(line) {
 }
 // Parse one log line into a raid signal message (raidTick / raidEvidence), or null.
 function raidSignal(line, charName) {
-  if (!/RAIDTICK|ENRAGED|slain|nervously|uncomfortable|yawns\.|slows down\.|tash|malo|slow/i.test(line)) return null;   // cheap pre-filter
+  if (!/RAID ?TICK|ENRAGED|slain|nervously|uncomfortable|yawns\.|slows down\.|tash|malo|slow|faction standing|RAMPAGE|FLURRY/i.test(line)) return null;   // cheap pre-filter
   let m; const ts = _rtLineTs(line);
   if ((m = RE_RT_TICK.exec(line)))   return { type:'raidTick', charName, poster:m[1], channel:m[2], text:m[3].trim(), ts };
   // Enrage + landing lines are low-volume, so generic names pass too — some bosses are
@@ -948,6 +958,8 @@ function raidSignal(line, charName) {
   if ((m = RE_RT_ENRAGE.exec(line))) return { type:'raidEvidence', charName, kind:'enrage', mob:m[1], ts };
   if ((m = RE_RT_SLAIN.exec(line)) || (m = RE_RT_YOUSLAIN.exec(line))) return _rtGeneric(m[1]) ? null : { type:'raidEvidence', charName, kind:'slain', mob:m[1], ts };
   if ((m = RE_RT_LAND.exec(line)))   return { type:'raidEvidence', charName, kind:'land', sub:RT_LAND_KIND[m[2]], mob:m[1], ts };
+  if ((m = RE_RT_FACTION.exec(line))) return { type:'raidEvidence', charName, kind:'faction', mob:m[1], ts };
+  if ((m = RE_RT_FIGHT.exec(line)))  return _rtGeneric(m[1]) ? null : { type:'raidEvidence', charName, kind:'fight', mob:m[1], ts };
   if ((m = RE_RT_CALL.exec(line)) && RE_RT_CALLKIND.test(m[3])) return { type:'raidEvidence', charName, kind:'call', text:m[3], poster:m[1], channel:m[2], ts };
   return null;
 }
