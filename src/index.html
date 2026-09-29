@@ -1677,6 +1677,15 @@ const PROC_DOTS={"Affliction":[6,21,30],"Blood Claw":[15,2,20],"Boil Blood":[24,
 // gives up. 2.0 puts Inny above Narandi's Lance and below Petrified, as the wiki lists do.
 const WEAPON_BASH_2H={"Innoruuk's Curse":1};
 let BASH_2H_DPS=2;
+// Long self-buff procs: [minutes, dps-equivalent while up, by class (_ = others)]. Valued by
+// uptime, not per proc — once it procs every few minutes it's always up, so a 2H main hand
+// and an off-hand are worth about the same. Avatar (Primal Velium): +100 ATK / STR / DEX /
+// AGI for 6 min (wiki); worth more to all-melee classes. Wiki fit: ROG Primal Velium Spear >
+// Massive Heartwood Thorn needs ~10; SK Palladius > Primal Velium 2H needs < 5.
+const PROC_BUFFS={'Avatar':[6,{Rogue:10,Monk:6,_:3}]};
+// Items the wiki marks {{Does Not Exist}} (GM-event artifacts, unused/removed): never suggested
+// by the Gear Planner (Oakwynd 175/20 bow topped the ranger range list). From the wiki cache.
+const NOT_IN_GAME=new Set(["Black Bees","Bottle of Bee Beer","Breastplate of Afflation","Bronze Ulak","Carved Prexus Totem","Cask of Bee Beer","Crystal Claw of Veeshan","Di`zok Insignia","Dull Black Ore","Dustdevil","Exceptional Ratman Blood","Fiery Ore","Flake of Lodestone","Gleaming Crystal Scepter","Golem Metal Rod","Gunthak Dagger","Kobold Foot Bones","Larkin Tolmans Head","Lockpick Mold","Mask of the Tundra Walker","Oakwynd","Opalescent Hide","Pendant of Salvation","Pride of the Legion","Pumpkin Pie Spice","Rotted Staff","Rune of Coruscation","Shield of Hatred","Shimmering Shard","Shrouds of Earthen Shadow","Small Brick of Unrefined Ore","Staff of Dark Reflections","The Butcherblock Hammer","The Lifeguide","Tome of Dark Healing","Warlord Mancatcher","Writ of Innoruuk"]);
 // Proc level from the item's "Effect: … at Level N" line, for items whose stored data lacks it
 // (the fixes above carry theirs as _procLevel). Below that level the proc doesn't fire.
 const WEAPON_PROC_LEVEL={"Innoruuk's Curse":50};
@@ -1797,10 +1806,14 @@ const LUCY_DMG_BONUS={
   150:[40,40,41,42,42,42,43,44,44,45,45,45,47,47,47,48,48,49,50,50,50,51,52,56,61,65,69,78,82,89,94,102,110,115,119,122,127,132],
 };
 const _LUCY_KEYS=[15,20,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,70,85,95,150];
-function lucyDmgBonus(delay,level){
+// is2h===false → the _1h row whatever the delay. (Before 2026-09-28 only delay<15 did, so a
+// 1H at delay 25+ got the 2H bonus: +28 at L60 instead of +11 — Hammer of Battle 17/25,
+// Serpent's Tooth, Efreeti War Spear all inflated.)
+function lucyDmgBonus(delay,level,is2h){
   const lv=Math.max(28,Math.min(65,level||60));
   const li=lv-28;
   const d=Math.max(0,delay||0);
+  if(is2h===false)return LUCY_DMG_BONUS._1h[li];
   if(LUCY_DMG_BONUS[d]!==undefined)return LUCY_DMG_BONUS[d][li];
   if(d<15)return LUCY_DMG_BONUS._1h[li];
   if(d>150)return LUCY_DMG_BONUS[150][li];
@@ -1817,10 +1830,25 @@ const PURE_DPS_CLASSES=new Set(['Rogue','Monk']);
 // Fraction of normal stat weight a pure-DPS class gives to gear stats when the
 // item occupies a weapon slot. 0.15 ≈ "stats are a tiebreaker, not a driver."
 const PURE_DPS_WEP_STAT_MULT=0.15;
+// Per-class weapon-slot stat fraction (Ranger bows included), calibrated to the wiki gear
+// lists (2026-09-28). Hybrid 2H uses HYBRID_2H_STAT_MULT instead. Warriors excluded on
+// purpose: threat and HP drive their picks (owner).
+const WEP_STAT_MULT={Rogue:0.05,Monk:0.05,Ranger:0.005};
+// Share of the formula backstab (backstabDps) the rogue primary is credited with; the full
+// max/min midpoint ignores misses, positioning and raid-mob mitigation.
+let BACKSTAB_WEIGHT=0.3;
 
 // Compute weapon DPS score for a single item in a given slot context.
 // Returns a numeric score suitable for adding to effectiveGain.
 // slot: 'PRIMARY', 'SECONDARY', or 'RANGE'; charClass string; charLevel number
+// Backstab (wiki Game Mechanics): max = floor(dmg × (skill × 0.02 + 2)) × 2 × maxExtra/100 —
+// maxExtra 210 (≤L50) / 245 (51–55) / 265 (56–59) / 285 (60); minimum 1.5 × level from L51;
+// ~10 s cooldown. Average = midpoint of min and max. Damage per 0.1 s (swing-ratio units).
+function backstabDps(dmg,lv){
+  const skill=Math.min(225,(lv+1)*5), mx=lv>=60?285:lv>=56?265:lv>=51?245:210;
+  const max=Math.floor(dmg*(skill*0.02+2))*2*mx/100, min=lv>=51?Math.floor(1.5*lv):0;
+  return BACKSTAB_WEIGHT*((Math.max(min,max)+min)/2)/100;
+}
 function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals, opts){
   // opts (Gear Planner): {force: score for any class (Max proc build), target: proc Target}
   // TWOHANDER is the virtual card slot — treat as PRIMARY for DPS scoring
@@ -1894,7 +1922,7 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals, opts){
   let bonus=0;
   if(lv>=28&&slot==='PRIMARY'){
     // Lucy damage bonus table — exact values for all delay/level combos
-    bonus=lucyDmgBonus(delay,lv);
+    bonus=lucyDmgBonus(delay,lv,is2h);
   }
 
   // Proc DPS — MH full rate, OH half rate
@@ -1917,24 +1945,18 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals, opts){
   // Same units as the swing ratio below: damage per 0.1 s (delay is in tenths of a second),
   // so ratio+proc ×10 is real DPS. (Was per second — 10× too heavy; it buried SK 2H BiS
   // Palladius / Petrified Heartwood under proc weapons, 2026-09-28.)
-  const procDps=slot==='SECONDARY'?(ppm*0.5*dwChance*procDmg/600):(ppm*procDmg/600);
+  let procDps=slot==='SECONDARY'?(ppm*0.5*dwChance*procDmg/600):(ppm*procDmg/600);
+  const buff=hasCombatProc&&lv>=procLv&&PROC_BUFFS[effect];
+  if(buff){const perMin=slot==='SECONDARY'?ppm*0.5*dwChance:ppm;const bv=buff[1][charClass]??buff[1]._;procDps=bv*(1-Math.exp(-perMin*buff[0]))/10;}
 
   // Ratio: OH gets no damage bonus; H2H weapons scaled by h2hFactor (~0.9722)
   const ratio=slot==='SECONDARY'?(d/delay)*h2hFactor*dwChance:(((d+bonus)/delay)*h2hFactor);
 
-  // ── ROG backstab bonus (piercing PRIMARY only) ───────────────────────────────
-  // Backstab formula: (Backstab_skill × weapon_dmg) / 50
-  // At lv60: max skill 225 → avg backstab = 225 × dmg / 50 = 4.5 × dmg
-  // Minimum backstab at lv60 = floor(1.5 × 60) = 90
-  // Backstab fires ~once every 8 seconds (one per combat round at typical delay)
-  // Express as DPS contribution relative to auto-attack ratio for scoring purposes
+  // ── ROG backstab (piercing PRIMARY only) — backstabDps(): wiki Game Mechanics formula.
+  // (Was max(90, 4.5×dmg) per swing: every Velious dagger sat on the 90 floor, so the
+  // faster one won — backwards from the wiki's "highest damage dagger" rule.)
   let backstabBonus=0;
-  if(charClass==='Rogue'&&slot==='PRIMARY'&&itype.includes('piercing')){
-    const bsAvg=Math.max(90,(225*d)/50);
-    // Backstab fires roughly every 8s; normalize to same scale as ratio (per-delay)
-    // Divide by delay to put on same footing as ratio score
-    backstabBonus=(bsAvg/delay)*0.6; // 0.6 weight factor vs auto-attack
-  }
+  if(charClass==='Rogue'&&slot==='PRIMARY'&&itype.includes('piercing'))backstabBonus=backstabDps(d,lv);
 
   // ── ROG non-piercing PRIMARY penalty ─────────────────────────────────────────
   // A blunt/slash in a rogue's main hand forfeits backstab — the largest single
@@ -1948,7 +1970,7 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals, opts){
     // non-piercer scores its auto-attack ratio minus the opportunity cost. Clamped
     // at 0 floor so score never goes negative (keeps it below piercers, not below
     // non-weapons). This makes "best blunt" ≈ 0 and any real piercer strictly win.
-    const foregoneBs=(Math.max(90,(225*d)/50)/delay)*0.6;
+    const foregoneBs=backstabDps(d,lv);
     return Math.max(0, ratio+procDps-foregoneBs);
   }
 
@@ -3377,8 +3399,9 @@ function renderUpgradesPanel(){
     // added just below stays at full weight. Non-weapon slots and other classes
     // are untouched. Mirror in admin.html.
     const _isWepSlotEG=(evalSlot==='PRIMARY'||evalSlot==='SECONDARY'||evalSlot==='TWOHANDER');
-    if(_isWepSlotEG&&PURE_DPS_CLASSES.has(charClass)){
-      total*=PURE_DPS_WEP_STAT_MULT;
+    const _wsm=WEP_STAT_MULT[charClass];
+    if((_isWepSlotEG||(evalSlot==='RANGE'&&charClass==='Ranger'))&&_wsm!==undefined&&!hybrid2h){
+      total*=_wsm;
     }
     // Effective haste added at FULL weight, AFTER suppression: haste up to the 41%
     // cap is a DPS multiplier, not a stat-stick perk. (Over-cap haste already
@@ -3417,6 +3440,7 @@ function renderUpgradesPanel(){
   const _unob=(n,d)=>!!(d._legacy||d._nonp99||d._gm||UNOBTAINABLE_ITEMS.has(n)||/no longer drops/i.test(d._from||''));
   const sigMap={};  // slot -> Map<sig, index>
   for(const[itemName,data]of Object.entries(itemDB)){
+    if(NOT_IN_GAME.has(itemName))continue;
     const slotList=data._slots||[data._slot];
     for(const slot of slotList){
       if(!slot)continue;
