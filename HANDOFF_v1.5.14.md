@@ -19,6 +19,7 @@ Start here, then read the code. Git history is the source of truth for what chan
 | 1.5.14 | **Published 2026-09-26** (1.5.11–1.5.13 were local test builds, rolled in) | c2cc4c8 … 27e184f |
 | 1.5.17 | **Published 2026-09-28** — Gear Planner Build/Target/Tradeable/🔒 locks/Proc% sort, 67 weapon proc fixes, utility proc values, worn regen, Watch List count option, Combat Skills row hidden | 72068b0 … 10f7208 |
 | 1.5.18 | **Published 2026-09-29** — weapon ranking calibrated to the P99 wiki (SK/PAL hybrid 2H stats ×0.005, Inny bash, DoT procs from wiki, proc level gate, proc units /600, 1H damage-bonus fix, wiki backstab ×0.3, ROG 0.05 / MNK+RNG 0.005 weapon stats, Avatar by uptime, 37 Does-Not-Exist items hidden) |
+| 1.5.19 | **Published 2026-09-29** — Auto-Detect: guild-prefixed RAIDTICKs (+935 in the owner's logs), faction-hit kill evidence (with corroboration), rampage/flurry fight evidence (90 s rule), tie needs comparable evidence |
 | 1.5.16 | **Published 2026-09-27** — caster AC (gear ×1, Defense ÷2), AC/ATK refs confirmed (Reaper, Boom ×3, Mez, Medic ATK 592), Watch List ✔ (n), old watcher/ removed | 45b05ad … 39b329e |
 | 1.5.15 | **Published 2026-09-26** — Credit Check back to one column; hourly/HoT/BnP section opt-in (⚙, localStorage mp_cc_ledger) | d3bc946, 2b56377 |
 
@@ -130,7 +131,7 @@ Plan: Phase 1 source research (done) → Phase 2 in-game screenshots (user) → 
 - `Upload.txt` / `session-upload.zip` are for web-chat handoffs only; working locally, read the repo directly.
 
 
-## Auto-Detect misses: Zlandicar + Avatar of War (2026-09-29, local, unpublished)
+## Auto-Detect misses: Zlandicar + Avatar of War (2026-09-29, published in 1.5.19)
 - Zlandicar 2026-09-28 17:04: the kill tick "Castle & Co. RAIDTICK - …" (Eldrius) was never parsed — RE_RT_TICK only allowed a ≤4-char prefix ("CA RAIDTICK"). Survey of all logs: 1,048 of 2,692 RAIDTICK channel lines missed (guild-name prefixes, "Raid Tick", RAIDTICKK). New pattern: +935, the only 2 dropped are questions; remaining misses are chatter ("who took raid tick?").
 - Avatar of War 2026-09-29: tick 03:14:43 came mid-fight (kill ~03:18, no slain line, no faction). Only trash evidence in the window.
 - New evidence (watcher raidSignal): faction = "Your faction standing with <X> …got worse" (rank 4, ToD source; ignored unless the same boss has other evidence — trash hits Vox/Yelinak faction); fight = "<boss> goes on a RAMPAGE / executes a FLURRY" (rank 2, only if under way 90 s before the tick).

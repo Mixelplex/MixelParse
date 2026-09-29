@@ -1,4 +1,12 @@
-## 1.5.18
+## 1.5.19
+
+- **Auto-Detect catches more kills** — raid ticks posted with the guild name in front ("Castle & Co. RAIDTICK", "Castle and Co: Raid Tick", "CASTLE RAIDTICK") are recognized now. Before, about a third of ticks were never seen, so those kills had nothing to attach to. Run **⛏ Scan logs** once to fill in past raid nights.
+- **Kill time from the faction hit** — for bosses with their own faction (Zlandicar and the other Velious dragons), "Your faction standing with … got worse" gives the exact second of the kill.
+- **Long fights** — a boss's rampages and flurries count as evidence, so a tick posted mid-fight (Avatar of War) still finds its boss.
+- **Fewer toss-ups** — two bosses only tie when both have real evidence; one stray line no longer makes a kill "ambiguous".
+- **Trash faction hits ignored** — killing ordinary mobs in Permafrost or Skyshrine hits the Vox / Yelinak factions; that alone never counts as a boss kill.
+
+Everything from 1.5.18 and earlier is included:
 
 - **Weapons ranked like the P99 wiki** — the Gear Planner's weapon picks were checked against the wiki gear lists and now follow them: Palladius > Petrified Heartwood > Innoruuk's Curse for Shadow Knights, Mrylokar's Dagger for Rogues, Baton of Flame and the War Bow of Rallos Zek for Rangers, Gharn's Rock for Monks.
 - **Real DPS on weapon cards** — the dps next to a weapon is actual damage per second: swings, damage bonus and procs at your DEX. Proc damage was counting about 10× too much, which buried Shadow Knight two-handers under proc weapons.
@@ -8,8 +16,6 @@
 - **Innoruuk's Curse can bash** — counted for Shadow Knights. Procs above your level no longer count (Soul Consumption starts at 50).
 - **Avatar and stats on weapons** — Avatar (Primal Velium weapons) counts as a buff that stays up. Hybrid two-handers weigh stats a little instead of not at all; Rogues, Monks and Rangers judge weapons mostly on damage.
 - **Items not in the game** — 37 items the wiki marks "Does Not Exist" (GM-event items like Oakwynd) are never suggested.
-
-Everything from 1.5.17 and earlier is included:
 
 - **Gear Planner builds** — new toolbar options: **Build** (Balanced, Max proc, Leveling), **Target** (Any, Undead, Summoned) and **Tradeable only**. Max proc puts DEX first for your weapon's proc, even for casters and priests (e.g. a cleric with DawnFire against undead).
 - **Lock gear you're keeping** — click 🔓 on any worn item in the Gear Planner to lock it; that slot stops getting suggestions everywhere in the planner. Your Build, Target and locks are saved with the character.

@@ -5274,19 +5274,16 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.5.18',
+  version:'1.5.19',
   date:'September 2026',
   features:[
-    ['Weapons ranked like the P99 wiki','The Gear Planner&rsquo;s weapon picks were checked against the wiki gear lists and now follow them: Palladius &gt; Petrified Heartwood &gt; Innoruuk&rsquo;s Curse for Shadow Knights, Mrylokar&rsquo;s Dagger for Rogues, Baton of Flame and the War Bow of Rallos Zek for Rangers, Gharn&rsquo;s Rock for Monks.'],
-    ['Real DPS on weapon cards','The dps shown next to a weapon is actual damage per second: swings, damage bonus and procs at your DEX.'],
+    ['Auto-Detect catches more kills','Raid ticks posted with the guild name in front (&ldquo;Castle &amp; Co. RAIDTICK&rdquo;, &ldquo;Castle and Co: Raid Tick&rdquo;, &ldquo;CASTLE RAIDTICK&rdquo;) are recognized now &mdash; before, about a third of ticks were never seen. Run <b>&#9935; Scan logs</b> once to fill in past raid nights.'],
+    ['Kill time from the faction hit','For bosses with their own faction (Zlandicar and the other Velious dragons), &ldquo;Your faction standing with &hellip; got worse&rdquo; gives the exact second of the kill.'],
+    ['Long fights','A boss&rsquo;s rampages and flurries count as evidence, so a tick posted mid-fight (Avatar of War) still finds its boss.'],
   ],
   fixes:[
-    ['Damage-over-time procs','DoT procs are valued from their wiki spell pages. Many counted as one tick (Boiling Blood 36 instead of 648; Soul Consumption 100 instead of 250). Dawncall counts against undead only.'],
-    ['Slow one-handers overrated','1H weapons with delay 25 or more got the two-hander damage bonus (+28 instead of +11 at 60).'],
-    ['Backstab','Rogue backstab follows the wiki formula and scales with dagger damage, so the higher-damage dagger wins.'],
-    ['Innoruuk&rsquo;s Curse can bash','Counted for Shadow Knights, and procs above your level no longer count (Soul Consumption at 50).'],
-    ['Avatar and stats on weapons','Avatar (Primal Velium weapons) counts as a buff that stays up. Hybrid two-handers weigh stats a little instead of not at all; Rogues, Monks and Rangers judge weapons mostly on damage.'],
-    ['Items not in the game','37 items the wiki marks &ldquo;Does Not Exist&rdquo; (GM-event items like Oakwynd) are never suggested.'],
+    ['Fewer toss-ups','Two bosses only tie when both have real evidence; one stray line no longer makes a kill &ldquo;ambiguous&rdquo;.'],
+    ['Trash faction hits ignored','Killing ordinary mobs in Permafrost or Skyshrine hits the Vox / Yelinak factions &mdash; that alone is never counted as a boss kill.'],
   ],
 };
 function showWhatsNew(){
