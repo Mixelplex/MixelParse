@@ -1660,9 +1660,22 @@ const PROC_UTILITY_RULES=[
   [/Tash|Malais|Weaken|Muscle Lock|Steal Strength|Lower Resists|Feeble|Scourge|Sicken|Disease|Poison|Affliction|Drones|Tagar|Togor|Dooming|Greenmist|Choke|Curse|Blinding|Bone Shatter|Word of Shadow|Engulfing Darkness|Cancel Magic|Neutralize Magic|Chill Sight|Infectious Cloud|Mana Sink|Shallow Breath/i,20],   // debuffs
   [/Snare|Ensnar|Root|Paralyz|Hungry Earth/i,15],      // snare / root
 ];
+// DoT procs: [damage per tick, ticks] (wiki spell pages). A re-proc while the DoT is still
+// running only refreshes it, so each proc is worth total × (1−e^−x)/x, where x = procs
+// expected within one duration. Soul Consumption (Innoruuk's Curse) is 50×5 at magic −200.
+const PROC_DOTS={'Soul Consumption':[50,5]};
+// 2H weapons that still allow Bash (wiki item notes). Bash damage is minor; the value is the
+// stun / interrupt a 2H normally gives up. Credited as dps-equivalent (judgment value).
+const WEAPON_BASH_2H={"Innoruuk's Curse":1};
+const BASH_2H_DPS=0.5;
+// Proc level from the item's "Effect: … at Level N" line, for items whose stored data lacks it
+// (the fixes above carry theirs as _procLevel). Below that level the proc doesn't fire.
+const WEAPON_PROC_LEVEL={"Innoruuk's Curse":50};
 function procUtilityValue(name){for(const [re,v] of PROC_UTILITY_RULES)if(re.test(name))return v;return 0;}
 // Proc value for scoring. target: 'any' | 'undead' | 'summoned' (Gear Planner Target).
-function procDamageFor(effect,target){
+function procDamageFor(effect,target,ppm){
+  const dot=PROC_DOTS[effect];
+  if(dot){const x=(ppm||1.5)*dot[1]*6/60;return dot[0]*dot[1]*(1-Math.exp(-x))/x;}
   const c=CONDITIONAL_PROCS[effect];
   if(c)return target===c[0]?c[1]:0;
   if(effect in PROC_DB)return PROC_DB[effect]>0?PROC_DB[effect]:procUtilityValue(effect);
@@ -1879,9 +1892,10 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals, opts){
   const effect=itemData._effect||'';
   const effectType=itemData._effectType||'';
   const hasCombatProc=effect&&effectType&&effectType.toLowerCase().includes('combat');
-  const procDmg=hasCombatProc?procDamageFor(effect,(opts&&opts.target)||'any'):0;
   const dex=Math.min(255,baseTotals&&baseTotals.dex?baseTotals.dex:175);
   const ppm=(dex/170)+0.5;
+  const procLv=+(itemData._procLevel||WEAPON_PROC_LEVEL[itemData.name||itemData.item_name]||0);
+  const procDmg=(hasCombatProc&&lv>=procLv)?procDamageFor(effect,(opts&&opts.target)||'any',ppm):0;
   // DW chance = (level + skill) / MaxSkill; skill and MaxSkill are class-specific.
   // Skill cap approximated as min(max_skill_cap, (lv+1)*7) — scales with level.
   // Skill cap rises from the L50 cap to the L60 cap (wiki DW table: ROG/RNG/WAR
@@ -1929,7 +1943,9 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals, opts){
     return Math.max(0, ratio+procDps-foregoneBs);
   }
 
-  return ratio+procDps+backstabBonus;
+  // Bash with a 2H (Innoruuk's Curse) — SHD/PAL/WAR, main hand only. Units: per 0.1 s.
+  const bash2h=(is2h&&slot==='PRIMARY'&&WEAPON_BASH_2H[itemData.name||itemData.item_name]&&/Shadow Knight|Paladin|Warrior/.test(charClass))?BASH_2H_DPS/10:0;
+  return ratio+procDps+backstabBonus+bash2h;
 }
 
 
@@ -3785,7 +3801,7 @@ function renderUpgradesPanel(){
       for(const c of sr.candidates){
         if(_wep&&c.dmg){
           const e=c._effect||'';
-          c.proc=(e&&/combat/i.test(c._effectType||''))?Math.round(_ppmNow*procDamageFor(e,plan.target)*(sr.dbSlot==='SECONDARY'?0.5:1)):0;
+          c.proc=(e&&/combat/i.test(c._effectType||''))?Math.round(_ppmNow*procDamageFor(e,plan.target,_ppmNow)*(sr.dbSlot==='SECONDARY'?0.5:1)):0;
           c._procLbl=c.proc?c.proc+' proc dmg/min':'';
         } else {
           const dd=Math.min(255,_dexNow+Number(c.dex||0)-Number((sr.currentData||{}).dex||0))-_dexNow;
