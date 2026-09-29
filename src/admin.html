@@ -2727,7 +2727,7 @@ function gcScoreItem(itemData, weights, baseTotals, hpPerSta, slot, cls, level, 
   // ROG/MNK judge a weapon slot on DPS, not the stats a stat-stick carries. Scale
   // the stat total (everything accumulated so far) down before adding DPS below.
   // Per-class fraction (wiki-calibrated) — mirrors index.html WEP_STAT_MULT; Ranger bows too.
-  const _WEP_STAT_MULT_GC = {Rogue:0.05, Monk:0.05, Ranger:0.005};
+  const _WEP_STAT_MULT_GC = {Rogue:0.05, Monk:0.005, Ranger:0.005};
   const WEP_SLOTS_GC = new Set(['PRIMARY','SECONDARY','RANGE','TWOHANDER']);
   const _STAT_SLOTS_GC = new Set(['PRIMARY','SECONDARY','TWOHANDER']);
   if (slot && (_STAT_SLOTS_GC.has(slot) || (slot === 'RANGE' && cls === 'Ranger')) && _WEP_STAT_MULT_GC[cls] !== undefined && !hybrid2h) {

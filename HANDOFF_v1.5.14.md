@@ -64,11 +64,11 @@ Start here, then read the code. Git history is the source of truth for what chan
 - Same wiki calibration for ROG / MNK / RNG (owner: not WAR — threat and HP drive their picks). Local, unpublished:
   - BUG: 1H weapons at delay ≥ 25 got the 2H damage bonus (+28 at L60 vs +11). lucyDmgBonus(delay,lv,is2h) now uses the _1h row for any 1H (all classes; admin mirrored).
   - Backstab = wiki Game Mechanics formula (backstabDps) × BACKSTAB_WEIGHT 0.3; was max(90, 4.5×dmg) per swing, so every Velious dagger tied on the 90 floor and the faster one won.
-  - WEP_STAT_MULT {Rogue 0.05, Monk 0.05, Ranger 0.005, incl. Ranger bows} replaces the flat ROG/MNK 0.15; admin Gear Check mirrored.
+  - WEP_STAT_MULT {Rogue 0.05, Monk 0.005, Ranger 0.005, incl. Ranger bows} replaces the flat ROG/MNK 0.15; admin Gear Check mirrored.
   - Avatar is a buff by uptime (PROC_BUFFS, 6 min): Rogue 10 / Monk 6 / others 3 dps-equivalent.
   - NOT_IN_GAME: 37 wiki {{Does Not Exist}} items never suggested (Oakwynd 175/20 bow, Pride of the Legion, Crystal Claw of Veeshan…).
   - Wiki fit (Velious raiding, rank among all usable weapons): ROG Mrylokar #1, Primal Velium Spear > Massive Heartwood Thorn; RNG Baton of Flame #110→#5, War Bow of Rallos Zek > Primal Velium bow. SK/PAL/WAR tops unchanged.
-  - MONK NOT EXPLAINED: wiki Hammer of Battle (17/25) #1 primary and Facesmasher > Shovel > Abashi's Rod; damage, stats and weight (HoB/Facesmasher 0 WT) don't reproduce it. Ask the owner.
+  - MONK: the wiki monk lists are written worst-first (owner, 2026-09-29) — Pre-Planar, Pre-Raid and Raiding read reversed (Planar reads normally: Wu's Fist > Whitened Treant). Reversed, Monk weapon stat weight 0.005 fits 13/17 pairs (was 7/17): Gharn's Rock > Fist of Nature > Hammer of Battle; offhand Wurmscale > Baton > Sap/Dragonrib. Only miss: Facesmasher (more stats) edges Shovel (dps 1.977 vs 1.952).
   - Hasted weapons (Claw of Lightning, Tolan's) rank by the character's current haste (intended max-only haste), so the calibration leaves them out.
   - Lower-tier wiki lists aren't strict ranks (Kunark ranger list opens with Jade Mace 9/18); adjacent-pair agreement tops out ~60%.
 - admin.html gcScoreItem does NOT mirror the new proc/Target/build logic yet.
