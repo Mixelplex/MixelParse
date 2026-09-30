@@ -1,11 +1,13 @@
-## 1.6.0
+## 1.6.1
+
+- **Raid consumes: Eye of Zomm** — the Stalking Probe check now counts any Eye of Zomm: a **Stalking Probe** (5× instant), **Holgresh Elder Beads** (unlimited, 4s) or a **Clay Bracelet** (instant). All three click from inventory for any class; Wizards and Magicians pass on their own spell. Characters holding the beads no longer show ◐ Mostly Ready, and the Watch List follows the same rule.
+
+Everything from 1.6.0 and earlier is included:
 
 - **Keys tab** — every raider's zone keys: Old Sebilis (Trakanon Idol), Veeshan's Peak, Sleeper's Tomb, Charasis and the Tooth of the Cobalt Scar, read from your inventory exports. Veeshan's Peak shows your progress — Trakanon's Tooth and each medallion's pieces (x/3) — and a finished set says "turn in". Hover any cell for what's missing, where it drops and who to hand it to. "✓ bank" means the key is banked.
 - **Plane of Sky corpses** — any death in Sky (Key Master, a duel, anything) shows on the Keys tab with a countdown to decay (7 days) and the 3-hour rez window, and a banner counts down the last 24 hours. Sky keys vanish when you leave the zone or log out, so the app only shows keys it has seen: type `/outputfile inventory` in Sky before you die, or with your corpse open. Otherwise the corpse says "keys unverified".
 - **Shorter menu** — **Raid Info** now holds Raid Parking and Spawn Timers, and **Bankers** holds Consolidate, each as its own sub-tab.
 - **Raid Parking** — Plane of Sky is no longer listed: it pays DKP, but no one parks there.
-
-Everything from 1.5.22 and earlier is included:
 
 - **Supplies panel** — the Food, Drink & Coins panel is now **Supplies** and adds a **Weight** column (carried / Max WT: amber when close, red ⚠ when over; hover for your heaviest items). Drag a character's name to reorder the rows (same order as your character tabs). Compact enough to sit beside two other panels.
 - **Raid parking: port items** — a level-eligible character carrying a **Vial of Velium Vapors** counts as parked for Dain, and a **Lizard Blood Potion** for Plane of Fear (🧪 Can port). Items in the bank don't count.
