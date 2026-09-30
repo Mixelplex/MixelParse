@@ -528,6 +528,13 @@ ipcMain.handle('setup:save', (e, data) => {
 ipcMain.handle('config:get',    ()        => config);
 ipcMain.handle('config:save',   (e, data) => saveConfig(data));
 ipcMain.handle('admin:open',    ()        => { createAdminWindow(); });
+// Admin → Resist Watch: the silent recorder's file (ipc/resistwatch.js), older rotation first.
+ipcMain.handle('resist:read', () => {
+  const p = path.join(app.getPath('userData'), 'resist-watch.jsonl');
+  let text = '';
+  for (const f of [p + '.1', p]) { try { text += fs.readFileSync(f, 'utf8'); } catch {} }
+  return { path: p, text };
+});
 
 // Electron/Windows bug: after a native alert()/confirm() the page's inputs stop taking
 // keystrokes until the window loses and regains focus. Renderers call this right after

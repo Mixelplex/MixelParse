@@ -1191,7 +1191,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
     </div>
     <div class="watchlist-bar" id="foodDrinkBar" style="flex:1;min-width:280px">
       <div class="watchlist-bar-header">
-        <div class="watchlist-bar-title"><span style="opacity:.5;cursor:grab;margin-right:.15rem" title="Drag to reorder panels">⠿</span> 🍞 Food, Drink &amp; Coins</div>
+        <div class="watchlist-bar-title"><span style="opacity:.5;cursor:grab;margin-right:.15rem" title="Drag to reorder panels">⠿</span> 🍞 Supplies</div>
         <div style="display:flex;gap:.3rem">
           <button class="watchlist-gear-btn" id="fdGearBtn" title="Configure characters" onclick="toggleFoodDrinkConfig()">⚙</button>
           <button class="watchlist-gear-btn" title="Remove this panel (bring it back via Customize panels)" onclick="togglePanelVisible('fooddrink')">✕</button>
@@ -3211,17 +3211,35 @@ function carriedWeight(charName){
   const items=(chars[charName]||[]).filter(i=>!/^(bank|sharedbank)/i.test(i.location||''));
   const bagWR={},bagName={};
   for(const i of items){const m=/^General(\d+)$/i.exec(i.location||'');if(m){bagWR[m[1]]=R[clean(i.name)]||0;bagName[m[1]]=clean(i.name);}}
-  let tenths=0;const rows=[],unknown=[];
+  // A bag's reduction applies to its contents' TOTAL, rounded down once (EQEmu does the same):
+  // Mixelflop 2026-09-30 — sixteen 0.1 items in 25% packs, per-item rounding made each 0, game says 18 not 17.
+  let tenths=0;const rows=[],unknown=[],inBag={};
   for(const i of items){
     const n=clean(i.name);let w=W[n];
     if(w===undefined){if(/^Spell: /i.test(n))w=1;else{unknown.push(n);continue;}}
     const m=/^General(\d+)-Slot/i.exec(i.location||''),red=m?(bagWR[m[1]]||0):0;
-    const eff=Math.floor(w*(100-red)/100);tenths+=eff;
+    if(m)inBag[m[1]]=(inBag[m[1]]||0)+w;else tenths+=w;
+    const eff=Math.round(w*(100-red)/100);
     if(eff)rows.push({name:n,w:eff,full:w,red,bag:m?bagName[m[1]]:null,worn:!m&&!/^General/i.test(i.location||''),shell:/^General\d+$/i.test(i.location||'')});
   }
+  for(const [k,sum] of Object.entries(inBag))tenths+=Math.floor(sum*(100-(bagWR[k]||0))/100);
   rows.sort((a,b)=>b.w-a.w);
   const fullBags=Object.entries(bagWR).filter(([,r])=>r>=100).map(([k])=>bagName[k]);
   return{tenths,wt:Math.floor(tenths/10),rows,unknown,fullBags};
+}
+// Carried weight incl. coins + Max WT (STR: base + gear + parked buffs, capped 255 — same sums as
+// the Stats tab). maxWt is null until the character's stats are entered on the Stats tab.
+function charWeightInfo(n){
+  const cw=carriedWeight(n),coins=coinsFor(n);
+  if(coins){cw.tenths+=Math.floor(coins.count/4);cw.wt=Math.floor(cw.tenths/10);}
+  const base=(charMeta[n]||{}).baseStats;let maxWt=null;
+  if(base&&base.stats){
+    const cg=gearStats[n]||{};let str=Number(base.stats[0])||0;
+    for(const it of getEquippedItems(n)){const gs=cg[it.name]||itemDBGet(it.name);if(gs&&gs.str)str+=Number(gs.str)||0;}
+    str+=Number(buffSumFor(n).str||0);
+    maxWt=Math.min(255,str);
+  }
+  return Object.assign(cw,{coins,maxWt});
 }
 function applyBaseStats(charName,parsed){
   const stats=STAT_KEYS.map(k=>parsed[k]||0);
@@ -5365,7 +5383,7 @@ const HELP_CONTENT={
     'Heads-up: the watcher can only read binds that happen while it\u2019s running \u2014 it can\u2019t recover old binds from log history. Do a one-time /char pass across your toons to seed them all.',
   ]},
   panel_customize_intro:{title:'Customize panels',sub:'New in 1.5.7',tips:[
-    'The Skyshrine, Kael Drakkel, Thurgadin, Food & Drink, and Watch List panels above the inventory table can now be shown, hidden, and reordered.',
+    'The Skyshrine, Kael Drakkel, Thurgadin, Supplies, and Watch List panels above the inventory table can now be shown, hidden, and reordered.',
     'Click <strong>\u2699 Customize panels</strong> to show or hide any panel, or click the <strong>\u2715</strong> on a panel\'s own title bar to remove just that one \u2014 removed panels come back anytime via Customize panels.',
     'Drag a panel\'s title bar and drop it onto another panel to reorder them \u2014 panels dropped next to each other share a row.',
     'All Characters and individual character tabs each remember their own panel layout independently.',
@@ -5406,14 +5424,15 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.5.21',
+  version:'1.5.22',
   date:'September 2026',
   features:[
-    ['Carried weight','The Stats tab shows your weight against Max WT (your STR) &mdash; amber when close, red &#9888; when over. Hover it for your heaviest items and what to bank or move into a weight-reduction bag.'],
-    ['Coins','Click a Coins chip on the <b>Food, Drink &amp; Coins</b> panel (or &#9998; on the Stats tab) and type your coins once. Loot, splits, sales and purchases from your logs keep it current, and it counts toward your weight. Copper and silver are only added if you keep them. Re-enter after using the bank.'],
+    ['Supplies panel','The Food, Drink &amp; Coins panel is now <b>Supplies</b> and adds a <b>Weight</b> column (carried / Max WT, amber when close, red &#9888; when over &mdash; hover for your heaviest items). Drag a character&rsquo;s name to reorder the rows (same order as your character tabs). It&rsquo;s compact enough to sit beside two other panels.'],
+    ['Raid parking: port items','A level-eligible character carrying a <b>Vial of Velium Vapors</b> counts as parked for Dain, and a <b>Lizard Blood Potion</b> for Plane of Fear (&#129514; Can port).'],
+    ['Raid parking: gating home','A character bound at a raid spot counts only if it can gate there &mdash; the Gate spell (CLR/DRU/SHM/NEC/WIZ/MAG/ENC) or a carried <b>Vial of Swirling Smoke</b>. Bound characters that can&rsquo;t gate are listed separately.'],
   ],
   fixes:[
-    ['Raid parking warning','&ldquo;No toon parked&rdquo; now matches the Raid Parking tab &mdash; a character you don&rsquo;t have a tab for no longer counts as parked (Terror / Plane of Fear warns again).'],
+    ['Carried weight','Weight reduction now applies to a bag&rsquo;s total, like the game &mdash; small items in 25% bags no longer round down to nothing (a character reading 17 now shows the in-game 18).'],
   ],
 };
 function showWhatsNew(){
@@ -5936,7 +5955,29 @@ function scheduleSave(){
   setSyncStatus('saving');
   clearTimeout(syncTimeout);
   syncTimeout=setTimeout(saveToSupabase,1200);
+  resistSnapSchedule();
 }
+
+// Resist recorder (WATCH-ONLY, desktop): the watcher stamps every resisted / landed spell in
+// resist-watch.jsonl with the character's resists at that moment. Same sums as the Stats tab
+// (base + gear + parked buffs), kept apart so the curve can be fitted on either.
+let _rsSnapT=null;
+function resistSnapSchedule(){if(!window.MixelParseApp||!window.MixelParseApp.watcherCommand)return;clearTimeout(_rsSnapT);_rsSnapT=setTimeout(resistSnapSend,5000);}
+function resistSnapSend(){
+  try{
+    const K={svpoison:'pr',svmagic:'mr',svdisease:'dr',svfire:'fr',svcold:'cr'},out={};
+    const obj=a=>{const o={};RESIST_KEYS.forEach((k,i)=>o[K[k]]=Number(a[i])||0);return o;};
+    for(const cn of Object.keys(chars||{})){
+      const eq=getEquippedItems(cn);if(!eq.length)continue;
+      const meta=charMeta[cn]||{},cg=gearStats[cn]||{},g=[0,0,0,0,0];
+      for(const it of eq){const gs=cg[it.name]||itemDBGet(it.name);if(gs)RESIST_KEYS.forEach((k,i)=>{if(gs[k])g[i]+=Number(gs[k])||0;});}
+      const bs=buffSumFor(cn);
+      out[cn]={lv:meta.level||0,cls:meta.class||'',race:meta.race||'',base:meta.baseStats?obj(meta.baseStats.resists):null,gear:obj(g),parked:obj(RESIST_KEYS.map(k=>bs[k]||0))};
+    }
+    if(Object.keys(out).length)window.MixelParseApp.watcherCommand('resistSnapshot',{chars:out});
+  }catch(e){console.warn('resist snapshot',e);}
+}
+setTimeout(()=>resistSnapSchedule(),30e3);setInterval(()=>resistSnapSchedule(),10*60e3);
 
 function setSyncStatus(state, msg){
   const dot=document.getElementById('syncDot');
@@ -6487,7 +6528,7 @@ const DASHBOARD_PANELS=[
   {id:'skyshrine',  containerId:'cityBar_skyshrine',  label:'Skyshrine'},
   {id:'kael',       containerId:'cityBar_kael',       label:'Kael Drakkel'},
   {id:'thurgadin',  containerId:'cityBar_thurgadin',  label:'Thurgadin'},
-  {id:'fooddrink',  containerId:'foodDrinkBar',       label:'Food, Drink & Coins'},
+  {id:'fooddrink',  containerId:'foodDrinkBar',       label:'Supplies'},
 ];
 let _dragPanel=null;
 // Two independent layouts: 'all' (the All Characters tab) and 'char' (any single
@@ -6576,10 +6617,12 @@ function fdBreakdownTitle(items){
 }
 function fdChip(min,items){
   const tip=fdBreakdownTitle(items);
-  const titleAttr=tip?' title="'+esc(tip)+'"':'';
+  let titleAttr=tip?' title="'+esc(tip)+'"':'';
   if(min===null)return'<span class="tov-chip tov-chip-none">&#9675; No data</span>';
   if(min<=0)return'<span class="tov-chip tov-chip-warn"'+titleAttr+'>&#10007; Out</span>';
-  const label=fdFmt(min);
+  // 10h+ shows whole hours so the panel fits beside two others; exact time on hover.
+  const label=min>=600?Math.floor(min/60)+'h':fdFmt(min);
+  if(min>=600)titleAttr=' title="'+esc(fdFmt(min)+' left'+(tip?'\n'+tip:''))+'"';
   if(min<60)return'<span class="tov-chip tov-chip-yellow"'+titleAttr+'>&#9678; '+label+'</span>';
   return'<span class="tov-chip tov-chip-ally"'+titleAttr+'>&#10003; '+label+'</span>';
 }
@@ -6588,13 +6631,27 @@ function fdCoinChip(n){
   coinsRequestScan(n);
   const c=coinsFor(n);
   const click=' onclick="coinsPopOpen(event,decodeURIComponent(\''+encodeURIComponent(n)+'\'))"';
-  if(!c)return'<span class="tov-chip tov-chip-none" style="cursor:pointer"'+click+' title="Click to enter this character\'s coins — your logs keep it current after that">&#9998; enter coins</span>';
+  if(!c)return'<span class="tov-chip tov-chip-none" style="cursor:pointer"'+click+' title="Click to enter this character\'s coins — your logs keep it current after that">&#9998; set</span>';
   const txt=c.pp+'p '+c.gp+'g'+(c.small||c.sp||c.cp?' '+c.sp+'s '+c.cp+'c':'');
   const when=new Date(c.since).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
   const tip=c.pp+' pp · '+c.gp+' gp · '+c.sp+' sp · '+c.cp+' cp ('+c.count+' coins = '+(Math.floor(c.count/4)/10).toFixed(1)+' weight)\n'+
     'Typed in '+when+(c.pending?' — reading your logs…':' + '+c.lines+' coin line'+(c.lines===1?'':'s')+' from your logs since.')+
     (c.small?'':' Looted copper/silver not added (assumed destroyed).')+' Click to re-enter (after using the bank).';
-  return'<span class="tov-chip" style="background:rgba(160,120,40,.12);border-color:var(--gold);color:var(--text);cursor:pointer"'+click+' title="'+esc(tip)+'">&#129689; '+txt+'</span>';
+  return'<span class="tov-chip" style="background:rgba(160,120,40,.12);border-color:var(--gold);color:var(--text);cursor:pointer"'+click+' title="'+esc(tip)+'">'+txt+'</span>';
+}
+// Weight cell (see charWeightInfo): carried / Max WT, amber at 90%+, red when over; hover for the heaviest items.
+function fdWeightChip(n){
+  let w;try{w=charWeightInfo(n);}catch(e){w=null;}
+  if(!w||(!w.tenths&&!w.rows.length))return'<span class="tov-chip tov-chip-none" title="No inventory file for this character yet">&#9675; No data</span>';
+  const f=t=>(t/10).toFixed(1),over=w.maxWt!=null&&w.wt>w.maxWt,near=!over&&w.maxWt&&w.wt>=w.maxWt*0.9;
+  const tip='Carried weight '+w.wt+(w.maxWt!=null?' of '+w.maxWt+' (Max WT = STR)':' — enter this character\'s stats on the Stats tab to see Max WT')+'.'+
+    (w.coins?' Includes '+w.coins.count+' coins (40 coins = 1).':' Coins not included — click the Coins chip to enter them.')+
+    (over?'\nOver by '+(w.wt-w.maxWt)+' — you move slower until you\'re back to '+w.maxWt+'.':'')+
+    (w.rows.length?'\nHeaviest:\n'+w.rows.slice(0,6).map(r=>'  '+r.name+'  '+f(r.w)+(r.red?' ('+r.red+'% '+r.bag+')':r.worn?' (worn)':'')).join('\n'):'');
+  const txt=w.wt+(w.maxWt!=null?'/'+w.maxWt:'')+(over?' &#9888;':'');
+  if(over)return'<span class="tov-chip tov-chip-warn" title="'+esc(tip)+'">'+txt+'</span>';
+  if(near)return'<span class="tov-chip tov-chip-yellow" title="'+esc(tip)+'">'+txt+'</span>';
+  return'<span class="tov-chip" style="background:rgba(120,110,90,.10);border-color:var(--border);color:var(--text)" title="'+esc(tip)+'">'+txt+'</span>';
 }
 function renderFoodDrinkPanel(){
   const container=document.getElementById('fdRows');
@@ -6613,13 +6670,23 @@ function renderFoodDrinkPanel(){
     }).join('');
   }
   const visNames=isAll?allNames.filter(n=>!hidden.has(n)):(activeTab?[activeTab]:allNames);
-  const nameHeader=isAll?'<th style="padding:.2rem .5rem"></th>':'';
+  const nameHeader=isAll?'<th style="padding:.2rem .3rem"></th>':'';
   const rows=visNames.map(n=>{
     const fd=computeFoodDrink(n);
-    const nameCell=isAll?'<td class="watchlist-item-name" style="padding:.15rem .5rem;min-width:100px;white-space:nowrap">'+esc(n)+'</td>':'';
-    return'<tr>'+nameCell+'<td style="padding:.15rem .5rem;white-space:nowrap">'+fdChip(fd?fd.foodMin:null,fd?fd.foodItems:null)+'</td><td style="padding:.15rem .5rem;white-space:nowrap">'+fdChip(fd?fd.drinkMin:null,fd?fd.drinkItems:null)+'</td><td style="padding:.15rem .5rem;white-space:nowrap">'+fdCoinChip(n)+'</td></tr>';
+    const nameCell=isAll?'<td class="watchlist-item-name" style="padding:.15rem .3rem;white-space:nowrap;cursor:grab" title="Drag to reorder (same order as your character tabs)"><span style="opacity:.4;margin-right:.3rem">&#10303;</span>'+esc(n)+'</td>':'';
+    return'<tr data-fd-char="'+esc(n)+'">'+nameCell+'<td style="padding:.15rem .3rem;white-space:nowrap">'+fdChip(fd?fd.foodMin:null,fd?fd.foodItems:null)+'</td><td style="padding:.15rem .3rem;white-space:nowrap">'+fdChip(fd?fd.drinkMin:null,fd?fd.drinkItems:null)+'</td><td style="padding:.15rem .3rem;white-space:nowrap">'+fdCoinChip(n)+'</td><td style="padding:.15rem .3rem;white-space:nowrap">'+fdWeightChip(n)+'</td></tr>';
   }).join('');
-  container.innerHTML='<table style="border-collapse:collapse;width:100%"><thead><tr>'+nameHeader+'<th style="padding:.2rem .5rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Food</th><th style="padding:.2rem .5rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Drink</th><th style="padding:.2rem .5rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Coins</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  container.style.overflowX='auto';container.innerHTML='<style>#fdRows .tov-chip{padding:.12rem .4rem;gap:.2rem}</style><table style="border-collapse:collapse;width:100%"><thead><tr>'+nameHeader+'<th style="padding:.2rem .3rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Food</th><th style="padding:.2rem .3rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Drink</th><th style="padding:.2rem .3rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Coins</th><th style="padding:.2rem .3rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Weight</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  // Drag a row onto another to reorder — shares the character-tab order (reorderChar).
+  if(isAll)container.querySelectorAll('tr[data-fd-char]').forEach(tr=>{
+    const key=tr.getAttribute('data-fd-char');
+    tr.draggable=true;
+    tr.addEventListener('dragstart',e=>{_dragChar=key;try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',key);}catch(_){}});
+    tr.addEventListener('dragover',e=>{if(_dragChar&&_dragChar!==key){e.preventDefault();try{e.dataTransfer.dropEffect='move';}catch(_){}tr.style.boxShadow='inset 0 2px 0 var(--gold-light)';}});
+    tr.addEventListener('dragleave',()=>{tr.style.boxShadow='';});
+    tr.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();tr.style.boxShadow='';if(_dragChar&&_dragChar!==key)reorderChar(_dragChar,key);_dragChar=null;});
+    tr.addEventListener('dragend',()=>{_dragChar=null;container.querySelectorAll('tr[data-fd-char]').forEach(x=>x.style.boxShadow='');});
+  });
 }
 function toggleCityConfig(id){
   const cfg=CITY_FACTIONS[id];if(!cfg)return;
@@ -13463,7 +13530,7 @@ const RAID_PARK_TARGETS = [
   {name:'Zlandicar',                      lvl:60, zones:['Dragon Necropolis'],                  exc:'yellow', tier:'T4', dkp:2.5, loc:'dn'},
   {name:'Plane of Sky',                   lvl:58, zones:['Plane of Sky'],                       exc:'yellow', tier:'T3', dkp:4, loc:'sky'},
   {name:'ToV',                            lvl:58, zones:['Western Wastes','Temple of Veeshan'], exc:'yellow', tier:'T1', dkp:7.5, loc:'wwtov', note:'Includes practice'},
-  {name:'Dain Frostweaver IV',            lvl:55, zones:['Icewell Keep','City of Thurgadin','Thurgadin'],                       exc:'green',  tier:'T2', dkp:5, loc:'ice'},
+  {name:'Dain Frostweaver IV',            lvl:55, zones:['Icewell Keep','City of Thurgadin','Thurgadin'],                       exc:'green',  tier:'T2', dkp:5, loc:'ice', port:'Vial of Velium Vapors'},
   {name:'Derakor the Vindicator (Vindi)', lvl:55, zones:['Kael Drakkel'],                       exc:'green',  tier:'T7', dkp:0.5, loc:'kael'},
   {name:"Kelorek`Dar",                    lvl:55, zones:['Cobalt Scar'],                        exc:'green',  tier:'T5', dkp:1.5, loc:'cs'},
   {name:'King Tormax',                    lvl:55, zones:['Kael Drakkel'],                       exc:'green',  tier:'T2', dkp:5, loc:'kael'},
@@ -13472,7 +13539,7 @@ const RAID_PARK_TARGETS = [
   {name:'Trakanon',                       lvl:55, zones:['Old Sebilis'],                        exc:'green',  tier:'T5', dkp:1.5, key:'Trakanon Idol', loc:'seb'},
   {name:'Talendor',                       lvl:55, zones:['Skyfire Mountains'],                  exc:'green',  tier:'T6', dkp:1, loc:'sf'},
   {name:'Faydedar',                       lvl:55, zones:['Timorous Deep'],                      exc:'green',  tier:'\u2014', dkp:-1, loc:'td'},
-  {name:'Plane of Fear',                  lvl:55, zones:['Plane of Fear','The Feerrott'],         exc:'green',  tier:'T3', dkp:4, loc:'fear', note:'When competitive'},
+  {name:'Plane of Fear',                  lvl:55, zones:['Plane of Fear','The Feerrott'],         exc:'green',  tier:'T3', dkp:4, loc:'fear', note:'When competitive', port:'Lizard Blood Potion'},
   {name:'Plane of Hate',                  lvl:55, zones:['Plane of Hate'],                      exc:'green',  tier:'T7', dkp:0.5, loc:'hate', note:'When competitive'},
   {name:'Ring War',                       lvl:55, zones:['Great Divide'],                       exc:'green',  tier:'\u2014', dkp:-1, loc:'gd', note:'Last 2 ticks for loot'},
   {name:"Sleeper's Tomb",                 lvl:55, zones:["Sleeper's Tomb"],                     exc:'green',  tier:'T3', dkp:4, note:'Prog / MOTG / TFA', key:"Sleeper's Key", loc:'st'},
@@ -13612,6 +13679,23 @@ function parkHasKey(name, keyName){
   const kn = parkNormItem(keyName);
   return inv.some(it => parkNormItem(it && it.name) === kn);
 }
+function parkCarries(name, item){
+  const kn=parkNormItem(item),inv=chars[name];
+  return Array.isArray(inv)&&inv.some(it=>it&&!/^(bank|sharedbank)/i.test(it.location||'')&&parkNormItem(String(it.name||'').replace(/\*+$/,''))===kn);
+}
+// Bound toons count only if they can get home: the Gate spell (CLR/DRU/SHM/NEC/WIZ/MAG/ENC, per
+// spells_us.txt) or a carried Vial of Swirling Smoke (instant Gate, any class). Returns how, or null.
+const PARK_GATE_CLASSES=new Set(['CLR','DRU','SHM','NEC','WIZ','MAG','ENC']);
+function parkGateHow(o){
+  if(o.cls&&PARK_GATE_CLASSES.has(o.cls))return 'Gate';
+  return parkCarries(o.name,'Vial of Swirling Smoke')?'Vial of Swirling Smoke':null;
+}
+// Port item (t.port — Vial of Velium Vapors = Thurgadin Gate): a toon CARRYING one (not banked)
+// can get to the raid any time, so it counts as parked like a bound toon.
+function parkPortHolders(t, roster){
+  if(!t.port) return [];
+  return Object.values(roster).filter(o=>parkCarries(o.name,t.port));
+}
 
 // Per-target status: covered / nokey / unknown / ineligible / missing.
 // Covered if a level-eligible toon is in ANY of the target's zones AND (if the
@@ -13620,7 +13704,7 @@ function parkTargetStatus(t, roster){
   const zset=t.zones.map(parkNormZone);
   const all=Object.values(roster);
   const zoneParked=all.filter(o=>o.zone && zset.indexOf(parkNormZone(o.zone))>=0);
-  const bindParked=all.filter(o=>o.bind && zset.indexOf(parkNormZone(o.bind))>=0);
+  const bindParked=all.filter(o=>o.bind && zset.indexOf(parkNormZone(o.bind))>=0 && parkGateHow(o));
   // Eligibility (level + key) evaluated over a candidate set.
   const evalSet=(list)=>{
     let covered=false, nokey=false, unknown=false, ineligible=false;
@@ -13644,6 +13728,8 @@ function parkTargetStatus(t, roster){
   if(Z.covered) return {status:'covered', parked:zoneParked, via:'zone'};
   const B=evalSet(bindParked);
   if(B.covered) return {status:'bindparked', parked:bindParked, via:'bind'};
+  const portParked=parkPortHolders(t, roster);
+  if(evalSet(portParked).covered) return {status:'portparked', parked:portParked, via:'port'};
   const fallbackParked = zoneParked.length ? zoneParked : bindParked;
   if(Z.nokey||B.nokey)          return {status:'nokey',      parked:fallbackParked};
   if(Z.unknown||B.unknown)      return {status:'unknown',    parked:fallbackParked};
@@ -13654,6 +13740,7 @@ function parkTargetStatus(t, roster){
 const PARK_BADGE={
   covered:   {t:'\u2705 Covered',    c:'#3a7a3a'},
   bindparked:{t:'\u2693 Bound here', c:'#c9a227'},
+  portparked:{t:'\ud83e\uddea Can port', c:'#c9a227'},
   waiting:   {t:'\u23F3 Parked \u00b7 not up yet', c:'#8a6d3b'},
   coveredup: {t:'\u2705 Covered \u00b7 UP', c:'#3a7a3a'},
   coveredwin:{t:'\u2705 Covered \u00b7 in window', c:'#3a7a3a'},
@@ -13768,7 +13855,7 @@ function btLocIgnored(locId){
 // warning while the Parking tab showed the location uncovered. 2026-09-30.)
 function btParkedInLoc(locId, roster){
   const tgts = (typeof RAID_PARK_TARGETS !== 'undefined') ? RAID_PARK_TARGETS.filter(t => t.loc === locId) : [];
-  if(tgts.length) return tgts.some(t => { const st = parkTargetStatus(t, roster).status; return st === 'covered' || st === 'bindparked'; });
+  if(tgts.length) return tgts.some(t => { const st = parkTargetStatus(t, roster).status; return st === 'covered' || st === 'bindparked' || st === 'portparked'; });
   const L = (typeof PARK_LOCATIONS !== 'undefined') && PARK_LOCATIONS.find(x => x.id === locId);
   if(!L) return true;   // unknown loc -> don't warn
   const zset = L.zones.map(parkNormZone);
@@ -14248,14 +14335,17 @@ function renderParkingPanel(){
   Object.values(sec).forEach(s=>{
     const zset=s.loc.zones.map(parkNormZone);
     s.parked=Object.values(roster).filter(o=>o.zone && zset.indexOf(parkNormZone(o.zone))>=0);
-    s.bindParked=Object.values(roster).filter(o=>o.bind && zset.indexOf(parkNormZone(o.bind))>=0);
+    const _boundAll=Object.values(roster).filter(o=>o.bind && zset.indexOf(parkNormZone(o.bind))>=0);
+    s.bindParked=_boundAll.filter(o=>parkGateHow(o));
+    s.bindNoGate=_boundAll.filter(o=>!parkGateHow(o));
     s.rank=Math.max.apply(null, s.targets.map(t=>t.dkp));
     s.best=s.targets.reduce((m,t)=>t.dkp>m.dkp?t:m);
     s.hasParked=s.parked.length>0;
     s.allCovered=s.targets.every(t=>parkCoveredNow(t,roster));
     // Yellow "soft" tier: every target is handled by a physically-parked OR bound toon,
     // but the section isn't fully green (bind-only coverage).
-    s.softCovered=!s.allCovered && s.targets.every(t=>{const st=parkTargetStatus(t,roster).status;return st==='covered'||st==='bindparked';});
+    s.softCovered=!s.allCovered && s.targets.every(t=>{const st=parkTargetStatus(t,roster).status;return st==='covered'||st==='bindparked'||st==='portparked';});
+    s.portParked=[...new Map(s.targets.flatMap(t=>parkPortHolders(t,roster).map(o=>[o.name.toLowerCase(),{o,item:t.port}]))).values()];
   });
   // Sort: fully-covered (green) sections on top, then a divider, then the rest.
   // Within each group: tier desc, parked breaks ties, then title.
@@ -14323,10 +14413,13 @@ function renderParkingPanel(){
       }).join(' \u00b7 ');
     }else if(s.bindParked.length){
       const _bl=s.bindParked.map(o=>{
-        const lc=(o.lvl!=null?o.lvl:'?')+' '+(o.cls||'?');
+        const lc=(o.lvl!=null?o.lvl:'?')+' '+(o.cls||'?')+' · '+esc(parkGateHow(o));
         return `${esc(o.name)} <span style="color:var(--text-muted);font-size:.72rem">(${lc})</span>`;
       }).join(' \u00b7 ');
       parkedLine=`<span style="color:#c9a227">\u2693 Bound here:</span> ${_bl}`;
+    }else if(s.portParked.length){
+      const _pl=s.portParked.map(({o,item})=>`${esc(o.name)} <span style="color:var(--text-muted);font-size:.72rem">(${o.lvl!=null?o.lvl:'?'} ${o.cls||'?'} \u00b7 ${esc(item)})</span>`).join(' \u00b7 ');
+      parkedLine=`<span style="color:#c9a227">\ud83e\uddea Can port here:</span> ${_pl}`;
     }else{
       // Candidates must be genuinely able to cover at least one target here:
       // class-adjusted level AND, for key-gated targets, actually holding the key.
@@ -14348,6 +14441,7 @@ function renderParkingPanel(){
       parkedLine=`<span style="color:var(--text-muted)">Nobody parked.</span>`+tail;
     }
 
+    if(s.bindNoGate.length)parkedLine+=`<div style="font-size:.72rem;color:#a05a20;margin-top:.15rem">⚓ Bound here but can't gate (no Gate spell or Vial of Swirling Smoke): ${s.bindNoGate.map(o=>esc(o.name)+' <span style="color:var(--text-muted)">('+(o.lvl!=null?o.lvl:'?')+' '+(o.cls||'?')+')</span>').join(', ')}</div>`;
     const rankTag=s.best.dkp>=0?` <span style="color:var(--text-muted);font-size:.7rem;font-weight:400">\u00b7 ${esc(s.best.tier)}</span>`:'';
     const parkedFlag=s.hasParked?` <span style="color:#3a7a3a;font-size:.68rem">\u25cf parked</span>`:'';
     if(s.allCovered){
@@ -14368,7 +14462,7 @@ function renderParkingPanel(){
     }
     const _cb=s.softCovered?'#c9a227':'var(--border)';
     const _cardExtra=s.softCovered?'border-left:5px solid #c9a227;background:rgba(201,162,39,.08);':'';
-    const _boundFlag=s.softCovered?` <span style="color:#c9a227;font-size:.68rem">\u2693 bound-parked</span>`:'';
+    const _boundFlag=s.softCovered?(!s.bindParked.length&&s.portParked.length?` <span style="color:#c9a227;font-size:.68rem">\ud83e\uddea port-parked</span>`:` <span style="color:#c9a227;font-size:.68rem">\u2693 bound-parked</span>`):'';
     return divider+`<div style="border:1px solid ${_cb};${_cardExtra}border-radius:6px;margin:.55rem 0;overflow:hidden">
       <div style="background:rgba(0,0,0,.03);padding:.5rem .8rem;border-bottom:1px solid ${_cb}">
         <span style="font-family:'Cinzel',serif;color:var(--gold-light);letter-spacing:.05em">${esc(s.zone)}</span>${rankTag}${parkedFlag}${_boundFlag}

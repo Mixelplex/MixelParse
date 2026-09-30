@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
 
   // ── Windows ────────────────────────────────────────────────────────────────
   openAdmin:    ()         => ipcRenderer.invoke('admin:open'),
+  readResistWatch: ()      => ipcRenderer.invoke('resist:read'),   // Admin → Resist Watch
   refocusWindow: ()        => ipcRenderer.invoke('window:refocus'),
 
   // ── ToD popup screen-priority (main window float-on-top while pending) ──────

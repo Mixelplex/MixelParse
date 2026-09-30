@@ -1,10 +1,16 @@
-## 1.5.21
+## 1.5.22
+
+- **Supplies panel** — the Food, Drink & Coins panel is now **Supplies** and adds a **Weight** column (carried / Max WT: amber when close, red ⚠ when over; hover for your heaviest items). Drag a character's name to reorder the rows (same order as your character tabs). Compact enough to sit beside two other panels.
+- **Raid parking: port items** — a level-eligible character carrying a **Vial of Velium Vapors** counts as parked for Dain, and a **Lizard Blood Potion** for Plane of Fear (🧪 Can port). Items in the bank don't count.
+- **Raid parking: gating home** — a character bound at a raid spot counts only if it can gate there: the Gate spell (CLR/DRU/SHM/NEC/WIZ/MAG/ENC) or a carried **Vial of Swirling Smoke**. Bound characters that can't gate are listed separately.
+- **Carried weight fix** — weight reduction now applies to a bag's total, like the game: small items in 25% bags no longer round down to nothing.
+- **Behind the scenes** — the app keeps a local log of spells resisted / landed on your characters (`resist-watch.jsonl` in the app's data folder) for future resist tools. Nothing is uploaded and nothing in the app uses it yet.
+
+Everything from 1.5.21 and earlier is included:
 
 - **Carried weight** — the Stats tab shows your weight against Max WT (your STR): amber when close, red ⚠ when over. Hover it for your heaviest items and what to bank or move into a weight-reduction bag. Checked against the game: a stack weighs as one item, bag weight reduction applies to what's inside, 40 coins weigh 1.
 - **Coins** — click a Coins chip on the **Food, Drink & Coins** panel (or ✎ on the Stats tab) and type your coins once. Loot, splits, merchant sales, purchases and trades from your logs keep it current, and coins count toward your weight. Copper and silver from loot are only added if you tick "I keep copper & silver". Banking isn't in the log — re-enter after using the bank.
 - **Raid parking warning** — "no toon parked" now matches the Raid Parking tab: a character you don't have a tab for no longer counts as parked (Terror / Plane of Fear warns again).
-
-Everything from 1.5.20 and earlier is included:
 
 - **Guild DKP update** — Severilous and Gorenaire move from Tier Five to Tier Four (race FTE 25). Klandicar, Sontalak and Zlandicar move from Tier Four to Tier Three, matching Yelinak.
 - **Role values** — PR Trainout 0.5 → 1; Low HP Train, Bonewalk and LTK Coth / Pets 1 → 2.

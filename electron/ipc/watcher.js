@@ -12,6 +12,7 @@ const fs       = require('fs');
 const path     = require('path');
 const crypto   = require('crypto');
 const chokidar = require('chokidar');
+const resistWatch = require('./resistwatch');   // silent resist data recorder (watch-only)
 
 let _onMessage = null;   // set by start()
 let _config    = null;   // MixelParse app config (eqDir, logDir, notesFile)
@@ -1049,6 +1050,7 @@ function raidBackfill() {
 
 function processLogLine(line, charName) {
   raidEvidence(line, charName);
+  try { resistWatch.line(line, charName, _rtLineTs(line), zoneState[charName] && zoneState[charName].zone); } catch (e) { err('[RESIST]', e.message); }
   const cl = coinLine(line);
   if (cl) broadcast({ type: 'coinLine', charName, ...cl });
   if (line.indexOf('become better at') >= 0) {
@@ -1428,6 +1430,7 @@ function start({ config, logPosPath, factionPath, onMessage }) {
   _factionPath = factionPath;
   _onMessage = onMessage;
   _running = true;
+  resistWatch.init({ eqDir: config && config.eqDir, dataDir: factionPath ? path.dirname(factionPath) : null, log, err });
 
   loadPersisted();
   startInventoryWatcher();
@@ -2038,6 +2041,8 @@ function command(cmd, args) {
     scanRaidHistory(args && args.since);
   } else if (cmd === 'scanCoins') {
     scanCoins(args && args.chars);
+  } else if (cmd === 'resistSnapshot') {
+    resistWatch.snapshot(args && args.chars);
   }
 }
 

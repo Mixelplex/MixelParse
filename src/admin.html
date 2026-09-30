@@ -285,6 +285,12 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
     Active Users
     <span class="sb-badge skip" id="badge-activeusers">—</span>
   </div>
+  <div class="sb-section">Research</div>
+  <div class="sb-item" data-suite="resistwatch" onclick="showSuite('resistwatch',this);rwLoad()">
+    <div class="sb-dot skip" id="dot-resistwatch"></div>
+    Resist Watch
+    <span class="sb-badge skip" id="badge-resistwatch">—</span>
+  </div>
 </div>
 
 <!-- MAIN -->
@@ -722,6 +728,18 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
         <span id="activeusers-count" style="font-size:.72rem;color:var(--text-m)"></span>
       </div>
       <div id="activeusers-list" style="margin-top:.75rem"></div>
+    </div>
+
+    <div id="suite-resistwatch" class="suite">
+      <div class="suite-title">RESIST WATCH</div>
+      <div class="suite-desc">What the silent resist recorder has collected (watch-only — nothing in the app uses it yet). Every spell cast on your characters (resisted or landed, with damage) and every resistable spell they cast, stamped with the character's resists at that moment. File: <span id="rw-path" style="font-family:monospace;font-size:.72rem"></span></div>
+      <div class="suite-actions" style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+        <button class="btn primary" onclick="rwLoad()">&#8635; Refresh</button>
+        <select id="rw-char" onchange="rwRender()" style="font-size:.78rem"><option value="">All characters</option></select>
+        <select id="rw-since" onchange="rwRender()" style="font-size:.78rem"><option value="0">All time</option><option value="1">Last 24 hours</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select>
+        <span id="rw-status" style="font-size:.72rem;color:var(--text-m)"></span>
+      </div>
+      <div id="rw-results" style="margin-top:.75rem"></div>
     </div>
 
   </div><!-- main-content -->
@@ -4233,5 +4251,95 @@ async function loadActiveUsers(){
   }catch(e){
     list.innerHTML='<div style="color:#a03030;font-size:.8rem;padding:.5rem 0">Error: '+esc2(String(e))+'</div>';
   }
+}
+
+// ── Resist Watch (electron/ipc/resistwatch.js → resist-watch.jsonl) ─────────────
+// Progress review only. Resist at the time = base + gear + parked buffs (renderer snapshot)
+// + resist buffs seen landing in the log (first candidate spell's value).
+let _rwEv=[];
+const RW_KEY={magic:'mr',fire:'fr',cold:'cr',poison:'pr',disease:'dr'};
+async function rwLoad(){
+  const st=document.getElementById('rw-status'),out=document.getElementById('rw-results');
+  const rd=window.MixelParseApp&&window.MixelParseApp.readResistWatch;
+  if(!rd){out.innerHTML='<div style="color:#a03030;font-size:.8rem">Desktop app only — open Admin from MixelParse (this build needs the Resist Watch bridge).</div>';return;}
+  st.textContent='Reading…';
+  try{
+    const r=await rd();
+    document.getElementById('rw-path').textContent=r.path||'';
+    _rwEv=[];let bad=0;
+    for(const l of String(r.text||'').split('\n')){if(!l.trim())continue;try{_rwEv.push(JSON.parse(l));}catch(e){bad++;}}
+    _rwEv.sort((a,b)=>a.t-b.t);
+    const sel=document.getElementById('rw-char'),cur=sel.value;
+    const names=[...new Set(_rwEv.map(e=>e.c))].sort();
+    sel.innerHTML='<option value="">All characters</option>'+names.map(n=>'<option'+(n===cur?' selected':'')+'>'+esc2(n)+'</option>').join('');
+    st.textContent=_rwEv.length+' event'+(_rwEv.length===1?'':'s')+(bad?' ('+bad+' unreadable lines)':'');
+    const b=document.getElementById('badge-resistwatch');if(b){b.textContent=_rwEv.length;b.className='sb-badge '+(_rwEv.length?'pass':'skip');}
+    rwRender();
+  }catch(e){st.textContent='';out.innerHTML='<div style="color:#a03030;font-size:.8rem">Error: '+esc2(String(e))+'</div>';}
+}
+function rwResistAt(e,rt){
+  const k=RW_KEY[rt];if(!k||!e.rs)return null;
+  const s=e.rs,v=((s.base&&s.base[k])||0)+((s.gear&&s.gear[k])||0)+((s.parked&&s.parked[k])||0);
+  const lb=(e.buffs||[]).reduce((a,b)=>a+(((b.c||[])[0]||{}).fx||{})[k]||0,0);
+  return {v:v+lb,base:!!s.base,buff:lb};
+}
+function rwRender(){
+  const out=document.getElementById('rw-results');if(!out)return;
+  const ch=document.getElementById('rw-char').value,days=+document.getElementById('rw-since').value;
+  const since=days?Date.now()-days*864e5:0;
+  const ev=_rwEv.filter(e=>(!ch||e.c===ch)&&e.t>=since);
+  if(!ev.length){out.innerHTML='<div style="color:var(--text-m);font-size:.8rem;padding:.5rem 0">No events yet'+(ch||days?' for this filter':'')+'. The recorder writes one as soon as a resistable spell lands on, or is resisted by, one of your characters (or one of theirs lands / is resisted).</div>';return;}
+  const pct=(r,n)=>n?Math.round(100*r/n)+'%':'—';
+  const fmt=t=>new Date(t).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  const th=h=>'<th style="padding:.3rem .5rem;color:var(--text-m);font-weight:600;text-align:left;white-space:nowrap">'+h+'</th>';
+  const td=(v,st)=>'<td style="padding:.3rem .5rem;color:var(--text-d);'+(st||'')+'">'+v+'</td>';
+  const table=(heads,rows)=>'<table style="width:100%;border-collapse:collapse;font-size:.78rem;margin-bottom:1rem"><thead><tr style="border-bottom:1px solid var(--border2)">'+heads.map(th).join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr style="border-bottom:1px solid var(--border2)">'+r.join('')+'</tr>').join('')+'</tbody></table>';
+  const h3=t=>'<div style="font-family:Cinzel,serif;font-size:.8rem;letter-spacing:.06em;color:var(--text-d);margin:.6rem 0 .3rem">'+t+'</div>';
+  const inc=ev.filter(e=>e.k==='in'),outg=ev.filter(e=>e.k==='out');
+  const withRs=ev.filter(e=>e.rs).length;
+  let html='<div style="display:flex;gap:1.2rem;flex-wrap:wrap;font-size:.8rem;margin-bottom:.6rem">'
+    +'<span><b>'+ev.length+'</b> events</span>'
+    +'<span>On you: <b>'+inc.length+'</b> ('+inc.filter(e=>e.o==='resist').length+' resisted)</span>'
+    +'<span>Yours: <b>'+outg.length+'</b> ('+outg.filter(e=>e.o==='resist').length+' resisted, '+outg.filter(e=>e.o==='nohold').length+' did not take hold)</span>'
+    +'<span>With resist snapshot: <b>'+pct(withRs,ev.length)+'</b></span>'
+    +'<span style="color:var(--text-m)">'+fmt(ev[0].t)+' → '+fmt(ev[ev.length-1].t)+'</span></div>';
+
+  // Current resists per character (latest snapshot)
+  const last={};ev.forEach(e=>{if(e.rs)last[e.c]=e;});
+  const lr=Object.keys(last).sort().map(c=>{const s=last[c].rs,t=k=>((s.base&&s.base[k])||0)+((s.gear&&s.gear[k])||0)+((s.parked&&s.parked[k])||0);
+    return [td(esc2(c)),td((s.lv||'?')+' '+esc2(s.cls||'')),...['mr','fr','cr','pr','dr'].map(k=>td(t(k),'text-align:right')),td(s.base?'':'<span style="color:#a06020">no base stats</span>'),td(fmt(s.at),'color:var(--text-m)')];});
+  if(lr.length)html+=h3('RESISTS ON FILE (latest snapshot: base + gear + parked buffs)')+table(['Character','Lvl/Class','MR','FR','CR','PR','DR','',"As of"],lr);
+
+  // Spells cast on your characters
+  const bySp={};
+  for(const e of inc){const s=bySp[e.sp]=bySp[e.sp]||{sp:e.sp,rt:e.rt,adj:new Set(),r:0,n:0,dmg:[],chars:{},rv:[],lv:[]};
+    s.n++;if(e.o==='resist')s.r++;if(e.dmg)s.dmg.push(e.dmg);(e.vars||[[e.adj]]).forEach(v=>s.adj.add(v[0]));
+    const c=s.chars[e.c]=s.chars[e.c]||[0,0];c[1]++;if(e.o==='resist')c[0]++;
+    const ra=rwResistAt(e,e.rt);if(ra)(e.o==='resist'?s.rv:s.lv).push(ra.v);}
+  const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):'—';
+  const sr=Object.values(bySp).sort((a,b)=>b.n-a.n).map(s=>{const d=s.dmg.sort((a,b)=>a-b),dd=[...new Set(d)];
+    return [td(esc2(s.sp)),td(esc2(s.rt||'')),td([...s.adj].join(' / '),'text-align:right'),td(s.r+'/'+s.n+' <b>'+pct(s.r,s.n)+'</b>','white-space:nowrap'),
+      td(d.length?(dd.length>4?d[0]+'–'+d[d.length-1]:dd.join(', ')):'—'),td(avg(s.rv),'text-align:right'),td(avg(s.lv),'text-align:right'),
+      td(Object.entries(s.chars).map(([c,v])=>esc2(c)+' '+v[0]+'/'+v[1]).join(', '),'font-size:.72rem')];});
+  html+=h3('SPELLS CAST ON YOUR CHARACTERS')+'<div style="font-size:.7rem;color:var(--text-m);margin-bottom:.3rem">Adjust: the spell\'s resist modifier (negative = harder to resist; several = same-name versions). Avg resist: the character\'s resist of that type at the time, for resisted vs landed casts — the gap is what we\'re learning.</div>'
+    +table(['Spell','Type','Adjust','Resisted','Damage','Avg resist when resisted','Avg resist when landed','Characters'],sr);
+
+  // Incoming by caster con and by adjust
+  const by=(list,key)=>{const m={};list.forEach(e=>{const k=key(e);if(k==null)return;const x=m[k]=m[k]||[0,0];x[1]++;if(e.o==='resist')x[0]++;});return Object.entries(m);};
+  const cr=by(inc,e=>{const c=(e.cast||[]).slice().reverse().find(x=>x.con);return c?c.con.replace(/^(he|she|it) /,''):null;}).sort((a,b)=>b[1][1]-a[1][1]).map(([k,v])=>[td(esc2(k)),td(v[0]+'/'+v[1]+' <b>'+pct(v[0],v[1])+'</b>')]);
+  const ar=by(inc,e=>e.adj).sort((a,b)=>+a[0]-+b[0]).map(([k,v])=>[td(k,'text-align:right'),td(v[0]+'/'+v[1]+' <b>'+pct(v[0],v[1])+'</b>')]);
+  html+='<div style="display:flex;gap:1.5rem;flex-wrap:wrap"><div style="flex:1;min-width:260px">'+h3('ON YOU — BY CASTER CON')+(cr.length?table(['Con message','Resisted'],cr):'<div style="font-size:.75rem;color:var(--text-m)">No casters with a /con yet.</div>')+'</div>'
+    +'<div style="flex:1;min-width:200px">'+h3('ON YOU — BY RESIST ADJUST')+table(['Adjust','Resisted'],ar)+'</div></div>';
+
+  // Your spells
+  const os={};for(const e of outg){const k=e.c+'|'+e.sp,s=os[k]=os[k]||{c:e.c,sp:e.sp,adj:e.adj,l:0,r:0,nh:0};s[e.o==='land'?'l':e.o==='resist'?'r':'nh']++;}
+  const orows=Object.values(os).sort((a,b)=>(b.l+b.r+b.nh)-(a.l+a.r+a.nh)).slice(0,40).map(s=>[td(esc2(s.c)),td(esc2(s.sp)),td(s.adj,'text-align:right'),td(s.l,'text-align:right'),td(s.r,'text-align:right'),td(s.nh,'text-align:right'),td('<b>'+pct(s.r,s.l+s.r)+'</b>','text-align:right')]);
+  if(orows.length)html+=h3('YOUR SPELLS (top 40)')+table(['Character','Spell','Adjust','Landed','Resisted','Did not take hold','Resist rate'],orows);
+
+  // Recent events
+  const rec=ev.slice(-30).reverse().map(e=>{const ra=rwResistAt(e,e.rt);const who=e.k==='in'?((e.cast||[]).slice(-1)[0]||{}).n||'':e.tgt||'';
+    return [td(fmt(e.t),'white-space:nowrap;color:var(--text-m)'),td(esc2(e.c)),td(e.k==='in'?'on you':'yours'),td(esc2(e.sp)),td(e.o==='resist'?'<span style="color:#3a7a3a">resisted</span>':e.o==='land'?'<span style="color:#a03030">landed</span>':esc2(e.o)),td(e.dmg||''),td(ra?ra.v+(ra.buff?' (+'+ra.buff+' buff)':''):'—','text-align:right'),td(esc2(who)+(e.tgtGuess?' <span style="color:var(--text-m)">(last /con)</span>':'')),td(esc2(e.z||''),'color:var(--text-m)')];});
+  html+=h3('RECENT EVENTS')+table(['When','Character','','Spell','Result','Dmg','Resist','Caster / target','Zone'],rec);
+  out.innerHTML=html;
 }
 </script>
