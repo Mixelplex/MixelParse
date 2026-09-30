@@ -1,4 +1,4 @@
-# MixelParse — Handoff v1.5.20 (2026-09-29)
+# MixelParse — Handoff v1.5.21 (2026-09-30)
 
 Supersedes `HANDOFF_v1.5.14.md` (kept for history — its 1.5.12–1.5.16 detail, the AC/ATK project notes and the
 2026-09-26 session notes are still accurate). Start here, then read the code. Git history is the source of truth.
@@ -35,7 +35,9 @@ Supersedes `HANDOFF_v1.5.14.md` (kept for history — its 1.5.12–1.5.16 detail
 | 1.5.18 | Published 2026-09-29 | Weapon ranking calibrated to the P99 wiki (details §3.1) |
 | 1.5.19 | Published 2026-09-29 | Auto-Detect: guild-prefixed ticks, faction-hit + rampage/flurry evidence (§3.2) |
 | 1.5.20 | Published 2026-09-29 | Guild DKP update + dated boss values (§3.3). Release run confirmed started; 1.5.19's finished OK |
-| **local** | **Unpublished** | weight / encumbrance check + coins (§3.4), park-warning fix (§4). Installed on the owner's PC as a 1.5.20 test build. Publishing = 1.5.21 |
+| 1.5.21 | Published 2026-09-30 | Carried weight + coins on the Stats tab, Coins column on the (renamed) Food, Drink & Coins panel with click-to-enter, park-warning fix (§3.4, §4) |
+
+Nothing is unpublished at handoff time: local `main` == `origin/main` after the 1.5.21 push.
 
 Release flow (owner's all-clear only): bump `package.json` + `package-lock.json` (3 occurrences), replace the
 `WHATS_NEW` object in `src/index.html` (version, date, features, fixes), prepend a section to `release-notes.md`
@@ -45,15 +47,12 @@ Release flow (owner's all-clear only): bump `package.json` + `package-lock.json`
 `release-notes.yml` syncs notes. `gh` is NOT logged in — check runs via
 `curl https://api.github.com/repos/Mixelplex/MixelParse/actions/runs?per_page=4`. Don't poll CI.
 
-**For 1.5.21 What's New / release notes:** "Carried weight on the Stats tab — Weight row shows current / Max WT
-(= STR), amber when close, red ⚠ when over; hover for the heaviest items and what to bank or move into a
-weight-reduction bag. Coins: type them once on the Coins row; loot, splits, sales and purchases from your logs keep it
-current (copper/silver only if you keep them); also a Coins column on the Food & Drink panel. Fix: the 'no toon parked' warning now matches the Raid Parking tab
-(a character you don't have a tab for no longer counts as parked)."
+**Next release** = 1.5.22. Copy `session-data-2026-09-29/scratchpad-main/rel121.js` as the template (it replaces
+the WHATS_NEW object, prepends release-notes.md, bumps both package files).
 
 ---
 
-## 3. This session (2026-09-28 → 29)
+## 3. This session (2026-09-28 → 30)
 
 ### 3.1 Weapon scoring, calibrated to the wiki (1.5.18) — `src/index.html`, near `PROC_DB` (~line 1644) and `weaponDpsScore` (~1830)
 - **Proc units**: `procDps = ppm×procDmg/600` (damage per 0.1 s, same units as the swing ratio; ×10 = real DPS).
@@ -133,7 +132,7 @@ current (copper/silver only if you keep them); also a Coins column on the Food &
   if the guild says otherwise. Kill-row values inside a loaded *old* session still show current values (cosmetic).
 - Open question for the owner: Bonewalk for minis (separate role at 1?), and whether 25 is the right Sev/Gore race FTE.
 
-### 3.4 Weight / encumbrance check (LOCAL, unpublished — `9ca1d34`)
+### 3.4 Weight / encumbrance check + coins (1.5.21)
 - **Rule, verified in game on Mixelems** (Curr WT 90 → 89 after moving Deep Cavern Toadstool ×15, Louie's ×15,
   Bloodstone ×20, ×18 into the 100% Darkwood Trunk; both readings exact):
   - a **stack weighs ONE item's WT whatever its count** (full-stack weights would have predicted −19);
@@ -152,7 +151,7 @@ current (copper/silver only if you keep them); also a Coins column on the Food &
 - Stats tab → POOLS & COMBAT → **Weight** row: `wt/maxWt` (amber ≥ 90%, red ⚠ over), "+coins" note, tooltip with the
   6 heaviest items, "Over by N — you move slower until you're back to X", and a move/bank suggestion that names
   every 100% bag the character carries (bags themselves excluded from suggestions).
-- **Coins** (added 2026-09-30, local): P99's `/outputfile inventory` has no coin lines, and banking / destroying
+- **Coins** (1.5.21): P99's `/outputfile inventory` has no coin lines, and banking / destroying
   coins isn't logged. So the user types coins once (Stats tab → Coins row ✎ → `charMeta[name].coins = {pp,gp,sp,cp,ts,small}`,
   persisted in base_stats like `plan`) and every coin line after that is added: watcher `coinLine()` parses loot
   ("from the corpse"), splits ("as your split"), merchant sales / trades ("You receive … from X") and purchases /
@@ -168,7 +167,7 @@ current (copper/silver only if you keep them); also a Coins column on the Food &
 
 ## 4. Open items — full list
 
-### Fixed 2026-09-30 (local)
+### Fixed 2026-09-30 (published in 1.5.21)
 - **"No toon parked" banner ignored Terror / Fear**: `btParkedInLoc` counted ANY roster character whose last zone matched,
   including log-only characters with no level/class (Gatherintods in Plane of Fear, Drachenburgh / Shakesburgh in the
   Feerrott — not the owner's toons, no character tabs). Now it uses `parkTargetStatus` (eligible toon parked or bound)
@@ -219,6 +218,12 @@ current (copper/silver only if you keep them); also a Coins column on the Food &
 - Kill-row DKP inside an old loaded session shows current values (totals are dated correctly).
 
 ---
+
+### Suggested start for the next session
+1. Ask how the new weight / coins rows look on the owner's characters (they type coins per character once).
+2. Small fixes 1–3 above (respawn timers, last-writer-wins board, parkAck-after-quake save).
+3. Then a feature from the approved list — ask which (resist check and corpse tracker were the owner's first picks).
+4. After the next quake night: compare Auto-Detect's log with what was tracked (still watch-only).
 
 ## 5. Environment, tools, data
 - Node 24, Git (pushes via Git Credential Manager), `gh` not logged in. `npm ci` done.

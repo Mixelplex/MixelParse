@@ -1,4 +1,4 @@
-# MixelParse — Handoff v1.5.14 (2026-09-26) — superseded by HANDOFF_v1.5.20.md (kept for history)
+# MixelParse — Handoff v1.5.14 (2026-09-26) — superseded by HANDOFF_v1.5.21.md (kept for history)
 
 Supersedes `HANDOFF_v1.5.8.md` (kept for history — its 1.5.8/1.5.9 detail is still accurate).
 Start here, then read the code. Git history is the source of truth for what changed.
