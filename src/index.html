@@ -3151,13 +3151,14 @@ function coinsOnScan(msg){
     coinLog[k]={pp:t.pp,gp:t.gp,sp:t.sp,cp:t.cp,lines:t.lines,lastTs:t.lastTs,upTo:msg.scannedAt,since:c.ts};
   }
   if(typeof activeTab!=='undefined'&&msg.totals[activeTab]&&typeof renderStatsPanel==='function')renderStatsPanel();
+  if(typeof renderFoodDrinkPanel==='function')renderFoodDrinkPanel();
 }
 function coinsOnLine(msg){
   const name=Object.keys(charMeta).find(n=>n.toLowerCase()===String(msg.charName||'').toLowerCase());
   const c=name&&charMeta[name].coins; if(!c||!(msg.ts>c.ts))return;
   const L=coinLog[name.toLowerCase()]; if(!L||L.pending||msg.ts<=L.upTo)return;   // the scan already has it / will have it
   L.pp+=msg.pp;L.gp+=msg.gp;L.sp+=msg.sp;L.cp+=msg.cp;L.lines++;L.lastTs=Math.max(L.lastTs,msg.ts);
-  if(activeTab===name&&typeof renderStatsPanel==='function'){clearTimeout(coinsOnLine._t);coinsOnLine._t=setTimeout(renderStatsPanel,1500);}
+  clearTimeout(coinsOnLine._t);coinsOnLine._t=setTimeout(()=>{if(activeTab===name&&typeof renderStatsPanel==='function')renderStatsPanel();if(typeof renderFoodDrinkPanel==='function')renderFoodDrinkPanel();},1500);
 }
 // Current coins: typed count + logged changes after it. null when nothing was typed.
 function coinsFor(name){
@@ -3174,7 +3175,7 @@ window.coinsSave=function(name){
   if(!charMeta[name])charMeta[name]={};
   charMeta[name].coins={pp:v('coinPP'),gp:v('coinGP'),sp:v('coinSP'),cp:v('coinCP'),ts:Date.now(),small:!!(document.getElementById('coinSmall')||{}).checked};
   delete coinLog[name.toLowerCase()];
-  saveState();renderStatsPanel();
+  saveState();renderStatsPanel();if(typeof renderFoodDrinkPanel==='function')renderFoodDrinkPanel();
 };
 // ── Carried weight (Stats tab) ─────────────────────────────────────────────────
 // P99 rule, checked on Mixelems 2026-09-30 (90 → 89 after moving 4 stacks into a 100% bag, both
@@ -6558,6 +6559,18 @@ function fdChip(min,items){
   if(min<60)return'<span class="tov-chip tov-chip-yellow"'+titleAttr+'>&#9678; '+label+'</span>';
   return'<span class="tov-chip tov-chip-ally"'+titleAttr+'>&#10003; '+label+'</span>';
 }
+// Coins cell (see coinsFor): typed count + coin lines from the logs; hover for detail.
+function fdCoinChip(n){
+  coinsRequestScan(n);
+  const c=coinsFor(n);
+  if(!c)return'<span class="tov-chip tov-chip-none" title="Enter this character\'s coins once on the Stats tab (Coins row ✎) — the logs keep it current">&#9675; set on Stats</span>';
+  const txt=c.pp+'p '+c.gp+'g'+(c.small||c.sp||c.cp?' '+c.sp+'s '+c.cp+'c':'');
+  const when=new Date(c.since).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  const tip=c.pp+' pp · '+c.gp+' gp · '+c.sp+' sp · '+c.cp+' cp ('+c.count+' coins = '+(Math.floor(c.count/4)/10).toFixed(1)+' weight)\n'+
+    'Typed in '+when+(c.pending?' — reading your logs…':' + '+c.lines+' coin line'+(c.lines===1?'':'s')+' from your logs since.')+
+    (c.small?'':' Looted copper/silver not added (assumed destroyed).')+' Re-enter on the Stats tab after using the bank.';
+  return'<span class="tov-chip" style="background:rgba(160,120,40,.12);border-color:var(--gold);color:var(--text)" title="'+esc(tip)+'">&#129689; '+txt+'</span>';
+}
 function renderFoodDrinkPanel(){
   const container=document.getElementById('fdRows');
   const configRow=document.getElementById('fdConfigRow');
@@ -6579,9 +6592,9 @@ function renderFoodDrinkPanel(){
   const rows=visNames.map(n=>{
     const fd=computeFoodDrink(n);
     const nameCell=isAll?'<td class="watchlist-item-name" style="padding:.15rem .5rem;min-width:100px;white-space:nowrap">'+esc(n)+'</td>':'';
-    return'<tr>'+nameCell+'<td style="padding:.15rem .5rem;white-space:nowrap">'+fdChip(fd?fd.foodMin:null,fd?fd.foodItems:null)+'</td><td style="padding:.15rem .5rem;white-space:nowrap">'+fdChip(fd?fd.drinkMin:null,fd?fd.drinkItems:null)+'</td></tr>';
+    return'<tr>'+nameCell+'<td style="padding:.15rem .5rem;white-space:nowrap">'+fdChip(fd?fd.foodMin:null,fd?fd.foodItems:null)+'</td><td style="padding:.15rem .5rem;white-space:nowrap">'+fdChip(fd?fd.drinkMin:null,fd?fd.drinkItems:null)+'</td><td style="padding:.15rem .5rem;white-space:nowrap">'+fdCoinChip(n)+'</td></tr>';
   }).join('');
-  container.innerHTML='<table style="border-collapse:collapse;width:100%"><thead><tr>'+nameHeader+'<th style="padding:.2rem .5rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Food</th><th style="padding:.2rem .5rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Drink</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  container.innerHTML='<table style="border-collapse:collapse;width:100%"><thead><tr>'+nameHeader+'<th style="padding:.2rem .5rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Food</th><th style="padding:.2rem .5rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Drink</th><th style="padding:.2rem .5rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Coins</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 function toggleCityConfig(id){
   const cfg=CITY_FACTIONS[id];if(!cfg)return;
