@@ -1,8 +1,10 @@
-## 1.6.1
+## 1.6.2
+
+- **Auto-Detect → Kill Tracker** — right-click a suggested kill on Kill Tracker → Auto-Detect and choose **Add to Raid Kill Tracker**. It opens the usual kill dialog (roles, session, Start New Session, failtick) with the session from that night preselected, and a new session is dated to the kill so that day's boss values apply. For a "Pick" row you choose which boss. Auto-Detect itself still adds nothing on its own.
+
+Everything from 1.6.1 and earlier is included:
 
 - **Raid consumes: Eye of Zomm** — the Stalking Probe check now counts any Eye of Zomm: a **Stalking Probe** (5× instant), **Holgresh Elder Beads** (unlimited, 4s) or a **Clay Bracelet** (instant). All three click from inventory for any class; Wizards and Magicians pass on their own spell. Characters holding the beads no longer show ◐ Mostly Ready, and the Watch List follows the same rule.
-
-Everything from 1.6.0 and earlier is included:
 
 - **Keys tab** — every raider's zone keys: Old Sebilis (Trakanon Idol), Veeshan's Peak, Sleeper's Tomb, Charasis and the Tooth of the Cobalt Scar, read from your inventory exports. Veeshan's Peak shows your progress — Trakanon's Tooth and each medallion's pieces (x/3) — and a finished set says "turn in". Hover any cell for what's missing, where it drops and who to hand it to. "✓ bank" means the key is banked.
 - **Plane of Sky corpses** — any death in Sky (Key Master, a duel, anything) shows on the Keys tab with a countdown to decay (7 days) and the 3-hour rez window, and a banner counts down the last 24 hours. Sky keys vanish when you leave the zone or log out, so the app only shows keys it has seen: type `/outputfile inventory` in Sky before you die, or with your corpse open. Otherwise the corpse says "keys unverified".
