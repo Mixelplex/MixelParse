@@ -48,7 +48,7 @@ Release flow (owner's all-clear only): bump `package.json` + `package-lock.json`
 **For 1.5.21 What's New / release notes:** "Carried weight on the Stats tab — Weight row shows current / Max WT
 (= STR), amber when close, red ⚠ when over; hover for the heaviest items and what to bank or move into a
 weight-reduction bag. Coins: type them once on the Coins row; loot, splits, sales and purchases from your logs keep it
-current (copper/silver only if you keep them). Fix: the 'no toon parked' warning now matches the Raid Parking tab
+current (copper/silver only if you keep them); also a Coins column on the Food & Drink panel. Fix: the 'no toon parked' warning now matches the Raid Parking tab
 (a character you don't have a tab for no longer counts as parked)."
 
 ---
@@ -162,6 +162,7 @@ current (copper/silver only if you keep them). Fix: the 'no toon parked' warning
   Copper/silver from the logs are only added with "I keep copper & silver" ticked (owner: most players destroy them);
   typed copper/silver always count. Weight row adds floor(coins/4) tenths. Verified: typed 40/202/55/37 → 90/115 exact;
   scan since 23:42 → +61p +129g +185s +172c (33 lines). Re-enter after using the bank.
+  Also shown per character as a **Coins** column on the Food & Drink panel (`fdCoinChip`; "set on Stats" until typed).
 
 ---
 
