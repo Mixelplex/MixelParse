@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="MixelParse">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="item-weights.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;1,300&display=swap');
   :root{--bg:#f5f0e8;--surface:#ede6d6;--surface2:#e4dbc8;--border:#c8b890;--border-glow:#a08050;--gold:#7a5010;--gold-light:#5a3a08;--gold-dim:#a07030;--text:#1a1008;--text-dim:#4a3a1a;--text-muted:#8a7050}
@@ -1190,7 +1191,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
     </div>
     <div class="watchlist-bar" id="foodDrinkBar" style="flex:1;min-width:280px">
       <div class="watchlist-bar-header">
-        <div class="watchlist-bar-title"><span style="opacity:.5;cursor:grab;margin-right:.15rem" title="Drag to reorder panels">⠿</span> 🍞 Food &amp; Drink</div>
+        <div class="watchlist-bar-title"><span style="opacity:.5;cursor:grab;margin-right:.15rem" title="Drag to reorder panels">⠿</span> 🍞 Food, Drink &amp; Coins</div>
         <div style="display:flex;gap:.3rem">
           <button class="watchlist-gear-btn" id="fdGearBtn" title="Configure characters" onclick="toggleFoodDrinkConfig()">⚙</button>
           <button class="watchlist-gear-btn" title="Remove this panel (bring it back via Customize panels)" onclick="togglePanelVisible('fooddrink')">✕</button>
@@ -3126,6 +3127,102 @@ document.getElementById('applyDBBtn').addEventListener('click',()=>{const matche
 if(base){document.getElementById('statCardsContainer').innerHTML=buildStatCards(base,charGear,name,selClass,selLevel);}else{document.getElementById('statCardsContainer').innerHTML='<div class="empty-state">Enter your current in-game stats to get started.</div>';}
 }
 
+// ── Coins (Stats tab) ─────────────────────────────────────────────────────────
+// P99's inventory export has no coins, and banking / destroying coins isn't logged. So: the user
+// types their coins once (charMeta[name].coins = {pp,gp,sp,cp,ts,small}) and every coin line the
+// log shows after that (loot, splits, merchant sales, purchases, trades) is added. Most players
+// destroy copper / silver, so those are only added when `small` ("I keep copper & silver") is on;
+// what was typed in always counts. Re-enter after banking coins.
+let coinLog={};   // name(lower) -> {pp,gp,sp,cp,lines,lastTs,upTo, since}  — log sums after the typed count
+let _coinScanPending=null;
+function coinsRequestScan(name){
+  const c=charMeta[name]&&charMeta[name].coins; if(!c||!c.ts)return;
+  const k=name.toLowerCase(),cur=coinLog[k];
+  if(cur&&cur.since===c.ts)return;                 // already summed for this starting point
+  if(!(window.MixelParseApp&&window.MixelParseApp.watcherCommand))return;
+  coinLog[k]={pp:0,gp:0,sp:0,cp:0,lines:0,lastTs:0,upTo:Infinity,since:c.ts,pending:true};
+  _coinScanPending=Object.assign(_coinScanPending||{},{[name]:c.ts});
+  window.MixelParseApp.watcherCommand('scanCoins',{chars:{[name]:c.ts}});
+}
+function coinsOnScan(msg){
+  if(msg.error||!msg.totals)return;
+  for(const[name,t] of Object.entries(msg.totals)){
+    const k=name.toLowerCase(),c=charMeta[name]&&charMeta[name].coins; if(!c)continue;
+    coinLog[k]={pp:t.pp,gp:t.gp,sp:t.sp,cp:t.cp,lines:t.lines,lastTs:t.lastTs,upTo:msg.scannedAt,since:c.ts};
+  }
+  if(typeof activeTab!=='undefined'&&msg.totals[activeTab]&&typeof renderStatsPanel==='function')renderStatsPanel();
+  if(typeof renderFoodDrinkPanel==='function')renderFoodDrinkPanel();
+}
+function coinsOnLine(msg){
+  const name=Object.keys(charMeta).find(n=>n.toLowerCase()===String(msg.charName||'').toLowerCase());
+  const c=name&&charMeta[name].coins; if(!c||!(msg.ts>c.ts))return;
+  const L=coinLog[name.toLowerCase()]; if(!L||L.pending||msg.ts<=L.upTo)return;   // the scan already has it / will have it
+  L.pp+=msg.pp;L.gp+=msg.gp;L.sp+=msg.sp;L.cp+=msg.cp;L.lines++;L.lastTs=Math.max(L.lastTs,msg.ts);
+  clearTimeout(coinsOnLine._t);coinsOnLine._t=setTimeout(()=>{if(activeTab===name&&typeof renderStatsPanel==='function')renderStatsPanel();if(typeof renderFoodDrinkPanel==='function')renderFoodDrinkPanel();},1500);
+}
+// Current coins: typed count + logged changes after it. null when nothing was typed.
+function coinsFor(name){
+  const c=charMeta[name]&&charMeta[name].coins; if(!c)return null;
+  const L=coinLog[name.toLowerCase()]||{pp:0,gp:0,sp:0,cp:0,lines:0};
+  const o={pp:Math.max(0,(+c.pp||0)+L.pp),gp:Math.max(0,(+c.gp||0)+L.gp),
+    sp:Math.max(0,(+c.sp||0)+(c.small?L.sp:Math.min(0,L.sp))),cp:Math.max(0,(+c.cp||0)+(c.small?L.cp:Math.min(0,L.cp)))};
+  o.count=o.pp+o.gp+o.sp+o.cp;o.lines=L.lines;o.since=c.ts;o.small=!!c.small;o.pending=!!L.pending;
+  return o;
+}
+// Click-to-edit popover (Food & Drink Coins chip). Enter saves, Esc / outside click closes.
+function coinsPopClose(){const p=document.getElementById('coinPop');if(p)p.remove();document.removeEventListener('mousedown',coinsPopOutside,true);}
+function coinsPopOutside(e){const p=document.getElementById('coinPop');if(p&&!p.contains(e.target))coinsPopClose();}
+window.coinsPopOpen=function(ev,name){
+  if(ev)ev.stopPropagation();coinsPopClose();
+  const cur=coinsFor(name)||{},c=charMeta[name]&&charMeta[name].coins||{};
+  const inp=(id,v,l)=>`<label style="display:flex;flex-direction:column;font-size:.62rem;color:var(--text-muted);gap:.1rem">${l}<input id="coinPop${id}" type="number" min="0" value="${v||0}" style="width:4.4rem;font-size:.75rem"></label>`;
+  const p=document.createElement('div');p.id='coinPop';
+  p.style.cssText='position:fixed;z-index:9999;background:var(--bg-card,#f3ead7);border:1px solid var(--gold);border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.25);padding:.5rem .6rem;font-size:.72rem;min-width:16rem';
+  p.innerHTML=`<div style="font-weight:700;margin-bottom:.3rem">${esc(name)} — coins in your Inventory window</div>`+
+    `<div style="display:flex;gap:.35rem">${inp('PP',cur.pp??c.pp,'pp')}${inp('GP',cur.gp??c.gp,'gp')}${inp('SP',cur.sp??c.sp,'sp')}${inp('CP',cur.cp??c.cp,'cp')}</div>`+
+    `<label style="display:block;margin:.35rem 0 .15rem"><input id="coinPopSmall" type="checkbox" ${c.small?'checked':''}> I keep copper &amp; silver</label>`+
+    `<div style="color:var(--text-muted);font-size:.62rem;margin-bottom:.35rem">Loot, splits, sales and purchases from your logs keep it current. Re-enter after using the bank.</div>`+
+    `<button class="btn" style="font-size:.68rem" onclick="coinsSave(decodeURIComponent('${encodeURIComponent(name)}'),'coinPop')">Save</button> <button class="btn" style="font-size:.68rem" onclick="coinsPopClose()">Cancel</button>`;
+  document.body.appendChild(p);
+  const r=(ev&&ev.currentTarget&&ev.currentTarget.getBoundingClientRect())||{left:100,bottom:100};
+  const w=p.offsetWidth,h=p.offsetHeight;
+  p.style.left=Math.max(6,Math.min(r.left,window.innerWidth-w-6))+'px';
+  p.style.top=(r.bottom+4+h>window.innerHeight?Math.max(6,r.top-h-4):r.bottom+4)+'px';
+  p.addEventListener('keydown',e=>{if(e.key==='Enter')coinsSave(name,'coinPop');else if(e.key==='Escape')coinsPopClose();});
+  setTimeout(()=>{document.addEventListener('mousedown',coinsPopOutside,true);const f=document.getElementById('coinPopPP');if(f){f.focus();f.select();}},0);
+};
+window.coinsEditToggle=function(){const e=document.getElementById('coinsEdit');if(e)e.style.display=e.style.display==='none'?'':'none';};
+window.coinsSave=function(name,pre){
+  pre=pre||'coin';
+  const v=id=>Math.max(0,parseInt((document.getElementById(pre+id)||{}).value,10)||0);
+  if(!charMeta[name])charMeta[name]={};
+  charMeta[name].coins={pp:v('PP'),gp:v('GP'),sp:v('SP'),cp:v('CP'),ts:Date.now(),small:!!(document.getElementById(pre+'Small')||{}).checked};
+  coinsPopClose();
+  delete coinLog[name.toLowerCase()];
+  saveState();renderStatsPanel();if(typeof renderFoodDrinkPanel==='function')renderFoodDrinkPanel();
+};
+// ── Carried weight (Stats tab) ─────────────────────────────────────────────────
+// P99 rule, checked on Mixelems 2026-09-30 (90 → 89 after moving 4 stacks into a 100% bag, both
+// exact): a stack weighs ONE item's WT whatever its count; a bag's weight reduction applies to
+// what's inside it; spell scrolls 0.1; 40 coins = 1 (coins aren't in the inventory export); the
+// game rounds down. Max WT = STR. Weights: item-weights.js (P99 wiki, in tenths).
+function carriedWeight(charName){
+  const W=window.ITEM_WT||{},R=window.BAG_WR||{},clean=n=>String(n||'').replace(/\*+$/,'').trim();
+  const items=(chars[charName]||[]).filter(i=>!/^(bank|sharedbank)/i.test(i.location||''));
+  const bagWR={},bagName={};
+  for(const i of items){const m=/^General(\d+)$/i.exec(i.location||'');if(m){bagWR[m[1]]=R[clean(i.name)]||0;bagName[m[1]]=clean(i.name);}}
+  let tenths=0;const rows=[],unknown=[];
+  for(const i of items){
+    const n=clean(i.name);let w=W[n];
+    if(w===undefined){if(/^Spell: /i.test(n))w=1;else{unknown.push(n);continue;}}
+    const m=/^General(\d+)-Slot/i.exec(i.location||''),red=m?(bagWR[m[1]]||0):0;
+    const eff=Math.floor(w*(100-red)/100);tenths+=eff;
+    if(eff)rows.push({name:n,w:eff,full:w,red,bag:m?bagName[m[1]]:null,worn:!m&&!/^General/i.test(i.location||''),shell:/^General\d+$/i.test(i.location||'')});
+  }
+  rows.sort((a,b)=>b.w-a.w);
+  const fullBags=Object.entries(bagWR).filter(([,r])=>r>=100).map(([k])=>bagName[k]);
+  return{tenths,wt:Math.floor(tenths/10),rows,unknown,fullBags};
+}
 function applyBaseStats(charName,parsed){
   const stats=STAT_KEYS.map(k=>parsed[k]||0);
   const resists=RESIST_KEYS.map(k=>parsed[k]||0);
@@ -3144,6 +3241,41 @@ const _cd=(typeof combatDisplayFor==='function')?combatDisplayFor(charName):null
 const _cdTip=r=>{if(!r)return'';const p=Object.entries(r.parts).map(([k,v])=>k+' '+Math.round(v)).join(' + ');return ' title="'+esc((r.exact?'Matches the in-game Inventory window':(r.why||[]).join(' · '))+'\n'+p)+'"';};
 const poolRows=POOL_LABELS.map((lbl,i)=>{if(i===1&&cls&&!MANA_CLASSES.has(cls))return '';const base_v=base.pools?.[i]||0;let gearBonus=i<2?gearSum.bonuses[i]:0;const buffBonus=i===0?buffPool.hp:i===1?buffPool.mana:i===3?buffPool.ac:0;let total;if(i===0&&cls&&level&&HP_RATIOS[cls])total=calcHP(totalSTA,cls,level)+gearBonus+buffBonus;else if(i===1&&cls&&level&&MANA_CLASSES.has(cls))total=calcMana(totalManastat,level)+gearBonus+buffBonus;else if(i===3&&_cd)total=_cd.ac.value;else if(i===4&&_cd)total=_cd.atk.value;else total=base_v+gearBonus+buffBonus;const gc=gearBonus>0?'pos':gearBonus<0?'neg':'zero';const dispBase=total===base_v&&gearBonus===0&&buffBonus===0?'&mdash;':base_v;return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${dispBase}</span><span class="val-gear ${gc}">${gearBonus>=0?'+':''}${gearBonus}</span>${buffCell(buffBonus)}<span class="val-total"${(i===3||i===4)&&_cd?_cdTip(i===3?_cd.ac:_cd.atk):''}>${(i===3||i===4)&&_cd&&!(i===3?_cd.ac:_cd.atk).exact?'≈':''}${total}</span><span style="min-width:1.8rem"></span></div></div>`;}).join('');
 const hasteRow=`<div class="stat-row"><span class="stat-row-label">Haste</span><div class="stat-row-vals"><span class="val-base">&mdash;</span><span class="val-gear ${gearSum.haste>0?'pos':'zero'}">${gearSum.haste>0?'+'+gearSum.haste+'%':'0%'}</span>${buffCell(0)}<span class="val-total">${gearSum.haste}%</span><span style="min-width:1.8rem"></span></div></div>`;
+let weightRow='';
+try{
+  const cw=carriedWeight(charName),maxWt=Math.min(255,(base.stats[0]||0)+gearSum.stats[0]+buffStats[0]);
+  coinsRequestScan(charName);
+  const coins=coinsFor(charName);
+  if(coins){cw.tenths+=Math.floor(coins.count/4);cw.wt=Math.floor(cw.tenths/10);}   // 40 coins = 1
+  if(cw.tenths||cw.rows.length){
+    const over=cw.wt>maxWt,near=!over&&maxWt&&cw.wt>=maxWt*0.9;
+    const col=over?'#b03030':near?'#a07000':'';
+    const f=t=>(t/10).toFixed(1);
+    const top=cw.rows.slice(0,6).map(r=>'  '+r.name+'  '+f(r.w)+(r.red?' ('+f(r.full)+' − '+r.red+'% '+r.bag+')':r.worn?' (worn)':''));
+    const tips=[];
+    if(over)tips.push('Over by '+(cw.wt-maxWt)+' — you move slower until you\'re back to '+maxWt+'.');
+    const loose=cw.rows.filter(r=>!r.worn&&!r.red&&!r.shell).slice(0,3).map(r=>r.name+' '+f(r.w));
+    if((over||near)&&loose.length)tips.push((cw.fullBags.length?'Move into '+[...new Set(cw.fullBags)].join(' / ')+' (weighs nothing inside) or bank: ':'Bank them or use a weight-reduction bag: ')+loose.join(', ')+'.');
+    const tip='Carried weight: '+cw.wt+' of '+maxWt+' (Max WT = STR).'+(coins?' Includes '+coins.count+' coins (40 coins = 1).':' Coins not included — set them on the Coins row (40 coins = 1).')+
+      (top.length?'\nHeaviest:\n'+top.join('\n'):'')+(tips.length?'\n'+tips.join('\n'):'')+
+      (cw.unknown.length?'\nNo weight on the wiki for: '+[...new Set(cw.unknown)].slice(0,6).join(', ')+(cw.unknown.length>6?'…':''):'');
+    weightRow=`<div class="stat-row" title="${esc(tip)}"><span class="stat-row-label">Weight</span><div class="stat-row-vals"><span class="val-base">&mdash;</span><span class="val-gear zero"></span><span class="val-total" style="${col?'color:'+col+';font-weight:700':''}">${cw.wt}/${maxWt}${over?' ⚠':''}</span><span style="min-width:1.8rem;font-size:.68rem;color:var(--text-muted)">${coins?'':'+coins'}</span></div></div>`;
+  }
+  {
+    const c=charMeta[charName]&&charMeta[charName].coins||{};
+    const when=coins?new Date(coins.since).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+    const ctip=coins?('Typed in '+when+(coins.pending?' — reading your logs…':' + '+coins.lines+' coin line'+(coins.lines===1?'':'s')+' from your logs since (loot, splits, sales, purchases, trades).')+
+      (coins.small?'':' Copper and silver you loot aren\'t added (assumed destroyed) — tick "I keep copper & silver" if you keep them.')+
+      ' Banking and destroying coins aren\'t in the log: re-enter after you use the bank.'):'Type your coins from the Inventory window once; your logs keep it current.';
+    const inp=(id,v,l)=>`<label style="font-size:.68rem;color:var(--text-muted)">${l}<input id="${id}" type="number" min="0" value="${v||0}" style="width:4.2rem;margin-left:.2rem"></label>`;
+    weightRow+=`<div class="stat-row" title="${esc(ctip)}"><span class="stat-row-label">Coins</span><div class="stat-row-vals"><span class="val-base">&mdash;</span><span class="val-gear zero"></span><span class="val-total" style="font-size:.72rem;white-space:nowrap">${coins?coins.pp+'p '+coins.gp+'g '+coins.sp+'s '+coins.cp+'c':'not set'}</span><span style="min-width:1.8rem"><button class="btn" style="font-size:.6rem;padding:.05rem .35rem" onclick="coinsEditToggle()" title="Enter the coins shown in your Inventory window">&#9998;</button></span></div></div>`+
+      `<div id="coinsEdit" style="display:none;padding:.35rem .4rem;border:1px solid var(--border);border-radius:4px;margin:.2rem 0;font-size:.7rem">`+
+      `<div style="margin-bottom:.25rem;color:var(--text-muted)">From your Inventory window right now:</div>`+
+      `<div style="display:flex;flex-wrap:wrap;gap:.35rem">${inp('coinPP',coins?coins.pp:c.pp,'pp')}${inp('coinGP',coins?coins.gp:c.gp,'gp')}${inp('coinSP',coins?coins.sp:c.sp,'sp')}${inp('coinCP',coins?coins.cp:c.cp,'cp')}</div>`+
+      `<label style="display:block;margin:.3rem 0"><input id="coinSmall" type="checkbox" ${c.small?'checked':''}> I keep copper &amp; silver (don't assume I destroy them)</label>`+
+      `<button class="btn" style="font-size:.65rem" onclick="coinsSave(decodeURIComponent('${encodeURIComponent(charName)}'))">Save</button> <button class="btn" style="font-size:.65rem" onclick="coinsEditToggle()">Cancel</button></div>`;
+  }
+}catch(e){console.warn('weight row',e);}
 let dpsRows='';
 if(cls&&MELEE_DPS_CLASSES.has(cls)&&level){
   const _sbMh=equipped.find(i=>{const s=i.location.toUpperCase();return s==='PRIMARY'||s==='WEAPON';});
@@ -3165,7 +3297,7 @@ if(cls&&MELEE_DPS_CLASSES.has(cls)&&level){
   }
 }
 const breakdownRows=equipped.map(item=>{const gs=charGear[item.name]||itemDBGet(item.name);if(!gs)return `<tr><td>${esc(item.name)}</td>${STAT_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}${RESIST_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}${BONUS_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}</tr>`;return `<tr><td>${esc(item.name)}</td>${STAT_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}${RESIST_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}${BONUS_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}</tr>`;}).join('');
-return `<div class="stat-grid"><div class="stat-card"><div class="stat-card-title">PRIMARY STATS</div>${statRows}</div><div class="stat-card"><div class="stat-card-title">RESISTANCES</div>${resistRows}</div><div class="stat-card"><div class="stat-card-title">POOLS &amp; COMBAT</div>${poolRows}${hasteRow}${dpsRows}</div></div><div class="legend">Base &middot; <span style="color:#3a7a3a">+Gear</span>${hasBuffs?' &middot; <span style="color:#4a6fa5">+Buff</span>':''} &middot; <span style="color:var(--gold-light)">Total</span>${cls&&level?' &middot; HP/Mana calculated from stats at level '+level:' <span style="color:#a06020">&mdash; set class &amp; level for calculated HP/Mana</span>'}</div>${equipped.length?`<div class="gear-breakdown"><div class="gear-breakdown-title">GEAR BREAKDOWN</div><div style="overflow-x:auto"><table class="gear-table"><thead><tr><th>Item</th>${STAT_LABELS.map(l=>`<th>${l.slice(0,3)}</th>`).join('')}${RESIST_LABELS.map(l=>`<th>Sv${l.slice(0,2)}</th>`).join('')}<th>+HP</th><th>+Mana</th></tr></thead><tbody>${breakdownRows}</tbody></table></div></div>`:''}`;
+return `<div class="stat-grid"><div class="stat-card"><div class="stat-card-title">PRIMARY STATS</div>${statRows}</div><div class="stat-card"><div class="stat-card-title">RESISTANCES</div>${resistRows}</div><div class="stat-card"><div class="stat-card-title">POOLS &amp; COMBAT</div>${poolRows}${hasteRow}${weightRow}${dpsRows}</div></div><div class="legend">Base &middot; <span style="color:#3a7a3a">+Gear</span>${hasBuffs?' &middot; <span style="color:#4a6fa5">+Buff</span>':''} &middot; <span style="color:var(--gold-light)">Total</span>${cls&&level?' &middot; HP/Mana calculated from stats at level '+level:' <span style="color:#a06020">&mdash; set class &amp; level for calculated HP/Mana</span>'}</div>${equipped.length?`<div class="gear-breakdown"><div class="gear-breakdown-title">GEAR BREAKDOWN</div><div style="overflow-x:auto"><table class="gear-table"><thead><tr><th>Item</th>${STAT_LABELS.map(l=>`<th>${l.slice(0,3)}</th>`).join('')}${RESIST_LABELS.map(l=>`<th>Sv${l.slice(0,2)}</th>`).join('')}<th>+HP</th><th>+Mana</th></tr></thead><tbody>${breakdownRows}</tbody></table></div></div>`:''}`;
 }
 
 // ─── Gear Planner Panel ───────────────────────────────────────────────────────
@@ -5274,14 +5406,14 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.5.20',
+  version:'1.5.21',
   date:'September 2026',
   features:[
-    ['Guild DKP update','Severilous and Gorenaire move to Tier Four (race FTE 25). Klandicar, Sontalak and Zlandicar move to Tier Three, matching Yelinak.'],
-    ['Role values','PR Trainout is worth 1; Low HP Train, Bonewalk and LTK Coth / Pets are worth 2.'],
+    ['Carried weight','The Stats tab shows your weight against Max WT (your STR) &mdash; amber when close, red &#9888; when over. Hover it for your heaviest items and what to bank or move into a weight-reduction bag.'],
+    ['Coins','Click a Coins chip on the <b>Food, Drink &amp; Coins</b> panel (or &#9998; on the Stats tab) and type your coins once. Loot, splits, sales and purchases from your logs keep it current, and it counts toward your weight. Copper and silver are only added if you keep them. Re-enter after using the bank.'],
   ],
   fixes:[
-    ['Past raids keep their values','Raid nights before September 29 keep the old boss values, so totals and Credit Check still match what ODKP paid at the time.'],
+    ['Raid parking warning','&ldquo;No toon parked&rdquo; now matches the Raid Parking tab &mdash; a character you don&rsquo;t have a tab for no longer counts as parked (Terror / Plane of Fear warns again).'],
   ],
 };
 function showWhatsNew(){
@@ -5718,7 +5850,7 @@ async function loadFromSupabase(){
           }
         }
         if(row.base_stats?.questData)questData[row.char_name]=row.base_stats.questData;
-        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,factionValues:_fv,questData:_qd,buffs:_bu,planBuffed:_pb,plan:_pl,spellbook:_sb,spellIgnore:_si,customWeights:_cw,consumeOverrides:_co,deity:_de,skills:_sk,skillsManual:_skm,...bs}=row.base_stats||{};
+        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,factionValues:_fv,questData:_qd,buffs:_bu,planBuffed:_pb,plan:_pl,coins:_coin,spellbook:_sb,spellIgnore:_si,customWeights:_cw,consumeOverrides:_co,deity:_de,skills:_sk,skillsManual:_skm,...bs}=row.base_stats||{};
         const hasRealStats=bs.stats||bs.resists;
         charMeta[row.char_name]={
           class:row.class||'',race:row.race||'',level:row.level||1,
@@ -5735,6 +5867,7 @@ async function loadFromSupabase(){
           consumeOverrides:row.base_stats?.consumeOverrides||null,
           planBuffed:row.base_stats?.planBuffed??undefined,
           plan:row.base_stats?.plan||undefined,            // Gear Planner Build / Target / Tradeable / 🔒 locks
+          coins:row.base_stats?.coins||undefined,          // coins typed in (Stats tab) — logs add to it
           deity:row.base_stats?.deity||'',
           skills:row.base_stats?.skills||{},
           skillsManual:row.base_stats?.skillsManual||{},
@@ -5857,6 +5990,7 @@ function _charSaveRow(cn){
         consumeOverrides:charMeta[cn]?.consumeOverrides||null,
         planBuffed:charMeta[cn]?.planBuffed,
         plan:charMeta[cn]?.plan||null,
+        coins:charMeta[cn]?.coins||null,
         deity:charMeta[cn]?.deity||null,
         skills:charMeta[cn]?.skills||null,              // highest value per skill, from logs
         skillsManual:charMeta[cn]?.skillsManual||null,  // typed from the in-game Skills window
@@ -6353,7 +6487,7 @@ const DASHBOARD_PANELS=[
   {id:'skyshrine',  containerId:'cityBar_skyshrine',  label:'Skyshrine'},
   {id:'kael',       containerId:'cityBar_kael',       label:'Kael Drakkel'},
   {id:'thurgadin',  containerId:'cityBar_thurgadin',  label:'Thurgadin'},
-  {id:'fooddrink',  containerId:'foodDrinkBar',       label:'Food & Drink'},
+  {id:'fooddrink',  containerId:'foodDrinkBar',       label:'Food, Drink & Coins'},
 ];
 let _dragPanel=null;
 // Two independent layouts: 'all' (the All Characters tab) and 'char' (any single
@@ -6449,6 +6583,19 @@ function fdChip(min,items){
   if(min<60)return'<span class="tov-chip tov-chip-yellow"'+titleAttr+'>&#9678; '+label+'</span>';
   return'<span class="tov-chip tov-chip-ally"'+titleAttr+'>&#10003; '+label+'</span>';
 }
+// Coins cell (see coinsFor): typed count + coin lines from the logs; hover for detail.
+function fdCoinChip(n){
+  coinsRequestScan(n);
+  const c=coinsFor(n);
+  const click=' onclick="coinsPopOpen(event,decodeURIComponent(\''+encodeURIComponent(n)+'\'))"';
+  if(!c)return'<span class="tov-chip tov-chip-none" style="cursor:pointer"'+click+' title="Click to enter this character\'s coins — your logs keep it current after that">&#9998; enter coins</span>';
+  const txt=c.pp+'p '+c.gp+'g'+(c.small||c.sp||c.cp?' '+c.sp+'s '+c.cp+'c':'');
+  const when=new Date(c.since).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  const tip=c.pp+' pp · '+c.gp+' gp · '+c.sp+' sp · '+c.cp+' cp ('+c.count+' coins = '+(Math.floor(c.count/4)/10).toFixed(1)+' weight)\n'+
+    'Typed in '+when+(c.pending?' — reading your logs…':' + '+c.lines+' coin line'+(c.lines===1?'':'s')+' from your logs since.')+
+    (c.small?'':' Looted copper/silver not added (assumed destroyed).')+' Click to re-enter (after using the bank).';
+  return'<span class="tov-chip" style="background:rgba(160,120,40,.12);border-color:var(--gold);color:var(--text);cursor:pointer"'+click+' title="'+esc(tip)+'">&#129689; '+txt+'</span>';
+}
 function renderFoodDrinkPanel(){
   const container=document.getElementById('fdRows');
   const configRow=document.getElementById('fdConfigRow');
@@ -6470,9 +6617,9 @@ function renderFoodDrinkPanel(){
   const rows=visNames.map(n=>{
     const fd=computeFoodDrink(n);
     const nameCell=isAll?'<td class="watchlist-item-name" style="padding:.15rem .5rem;min-width:100px;white-space:nowrap">'+esc(n)+'</td>':'';
-    return'<tr>'+nameCell+'<td style="padding:.15rem .5rem;white-space:nowrap">'+fdChip(fd?fd.foodMin:null,fd?fd.foodItems:null)+'</td><td style="padding:.15rem .5rem;white-space:nowrap">'+fdChip(fd?fd.drinkMin:null,fd?fd.drinkItems:null)+'</td></tr>';
+    return'<tr>'+nameCell+'<td style="padding:.15rem .5rem;white-space:nowrap">'+fdChip(fd?fd.foodMin:null,fd?fd.foodItems:null)+'</td><td style="padding:.15rem .5rem;white-space:nowrap">'+fdChip(fd?fd.drinkMin:null,fd?fd.drinkItems:null)+'</td><td style="padding:.15rem .5rem;white-space:nowrap">'+fdCoinChip(n)+'</td></tr>';
   }).join('');
-  container.innerHTML='<table style="border-collapse:collapse;width:100%"><thead><tr>'+nameHeader+'<th style="padding:.2rem .5rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Food</th><th style="padding:.2rem .5rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Drink</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  container.innerHTML='<table style="border-collapse:collapse;width:100%"><thead><tr>'+nameHeader+'<th style="padding:.2rem .5rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Food</th><th style="padding:.2rem .5rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Drink</th><th style="padding:.2rem .5rem;font-size:.68rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left">Coins</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 function toggleCityConfig(id){
   const cfg=CITY_FACTIONS[id];if(!cfg)return;
@@ -7611,6 +7758,8 @@ window.applyDBToChar    = applyDBToChar;
           if (msg.loc) _lastLoc = msg.loc;  // attach loc snapshot for /note set pin placement
           _handleNotesUpdate(msg.text, msg.timestamp);
         }
+        if(msg.type === 'coinLine'){ coinsOnLine(msg); }
+        if(msg.type === 'coinScanResult'){ coinsOnScan(msg); }
         if(msg.type === 'zoneUpdate'){
           charZones[msg.charName] = { zone: msg.zone, timestamp: msg.timestamp };
           knownWatcherChars.add(msg.charName);
@@ -13613,8 +13762,13 @@ function btLocIgnored(locId){
   const ig = new Set((parkIgnores || []).map(x => String(x).toLowerCase()));
   return tgts.every(t => ig.has(t.name.toLowerCase()));
 }
-// True if at least one toon is parked in the given park location's zones.
+// True if the location is covered the way the Raid Parking tab shows it: an eligible toon (known
+// level/class, key if needed) parked or bound there. (Was: ANY toon whose last zone matched — so a
+// log-only character with no level, e.g. one last seen in Plane of Fear, silenced the Terror / Fear
+// warning while the Parking tab showed the location uncovered. 2026-09-30.)
 function btParkedInLoc(locId, roster){
+  const tgts = (typeof RAID_PARK_TARGETS !== 'undefined') ? RAID_PARK_TARGETS.filter(t => t.loc === locId) : [];
+  if(tgts.length) return tgts.some(t => { const st = parkTargetStatus(t, roster).status; return st === 'covered' || st === 'bindparked'; });
   const L = (typeof PARK_LOCATIONS !== 'undefined') && PARK_LOCATIONS.find(x => x.id === locId);
   if(!L) return true;   // unknown loc -> don't warn
   const zset = L.zones.map(parkNormZone);
