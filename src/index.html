@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="MixelParse">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="item-weights.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;1,300&display=swap');
   :root{--bg:#f5f0e8;--surface:#ede6d6;--surface2:#e4dbc8;--border:#c8b890;--border-glow:#a08050;--gold:#7a5010;--gold-light:#5a3a08;--gold-dim:#a07030;--text:#1a1008;--text-dim:#4a3a1a;--text-muted:#8a7050}
@@ -3126,6 +3127,28 @@ document.getElementById('applyDBBtn').addEventListener('click',()=>{const matche
 if(base){document.getElementById('statCardsContainer').innerHTML=buildStatCards(base,charGear,name,selClass,selLevel);}else{document.getElementById('statCardsContainer').innerHTML='<div class="empty-state">Enter your current in-game stats to get started.</div>';}
 }
 
+// ── Carried weight (Stats tab) ─────────────────────────────────────────────────
+// P99 rule, checked on Mixelems 2026-09-30 (90 → 89 after moving 4 stacks into a 100% bag, both
+// exact): a stack weighs ONE item's WT whatever its count; a bag's weight reduction applies to
+// what's inside it; spell scrolls 0.1; 40 coins = 1 (coins aren't in the inventory export); the
+// game rounds down. Max WT = STR. Weights: item-weights.js (P99 wiki, in tenths).
+function carriedWeight(charName){
+  const W=window.ITEM_WT||{},R=window.BAG_WR||{},clean=n=>String(n||'').replace(/\*+$/,'').trim();
+  const items=(chars[charName]||[]).filter(i=>!/^(bank|sharedbank)/i.test(i.location||''));
+  const bagWR={},bagName={};
+  for(const i of items){const m=/^General(\d+)$/i.exec(i.location||'');if(m){bagWR[m[1]]=R[clean(i.name)]||0;bagName[m[1]]=clean(i.name);}}
+  let tenths=0;const rows=[],unknown=[];
+  for(const i of items){
+    const n=clean(i.name);let w=W[n];
+    if(w===undefined){if(/^Spell: /i.test(n))w=1;else{unknown.push(n);continue;}}
+    const m=/^General(\d+)-Slot/i.exec(i.location||''),red=m?(bagWR[m[1]]||0):0;
+    const eff=Math.floor(w*(100-red)/100);tenths+=eff;
+    if(eff)rows.push({name:n,w:eff,full:w,red,bag:m?bagName[m[1]]:null,worn:!m&&!/^General/i.test(i.location||''),shell:/^General\d+$/i.test(i.location||'')});
+  }
+  rows.sort((a,b)=>b.w-a.w);
+  const fullBags=Object.entries(bagWR).filter(([,r])=>r>=100).map(([k])=>bagName[k]);
+  return{tenths,wt:Math.floor(tenths/10),rows,unknown,fullBags};
+}
 function applyBaseStats(charName,parsed){
   const stats=STAT_KEYS.map(k=>parsed[k]||0);
   const resists=RESIST_KEYS.map(k=>parsed[k]||0);
@@ -3144,6 +3167,24 @@ const _cd=(typeof combatDisplayFor==='function')?combatDisplayFor(charName):null
 const _cdTip=r=>{if(!r)return'';const p=Object.entries(r.parts).map(([k,v])=>k+' '+Math.round(v)).join(' + ');return ' title="'+esc((r.exact?'Matches the in-game Inventory window':(r.why||[]).join(' · '))+'\n'+p)+'"';};
 const poolRows=POOL_LABELS.map((lbl,i)=>{if(i===1&&cls&&!MANA_CLASSES.has(cls))return '';const base_v=base.pools?.[i]||0;let gearBonus=i<2?gearSum.bonuses[i]:0;const buffBonus=i===0?buffPool.hp:i===1?buffPool.mana:i===3?buffPool.ac:0;let total;if(i===0&&cls&&level&&HP_RATIOS[cls])total=calcHP(totalSTA,cls,level)+gearBonus+buffBonus;else if(i===1&&cls&&level&&MANA_CLASSES.has(cls))total=calcMana(totalManastat,level)+gearBonus+buffBonus;else if(i===3&&_cd)total=_cd.ac.value;else if(i===4&&_cd)total=_cd.atk.value;else total=base_v+gearBonus+buffBonus;const gc=gearBonus>0?'pos':gearBonus<0?'neg':'zero';const dispBase=total===base_v&&gearBonus===0&&buffBonus===0?'&mdash;':base_v;return `<div class="stat-row"><span class="stat-row-label">${lbl}</span><div class="stat-row-vals"><span class="val-base">${dispBase}</span><span class="val-gear ${gc}">${gearBonus>=0?'+':''}${gearBonus}</span>${buffCell(buffBonus)}<span class="val-total"${(i===3||i===4)&&_cd?_cdTip(i===3?_cd.ac:_cd.atk):''}>${(i===3||i===4)&&_cd&&!(i===3?_cd.ac:_cd.atk).exact?'≈':''}${total}</span><span style="min-width:1.8rem"></span></div></div>`;}).join('');
 const hasteRow=`<div class="stat-row"><span class="stat-row-label">Haste</span><div class="stat-row-vals"><span class="val-base">&mdash;</span><span class="val-gear ${gearSum.haste>0?'pos':'zero'}">${gearSum.haste>0?'+'+gearSum.haste+'%':'0%'}</span>${buffCell(0)}<span class="val-total">${gearSum.haste}%</span><span style="min-width:1.8rem"></span></div></div>`;
+let weightRow='';
+try{
+  const cw=carriedWeight(charName),maxWt=Math.min(255,(base.stats[0]||0)+gearSum.stats[0]+buffStats[0]);
+  if(cw.tenths||cw.rows.length){
+    const over=cw.wt>maxWt,near=!over&&maxWt&&cw.wt>=maxWt*0.9;
+    const col=over?'#b03030':near?'#a07000':'';
+    const f=t=>(t/10).toFixed(1);
+    const top=cw.rows.slice(0,6).map(r=>'  '+r.name+'  '+f(r.w)+(r.red?' ('+f(r.full)+' − '+r.red+'% '+r.bag+')':r.worn?' (worn)':''));
+    const tips=[];
+    if(over)tips.push('Over by '+(cw.wt-maxWt)+' — you move slower until you\'re back to '+maxWt+'.');
+    const loose=cw.rows.filter(r=>!r.worn&&!r.red&&!r.shell).slice(0,3).map(r=>r.name+' '+f(r.w));
+    if((over||near)&&loose.length)tips.push((cw.fullBags.length?'Move into '+[...new Set(cw.fullBags)].join(' / ')+' (weighs nothing inside) or bank: ':'Bank them or use a weight-reduction bag: ')+loose.join(', ')+'.');
+    const tip='Carried weight: '+cw.wt+' of '+maxWt+' (Max WT = STR). Coins add 1 per 40 — they aren\'t in the inventory export.'+
+      (top.length?'\nHeaviest:\n'+top.join('\n'):'')+(tips.length?'\n'+tips.join('\n'):'')+
+      (cw.unknown.length?'\nNo weight on the wiki for: '+[...new Set(cw.unknown)].slice(0,6).join(', ')+(cw.unknown.length>6?'…':''):'');
+    weightRow=`<div class="stat-row" title="${esc(tip)}"><span class="stat-row-label">Weight</span><div class="stat-row-vals"><span class="val-base">&mdash;</span><span class="val-gear zero"></span><span class="val-total" style="${col?'color:'+col+';font-weight:700':''}">${cw.wt}/${maxWt}${over?' ⚠':''}</span><span style="min-width:1.8rem;font-size:.68rem;color:var(--text-muted)">+coins</span></div></div>`;
+  }
+}catch(e){console.warn('weight row',e);}
 let dpsRows='';
 if(cls&&MELEE_DPS_CLASSES.has(cls)&&level){
   const _sbMh=equipped.find(i=>{const s=i.location.toUpperCase();return s==='PRIMARY'||s==='WEAPON';});
@@ -3165,7 +3206,7 @@ if(cls&&MELEE_DPS_CLASSES.has(cls)&&level){
   }
 }
 const breakdownRows=equipped.map(item=>{const gs=charGear[item.name]||itemDBGet(item.name);if(!gs)return `<tr><td>${esc(item.name)}</td>${STAT_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}${RESIST_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}${BONUS_KEYS.map(()=>'<td class="gear-val-zero">&mdash;</td>').join('')}</tr>`;return `<tr><td>${esc(item.name)}</td>${STAT_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}${RESIST_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}${BONUS_KEYS.map(k=>{const v=gs[k]||0;return `<td class="${v>0?'gear-val-pos':v<0?'gear-val-neg':'gear-val-zero'}">${v||'&mdash;'}</td>`;}).join('')}</tr>`;}).join('');
-return `<div class="stat-grid"><div class="stat-card"><div class="stat-card-title">PRIMARY STATS</div>${statRows}</div><div class="stat-card"><div class="stat-card-title">RESISTANCES</div>${resistRows}</div><div class="stat-card"><div class="stat-card-title">POOLS &amp; COMBAT</div>${poolRows}${hasteRow}${dpsRows}</div></div><div class="legend">Base &middot; <span style="color:#3a7a3a">+Gear</span>${hasBuffs?' &middot; <span style="color:#4a6fa5">+Buff</span>':''} &middot; <span style="color:var(--gold-light)">Total</span>${cls&&level?' &middot; HP/Mana calculated from stats at level '+level:' <span style="color:#a06020">&mdash; set class &amp; level for calculated HP/Mana</span>'}</div>${equipped.length?`<div class="gear-breakdown"><div class="gear-breakdown-title">GEAR BREAKDOWN</div><div style="overflow-x:auto"><table class="gear-table"><thead><tr><th>Item</th>${STAT_LABELS.map(l=>`<th>${l.slice(0,3)}</th>`).join('')}${RESIST_LABELS.map(l=>`<th>Sv${l.slice(0,2)}</th>`).join('')}<th>+HP</th><th>+Mana</th></tr></thead><tbody>${breakdownRows}</tbody></table></div></div>`:''}`;
+return `<div class="stat-grid"><div class="stat-card"><div class="stat-card-title">PRIMARY STATS</div>${statRows}</div><div class="stat-card"><div class="stat-card-title">RESISTANCES</div>${resistRows}</div><div class="stat-card"><div class="stat-card-title">POOLS &amp; COMBAT</div>${poolRows}${hasteRow}${weightRow}${dpsRows}</div></div><div class="legend">Base &middot; <span style="color:#3a7a3a">+Gear</span>${hasBuffs?' &middot; <span style="color:#4a6fa5">+Buff</span>':''} &middot; <span style="color:var(--gold-light)">Total</span>${cls&&level?' &middot; HP/Mana calculated from stats at level '+level:' <span style="color:#a06020">&mdash; set class &amp; level for calculated HP/Mana</span>'}</div>${equipped.length?`<div class="gear-breakdown"><div class="gear-breakdown-title">GEAR BREAKDOWN</div><div style="overflow-x:auto"><table class="gear-table"><thead><tr><th>Item</th>${STAT_LABELS.map(l=>`<th>${l.slice(0,3)}</th>`).join('')}${RESIST_LABELS.map(l=>`<th>Sv${l.slice(0,2)}</th>`).join('')}<th>+HP</th><th>+Mana</th></tr></thead><tbody>${breakdownRows}</tbody></table></div></div>`:''}`;
 }
 
 // ─── Gear Planner Panel ───────────────────────────────────────────────────────
