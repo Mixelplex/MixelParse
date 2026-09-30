@@ -13654,8 +13654,13 @@ function btLocIgnored(locId){
   const ig = new Set((parkIgnores || []).map(x => String(x).toLowerCase()));
   return tgts.every(t => ig.has(t.name.toLowerCase()));
 }
-// True if at least one toon is parked in the given park location's zones.
+// True if the location is covered the way the Raid Parking tab shows it: an eligible toon (known
+// level/class, key if needed) parked or bound there. (Was: ANY toon whose last zone matched — so a
+// log-only character with no level, e.g. one last seen in Plane of Fear, silenced the Terror / Fear
+// warning while the Parking tab showed the location uncovered. 2026-09-30.)
 function btParkedInLoc(locId, roster){
+  const tgts = (typeof RAID_PARK_TARGETS !== 'undefined') ? RAID_PARK_TARGETS.filter(t => t.loc === locId) : [];
+  if(tgts.length) return tgts.some(t => { const st = parkTargetStatus(t, roster).status; return st === 'covered' || st === 'bindparked'; });
   const L = (typeof PARK_LOCATIONS !== 'undefined') && PARK_LOCATIONS.find(x => x.id === locId);
   if(!L) return true;   // unknown loc -> don't warn
   const zset = L.zones.map(parkNormZone);
