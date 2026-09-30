@@ -1191,7 +1191,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
     </div>
     <div class="watchlist-bar" id="foodDrinkBar" style="flex:1;min-width:280px">
       <div class="watchlist-bar-header">
-        <div class="watchlist-bar-title"><span style="opacity:.5;cursor:grab;margin-right:.15rem" title="Drag to reorder panels">⠿</span> 🍞 Food &amp; Drink</div>
+        <div class="watchlist-bar-title"><span style="opacity:.5;cursor:grab;margin-right:.15rem" title="Drag to reorder panels">⠿</span> 🍞 Food, Drink &amp; Coins</div>
         <div style="display:flex;gap:.3rem">
           <button class="watchlist-gear-btn" id="fdGearBtn" title="Configure characters" onclick="toggleFoodDrinkConfig()">⚙</button>
           <button class="watchlist-gear-btn" title="Remove this panel (bring it back via Customize panels)" onclick="togglePanelVisible('fooddrink')">✕</button>
@@ -3169,11 +3169,35 @@ function coinsFor(name){
   o.count=o.pp+o.gp+o.sp+o.cp;o.lines=L.lines;o.since=c.ts;o.small=!!c.small;o.pending=!!L.pending;
   return o;
 }
+// Click-to-edit popover (Food & Drink Coins chip). Enter saves, Esc / outside click closes.
+function coinsPopClose(){const p=document.getElementById('coinPop');if(p)p.remove();document.removeEventListener('mousedown',coinsPopOutside,true);}
+function coinsPopOutside(e){const p=document.getElementById('coinPop');if(p&&!p.contains(e.target))coinsPopClose();}
+window.coinsPopOpen=function(ev,name){
+  if(ev)ev.stopPropagation();coinsPopClose();
+  const cur=coinsFor(name)||{},c=charMeta[name]&&charMeta[name].coins||{};
+  const inp=(id,v,l)=>`<label style="display:flex;flex-direction:column;font-size:.62rem;color:var(--text-muted);gap:.1rem">${l}<input id="coinPop${id}" type="number" min="0" value="${v||0}" style="width:4.4rem;font-size:.75rem"></label>`;
+  const p=document.createElement('div');p.id='coinPop';
+  p.style.cssText='position:fixed;z-index:9999;background:var(--bg-card,#f3ead7);border:1px solid var(--gold);border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.25);padding:.5rem .6rem;font-size:.72rem;min-width:16rem';
+  p.innerHTML=`<div style="font-weight:700;margin-bottom:.3rem">${esc(name)} — coins in your Inventory window</div>`+
+    `<div style="display:flex;gap:.35rem">${inp('PP',cur.pp??c.pp,'pp')}${inp('GP',cur.gp??c.gp,'gp')}${inp('SP',cur.sp??c.sp,'sp')}${inp('CP',cur.cp??c.cp,'cp')}</div>`+
+    `<label style="display:block;margin:.35rem 0 .15rem"><input id="coinPopSmall" type="checkbox" ${c.small?'checked':''}> I keep copper &amp; silver</label>`+
+    `<div style="color:var(--text-muted);font-size:.62rem;margin-bottom:.35rem">Loot, splits, sales and purchases from your logs keep it current. Re-enter after using the bank.</div>`+
+    `<button class="btn" style="font-size:.68rem" onclick="coinsSave(decodeURIComponent('${encodeURIComponent(name)}'),'coinPop')">Save</button> <button class="btn" style="font-size:.68rem" onclick="coinsPopClose()">Cancel</button>`;
+  document.body.appendChild(p);
+  const r=(ev&&ev.currentTarget&&ev.currentTarget.getBoundingClientRect())||{left:100,bottom:100};
+  const w=p.offsetWidth,h=p.offsetHeight;
+  p.style.left=Math.max(6,Math.min(r.left,window.innerWidth-w-6))+'px';
+  p.style.top=(r.bottom+4+h>window.innerHeight?Math.max(6,r.top-h-4):r.bottom+4)+'px';
+  p.addEventListener('keydown',e=>{if(e.key==='Enter')coinsSave(name,'coinPop');else if(e.key==='Escape')coinsPopClose();});
+  setTimeout(()=>{document.addEventListener('mousedown',coinsPopOutside,true);const f=document.getElementById('coinPopPP');if(f){f.focus();f.select();}},0);
+};
 window.coinsEditToggle=function(){const e=document.getElementById('coinsEdit');if(e)e.style.display=e.style.display==='none'?'':'none';};
-window.coinsSave=function(name){
-  const v=id=>Math.max(0,parseInt((document.getElementById(id)||{}).value,10)||0);
+window.coinsSave=function(name,pre){
+  pre=pre||'coin';
+  const v=id=>Math.max(0,parseInt((document.getElementById(pre+id)||{}).value,10)||0);
   if(!charMeta[name])charMeta[name]={};
-  charMeta[name].coins={pp:v('coinPP'),gp:v('coinGP'),sp:v('coinSP'),cp:v('coinCP'),ts:Date.now(),small:!!(document.getElementById('coinSmall')||{}).checked};
+  charMeta[name].coins={pp:v('PP'),gp:v('GP'),sp:v('SP'),cp:v('CP'),ts:Date.now(),small:!!(document.getElementById(pre+'Small')||{}).checked};
+  coinsPopClose();
   delete coinLog[name.toLowerCase()];
   saveState();renderStatsPanel();if(typeof renderFoodDrinkPanel==='function')renderFoodDrinkPanel();
 };
@@ -6463,7 +6487,7 @@ const DASHBOARD_PANELS=[
   {id:'skyshrine',  containerId:'cityBar_skyshrine',  label:'Skyshrine'},
   {id:'kael',       containerId:'cityBar_kael',       label:'Kael Drakkel'},
   {id:'thurgadin',  containerId:'cityBar_thurgadin',  label:'Thurgadin'},
-  {id:'fooddrink',  containerId:'foodDrinkBar',       label:'Food & Drink'},
+  {id:'fooddrink',  containerId:'foodDrinkBar',       label:'Food, Drink & Coins'},
 ];
 let _dragPanel=null;
 // Two independent layouts: 'all' (the All Characters tab) and 'char' (any single
@@ -6563,13 +6587,14 @@ function fdChip(min,items){
 function fdCoinChip(n){
   coinsRequestScan(n);
   const c=coinsFor(n);
-  if(!c)return'<span class="tov-chip tov-chip-none" title="Enter this character\'s coins once on the Stats tab (Coins row ✎) — the logs keep it current">&#9675; set on Stats</span>';
+  const click=' onclick="coinsPopOpen(event,decodeURIComponent(\''+encodeURIComponent(n)+'\'))"';
+  if(!c)return'<span class="tov-chip tov-chip-none" style="cursor:pointer"'+click+' title="Click to enter this character\'s coins — your logs keep it current after that">&#9998; enter coins</span>';
   const txt=c.pp+'p '+c.gp+'g'+(c.small||c.sp||c.cp?' '+c.sp+'s '+c.cp+'c':'');
   const when=new Date(c.since).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
   const tip=c.pp+' pp · '+c.gp+' gp · '+c.sp+' sp · '+c.cp+' cp ('+c.count+' coins = '+(Math.floor(c.count/4)/10).toFixed(1)+' weight)\n'+
     'Typed in '+when+(c.pending?' — reading your logs…':' + '+c.lines+' coin line'+(c.lines===1?'':'s')+' from your logs since.')+
-    (c.small?'':' Looted copper/silver not added (assumed destroyed).')+' Re-enter on the Stats tab after using the bank.';
-  return'<span class="tov-chip" style="background:rgba(160,120,40,.12);border-color:var(--gold);color:var(--text)" title="'+esc(tip)+'">&#129689; '+txt+'</span>';
+    (c.small?'':' Looted copper/silver not added (assumed destroyed).')+' Click to re-enter (after using the bank).';
+  return'<span class="tov-chip" style="background:rgba(160,120,40,.12);border-color:var(--gold);color:var(--text);cursor:pointer"'+click+' title="'+esc(tip)+'">&#129689; '+txt+'</span>';
 }
 function renderFoodDrinkPanel(){
   const container=document.getElementById('fdRows');

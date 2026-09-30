@@ -162,7 +162,7 @@ current (copper/silver only if you keep them); also a Coins column on the Food &
   Copper/silver from the logs are only added with "I keep copper & silver" ticked (owner: most players destroy them);
   typed copper/silver always count. Weight row adds floor(coins/4) tenths. Verified: typed 40/202/55/37 → 90/115 exact;
   scan since 23:42 → +61p +129g +185s +172c (33 lines). Re-enter after using the bank.
-  Also shown per character as a **Coins** column on the Food & Drink panel (`fdCoinChip`; "set on Stats" until typed).
+  Also a **Coins** column on the Food, Drink & Coins panel (`fdCoinChip`): click any chip — "✎ enter coins" when empty — to type coins in a popover (`coinsPopOpen`; Enter saves, Esc/outside closes).
 
 ---
 
