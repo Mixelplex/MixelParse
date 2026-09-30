@@ -5274,16 +5274,14 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.5.19',
+  version:'1.5.20',
   date:'September 2026',
   features:[
-    ['Auto-Detect catches more kills','Raid ticks posted with the guild name in front (&ldquo;Castle &amp; Co. RAIDTICK&rdquo;, &ldquo;Castle and Co: Raid Tick&rdquo;, &ldquo;CASTLE RAIDTICK&rdquo;) are recognized now &mdash; before, about a third of ticks were never seen. Run <b>&#9935; Scan logs</b> once to fill in past raid nights.'],
-    ['Kill time from the faction hit','For bosses with their own faction (Zlandicar and the other Velious dragons), &ldquo;Your faction standing with &hellip; got worse&rdquo; gives the exact second of the kill.'],
-    ['Long fights','A boss&rsquo;s rampages and flurries count as evidence, so a tick posted mid-fight (Avatar of War) still finds its boss.'],
+    ['Guild DKP update','Severilous and Gorenaire move to Tier Four (race FTE 25). Klandicar, Sontalak and Zlandicar move to Tier Three, matching Yelinak.'],
+    ['Role values','PR Trainout is worth 1; Low HP Train, Bonewalk and LTK Coth / Pets are worth 2.'],
   ],
   fixes:[
-    ['Fewer toss-ups','Two bosses only tie when both have real evidence; one stray line no longer makes a kill &ldquo;ambiguous&rdquo;.'],
-    ['Trash faction hits ignored','Killing ordinary mobs in Permafrost or Skyshrine hits the Vox / Yelinak factions &mdash; that alone is never counted as a boss kill.'],
+    ['Past raids keep their values','Raid nights before September 29 keep the old boss values, so totals and Credit Check still match what ODKP paid at the time.'],
   ],
 };
 function showWhatsNew(){
@@ -10065,31 +10063,32 @@ const BOSS_ROSTER=[
   {target:'Prog',          full:'The Progenitor',              tier:'Tier Three', dkp:4,   baseDkp:1.5, raceFTE:40,  campFTE:8},
   {target:'TFA',           full:'The Final Arbiter',           tier:'Tier Three', dkp:4,   baseDkp:1.5, raceFTE:40,  campFTE:8},
   {target:'Vyemm',         full:'Lord Vyemm',                  tier:'Tier Three', dkp:4,   baseDkp:1.5, raceFTE:null,campFTE:8},
+  {target:'Klandicar',     full:'Klandicar',                   tier:'Tier Three', dkp:4,   baseDkp:1.5, raceFTE:null,campFTE:8},
+  {target:'Sontalak',      full:'Sontalak',                    tier:'Tier Three', dkp:4,   baseDkp:1.5, raceFTE:null,campFTE:8},
   {target:'Yelinak',       full:'Lord Yelinak',                tier:'Tier Three', dkp:4,   baseDkp:1.5, raceFTE:null,campFTE:8},
+  {target:'Zlandicar',     full:'Zlandicar',                   tier:'Tier Three', dkp:4,   baseDkp:1.5, raceFTE:null,campFTE:8},
   // Tier Four
   {target:'Aaryonar',      full:'Aaryonar',                    tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
   {target:'Dagarn',        full:'Dagarn the Destroyer',        tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
   {target:'Dracoliche',    full:'Dracoliche',                  tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:25,  campFTE:5},
   {target:'Druushk',       full:'Druushk',                     tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
   {target:'Feshlak',       full:'Lord Feshlak',                tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
+  {target:'Gorenaire',     full:'Gorenaire',                   tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:25,  campFTE:5},
   {target:'Hoshkar',       full:'Hoshkar',                     tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
   {target:'Jorlleag',      full:'Jorlleag',                    tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
-  {target:'Klandicar',     full:'Klandicar',                   tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
   {target:'Koi',           full:"Lord Koi'Doken",              tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
   {target:'Kreizenn',      full:'Lord Kreizenn',               tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
   {target:'LTK',           full:'Lendiniara the Keeper',       tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
   {target:"Magi P'Tasa",   full:"Magi P'Tasa",                 tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
   {target:'Mirenilla',     full:'Lady Mirenilla',              tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
   {target:'Nevederia',     full:'Lady Nevederia',              tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
-  {target:'Sontalak',      full:'Sontalak',                    tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
+  {target:'Severilous',    full:'Severilous',                  tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:25,  campFTE:5},
   {target:'Vulak',         full:"Vulak'Aerr",                  tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
-  {target:'Zlandicar',     full:'Zlandicar',                   tier:'Tier Four',  dkp:2.5, baseDkp:1.2, raceFTE:null,campFTE:5},
   // Tier Five
   {target:'Ashenbone Broodmaster',full:'Ashenbone Broodmaster',    tier:'Tier Five',  dkp:1.5, baseDkp:1,   raceFTE:null,campFTE:3},
   {target:'Bazzt Zzzt',    full:'Bazzt Zzzt',                  tier:'Misc',       dkp:0,   baseDkp:1.5, raceFTE:null,campFTE:null},
   {target:'Cekenar',       full:'Cekenar',                     tier:'Tier Five',  dkp:1.5, baseDkp:1,   raceFTE:null,campFTE:3},
   {target:'Essedera',      full:'Essedera',                    tier:'Tier Five',  dkp:1.5, baseDkp:1,   raceFTE:null,campFTE:3},
-  {target:'Gorenaire',     full:'Gorenaire',                   tier:'Tier Five',  dkp:1.5, baseDkp:1,   raceFTE:15,  campFTE:3},
   {target:'Gozzrem',       full:'Gozzrem',                     tier:'Tier Five',  dkp:1.5, baseDkp:1,   raceFTE:null,campFTE:3},
   {target:'Ikatiar',       full:'Ikatiar the Venom',           tier:'Tier Five',  dkp:1.5, baseDkp:1,   raceFTE:15,  campFTE:3},
   {target:'Kelorek Dar',   full:'Kelorek Dar',                 tier:'Tier Five',  dkp:1.5, baseDkp:1,   raceFTE:15,  campFTE:3},
@@ -10098,7 +10097,6 @@ const BOSS_ROSTER=[
   {target:'Lord of Ire',   full:'Lord of Ire',                 tier:'Tier Five',  dkp:1.5, baseDkp:1,   raceFTE:null,campFTE:3},
   {target:'Nexona',        full:'Nexona',                      tier:'Tier Five',  dkp:1.5, baseDkp:1,   raceFTE:null,campFTE:3},
   {target:'Sevalak',       full:'Sevalak',                     tier:'Tier Five',  dkp:1.5, baseDkp:1,   raceFTE:null,campFTE:3},
-  {target:'Severilous',    full:'Severilous',                  tier:'Tier Five',  dkp:1.5, baseDkp:1,   raceFTE:15,  campFTE:3},
   {target:'Silverwing',    full:'Silverwing',                  tier:'Tier Five',  dkp:1.5, baseDkp:1,   raceFTE:null,campFTE:3},
   {target:'Trakanon',      full:'Trakanon',                    tier:'Tier Five',  dkp:1.5, baseDkp:1,   raceFTE:null,campFTE:3},
   {target:'VS',            full:'Venril Sathir',               tier:'Tier Five',  dkp:1.5, baseDkp:1,   raceFTE:15,  campFTE:3},
@@ -10212,12 +10210,12 @@ const BOSS_ROLES=[
   {desc:'Tank Bonus',                   value:2,   bosses:[]},
   {desc:'Cleric Bonus',                 value:2,   bosses:[]},
   {desc:'Ninja Looter (NL)',            value:0.2, bosses:[]},
-  {desc:'PR Trainout',                  value:0.5, bosses:[]},
-  {desc:'Low HP Train',                 value:1,   bosses:[]},
+  {desc:'PR Trainout',                  value:1,   bosses:[]},   // 0.5 → 1 (2026-09-29)
+  {desc:'Low HP Train',                 value:2,   bosses:[]},   // 1 → 2 (2026-09-29)
   {desc:'Bump',                         value:2,   bosses:['Dozekar','Statue','Takish']},
-  {desc:'Bonewalk',                     value:1,   bosses:['Dozekar']},
+  {desc:'Bonewalk',                     value:2,   bosses:['Dozekar']},   // 1 → 2, outside of minis (2026-09-29)
   {desc:'96%/97% DBs',                  value:2,   bosses:['Dozekar','Yelinak']},
-  {desc:'LTK Coth / Pets',             value:1,   bosses:['LTK']},
+  {desc:'LTK Coth / Pets',             value:2,   bosses:['LTK']},   // 1 → 2 (2026-09-29)
   {desc:'Tunare Bard/Enc Kite Team',   value:2,   bosses:['Tunare']},
   {desc:'Vulak Sheet',                  value:15,  bosses:['Vulak']},
   {desc:'Vulak Sheet - Fail',           value:5,   bosses:['Vulak']},
@@ -10230,6 +10228,19 @@ const BOSS_ROLES=[
   {desc:'Turn in Reward',               value:10,  bosses:['RW Readiness','RW Wave 1','RW Wave 2','RW Wave 3']},
 ];
 
+// Guild DKP changes: a boss's values BEFORE the date a change took effect. Session totals and
+// Credit Check use the value in force on the raid date, so older nights still match what ODKP
+// paid. (Role credits are stored with their value when recorded, so they need no history.)
+const BOSS_VALUE_HISTORY=[
+  // 2026-09-29 guild update: Sev / Gore Tier Five → Four; Klandicar / Sontalak / Zlandicar Four → Three
+  {until:'2026-09-29',targets:['Severilous','Gorenaire'],v:{tier:'Tier Five',dkp:1.5,baseDkp:1,raceFTE:15,campFTE:3}},
+  {until:'2026-09-29',targets:['Klandicar','Sontalak','Zlandicar'],v:{tier:'Tier Four',dkp:2.5,baseDkp:1.2,raceFTE:null,campFTE:5}},
+];
+function bossValueOn(b,date){
+  if(!b||!date)return b;
+  for(const h of BOSS_VALUE_HISTORY)if(date<h.until&&h.targets.includes(b.target))return {...b,...h.v};
+  return b;
+}
 const _RW_TARGETS=['RW Readiness','RW Wave 1','RW Wave 2','RW Wave 3'];
 function rolesForBoss(target){
   const b=BOSS_ROSTER.find(x=>x.target===target);
@@ -10267,7 +10278,8 @@ function newSession(){
 function sessionDkpTotal(session){
   const ks=session.killState||{};
   const legacyKills=session.kills||[];
-  const killDkp=BOSS_ROSTER.reduce((sum,b)=>{
+  const killDkp=BOSS_ROSTER.reduce((sum,b0)=>{
+    const b=bossValueOn(b0,session.date);
     const state=ks[b.target]||(legacyKills.includes(b.target)?'killed':null);
     if(state==='killed')return sum+b.dkp+(b.baseDkp||0);
     if(state==='failtick')return sum+(b.baseDkp||0);
@@ -10275,7 +10287,7 @@ function sessionDkpTotal(session){
   },0);
   // Extra Big 3 spawns
   const extraDkp=(session.extraSpawns||[]).reduce((sum,sp)=>{
-    const b=BOSS_ROSTER.find(x=>x.target===sp.base);
+    const b=bossValueOn(BOSS_ROSTER.find(x=>x.target===sp.base),session.date);
     if(!b)return sum;
     const roleDkp=(sp.bossRoles||[]).reduce((s,r)=>s+(r.value||0),0);
     if(sp.state==='killed')return sum+b.dkp+(b.baseDkp||0)+roleDkp;
@@ -11159,12 +11171,12 @@ function renderKillsPanel(){
       const bossRoleDkp=Math.round(Object.values(s.bossRoles||{}).filter(Array.isArray).flat().reduce((sum,r)=>sum+(r.value||0),0)*10)/10;
       const killDkp=Math.round(killed.reduce((sum,k)=>{
         const baseTarget=k.includes('__')?k.split('__')[0]:k;
-        const b=BOSS_ROSTER.find(x=>x.target===baseTarget);
+        const b=bossValueOn(BOSS_ROSTER.find(x=>x.target===baseTarget),s.date);
         const sp=(s.extraSpawns||[]).find(x=>x.key===k);
         const _bossRoleVal=(s.bossRoles||{})[k];const roleDkp=sp?(sp.bossRoles||[]).reduce((r,x)=>r+(x.value||0),0):(Array.isArray(_bossRoleVal)?_bossRoleVal:[]).reduce((r,x)=>r+(x.value||0),0);
         return sum+(b?b.dkp+(b.baseDkp||0)+roleDkp:0);
       },0)*10)/10;
-      const failtickDkp=Math.round(failtickTargets.reduce((sum,k)=>{const baseTarget=k.includes('__')?k.split('__')[0]:k;const b=BOSS_ROSTER.find(x=>x.target===baseTarget);return sum+(b?b.baseDkp:0);},0)*10)/10;
+      const failtickDkp=Math.round(failtickTargets.reduce((sum,k)=>{const baseTarget=k.includes('__')?k.split('__')[0]:k;const b=bossValueOn(BOSS_ROSTER.find(x=>x.target===baseTarget),s.date);return sum+(b?b.baseDkp:0);},0)*10)/10;
 
       // Build breakdown lines
       const lines=[];
@@ -12475,8 +12487,8 @@ function parseDkpDetailsCsv(text){
 // etc. — sp.bossRoles / session.bossRoles) aren't attributable to a single
 // character from session state alone, so they're not included; a mismatch on a
 // role-bonused kill may be legitimate rather than an error.
-function ccExpectedValue(target){
-  const b=BOSS_ROSTER.find(x=>x.target===target);
+function ccExpectedValue(target,date){
+  const b=bossValueOn(BOSS_ROSTER.find(x=>x.target===target),date);
   return b?{kill:b.dkp+(b.baseDkp||0),failtick:b.baseDkp||0}:null;
 }
 function ccCollectSessionEvents(){
@@ -12484,12 +12496,12 @@ function ccCollectSessionEvents(){
   for(const s of [...raidSessions].sort((a,b)=>(b.date||'').localeCompare(a.date||''))){
     const keyDate=s.date0||s.date;
     for(const[target,st] of Object.entries(s.killState||{})){
-      const ev=ccExpectedValue(target);
+      const ev=ccExpectedValue(target,s.date);
       if(st==='killed')evts.push({date:s.date,keyDate,target,type:'kill',expVal:ev?ev.kill:null});
       else if(st==='failtick')evts.push({date:s.date,keyDate,target,type:'failtick',expVal:ev?ev.failtick:null});
     }
     for(const es of (s.extraSpawns||[])){
-      const ev=ccExpectedValue(es.base);
+      const ev=ccExpectedValue(es.base,s.date);
       const spawnNum=parseInt(String(es.key||'').split('__')[1],10)||2;
       if(es.state==='killed')evts.push({date:s.date,keyDate,target:es.base,type:'kill',extra:true,spawnNum,expVal:ev?ev.kill:null});
       else if(es.state==='failtick')evts.push({date:s.date,keyDate,target:es.base,type:'failtick',extra:true,spawnNum,expVal:ev?ev.failtick:null});
