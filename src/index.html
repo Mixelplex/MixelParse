@@ -953,16 +953,16 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
 </div>
 
 <div id="btParkWarn"></div>
+<div id="skyCorpseWarn"></div>
 <div class="top-nav" id="topNav" style="display:none">
   <div class="top-nav-item active" data-view="characters">Characters</div>
   <div class="top-nav-item" data-view="dkp">DKP History</div>
   <div class="top-nav-item" data-view="plat">Plat Prices</div>
   <div class="top-nav-item" data-view="kills">Raid Kill Tracker</div>
-  <div class="top-nav-item" data-view="parking">Raid Parking</div>
-  <div class="top-nav-item" data-view="timers">Spawn Timers</div>
+  <div class="top-nav-item" data-view="raidinfo">Raid Info</div>
+  <div class="top-nav-item" data-view="keys">Keys</div>
   <div class="top-nav-item" data-view="farm">Farm Targets</div>
   <div class="top-nav-item" data-view="bankers">Bankers</div>
-  <div class="top-nav-item" data-view="consolidate">Consolidate</div>
   <div id="syncIndicator" title="Click to save now" onclick="forceSaveNow()" style="margin-left:auto;cursor:pointer;font-size:.65rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:4px;transition:background .15s">
     <span id="syncDot" style="width:7px;height:7px;border-radius:50%;background:#888;display:inline-block;transition:background .3s"></span>
     <span id="syncLabel">saved</span>
@@ -990,6 +990,11 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
   <div class="rc-panel" id="killsPanel"></div>
 </div>
 
+<div id="raidInfoTabs" style="display:none;border-bottom:1px solid var(--border);margin-bottom:.5rem">
+  <div class="kt-view-tab" data-risub="parking" onclick="setRaidInfoSub('parking')">Raid Parking</div>
+  <div class="kt-view-tab" data-risub="timers" onclick="setRaidInfoSub('timers')">Spawn Timers</div>
+</div>
+
 <div id="parkingView" style="display:none">
   <div class="rc-panel" id="parkingPanel"></div>
 </div>
@@ -998,16 +1003,21 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
   <div class="rc-panel" id="timersPanel"></div>
 </div>
 
+<div id="keysView" style="display:none">
+  <div class="rc-panel" id="keysPanel"></div>
+</div>
+
 <div id="gearReportsView" style="display:none">
   <div class="rc-panel" id="gearReportsPanel"></div>
 </div>
 
 <div id="bankersView" style="display:none">
+  <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:.5rem">
+    <div class="kt-view-tab" data-bsub="bankers" onclick="setBankersSub('bankers')">Bankers</div>
+    <div class="kt-view-tab" data-bsub="consolidate" onclick="setBankersSub('consolidate')">Consolidate</div>
+  </div>
   <div class="rc-panel" id="bankersPanel"></div>
-</div>
-
-<div id="consolidateView" style="display:none">
-  <div class="rc-panel" id="consolidatePanel"></div>
+  <div class="rc-panel" id="consolidatePanel" style="display:none"></div>
 </div>
 
 <div class="tab-bar" id="tabBar">
@@ -2904,21 +2914,29 @@ function buildTabs(){const bar=document.getElementById('tabBar');bar.querySelect
 function makeTab(charKey,label){const t=document.createElement('div');t.className='tab';t.dataset.char=charKey;const span=document.createElement('span');span.innerHTML=label;t.appendChild(span);if(charKey!=='__all__'){mpMakeTabDraggable(t,charKey);const status=getOverallStatus(charKey);const dot=document.createElement('span');dot.className='tab-rc-dot';dot.title='Raid Consumes: '+(status==='green'?'Ready':status==='yellow'?'Mostly Ready':'Not Ready');dot.style.cssText='font-size:.7rem;line-height:1;margin-left:.1rem;';dot.textContent=status==='green'?'✔':status==='yellow'?'◐':'✘';dot.style.color=status==='green'?'#3a7a3a':status==='yellow'?'#b07800':'#a03030';t.appendChild(dot);const reload=document.createElement('span');reload.className='remove-char';reload.textContent='↻';reload.title='Refresh inventory';reload.style.cssText='font-size:.9rem;';reload.addEventListener('click',e=>{e.stopPropagation();const inp=document.getElementById('charRefreshInput');inp.dataset.charkey=charKey;inp.click();});t.appendChild(reload);const x=document.createElement('span');x.className='remove-char';x.textContent='✕';x.addEventListener('click',e=>{e.stopPropagation();confirmAction('Remove '+charKey+'?',async()=>{delete chars[charKey];delete charMeta[charKey];delete gearStats[charKey];if(activeTab===charKey)activeTab=charNames()[0]||null;refresh();if(currentUser){try{await sb.from('characters').delete().eq('user_id',currentUser.id).eq('char_name',charKey);}catch(err){console.warn('Failed to delete character from Supabase:',err);}}});});t.appendChild(x);}t.addEventListener('click',()=>{activeTab=charKey;localStorage.setItem('mp_activeTab',charKey);if(charKey==='__all__')activeSub='inventory';buildTabs();renderView();});return t;}
 // ── Top Nav ──
 let activeTopView='characters';
-function switchTopView(view){const item=document.querySelector('.top-nav-item[data-view="'+view+'"]');if(item)item.click();}
+// "Raid Info" (1.5.23) holds two sub-tabs, Raid Parking and Spawn Timers. activeTopView still
+// becomes 'parking' / 'timers', so every existing check (live timer tick, help keys) is unchanged.
+const RAID_INFO_SUBS=new Set(['parking','timers']);
+let raidInfoSub=(function(){try{return localStorage.getItem('mp_raidInfoSub')==='timers'?'timers':'parking';}catch(e){return 'parking';}})();
+function setRaidInfoSub(v){raidInfoSub=v==='timers'?'timers':'parking';try{localStorage.setItem('mp_raidInfoSub',raidInfoSub);}catch(e){}const it=document.querySelector('.top-nav-item[data-view="raidinfo"]');if(it)it.click();}
+function switchTopView(view){if(RAID_INFO_SUBS.has(view)){setRaidInfoSub(view);return;}const item=document.querySelector('.top-nav-item[data-view="'+view+'"]');if(item)item.click();}
 document.querySelectorAll('.top-nav-item').forEach(item=>{
   item.addEventListener('click',()=>{
     activeTopView=item.dataset.view;
-    document.querySelectorAll('.top-nav-item').forEach(i=>i.classList.toggle('active',i.dataset.view===activeTopView));
+    if(activeTopView==='raidinfo')activeTopView=raidInfoSub;
+    document.querySelectorAll('.top-nav-item').forEach(i=>i.classList.toggle('active',i.dataset.view===activeTopView||(i.dataset.view==='raidinfo'&&RAID_INFO_SUBS.has(activeTopView))));
+    const riTabs=document.getElementById('raidInfoTabs');if(riTabs)riTabs.style.display=RAID_INFO_SUBS.has(activeTopView)?'flex':'none';
+    document.querySelectorAll('#raidInfoTabs [data-risub]').forEach(t=>t.classList.toggle('active',t.dataset.risub===activeTopView));
     const isChars=activeTopView==='characters';
     const isDkp=activeTopView==='dkp';
     const isPlat=activeTopView==='plat';
     const isFarm=activeTopView==='farm';
     const isKills=activeTopView==='kills';
     const isParking=activeTopView==='parking';
+    const isKeys=activeTopView==='keys';
     const isTimers=activeTopView==='timers';
     const isGearReports=activeTopView==='gearreports';
     const isBankers=activeTopView==='bankers';
-    const isConsolidate=activeTopView==='consolidate';
     document.getElementById('tabBar').style.display=isChars?'flex':'none';
     
     document.getElementById('watchlistBar').style.display=isChars?'':'none';
@@ -2932,19 +2950,19 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     document.getElementById('farmView').style.display=isFarm?'block':'none';
     document.getElementById('killsView').style.display=isKills?'block':'none';
     document.getElementById('parkingView').style.display=isParking?'block':'none';
+    document.getElementById('keysView').style.display=isKeys?'block':'none';
     document.getElementById('timersView').style.display=isTimers?'block':'none';
     document.getElementById('gearReportsView').style.display=isGearReports?'block':'none';
     document.getElementById('bankersView').style.display=isBankers?'block':'none';
-    document.getElementById('consolidateView').style.display=isConsolidate?'block':'none';
     if(isDkp){renderDkpPanel();}
     else if(isPlat){renderPlatPanel();if(!platData.length)fetchPlatData();}
     else if(isFarm){renderFarmPanel();if(!platData.length)fetchPlatData();}
     else if(isKills){renderKillsPanel();}
     else if(isParking){renderParkingPanel();}
+    else if(isKeys){renderKeysPanel();}
     else if(isTimers){renderTimersPanel();}
     else if(isGearReports){renderGearReportsPanel();}
-    else if(isBankers){renderBankersPanel();}
-    else if(isConsolidate){renderConsolidatePanel();}
+    else if(isBankers){setBankersSub(bankersSub);}
     else{renderView();}
     maybeShowHelp(activeTopView);
   });
@@ -5311,6 +5329,12 @@ const HELP_CONTENT={
     'Charm anything and /pet attack Quillmane \u2014 if the pet answers, the app alarms: QUILLMANE IS UP.',
     'Killing Quillmane (yours or a snipe in visual range) collapses the window to an exact 78s. Use Mark cycle kill when the log couldn\u2019t see the death.',
   ]},
+  keys:{title:'Keys',sub:'Zone keys & Plane of Sky corpses',tips:[
+    'One row per raider: Old Sebilis (Trakanon Idol), Veeshan’s Peak, Sleeper’s Tomb, Charasis and the Tooth of the Cobalt Scar, from your inventory exports. “✓ bank” means the key is banked — carry it to use it.',
+    'Veeshan’s Peak shows your progress: Trakanon’s Tooth and each medallion’s pieces (x/3). Hover a cell for exactly what’s missing and where it drops.',
+    'Sky corpse: any death in the Plane of Sky, with a countdown to decay (7 days) and the rez window. A banner warns in the last 24 hours.',
+    'Sky keys vanish when you leave the zone or log out, so keys are only shown when the app has seen them: type /outputfile inventory in Sky before you die (or with your corpse open). Otherwise the corpse shows “keys unverified”.',
+  ]},
   kills:{title:'Raid Kill Tracker',sub:'Session & DKP management',tips:[
     'Click New Session to start tracking kills for a raid night. Name it and set the zone tier.',
     'Click a boss to log a kill (full DKP) or fail-tick (partial). Role checkboxes (MT, Healer, etc.) award FTE bonus DKP.',
@@ -5424,15 +5448,15 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.5.22',
+  version:'1.6.0',
   date:'September 2026',
   features:[
-    ['Supplies panel','The Food, Drink &amp; Coins panel is now <b>Supplies</b> and adds a <b>Weight</b> column (carried / Max WT, amber when close, red &#9888; when over &mdash; hover for your heaviest items). Drag a character&rsquo;s name to reorder the rows (same order as your character tabs). It&rsquo;s compact enough to sit beside two other panels.'],
-    ['Raid parking: port items','A level-eligible character carrying a <b>Vial of Velium Vapors</b> counts as parked for Dain, and a <b>Lizard Blood Potion</b> for Plane of Fear (&#129514; Can port).'],
-    ['Raid parking: gating home','A character bound at a raid spot counts only if it can gate there &mdash; the Gate spell (CLR/DRU/SHM/NEC/WIZ/MAG/ENC) or a carried <b>Vial of Swirling Smoke</b>. Bound characters that can&rsquo;t gate are listed separately.'],
+    ['Keys tab','A new <b>Keys</b> tab shows every raider&rsquo;s zone keys: Old Sebilis, Veeshan&rsquo;s Peak, Sleeper&rsquo;s Tomb, Charasis and the Tooth of the Cobalt Scar. Veeshan&rsquo;s Peak shows your progress (Trakanon&rsquo;s Tooth and each medallion&rsquo;s pieces) &mdash; hover a cell for what&rsquo;s missing and where it drops. &ldquo;&#10003; bank&rdquo; means the key is banked.'],
+    ['Plane of Sky corpses','Any death in the Plane of Sky shows on the Keys tab with a countdown to decay (7 days) and the rez window, and a banner warns in the last 24 hours. Sky keys vanish when you leave the zone, so the app only shows keys it has seen: type <b>/outputfile inventory</b> in Sky before you die (or with your corpse open).'],
+    ['Shorter menu','<b>Raid Info</b> now holds Raid Parking and Spawn Timers, and <b>Bankers</b> holds Consolidate &mdash; each as its own sub-tab.'],
   ],
   fixes:[
-    ['Carried weight','Weight reduction now applies to a bag&rsquo;s total, like the game &mdash; small items in 25% bags no longer round down to nothing (a character reading 17 now shows the in-game 18).'],
+    ['Raid Parking','Plane of Sky is no longer listed &mdash; it pays DKP but no one parks there.'],
   ],
 };
 function showWhatsNew(){
@@ -7700,7 +7724,7 @@ window.applyDBToChar    = applyDBToChar;
       activeTab = (saved && (saved === '__all__' || true)) ? saved : cn;
     }
     refresh(); // re-render and save (saveToSupabase guards against pre-load saves)
-    if(activeTopView==='bankers') renderBankersPanel();
+    if(activeTopView==='bankers') setBankersSub(bankersSub);
     if(isNew) showWatcherToast(`📦 Loaded ${cn}`);
   }
 
@@ -7875,6 +7899,7 @@ window.applyDBToChar    = applyDBToChar;
           window._skillsScanInfo={at:Date.now(),files:msg.files||0,error:msg.error||null};
         }
         if(msg.type==='raidTick') rkdOnTick(msg);
+        if(msg.type==='skyCorpses'){ skyCorpseState=msg; skyRenderWarn(); if(activeTopView==='keys') renderKeysPanel(); }
         if(msg.type==='raidEvidence') rkdOnEvidence(msg);
         if(msg.type==='raidScanProgress'||msg.type==='raidScanResult') rkdHandleScanMsg(msg);
         if(msg.type==='killScanProgress'||msg.type==='killScanResult') handleKillScanMsg(msg);
@@ -13505,7 +13530,6 @@ const PARK_LOCATIONS=[
   {id:'wl',    title:'Wakening Land',              zones:['The Wakening Land','The Wakening Lands','Plane of Growth']},
   {id:'vp',    title:"Veeshan's Peak",             zones:["Veeshan's Peak"]},
   {id:'dn',    title:'Dragon Necropolis',          zones:['Dragon Necropolis']},
-  {id:'sky',   title:'Plane of Sky',               zones:['Plane of Sky']},
   {id:'ice',   title:'Icewell Keep',               zones:['Icewell Keep','City of Thurgadin','Thurgadin']},
   {id:'cs',    title:'Cobalt Scar',                zones:['Cobalt Scar']},
   {id:'dl',    title:'The Dreadlands',             zones:['The Dreadlands']},
@@ -13528,7 +13552,6 @@ const RAID_PARK_TARGETS = [
   {name:'Tunare',                         lvl:60, zones:['The Wakening Land','The Wakening Lands','Plane of Growth'], exc:'yellow', tier:'T2', dkp:5, loc:'wl'},
   {name:"Veeshan's Peak",                 lvl:60, zones:["Veeshan's Peak"],                     exc:'yellow', tier:'T3', dkp:4, key:"Key of Veeshan", loc:'vp'},
   {name:'Zlandicar',                      lvl:60, zones:['Dragon Necropolis'],                  exc:'yellow', tier:'T4', dkp:2.5, loc:'dn'},
-  {name:'Plane of Sky',                   lvl:58, zones:['Plane of Sky'],                       exc:'yellow', tier:'T3', dkp:4, loc:'sky'},
   {name:'ToV',                            lvl:58, zones:['Western Wastes','Temple of Veeshan'], exc:'yellow', tier:'T1', dkp:7.5, loc:'wwtov', note:'Includes practice'},
   {name:'Dain Frostweaver IV',            lvl:55, zones:['Icewell Keep','City of Thurgadin','Thurgadin'],                       exc:'green',  tier:'T2', dkp:5, loc:'ice', port:'Vial of Velium Vapors'},
   {name:'Derakor the Vindicator (Vindi)', lvl:55, zones:['Kael Drakkel'],                       exc:'green',  tier:'T7', dkp:0.5, loc:'kael'},
@@ -13924,6 +13947,118 @@ function btRenderParkWarn(){
       '</div>';
   }).join('');
 }
+/* ═══ Keys board + Plane of Sky corpses ════════════════════════════════════════
+   Keys come from each raider's inventory export (bankers excluded). Sky corpses come from the
+   watcher (electron/ipc/skycorpse.js): any death in "Plane of Air" (the log's name for Sky),
+   7 days to decay, 3 h rez window. Keys on a Sky corpse are shown ONLY when an export proves
+   them (in-Sky /outputfile inventory before dying, or a corpse export) — never carried forward. */
+let skyCorpseState=null;
+const SKY_WARN_MS=24*3600e3;
+const KEY_MEDALLIONS=[
+  {n:'Jarsath',item:'Medallion of the Jarsath',npc:'Xiblin Fizzlebik (Timorous Deep)',parts:[[19961,'Upper','ground spawn, Swamp of No Hope'],[19960,'Middle','an ancient Jarsath (Firiona Vie)'],[19959,'Bottom','a bloodgill marauder (Lake of Ill Omen)']]},
+  {n:'Obulus',item:'Medallion of the Obulus',npc:'Slixin Klex (Burning Woods)',parts:[[19958,'Upper','Burnished Wooden Staff Quest'],[19957,'Middle','rotting skeleton (Dreadlands)'],[19956,'Bottom','Pained Soul (Trakanon’s Teeth)']]},
+  {n:'Kylong',item:'Medallion of the Kylong',npc:'Professor Akabao (Lake of Ill Omen)',parts:[[19964,'Upper','Niblek’s Gems quest (Chardok)'],[19963,'Middle','Verix Kyloxs Remains (Karnor’s Castle)'],[19962,'Bottom','ground spawn, Kaesora']]},
+];
+const KEY_TALISMANS=["Sontalak's Talisman","Lendiniara's Talisman","Klandicar's Talisman","Yelinak's Talisman","Zlandicar's Talisman"];
+function keysItemWhere(name,itemName,id){
+  const kn=String(itemName||'').toLowerCase();
+  const hits=(chars[name]||[]).filter(it=>it&&(id?it.id===id:String(it.name||'').replace(/\*+$/,'').trim().toLowerCase()===kn));
+  if(!hits.length)return null;
+  return hits.some(it=>!/^(bank|sharedbank)/i.test(it.location||''))?'carried':'bank';
+}
+const keysAttr=s=>esc(s==null?'':s).replace(/"/g,'&quot;');   // esc() leaves double quotes alone
+function keysCell(ok,label,tip,warn){
+  const c=ok?(warn?'#a07000':'#2f6f2f'):'var(--text-muted)';
+  return `<td style="padding:.3rem .5rem;font-size:.76rem;color:${c};white-space:nowrap" title="${keysAttr(tip)}">${label}</td>`;
+}
+function keysSimple(name,item,extraTip){
+  const w=keysItemWhere(name,item);
+  if(w==='carried')return keysCell(true,'✓',item+(extraTip?'\n'+extraTip:''));
+  if(w==='bank')return keysCell(true,'✓ bank',item+' is in the bank — carry it to use it',true);
+  return keysCell(false,'—','No '+item);
+}
+function keysVpCell(name){
+  if(keysItemWhere(name,'Key of Veeshan')){const w=keysItemWhere(name,'Key of Veeshan');return keysCell(true,w==='bank'?'✓ bank':'✓','Key of Veeshan'+(w==='bank'?' (in the bank)':''),w==='bank');}
+  const tooth=!!keysItemWhere(name,"Trakanon's Tooth"),idol=!!keysItemWhere(name,'Trakanon Idol');
+  const tip=['Key of Veeshan — hand Emperor Ganak (Trakanon’s Teeth) the three medallions + Trakanon’s Tooth:'];
+  let done=0,bits=[];
+  for(const m of KEY_MEDALLIONS){
+    if(keysItemWhere(name,m.item)){done++;bits.push(m.n+' ✓');tip.push('✓ '+m.item);continue;}
+    const have=m.parts.filter(p=>keysItemWhere(name,null,p[0]));
+    bits.push(have.length===3?'<b style="color:#2f6f2f">'+m.n+' 3/3 → turn in</b>':m.n+' '+have.length+'/3');
+    tip.push(m.item+' ('+have.length+'/3 pieces → '+(have.length===3?'READY: hand all three to ':'')+m.npc+'):');
+    m.parts.forEach(p=>tip.push('   '+(keysItemWhere(name,null,p[0])?'✓':'✗')+' '+p[1]+' Portion — '+p[2]));
+  }
+  tip.push((tooth?'✓':'✗')+" Trakanon's Tooth — drops from Trakanon (Old Sebilis)"+(idol?'':' — needs the Trakanon Idol to get in'));
+  const started=tooth||done||bits.some(b=>/[123]\/3/.test(b));
+  if(!started)return keysCell(false,'—',tip.join('\n'));
+  return keysCell(true,'<span style="color:#8a6d3b">'+(tooth?'Tooth ✓ · ':'')+bits.join(' · ')+'</span>',tip.join('\n'));
+}
+function keysStCell(name){
+  const w=keysItemWhere(name,"Sleeper's Key");
+  if(w)return keysCell(true,w==='bank'?'✓ bank':'✓',"Sleeper's Key"+(w==='bank'?' (in the bank)':''),w==='bank');
+  const tal=KEY_TALISMANS.find(t=>keysItemWhere(name,t));
+  if(tal)return keysCell(true,'<span style="color:#8a6d3b">Talisman ✓</span>',tal+" → hand it to Jaled Dar's shade (Dragon Necropolis, +1590, -120) for the Sleeper's Key. Stun trap in front of him; level 55+.");
+  return keysCell(false,'—',"No Sleeper's Key — needs one dragon Talisman (Sontalak / Lendiniara / Klandicar / Yelinak / Zlandicar), turned in to Jaled Dar's shade in Dragon Necropolis");
+}
+function skyCorpsesFor(name){
+  if(!skyCorpseState||!skyCorpseState.chars)return [];
+  const k=Object.keys(skyCorpseState.chars).find(n=>n.toLowerCase()===String(name).toLowerCase());
+  return k?(skyCorpseState.chars[k].corpses||[]):[];
+}
+function skyCorpseLabel(c,now){
+  const decay=(skyCorpseState.decayMs||7*864e5),left=c.t+decay-now,rez=(skyCorpseState.rezMs||3*3600e3)-(now-c.t);
+  const when=new Date(c.t).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  const keys=c.keys==null?'<span style="color:#a06020">keys unverified</span>':c.keys.length?c.keys.length+' key'+(c.keys.length===1?'':'s'):'<span style="color:var(--text-muted)">no keys</span>';
+  const tl=left<=0?'<span style="color:var(--text-muted)">decayed</span>':'<b style="color:'+(left<=SKY_WARN_MS?'#b03030':'inherit')+'">'+btFmtDur(left)+'</b> left';
+  const tip='Sky corpse — died '+when+(c.by?' (slain by '+c.by+')':'')+'\n'+
+    (c.keys==null?'Keys unverified: type /outputfile inventory in Sky before you die (or with your corpse open) so the app can see them.':
+      c.keys.length?'Keys (verified by '+(c.keysSrc==='corpse'?'a corpse export':'an inventory export in Sky')+'):\n  '+c.keys.join('\n  '):'Verified: no Sky keys on this corpse.')+
+    (rez>0?'\nRez window: '+btFmtDur(rez)+' left':'');
+  return {html:'🗝 '+keys+' · '+tl+(rez>0?' · rez '+btFmtDur(rez):''),tip,left};
+}
+function renderKeysPanel(){
+  const panel=document.getElementById('keysPanel');if(!panel)return;
+  const names=charNames();
+  if(!names.length){panel.innerHTML='<div class="empty-state">No characters loaded.</div>';return;}
+  const now=Date.now();
+  const th=h=>'<th style="padding:.3rem .5rem;font-size:.66rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left;white-space:nowrap">'+h+'</th>';
+  const rows=names.map(n=>{
+    const cs=skyCorpsesFor(n).filter(c=>now-c.t<(skyCorpseState.decayMs||7*864e5)+864e5).map(c=>skyCorpseLabel(c,now));
+    const sky=cs.length?cs.map(x=>`<div title="${keysAttr(x.tip)}">${x.html}</div>`).join(''):'<span style="color:var(--text-muted)">—</span>';
+    return '<tr style="border-bottom:1px solid var(--border)"><td class="watchlist-item-name" style="padding:.3rem .5rem;white-space:nowrap">'+esc(n)+'</td>'+
+      keysSimple(n,'Trakanon Idol')+keysVpCell(n)+keysStCell(n)+keysSimple(n,'Key to Charasis')+
+      keysSimple(n,'Tooth of the Cobalt Scar','Druid / wizard ports to Cobalt Scar, Wakening Land and Great Divide need everyone to carry it')+
+      `<td style="padding:.3rem .5rem;font-size:.74rem;white-space:nowrap">${sky}</td></tr>`;
+  }).join('');
+  panel.innerHTML='<div class="rc-title" style="font-family:\'Cinzel\',serif;letter-spacing:.06em;margin-bottom:.3rem">KEYS</div>'+
+    '<div style="font-size:.74rem;color:var(--text-muted);margin-bottom:.6rem">From your inventory exports (raiders only). Hover a cell for details and what’s missing. <b>Sky corpse</b>: any death in the Plane of Sky — corpses decay after 7 days. Sky keys vanish when you leave the zone, so the app only trusts keys it has seen: type <code>/outputfile inventory</code> in Sky before you die, or with your corpse open.</div>'+
+    '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr style="border-bottom:1px solid var(--border)"><th></th>'+
+    th('Old Sebilis')+th("Veeshan's Peak")+th("Sleeper's Tomb")+th('Charasis')+th('Cobalt Scar')+th('Sky corpse')+'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+// Countdown banner: a raider's Sky corpse with keys (or unverified keys) inside its last 24 h.
+function skyWarnHidden(){try{return new Set(JSON.parse(localStorage.getItem('mp_skyWarnHide')||'[]'));}catch(e){return new Set();}}
+window.skyWarnHide=function(k){const s=skyWarnHidden();s.add(k);try{localStorage.setItem('mp_skyWarnHide',JSON.stringify([...s].slice(-50)));}catch(e){}skyRenderWarn();};
+function skyRenderWarn(){
+  const wrap=document.getElementById('skyCorpseWarn');if(!wrap)return;
+  if(!skyCorpseState){wrap.innerHTML='';return;}
+  const now=Date.now(),hidden=skyWarnHidden(),lines=[];
+  for(const n of charNames()){
+    for(const c of skyCorpsesFor(n)){
+      if(c.keys&&!c.keys.length)continue;                       // verified empty — nothing to lose
+      const x=skyCorpseLabel(c,now),k=n+'|'+c.t;
+      if(x.left<=0||x.left>SKY_WARN_MS||hidden.has(k))continue;
+      lines.push({n,c,x,k});
+    }
+  }
+  if(!lines.length){wrap.innerHTML='';return;}
+  lines.sort((a,b)=>a.x.left-b.x.left);
+  wrap.innerHTML=lines.map(({n,c,x,k})=>'<div style="display:flex;align-items:center;gap:.4rem;padding:.18rem .5rem;background:rgba(176,48,48,.10);border:1px solid #b03030;border-radius:4px;margin-bottom:.22rem;white-space:nowrap" title="'+keysAttr(x.tip)+'">'+
+    '<span style="font-size:.72rem;line-height:1">⏳</span>'+
+    '<span style="flex:1;min-width:0;font-size:.72rem;overflow:hidden;text-overflow:ellipsis"><b>'+esc(n)+'</b>’s Sky corpse decays in <b>'+btFmtDur(x.left)+'</b> — '+(c.keys==null?'<span style="color:#a06020">keys unverified</span>':esc(c.keys.join(', ')))+'</span>'+
+    '<button class="btn" style="font-size:.6rem;padding:.1rem .4rem;flex:0 0 auto" onclick="skyWarnHide(decodeURIComponent(\''+encodeURIComponent(k)+'\'))">Hide</button></div>').join('');
+}
+setInterval(()=>{skyRenderWarn();if(typeof activeTopView!=='undefined'&&activeTopView==='keys')renderKeysPanel();},30e3);
 function btParseDur(s){ s=(s||'').trim(); let m=0; const d=s.match(/(\d+)\s*d/); if(d)m+=+d[1]*1440; const h=s.match(/(\d+)\s*h/); if(h)m+=+h[1]*60; const mm=s.match(/(\d+)\s*m(?!o)/); if(mm)m+=+mm[1]; return m; }
 function btFmtDur(ms){ if(ms<0)ms=-ms; let s=Math.floor(ms/1000); const d=Math.floor(s/86400); s-=d*86400; const h=Math.floor(s/3600); s-=h*3600; const m=Math.floor(s/60); if(d)return d+'d '+(h?h+'h':'0h'); if(h)return h+'h '+(m?m+'m':''); return m+'m'; }
 function btLocalInput(ts){ const p=n=>String(n).padStart(2,'0'); const d=new Date(ts); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes()); }
@@ -14818,6 +14953,17 @@ async function loadExcludedCharsFromSupabase(){
 // now correctly results in an empty registry that persists as-is.
 
 // ── Bankers tab ──────────────────────────────────────────────────────────────
+// Bankers tab: two sub-tabs — the banker list and Consolidate (moved off the top menu, 1.5.23).
+let bankersSub=(function(){try{return localStorage.getItem('mp_bankersSub')==='consolidate'?'consolidate':'bankers';}catch(e){return 'bankers';}})();
+function setBankersSub(v){
+  bankersSub=v==='consolidate'?'consolidate':'bankers';
+  try{localStorage.setItem('mp_bankersSub',bankersSub);}catch(e){}
+  document.querySelectorAll('#bankersView [data-bsub]').forEach(t=>t.classList.toggle('active',t.dataset.bsub===bankersSub));
+  const bp=document.getElementById('bankersPanel'),cp=document.getElementById('consolidatePanel');
+  if(bp)bp.style.display=bankersSub==='bankers'?'':'none';
+  if(cp)cp.style.display=bankersSub==='consolidate'?'':'none';
+  if(bankersSub==='consolidate')renderConsolidatePanel();else renderBankersPanel();
+}
 function renderBankersPanel(){
   const panel=document.getElementById('bankersPanel');
   if(!panel)return;

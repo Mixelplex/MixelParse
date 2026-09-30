@@ -13,6 +13,7 @@ const path     = require('path');
 const crypto   = require('crypto');
 const chokidar = require('chokidar');
 const resistWatch = require('./resistwatch');   // silent resist data recorder (watch-only)
+const skyCorpse   = require('./skycorpse');     // Plane of Sky corpses + the keys on them
 
 let _onMessage = null;   // set by start()
 let _config    = null;   // MixelParse app config (eqDir, logDir, notesFile)
@@ -200,7 +201,11 @@ function startInventoryWatcher() {
       const files = fs.readdirSync(_config.eqDir);
       for (const f of files) {
         if (!f.endsWith('-Inventory.txt')) continue;
-        if (RE_CORPSE_INV.test(f)) continue;
+        if (RE_CORPSE_INV.test(f)) {   // "<Name>'s corpse123-Inventory.txt" -> keys on a Sky corpse
+          const cp = path.join(_config.eqDir, f);
+          try { const mt = fs.statSync(cp).mtimeMs; if (invMtimes[f] !== mt) { invMtimes[f] = mt; skyCorpse.corpseInventory(f, fs.readFileSync(cp, 'utf8'), mt); } } catch {}
+          continue;
+        }
         const fp = path.join(_config.eqDir, f);
         try {
           const mtime = fs.statSync(fp).mtimeMs;
@@ -238,6 +243,7 @@ function handleInvFile(fp) {
     invCache[filename] = hash;
     invContent[filename] = content;
     broadcast({ type: 'inventory', filename, content });
+    try { skyCorpse.inventory(filename.replace(/-Inventory\.txt$/i, ''), content, fs.statSync(fp).mtimeMs); } catch {}
     log('[INV] Sent:', filename);
   } catch (e) {
     err('Failed to read inventory file:', fp, e.message);
@@ -1051,6 +1057,7 @@ function raidBackfill() {
 function processLogLine(line, charName) {
   raidEvidence(line, charName);
   try { resistWatch.line(line, charName, _rtLineTs(line), zoneState[charName] && zoneState[charName].zone); } catch (e) { err('[RESIST]', e.message); }
+  try { if (skyCorpse.line(line, charName, _rtLineTs(line))) skyCorpse.emit(); } catch (e) { err('[SKY]', e.message); }
   const cl = coinLine(line);
   if (cl) broadcast({ type: 'coinLine', charName, ...cl });
   if (line.indexOf('become better at') >= 0) {
@@ -1431,6 +1438,8 @@ function start({ config, logPosPath, factionPath, onMessage }) {
   _onMessage = onMessage;
   _running = true;
   resistWatch.init({ eqDir: config && config.eqDir, dataDir: factionPath ? path.dirname(factionPath) : null, log, err });
+  skyCorpse.init({ dataDir: factionPath ? path.dirname(factionPath) : null, log, err, broadcast });
+  if (config && config.logDir && config.eqDir) setTimeout(() => { skyCorpse.backfill(config.logDir, config.eqDir).catch(e => err('[SKY] backfill', e.message)); }, 3000);
 
   loadPersisted();
   startInventoryWatcher();
@@ -2028,6 +2037,7 @@ function command(cmd, args) {
   if (cmd === 'requestAll') {
     sendFullSnapshot();
     raidBackfill();
+    skyCorpse.emit();
   } else if (cmd === 'reload') {
     stop();
     start({ config: _config, logPosPath: _logPosPath, factionPath: _factionPath, onMessage: _onMessage });

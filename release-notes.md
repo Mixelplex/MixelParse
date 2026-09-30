@@ -1,12 +1,17 @@
-## 1.5.22
+## 1.6.0
+
+- **Keys tab** — every raider's zone keys: Old Sebilis (Trakanon Idol), Veeshan's Peak, Sleeper's Tomb, Charasis and the Tooth of the Cobalt Scar, read from your inventory exports. Veeshan's Peak shows your progress — Trakanon's Tooth and each medallion's pieces (x/3) — and a finished set says "turn in". Hover any cell for what's missing, where it drops and who to hand it to. "✓ bank" means the key is banked.
+- **Plane of Sky corpses** — any death in Sky (Key Master, a duel, anything) shows on the Keys tab with a countdown to decay (7 days) and the 3-hour rez window, and a banner counts down the last 24 hours. Sky keys vanish when you leave the zone or log out, so the app only shows keys it has seen: type `/outputfile inventory` in Sky before you die, or with your corpse open. Otherwise the corpse says "keys unverified".
+- **Shorter menu** — **Raid Info** now holds Raid Parking and Spawn Timers, and **Bankers** holds Consolidate, each as its own sub-tab.
+- **Raid Parking** — Plane of Sky is no longer listed: it pays DKP, but no one parks there.
+
+Everything from 1.5.22 and earlier is included:
 
 - **Supplies panel** — the Food, Drink & Coins panel is now **Supplies** and adds a **Weight** column (carried / Max WT: amber when close, red ⚠ when over; hover for your heaviest items). Drag a character's name to reorder the rows (same order as your character tabs). Compact enough to sit beside two other panels.
 - **Raid parking: port items** — a level-eligible character carrying a **Vial of Velium Vapors** counts as parked for Dain, and a **Lizard Blood Potion** for Plane of Fear (🧪 Can port). Items in the bank don't count.
 - **Raid parking: gating home** — a character bound at a raid spot counts only if it can gate there: the Gate spell (CLR/DRU/SHM/NEC/WIZ/MAG/ENC) or a carried **Vial of Swirling Smoke**. Bound characters that can't gate are listed separately.
 - **Carried weight fix** — weight reduction now applies to a bag's total, like the game: small items in 25% bags no longer round down to nothing.
 - **Behind the scenes** — the app keeps a local log of spells resisted / landed on your characters (`resist-watch.jsonl` in the app's data folder) for future resist tools. Nothing is uploaded and nothing in the app uses it yet.
-
-Everything from 1.5.21 and earlier is included:
 
 - **Carried weight** — the Stats tab shows your weight against Max WT (your STR): amber when close, red ⚠ when over. Hover it for your heaviest items and what to bank or move into a weight-reduction bag. Checked against the game: a stack weighs as one item, bag weight reduction applies to what's inside, 40 coins weigh 1.
 - **Coins** — click a Coins chip on the **Food, Drink & Coins** panel (or ✎ on the Stats tab) and type your coins once. Loot, splits, merchant sales, purchases and trades from your logs keep it current, and coins count toward your weight. Copper and silver from loot are only added if you tick "I keep copper & silver". Banking isn't in the log — re-enter after using the bank.
