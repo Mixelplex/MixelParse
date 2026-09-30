@@ -126,7 +126,7 @@ Plan: Phase 1 source research (done) → Phase 2 in-game screenshots (user) → 
 - **Spawn timers — ON HOLD (user, 2026-09-28).** Discord timer feed: the timer bot's owner agreed to think about a read-only feed (JSON link / webhook / announcement channel / sheet); nothing to build until they answer. No self-bot / token / automated account access — user-account automation was ruled out. Separate, still open: shared board is last-writer-wins (btEnsureLoaded loads once, btSave writes the whole board) — independent of Discord; plus missing respawn timers (Takish 12h30, Vilefang 1d, Vaniki 122h) and parkAck reset after a quake not saved.
 - **Session auto-start on fresh PC — WATCH** (watcher tails every `eqlog_*`; confirm toast on a toon with no inventory file; watch mule auto-starts / CPU).
 - **Raid kill Auto-Detect — WATCH-ONLY trial** (Kill Tracker → 🎯 Auto-Detect). Next: collect a few raids → decide on pre-filled ToD prompts for Strong, pick-list for Pick/Weak.
-- Backstab scoring rework — user's decision pending (wiki: damage doesn't depend on delay; app divides by delay).
+- ~~Backstab scoring rework~~ — done in 1.5.18 (wiki Game Mechanics formula × 0.3, no longer divided by delay).
 - User's remaining wiki recommendations #4–8 (from the 1.5.9 recap).
 - Consolidate smart routing · watcher de-level message · Fist Wraps override · LORE flags (Regal Band, Spirit Wracked Cord) · leveling bands/guide · spellbook checker · DKP normalization · WinEQ2 24H2 crash.
 - `Upload.txt` / `session-upload.zip` are for web-chat handoffs only; working locally, read the repo directly.
