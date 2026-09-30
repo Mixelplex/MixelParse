@@ -5448,15 +5448,11 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.6.0',
+  version:'1.6.1',
   date:'September 2026',
-  features:[
-    ['Keys tab','A new <b>Keys</b> tab shows every raider&rsquo;s zone keys: Old Sebilis, Veeshan&rsquo;s Peak, Sleeper&rsquo;s Tomb, Charasis and the Tooth of the Cobalt Scar. Veeshan&rsquo;s Peak shows your progress (Trakanon&rsquo;s Tooth and each medallion&rsquo;s pieces) &mdash; hover a cell for what&rsquo;s missing and where it drops. &ldquo;&#10003; bank&rdquo; means the key is banked.'],
-    ['Plane of Sky corpses','Any death in the Plane of Sky shows on the Keys tab with a countdown to decay (7 days) and the rez window, and a banner warns in the last 24 hours. Sky keys vanish when you leave the zone, so the app only shows keys it has seen: type <b>/outputfile inventory</b> in Sky before you die (or with your corpse open).'],
-    ['Shorter menu','<b>Raid Info</b> now holds Raid Parking and Spawn Timers, and <b>Bankers</b> holds Consolidate &mdash; each as its own sub-tab.'],
-  ],
+  features:[],
   fixes:[
-    ['Raid Parking','Plane of Sky is no longer listed &mdash; it pays DKP but no one parks there.'],
+    ['Raid consumes: Eye of Zomm','The Stalking Probe check now counts any Eye of Zomm: a <b>Stalking Probe</b>, <b>Holgresh Elder Beads</b> or a <b>Clay Bracelet</b> (all click from inventory, any class), and Wizards and Magicians pass on their own spell. Characters holding the beads no longer show &#9680; Mostly Ready. The Watch List follows the same rule.'],
   ],
 };
 function showWhatsNew(){
@@ -15415,7 +15411,10 @@ const RAID_CONSUMES = [
   {name:'Journeyman\'s Boots',         required:'yellow', note:'SoW — required if no self-SoW', skipClasses:SOW_CLASSES},
   {name:'Ring of Shadows',             required:'yellow', note:'Invis — required if no self-invis', skipClasses:INVIS_CLASSES},
   {name:'Larrikan\'s Mask',            required:'yellow', note:'Invis (alt) — required if no self-invis', skipClasses:INVIS_CLASSES},
-  {name:'Stalking Probe',              required:'yellow', note:'5× tracking (instant)'},
+  // Eye of Zomm (SE 67). Wizards and Magicians cast it (lvl 8, spells_us.txt); anyone else needs a
+  // clicky. An item's class list only limits EQUIPPING it — any class clicks it from inventory
+  // (owner, 2026-09-30). Probe: 5 charges, instant · Beads: unlimited, 4 s · Clay Bracelet: instant.
+  {name:'Stalking Probe', label:'Eye of Zomm: Stalking Probe, Holgresh Elder Beads or Clay Bracelet', anyOf:['Stalking Probe','Holgresh Elder Beads','Clay Bracelet'], castClasses:new Set(['Wizard','Magician']), required:'yellow', note:'Eye of Zomm (scouting) — Wizards/Magicians cast it; others: Probe 5× instant · Beads unlimited, 4s · Clay Bracelet instant'},
   // ── Tracked utility (yellow check only, never red) ──────────────────────────
   {name:'Pegasus Feather Cloak',       required:'tracked', note:'Levitate clicky — nice to have'},
 ];
@@ -15438,6 +15437,7 @@ function getConsumeStatus(consume, charName){
   const cls = (charMeta[charName]||{}).class || '';
   if(consume.classOnly && !consume.classOnly.has(cls)) return 'na';
   if(consume.skipClasses && consume.skipClasses.has(cls)) return 'na';
+  if(consume.castClasses && consume.castClasses.has(cls)) return 'present';   // casts the effect itself
 
   // Invis items — having either one satisfies both
   if(consume.name && INVIS_ALTS.includes(consume.name)){
@@ -15501,6 +15501,7 @@ function charItemCount(charName, itemName){
 function _consumeOv(charName){ return (charMeta[charName]||{}).consumeOverrides || null; }
 function _consumeHave(charName, c){
   if(c.name && INVIS_ALTS.includes(c.name)) return Math.max(charItemCount(charName,INVIS_ALTS[0]),charItemCount(charName,INVIS_ALTS[1]));
+  if(c.castClasses && c.castClasses.has((charMeta[charName]||{}).class||'')) return Math.max(1, ...(c.anyOf||[c.name]).map(n=>charItemCount(charName,n)));   // has the spell
   if(c.anyOf) return Math.max(0, ...c.anyOf.map(n=>charItemCount(charName,n)));
   return charItemCount(charName, c.name);
 }
@@ -16571,6 +16572,10 @@ function watchlistStatus(charName, itemName){
     const have=charItemCount(charName, itemName);
     return {status: have>0?'present':'missing_red', have, target:1, custom:true, count:have};
   }
+  // A watched raid consume with alternatives (Stalking Probe ↔ Holgresh Elder Beads ↔ Clay Bracelet)
+  // counts any of them — or the class's own spell (Wizard / Magician: Eye of Zomm).
+  const _alt=RAID_CONSUMES.find(c=>c.anyOf&&c.anyOf.some(a=>normItemKey(a)===normItemKey(itemName)));
+  if(_alt&&!charHasItem(charName,itemName)&&(charHasAnyOf(charName,_alt.anyOf)||(_alt.castClasses&&_alt.castClasses.has((charMeta[charName]||{}).class||''))))return {status:'present',count:0};
   return {status: charHasItem(charName, itemName) ? 'present' : 'missing_red', count:charItemCount(charName, itemName)};
 }
 // Watch List ⚙ → "When you have more than one": 'sup' ✔³ (default) | 'paren' ✔ (3) | 'none' ✔.
