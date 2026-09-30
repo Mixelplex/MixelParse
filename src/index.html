@@ -3127,6 +3127,55 @@ document.getElementById('applyDBBtn').addEventListener('click',()=>{const matche
 if(base){document.getElementById('statCardsContainer').innerHTML=buildStatCards(base,charGear,name,selClass,selLevel);}else{document.getElementById('statCardsContainer').innerHTML='<div class="empty-state">Enter your current in-game stats to get started.</div>';}
 }
 
+// ── Coins (Stats tab) ─────────────────────────────────────────────────────────
+// P99's inventory export has no coins, and banking / destroying coins isn't logged. So: the user
+// types their coins once (charMeta[name].coins = {pp,gp,sp,cp,ts,small}) and every coin line the
+// log shows after that (loot, splits, merchant sales, purchases, trades) is added. Most players
+// destroy copper / silver, so those are only added when `small` ("I keep copper & silver") is on;
+// what was typed in always counts. Re-enter after banking coins.
+let coinLog={};   // name(lower) -> {pp,gp,sp,cp,lines,lastTs,upTo, since}  — log sums after the typed count
+let _coinScanPending=null;
+function coinsRequestScan(name){
+  const c=charMeta[name]&&charMeta[name].coins; if(!c||!c.ts)return;
+  const k=name.toLowerCase(),cur=coinLog[k];
+  if(cur&&cur.since===c.ts)return;                 // already summed for this starting point
+  if(!(window.MixelParseApp&&window.MixelParseApp.watcherCommand))return;
+  coinLog[k]={pp:0,gp:0,sp:0,cp:0,lines:0,lastTs:0,upTo:Infinity,since:c.ts,pending:true};
+  _coinScanPending=Object.assign(_coinScanPending||{},{[name]:c.ts});
+  window.MixelParseApp.watcherCommand('scanCoins',{chars:{[name]:c.ts}});
+}
+function coinsOnScan(msg){
+  if(msg.error||!msg.totals)return;
+  for(const[name,t] of Object.entries(msg.totals)){
+    const k=name.toLowerCase(),c=charMeta[name]&&charMeta[name].coins; if(!c)continue;
+    coinLog[k]={pp:t.pp,gp:t.gp,sp:t.sp,cp:t.cp,lines:t.lines,lastTs:t.lastTs,upTo:msg.scannedAt,since:c.ts};
+  }
+  if(typeof activeTab!=='undefined'&&msg.totals[activeTab]&&typeof renderStatsPanel==='function')renderStatsPanel();
+}
+function coinsOnLine(msg){
+  const name=Object.keys(charMeta).find(n=>n.toLowerCase()===String(msg.charName||'').toLowerCase());
+  const c=name&&charMeta[name].coins; if(!c||!(msg.ts>c.ts))return;
+  const L=coinLog[name.toLowerCase()]; if(!L||L.pending||msg.ts<=L.upTo)return;   // the scan already has it / will have it
+  L.pp+=msg.pp;L.gp+=msg.gp;L.sp+=msg.sp;L.cp+=msg.cp;L.lines++;L.lastTs=Math.max(L.lastTs,msg.ts);
+  if(activeTab===name&&typeof renderStatsPanel==='function'){clearTimeout(coinsOnLine._t);coinsOnLine._t=setTimeout(renderStatsPanel,1500);}
+}
+// Current coins: typed count + logged changes after it. null when nothing was typed.
+function coinsFor(name){
+  const c=charMeta[name]&&charMeta[name].coins; if(!c)return null;
+  const L=coinLog[name.toLowerCase()]||{pp:0,gp:0,sp:0,cp:0,lines:0};
+  const o={pp:Math.max(0,(+c.pp||0)+L.pp),gp:Math.max(0,(+c.gp||0)+L.gp),
+    sp:Math.max(0,(+c.sp||0)+(c.small?L.sp:Math.min(0,L.sp))),cp:Math.max(0,(+c.cp||0)+(c.small?L.cp:Math.min(0,L.cp)))};
+  o.count=o.pp+o.gp+o.sp+o.cp;o.lines=L.lines;o.since=c.ts;o.small=!!c.small;o.pending=!!L.pending;
+  return o;
+}
+window.coinsEditToggle=function(){const e=document.getElementById('coinsEdit');if(e)e.style.display=e.style.display==='none'?'':'none';};
+window.coinsSave=function(name){
+  const v=id=>Math.max(0,parseInt((document.getElementById(id)||{}).value,10)||0);
+  if(!charMeta[name])charMeta[name]={};
+  charMeta[name].coins={pp:v('coinPP'),gp:v('coinGP'),sp:v('coinSP'),cp:v('coinCP'),ts:Date.now(),small:!!(document.getElementById('coinSmall')||{}).checked};
+  delete coinLog[name.toLowerCase()];
+  saveState();renderStatsPanel();
+};
 // ── Carried weight (Stats tab) ─────────────────────────────────────────────────
 // P99 rule, checked on Mixelems 2026-09-30 (90 → 89 after moving 4 stacks into a 100% bag, both
 // exact): a stack weighs ONE item's WT whatever its count; a bag's weight reduction applies to
@@ -3170,6 +3219,9 @@ const hasteRow=`<div class="stat-row"><span class="stat-row-label">Haste</span><
 let weightRow='';
 try{
   const cw=carriedWeight(charName),maxWt=Math.min(255,(base.stats[0]||0)+gearSum.stats[0]+buffStats[0]);
+  coinsRequestScan(charName);
+  const coins=coinsFor(charName);
+  if(coins){cw.tenths+=Math.floor(coins.count/4);cw.wt=Math.floor(cw.tenths/10);}   // 40 coins = 1
   if(cw.tenths||cw.rows.length){
     const over=cw.wt>maxWt,near=!over&&maxWt&&cw.wt>=maxWt*0.9;
     const col=over?'#b03030':near?'#a07000':'';
@@ -3179,10 +3231,24 @@ try{
     if(over)tips.push('Over by '+(cw.wt-maxWt)+' — you move slower until you\'re back to '+maxWt+'.');
     const loose=cw.rows.filter(r=>!r.worn&&!r.red&&!r.shell).slice(0,3).map(r=>r.name+' '+f(r.w));
     if((over||near)&&loose.length)tips.push((cw.fullBags.length?'Move into '+[...new Set(cw.fullBags)].join(' / ')+' (weighs nothing inside) or bank: ':'Bank them or use a weight-reduction bag: ')+loose.join(', ')+'.');
-    const tip='Carried weight: '+cw.wt+' of '+maxWt+' (Max WT = STR). Coins add 1 per 40 — they aren\'t in the inventory export.'+
+    const tip='Carried weight: '+cw.wt+' of '+maxWt+' (Max WT = STR).'+(coins?' Includes '+coins.count+' coins (40 coins = 1).':' Coins not included — set them on the Coins row (40 coins = 1).')+
       (top.length?'\nHeaviest:\n'+top.join('\n'):'')+(tips.length?'\n'+tips.join('\n'):'')+
       (cw.unknown.length?'\nNo weight on the wiki for: '+[...new Set(cw.unknown)].slice(0,6).join(', ')+(cw.unknown.length>6?'…':''):'');
-    weightRow=`<div class="stat-row" title="${esc(tip)}"><span class="stat-row-label">Weight</span><div class="stat-row-vals"><span class="val-base">&mdash;</span><span class="val-gear zero"></span><span class="val-total" style="${col?'color:'+col+';font-weight:700':''}">${cw.wt}/${maxWt}${over?' ⚠':''}</span><span style="min-width:1.8rem;font-size:.68rem;color:var(--text-muted)">+coins</span></div></div>`;
+    weightRow=`<div class="stat-row" title="${esc(tip)}"><span class="stat-row-label">Weight</span><div class="stat-row-vals"><span class="val-base">&mdash;</span><span class="val-gear zero"></span><span class="val-total" style="${col?'color:'+col+';font-weight:700':''}">${cw.wt}/${maxWt}${over?' ⚠':''}</span><span style="min-width:1.8rem;font-size:.68rem;color:var(--text-muted)">${coins?'':'+coins'}</span></div></div>`;
+  }
+  {
+    const c=charMeta[charName]&&charMeta[charName].coins||{};
+    const when=coins?new Date(coins.since).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+    const ctip=coins?('Typed in '+when+(coins.pending?' — reading your logs…':' + '+coins.lines+' coin line'+(coins.lines===1?'':'s')+' from your logs since (loot, splits, sales, purchases, trades).')+
+      (coins.small?'':' Copper and silver you loot aren\'t added (assumed destroyed) — tick "I keep copper & silver" if you keep them.')+
+      ' Banking and destroying coins aren\'t in the log: re-enter after you use the bank.'):'Type your coins from the Inventory window once; your logs keep it current.';
+    const inp=(id,v,l)=>`<label style="font-size:.68rem;color:var(--text-muted)">${l}<input id="${id}" type="number" min="0" value="${v||0}" style="width:4.2rem;margin-left:.2rem"></label>`;
+    weightRow+=`<div class="stat-row" title="${esc(ctip)}"><span class="stat-row-label">Coins</span><div class="stat-row-vals"><span class="val-base">&mdash;</span><span class="val-gear zero"></span><span class="val-total" style="font-size:.72rem;white-space:nowrap">${coins?coins.pp+'p '+coins.gp+'g '+coins.sp+'s '+coins.cp+'c':'not set'}</span><span style="min-width:1.8rem"><button class="btn" style="font-size:.6rem;padding:.05rem .35rem" onclick="coinsEditToggle()" title="Enter the coins shown in your Inventory window">&#9998;</button></span></div></div>`+
+      `<div id="coinsEdit" style="display:none;padding:.35rem .4rem;border:1px solid var(--border);border-radius:4px;margin:.2rem 0;font-size:.7rem">`+
+      `<div style="margin-bottom:.25rem;color:var(--text-muted)">From your Inventory window right now:</div>`+
+      `<div style="display:flex;flex-wrap:wrap;gap:.35rem">${inp('coinPP',coins?coins.pp:c.pp,'pp')}${inp('coinGP',coins?coins.gp:c.gp,'gp')}${inp('coinSP',coins?coins.sp:c.sp,'sp')}${inp('coinCP',coins?coins.cp:c.cp,'cp')}</div>`+
+      `<label style="display:block;margin:.3rem 0"><input id="coinSmall" type="checkbox" ${c.small?'checked':''}> I keep copper &amp; silver (don't assume I destroy them)</label>`+
+      `<button class="btn" style="font-size:.65rem" onclick="coinsSave(decodeURIComponent('${encodeURIComponent(charName)}'))">Save</button> <button class="btn" style="font-size:.65rem" onclick="coinsEditToggle()">Cancel</button></div>`;
   }
 }catch(e){console.warn('weight row',e);}
 let dpsRows='';
@@ -5759,7 +5825,7 @@ async function loadFromSupabase(){
           }
         }
         if(row.base_stats?.questData)questData[row.char_name]=row.base_stats.questData;
-        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,factionValues:_fv,questData:_qd,buffs:_bu,planBuffed:_pb,plan:_pl,spellbook:_sb,spellIgnore:_si,customWeights:_cw,consumeOverrides:_co,deity:_de,skills:_sk,skillsManual:_skm,...bs}=row.base_stats||{};
+        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,factionValues:_fv,questData:_qd,buffs:_bu,planBuffed:_pb,plan:_pl,coins:_coin,spellbook:_sb,spellIgnore:_si,customWeights:_cw,consumeOverrides:_co,deity:_de,skills:_sk,skillsManual:_skm,...bs}=row.base_stats||{};
         const hasRealStats=bs.stats||bs.resists;
         charMeta[row.char_name]={
           class:row.class||'',race:row.race||'',level:row.level||1,
@@ -5776,6 +5842,7 @@ async function loadFromSupabase(){
           consumeOverrides:row.base_stats?.consumeOverrides||null,
           planBuffed:row.base_stats?.planBuffed??undefined,
           plan:row.base_stats?.plan||undefined,            // Gear Planner Build / Target / Tradeable / 🔒 locks
+          coins:row.base_stats?.coins||undefined,          // coins typed in (Stats tab) — logs add to it
           deity:row.base_stats?.deity||'',
           skills:row.base_stats?.skills||{},
           skillsManual:row.base_stats?.skillsManual||{},
@@ -5898,6 +5965,7 @@ function _charSaveRow(cn){
         consumeOverrides:charMeta[cn]?.consumeOverrides||null,
         planBuffed:charMeta[cn]?.planBuffed,
         plan:charMeta[cn]?.plan||null,
+        coins:charMeta[cn]?.coins||null,
         deity:charMeta[cn]?.deity||null,
         skills:charMeta[cn]?.skills||null,              // highest value per skill, from logs
         skillsManual:charMeta[cn]?.skillsManual||null,  // typed from the in-game Skills window
@@ -7652,6 +7720,8 @@ window.applyDBToChar    = applyDBToChar;
           if (msg.loc) _lastLoc = msg.loc;  // attach loc snapshot for /note set pin placement
           _handleNotesUpdate(msg.text, msg.timestamp);
         }
+        if(msg.type === 'coinLine'){ coinsOnLine(msg); }
+        if(msg.type === 'coinScanResult'){ coinsOnScan(msg); }
         if(msg.type === 'zoneUpdate'){
           charZones[msg.charName] = { zone: msg.zone, timestamp: msg.timestamp };
           knownWatcherChars.add(msg.charName);

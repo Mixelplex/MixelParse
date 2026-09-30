@@ -35,7 +35,7 @@ Supersedes `HANDOFF_v1.5.14.md` (kept for history — its 1.5.12–1.5.16 detail
 | 1.5.18 | Published 2026-09-29 | Weapon ranking calibrated to the P99 wiki (details §3.1) |
 | 1.5.19 | Published 2026-09-29 | Auto-Detect: guild-prefixed ticks, faction-hit + rampage/flurry evidence (§3.2) |
 | 1.5.20 | Published 2026-09-29 | Guild DKP update + dated boss values (§3.3). Release run confirmed started; 1.5.19's finished OK |
-| **local** | **Unpublished** | `9ca1d34` weight / encumbrance check (§3.4) + handoff commits. Installed on the owner's PC as a 1.5.20 test build (2026-09-29 23:52). Publishing = 1.5.21 |
+| **local** | **Unpublished** | weight / encumbrance check + coins (§3.4), park-warning fix (§4). Installed on the owner's PC as a 1.5.20 test build. Publishing = 1.5.21 |
 
 Release flow (owner's all-clear only): bump `package.json` + `package-lock.json` (3 occurrences), replace the
 `WHATS_NEW` object in `src/index.html` (version, date, features, fixes), prepend a section to `release-notes.md`
@@ -47,7 +47,9 @@ Release flow (owner's all-clear only): bump `package.json` + `package-lock.json`
 
 **For 1.5.21 What's New / release notes:** "Carried weight on the Stats tab — Weight row shows current / Max WT
 (= STR), amber when close, red ⚠ when over; hover for the heaviest items and what to bank or move into a
-weight-reduction bag. Coins aren't in the inventory export (40 coins = 1)."
+weight-reduction bag. Coins: type them once on the Coins row; loot, splits, sales and purchases from your logs keep it
+current (copper/silver only if you keep them). Fix: the 'no toon parked' warning now matches the Raid Parking tab
+(a character you don't have a tab for no longer counts as parked)."
 
 ---
 
@@ -150,12 +152,27 @@ weight-reduction bag. Coins aren't in the inventory export (40 coins = 1)."
 - Stats tab → POOLS & COMBAT → **Weight** row: `wt/maxWt` (amber ≥ 90%, red ⚠ over), "+coins" note, tooltip with the
   6 heaviest items, "Over by N — you move slower until you're back to X", and a move/bank suggestion that names
   every 100% bag the character carries (bags themselves excluded from suggestions).
-- **Coins are not in P99's `/outputfile inventory` export** (no coin lines; `charCoins` stays empty), so the row
-  shows items only + "+coins". A future improvement: let the user type coins, or read them from somewhere.
+- **Coins** (added 2026-09-30, local): P99's `/outputfile inventory` has no coin lines, and banking / destroying
+  coins isn't logged. So the user types coins once (Stats tab → Coins row ✎ → `charMeta[name].coins = {pp,gp,sp,cp,ts,small}`,
+  persisted in base_stats like `plan`) and every coin line after that is added: watcher `coinLine()` parses loot
+  ("from the corpse"), splits ("as your split"), merchant sales / trades ("You receive … from X") and purchases /
+  trainers / trades ("You give … to X"); zero unparsed coin lines in three characters' logs. Command `scanCoins`
+  {chars:{name:sinceMs}} sums live/.old/archive logs after the typed time (queued if busy) → `coinScanResult`;
+  live `coinLine` messages add after the scan (`coinLog[name].upTo` prevents double counting). `coinsFor(name)`.
+  Copper/silver from the logs are only added with "I keep copper & silver" ticked (owner: most players destroy them);
+  typed copper/silver always count. Weight row adds floor(coins/4) tenths. Verified: typed 40/202/55/37 → 90/115 exact;
+  scan since 23:42 → +61p +129g +185s +172c (33 lines). Re-enter after using the bank.
 
 ---
 
 ## 4. Open items — full list
+
+### Fixed 2026-09-30 (local)
+- **"No toon parked" banner ignored Terror / Fear**: `btParkedInLoc` counted ANY roster character whose last zone matched,
+  including log-only characters with no level/class (Gatherintods in Plane of Fear, Drachenburgh / Shakesburgh in the
+  Feerrott — not the owner's toons, no character tabs). Now it uses `parkTargetStatus` (eligible toon parked or bound)
+  for the location's `RAID_PARK_TARGETS`, same as the Raid Parking tab. Note: the parking roster still includes every
+  log-only character (`knownWatcherChars`) as "?"-status candidates — they no longer suppress warnings.
 
 ### Small fixes (recommended next)
 1. **Missing respawn timers**: Guardian of Takish 12h30m, Vilefang 1 day, Vaniki 122h (`BOSS_RESPAWN`, ~line 10160).

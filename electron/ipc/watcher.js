@@ -1049,6 +1049,8 @@ function raidBackfill() {
 
 function processLogLine(line, charName) {
   raidEvidence(line, charName);
+  const cl = coinLine(line);
+  if (cl) broadcast({ type: 'coinLine', charName, ...cl });
   if (line.indexOf('become better at') >= 0) {
     const sm = RE_SKILLUP.exec(line);
     if (sm) broadcast({ type: 'skillUp', charName, skill: sm[1], value: +sm[2] });
@@ -1602,6 +1604,68 @@ function scanOneLogForKills(fp, fileIdx, totalFiles) {
 // current skill. Verified against in-game Skills windows (Mixelshank, Mixelboom,
 // Mixelflop). Reads live logs, rotated .old files and the Logs\archive folder.
 const RE_SKILLUP = /You have become better at (.+?)! \((\d+)\)/;
+// ── Coins from the log ────────────────────────────────────────────────────────
+// P99 logs every coin you gain or spend EXCEPT banking and destroying coins:
+//   You receive 3 gold, 7 silver and 2 copper from the corpse.          (loot)
+//   You receive 50 platinum, 0 gold, 0 silver, 0 copper as your split.  (group split)
+//   You receive 2 gold 3 silver 6 copper from Hanga Wiskin for the …    (merchant sale / trade)
+//   You give 12 platinum 6 gold 6 silver 8 copper to Altha Shadowjumper. (purchase / trainer / trade)
+// The renderer adds these to a coin count the user typed in (see coinsFor in index.html).
+const RE_COIN_LINE = /^\[.+?\] You (receive|give) (.+?) (?:from (.+?)|to (.+?)|as your split)\.?$/;
+const RE_COIN_AMT  = /(\d+) (platinum|gold|silver|copper)\b/g;
+const COIN_KEY = { platinum:'pp', gold:'gp', silver:'sp', copper:'cp' };
+function coinLine(line) {
+  if (line.indexOf('] You ') < 0 || !/platinum|gold|silver|copper/.test(line)) return null;
+  const m = RE_COIN_LINE.exec(line); if (!m) return null;
+  const amt = { pp:0, gp:0, sp:0, cp:0 }; let any = false, am;
+  RE_COIN_AMT.lastIndex = 0;
+  while ((am = RE_COIN_AMT.exec(m[2]))) { amt[COIN_KEY[am[2]]] += +am[1]; any = true; }
+  if (!any || m[2].replace(RE_COIN_AMT, '').replace(/[\s,]|and/g, '') !== '') return null;   // amounts only
+  const sign = m[1] === 'give' ? -1 : 1;
+  const kind = m[1] === 'give' ? 'give' : /as your split/.test(line) ? 'split' : m[3] === 'the corpse' ? 'loot' : 'receive';
+  return { kind, pp: sign * amt.pp, gp: sign * amt.gp, sp: sign * amt.sp, cp: sign * amt.cp, ts: _rtLineTs(line) };
+}
+// Sum a character's coin lines after `since` across live / .old / archived logs.
+// args.chars: { charName: sinceMs }. One result per call: coinScanResult { totals, scannedAt }.
+let _coinScanRunning = false, _coinScanQueue = null;   // requests during a scan run right after it
+async function scanCoins(want) {
+  if (!want || !_config || !_config.logDir) return;
+  if (_coinScanRunning) { _coinScanQueue = Object.assign(_coinScanQueue || {}, want); return; }
+  _coinScanRunning = true;
+  const scannedAt = Date.now();
+  const totals = {};
+  try {
+    const lower = {}; for (const [n, t] of Object.entries(want)) lower[n.toLowerCase()] = { name: n, since: +t || 0 };
+    const dirs = [_config.logDir, path.join(_config.logDir, 'archive')].filter(d => { try { return fs.statSync(d).isDirectory(); } catch { return false; } });
+    const files = [];
+    for (const d of dirs) for (const f of fs.readdirSync(d)) {
+      const c = (f.match(/^eqlog_(.+?)_P1999Green.*\.(txt|old)$/i) || [])[1];
+      if (c && lower[c.toLowerCase()]) files.push({ file: path.join(d, f), w: lower[c.toLowerCase()] });
+    }
+    const seen = new Set();
+    for (const { file, w } of files) {
+      const t = totals[w.name] || (totals[w.name] = { pp:0, gp:0, sp:0, cp:0, lines:0, lastTs:0 });
+      await new Promise((resolve) => {
+        const rl = require('readline').createInterface({ input: fs.createReadStream(file, { encoding: 'latin1' }), crlfDelay: Infinity });
+        rl.on('line', (line) => {
+          const c = coinLine(line); if (!c || c.ts <= w.since || c.ts > scannedAt) return;
+          const key = w.name + '|' + line; if (seen.has(key)) return; seen.add(key);   // archive copies repeat lines
+          t.pp += c.pp; t.gp += c.gp; t.sp += c.sp; t.cp += c.cp; t.lines++; if (c.ts > t.lastTs) t.lastTs = c.ts;
+        });
+        rl.on('close', resolve); rl.on('error', resolve);
+      });
+    }
+    for (const w of Object.values(lower)) if (!totals[w.name]) totals[w.name] = { pp:0, gp:0, sp:0, cp:0, lines:0, lastTs:0 };
+    broadcast({ type: 'coinScanResult', totals, scannedAt });
+  } catch (e) {
+    err('[COINS]', e.message);
+    broadcast({ type: 'coinScanResult', error: e.message, scannedAt });
+  } finally {
+    _coinScanRunning = false;
+    if (_coinScanQueue) { const q = _coinScanQueue; _coinScanQueue = null; scanCoins(q); }
+  }
+}
+
 let _skillScanRunning = false;
 async function scanSkillsAllLogs() {
   if (_skillScanRunning || !_config || !_config.logDir) return;
@@ -1972,6 +2036,8 @@ function command(cmd, args) {
     scanLogsForSessions(args && args.chars, args && args.idleGapMin);
   } else if (cmd === 'scanRaidTicks') {
     scanRaidHistory(args && args.since);
+  } else if (cmd === 'scanCoins') {
+    scanCoins(args && args.chars);
   }
 }
 
