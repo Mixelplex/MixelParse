@@ -1,12 +1,14 @@
-## 1.6.4
+## 1.6.5
+
+- **Auto-Detect: Mobs up = potential spawns** — Mobs up and the right-click menu only offer bosses that could be up at the tick: in their window, or past it / up since a quake for under a day. Bosses marked Dead or not in window yet aren't listed; ones the spawn timers show up for more than a day (almost always a kill nobody recorded) are only counted as "+N stale". Any boss can still be added from the search box.
+
+Everything from 1.6.4 and earlier is included:
 
 - **Spawn Timers: Unknown ToD (Dead)** — right-click a boss → Unknown ToD now offers **Could be up** and **Dead**. Dead is for a kill whose time you don't know: it shows as DEAD on the board and isn't counted as up (no parking warning, not in Auto-Detect's Mobs up). A quake, a ToD or a tracker paste replaces it.
 - **Auto-Detect** — a new tick shows immediately as "⏳ Collecting evidence" until its suggestion is ready (about 2 minutes after the tick); Mobs up is shown in two columns.
 - **Fix: loaded sessions** — Bot Loot / Tick Sub changes on a loaded session stay in the working copy until you Save; they used to change the saved session immediately.
 - **Fix: Auto-Detect** — ticks heard on a character without an inventory file now show its zone; a log line EQ writes in two pieces can no longer lose a tick; duplicate tick rows are merged (fixes "#2 not recorded").
 - **Fix: Admin → Resist Watch** works when Admin is opened from the app.
-
-Everything from 1.6.3 and earlier is included:
 
 - **Auto-Detect: add any boss** — the right-click menu on Kill Tracker → Auto-Detect has a search box over every boss in the roster: type a few letters, press Enter (or click), and the usual kill dialog opens for that tick's time. Works on "No boss" ticks too; a hand-picked boss is labelled "picked by hand".
 - **Auto-Detect: zone + Mobs up** — every tick shows the zone it was taken in, and a new **Mobs up** column lists that zone's bosses that were up at the tick per the spawn timers (also offered in the right-click menu). It's information, not a guess. When the logs show no boss but a boss's ToD on the spawn timers lands right at the tick (20 min before to 5 min after), that boss is suggested as Weak (spawn timer). Older ticks get their zone from ⛏ Scan logs.
