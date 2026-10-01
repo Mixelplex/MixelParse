@@ -367,10 +367,14 @@ function tailLogFile(fp, charName) {
   const read = fs.readSync(fd, buf, 0, bufSize, pos);
   fs.closeSync(fd);
 
-  logPositions[key] = pos + read;
+  // Only complete lines: EQ can flush part-way through a line, and the two halves of a split line
+  // never match anything (a RAIDTICK cut in two was simply lost). The tail waits for the next poll.
+  const lastNl = buf.lastIndexOf(10, read - 1);
+  if (lastNl < 0) return;
+  logPositions[key] = pos + lastNl + 1;
   saveLogPositions();
 
-  const lines = buf.slice(0, read).toString('utf8').split('\n');
+  const lines = buf.slice(0, lastNl + 1).toString('utf8').split('\n');
   for (const line of lines) {
     if (line.trim()) processLogLine(line.trim(), charName);
   }
@@ -974,10 +978,25 @@ function raidSignal(line, charName) {
 // RAIDTICK carries the zone it was heard in — the renderer uses it with the spawn timers when a tick
 // has no boss evidence in the log.
 const _rtZone = {};
+// A character that hasn't zoned since the app started (and has no inventory file, so no startup
+// zone scan): read its last "You have entered" from the live log. No zoneUpdate broadcast.
+function _lastZoneInLog(charName) {
+  try {
+    const fp = path.join(_config.logDir, 'eqlog_' + charName + '_P1999Green.txt');
+    const st = fs.statSync(fp), n = Math.min(512 * 1024, st.size), buf = Buffer.alloc(n);
+    const fd = fs.openSync(fp, 'r'); fs.readSync(fd, buf, 0, n, st.size - n); fs.closeSync(fd);
+    const re = /^\[[^\]]+\] You have entered (.+)\.\r?$/gm; let m, last = null;
+    const text = buf.toString('latin1'); while ((m = re.exec(text))) last = m[1];
+    return last;
+  } catch { return null; }
+}
 function raidEvidence(line, charName) {
   if (line.indexOf('You have entered ') >= 0) { const zm = /^\[[^\]]+\] You have entered (.+)\.$/.exec(line); if (zm) _rtZone[charName] = zm[1]; }
   const msg = raidSignal(line, charName);
-  if (msg && msg.type === 'raidTick') msg.zone = _rtZone[charName] || (zoneState[charName] && zoneState[charName].zone) || null;
+  if (msg && msg.type === 'raidTick') {
+    if (!_rtZone[charName] && !(zoneState[charName] && zoneState[charName].zone)) _rtZone[charName] = _lastZoneInLog(charName);
+    msg.zone = _rtZone[charName] || (zoneState[charName] && zoneState[charName].zone) || null;
+  }
   if (msg) broadcast(msg);
 }
 
