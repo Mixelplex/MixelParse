@@ -5448,12 +5448,12 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.6.1',
+  version:'1.6.2',
   date:'September 2026',
-  features:[],
-  fixes:[
-    ['Raid consumes: Eye of Zomm','The Stalking Probe check now counts any Eye of Zomm: a <b>Stalking Probe</b>, <b>Holgresh Elder Beads</b> or a <b>Clay Bracelet</b> (all click from inventory, any class), and Wizards and Magicians pass on their own spell. Characters holding the beads no longer show &#9680; Mostly Ready. The Watch List follows the same rule.'],
+  features:[
+    ['Auto-Detect → Kill Tracker','Right-click a suggested kill on Kill Tracker → Auto-Detect and choose <b>Add to Raid Kill Tracker</b>. It opens the usual kill dialog (roles, session, new session, failtick) with the session from that night picked for you; a new session is dated to the kill. For a &ldquo;Pick&rdquo; row, choose which boss.'],
   ],
+  fixes:[],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -7990,8 +7990,10 @@ const _todQueue = [];
 let _todModalOpen = false;
 let _todEnqueueTimer = null;
 
-function todEnqueue(target, full, noteText, timestamp){
-  _todQueue.push({ target, full, noteText, timestamp });
+// when (ms, optional): the kill's own time — set when a PAST kill is added (Auto-Detect right-click),
+// so the session picker preselects that night and a new session is dated to it.
+function todEnqueue(target, full, noteText, timestamp, when){
+  _todQueue.push({ target, full, noteText, timestamp, when });
   if(!_todModalOpen){
     clearTimeout(_todEnqueueTimer);
     _todEnqueueTimer = setTimeout(_todShowNext, 150);
@@ -8144,11 +8146,15 @@ function showTodModal(target, full, noteText, timestamp){
   overlay.id = 'tod-modal-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:10000;display:flex;align-items:center;justify-content:center;font-family:"Cinzel",serif';
 
-  // Session dropdown
-  const sessionOpts = raidSessions.slice().reverse().slice(0,8).map(s => {
+  // Session dropdown — a past kill (Auto-Detect) preselects the session covering it, even if older than the last 8
+  const _when = _todQueue[0] && _todQueue[0].when;
+  const _pre = _when ? _todSessionFor(_when) : null;
+  const _sl = raidSessions.slice().reverse().slice(0,8);
+  if(_pre && !_sl.includes(_pre)) _sl.unshift(_pre);
+  const sessionOpts = _sl.map(s => {
     const total = sessionDkpTotal(s);
     const kills = Object.entries(s.killState||{}).filter(([,v])=>v==='killed').length;
-    return `<option value="${esc(s.id)}">${esc(s.date)} — ${kills} kill${kills===1?'':'s'}, ${total} DKP</option>`;
+    return `<option value="${esc(s.id)}"${s===_pre?' selected':''}>${esc(s.date)} — ${kills} kill${kills===1?'':'s'}, ${total} DKP</option>`;
   }).join('');
 
   // Roles checkboxes using rolesForBoss() — same source as kill tracker
@@ -8200,6 +8206,23 @@ function showTodModal(target, full, noteText, timestamp){
   // Backdrop click intentionally does nothing — dismissal is explicit (Dismiss/Skip) so a stray click can't discard a ToD.
 }
 
+// lastKillAt for the kill being recorded: now for a live /note; for a past kill its own time,
+// never moving a session's last kill backwards.
+function _todKillAtFor(session){
+  const when = _todQueue[0] && _todQueue[0].when;
+  if(!when) return new Date().toISOString();
+  const prev = Date.parse(session.lastKillAt || 0) || 0;
+  return new Date(Math.max(prev, when)).toISOString();
+}
+// The session whose night covers a past kill (same rules as the Auto-Detect "in tracker" check).
+function _todSessionFor(when){
+  let best = null, bestSt = -Infinity;
+  for(const s of raidSessions || []){
+    const st = Date.parse(s.startedAt || s.date || 0), end = Date.parse(s.lastKillAt || s.startedAt || s.date || 0);
+    if(when >= st - 3600e3 && when <= Math.max(end, st) + 12*3600e3 && st > bestSt){ best = s; bestSt = st; }
+  }
+  return best;
+}
 function _todGetCheckedRoles(){
   // Returns array of {desc, value} for checked role checkboxes
   const overlay = document.getElementById('tod-modal-overlay');
@@ -8242,7 +8265,7 @@ function todAddToSession(killState){
   const session = raidSessions.find(s => s.id === sel.value);
   if(!session) return;
   const label = ktRecordBossState(session, target, killState, _todGetCheckedRoles());
-  if(killState==='killed') session.lastKillAt = new Date().toISOString();
+  if(killState==='killed') session.lastKillAt = _todKillAtFor(session);
   saveSessionsToSupabase();
   _todAdvance();
   switchTopView('kills');
@@ -8255,8 +8278,10 @@ function todStartNewSession(killState){
   if(!overlay) return;
   const target = overlay.dataset.target;
   const session = newSession();
+  const _when = _todQueue[0] && _todQueue[0].when;
+  if(_when){ const d = new Date(_when); session.date = localYmd(d); session.startedAt = d.toISOString(); }   // a past kill: date the session to it
   session.killState[target] = killState;
-  if(killState==='killed') session.lastKillAt = new Date().toISOString();
+  if(killState==='killed') session.lastKillAt = _todKillAtFor(session);
   const checkedRoles = _todGetCheckedRoles();
   if(checkedRoles.length){
     session.bossRoles[target] = checkedRoles;
@@ -12059,6 +12084,37 @@ function rkdFinalize(t){
   if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
 }
 window.rkdToggleNoise=function(v){try{localStorage.setItem('mp_rkd_noise',v?'1':'0');}catch(e){}renderKillsPanel();};
+// Right-click a suggestion → "Add <boss> to Raid Kill Tracker…" opens the normal kill dialog (roles,
+// session picker, new session, failtick) for that boss at the kill's time. A manual action — Auto-Detect
+// itself still never adds anything.
+window.rkdRowMenu=function(ev,tr){
+  ev.preventDefault();
+  const r=rkdLog.find(x=>String(x.id)===tr.getAttribute('data-rkd'));if(!r)return false;
+  let m=document.getElementById('rkdMenu');
+  if(!m){
+    m=document.createElement('div');m.id='rkdMenu';
+    m.style.cssText='position:fixed;z-index:9999;display:none;min-width:230px;background:var(--surface2);border:1px solid var(--gold);border-radius:6px;padding:4px 0;box-shadow:0 8px 26px rgba(0,0,0,.4);font-family:\'Crimson Pro\',serif;font-size:.85rem;color:var(--text)';
+    document.body.appendChild(m);
+    document.addEventListener('mousedown',e=>{const x=document.getElementById('rkdMenu');if(x&&x.style.display!=='none'&&!x.contains(e.target))x.style.display='none';});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'){const x=document.getElementById('rkdMenu');if(x)x.style.display='none';}});
+  }
+  const bosses=r.boss?[r.boss]:(r.tier==='ambiguous'?(r.cands||[]):[]);
+  const item=(html,on)=>`<div ${on?`onclick="${on}" onmouseover="this.style.background='rgba(201,168,76,.15)'" onmouseout="this.style.background=''" style="padding:.35rem .8rem;cursor:pointer"`:'style="padding:.35rem .8rem;color:var(--text-muted)"'}>${html}</div>`;
+  m.innerHTML=bosses.length
+    ?bosses.map(b=>item('⚔ Add <b>'+esc(btLabel?btLabel(b):b)+'</b> to Raid Kill Tracker…',"rkdAddToTracker(decodeURIComponent('"+encodeURIComponent(r.id)+"'),decodeURIComponent('"+encodeURIComponent(b)+"'))")).join('')
+    :item('No boss suggested for this tick',null);
+  m.style.display='block';
+  const w=m.offsetWidth,h=m.offsetHeight;
+  m.style.left=Math.min(ev.clientX,window.innerWidth-w-8)+'px';m.style.top=Math.min(ev.clientY,window.innerHeight-h-8)+'px';
+  return false;
+};
+window.rkdAddToTracker=function(id,boss){
+  const m=document.getElementById('rkdMenu');if(m)m.style.display='none';
+  const r=rkdLog.find(x=>String(x.id)===String(id));if(!r)return;
+  const b=BOSS_ROSTER.find(x=>x.target===boss),when=r.tod||r.ts;
+  const label=new Date(when).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  todEnqueue(boss,b?b.full:boss,'Auto-Detect · '+(r.basis||r.tier),label,when);
+};
 window.rkdClearLog=function(){if(!confirm('Clear the auto-detect log?'))return;rkdLog=[];rkdSave();renderKillsPanel();};
 // ── Auto-Detect: history scan + ODKP credit per RAIDTICK ─────────────────────
 // ⛏ Scan logs asks the watcher to replay every RAIDTICK (and the boss evidence around
@@ -12216,7 +12272,7 @@ function renderAutoDetectPanel(){
       :o.k==='away'?'<span style="color:var(--text-muted)" title="Heard in guild chat only — you were not in the raid zone">not in zone</span>'
       :'<span style="color:var(--text-muted)">—</span>';
     const ev=(r.evidence||[]).map(e=>`<div>${fmt(e.ts).split(', ').pop()} <b>${esc(e.kind)}</b> ${esc(e.raw)}</div>`).join('');
-    return `<tr style="border-bottom:1px solid var(--border)${o.k==='missing'?';background:rgba(180,40,40,.07)':''}">
+    return `<tr data-rkd="${esc(r.id)}" oncontextmenu="return rkdRowMenu(event,this)" title="Right-click: add to the Raid Kill Tracker" style="border-bottom:1px solid var(--border)${o.k==='missing'?';background:rgba(180,40,40,.07)':''}">
       <td style="padding:.3rem .5rem;white-space:nowrap">${fmt(r.ts)}</td>
       <td style="padding:.3rem .5rem">${esc(r.char||'')}</td>
       <td style="padding:.3rem .5rem;font-weight:600">${who}</td>
