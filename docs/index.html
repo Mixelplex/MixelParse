@@ -5448,13 +5448,16 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.6.3',
-  date:'September 2026',
+  version:'1.6.4',
+  date:'October 2026',
   features:[
-    ['Auto-Detect: add any boss','The right-click menu on Kill Tracker → Auto-Detect now has a <b>search box over every boss</b> — type a few letters and press Enter. Works on &ldquo;No boss&rdquo; ticks too.'],
-    ['Auto-Detect: zone + Mobs up','Each tick shows the <b>zone</b> it was taken in, and a new <b>Mobs up</b> column lists that zone&rsquo;s bosses that were up at the tick per the spawn timers (also in the right-click menu). When the logs show no boss but a boss&rsquo;s ToD on the spawn timers lands right at the tick, it&rsquo;s suggested as Weak (spawn timer).'],
+    ['Spawn Timers: Unknown ToD (Dead)','Right-click a boss &rarr; <b>Unknown ToD</b> now has <b>Could be up</b> and <b>Dead</b>. &ldquo;Dead&rdquo; is for a kill whose time you don&rsquo;t know: it shows as DEAD on the board and doesn&rsquo;t count as up (no parking warning, not in Mobs up). A quake, a ToD or a paste replaces it.'],
+    ['Auto-Detect','A new tick shows right away as &ldquo;&#9203; Collecting evidence&rdquo; until its suggestion is ready (about 2 minutes). Mobs up is in two columns.'],
   ],
-  fixes:[],
+  fixes:[
+    ['Loaded sessions','Bot Loot / Tick Sub changes on a loaded session stay in the working copy until you Save (they used to change the saved session immediately).'],
+    ['Auto-Detect','Ticks heard on a character without an inventory file now show its zone; a log line written in two pieces can no longer lose a tick; duplicate tick rows are merged (fixes &ldquo;#2 not recorded&rdquo;).'],
+  ],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -11902,7 +11905,8 @@ window.ktBotLootAdj=function(desc,value,delta){
 };
 
 window.ktSaveSession=function(){
-  const s={...activeSession,killState:{...activeSession.killState},hourly:(activeSession.hourly||[]).map(r=>({...r})),bossRoles:Object.fromEntries(Object.entries(activeSession.bossRoles||{}).map(([k,v])=>[k,(Array.isArray(v)?v:[]).map(r=>({...r}))]))};
+  const s={...activeSession,killState:{...activeSession.killState},hourly:(activeSession.hourly||[]).map(r=>({...r})),bossRoles:Object.fromEntries(Object.entries(activeSession.bossRoles||{}).map(([k,v])=>[k,(Array.isArray(v)?v:[]).map(r=>({...r}))])),
+    botLoot:(activeSession.botLoot||[]).map(r=>({...r})),tickSubmissions:(activeSession.tickSubmissions||[]).map(r=>({...r}))};
   const idx=raidSessions.findIndex(x=>x.id===s.id);
   if(idx>=0)raidSessions[idx]=s;else raidSessions.push(s);
   saveSessionsToSupabase();
@@ -11968,7 +11972,12 @@ window.ktCloseLoadedSession=function(){_loadedSessionId=null;activeSession=newSe
 window.ktLoadSession=function(id){
   const s=raidSessions.find(x=>x.id===id);
   if(!s)return;
-  activeSession={...s,killState:{...(s.killState||{})},hourly:(s.hourly||[]).map(r=>({...r})),bossRoles:Object.fromEntries(Object.entries(s.bossRoles||{}).map(([k,v])=>[k,(Array.isArray(v)?v:[]).map(r=>({...r}))]))};  
+  // A true working copy: every list is copied, so nothing reaches the saved session until Save
+  // (Bot Loot / Tick Sub / extra spawns were shared arrays — a SUBMIT changed the saved session at once).
+  activeSession={...s,killState:{...(s.killState||{})},hourly:(s.hourly||[]).map(r=>({...r})),hourlyNinja:{...(s.hourlyNinja||{})},
+    bossRoles:Object.fromEntries(Object.entries(s.bossRoles||{}).map(([k,v])=>[k,(Array.isArray(v)?v:[]).map(r=>({...r}))])),
+    botLoot:(s.botLoot||[]).map(r=>({...r})),tickSubmissions:(s.tickSubmissions||[]).map(r=>({...r})),
+    extraSpawns:(s.extraSpawns||[]).map(sp=>({...sp,bossRoles:(sp.bossRoles||[]).map(r=>({...r}))}))};
   _loadedSessionId=id;
   ktExpanded={};sessionsView='new';
   renderKillsPanel();
@@ -12043,6 +12052,8 @@ function rkdOnTick(msg){
   const t={id:'rkd_'+ts,ts,char:msg.charName,poster:msg.poster,text:msg.text||'',channels:[msg.channel],sameZone,zone:msg.zone||null,prevTickTs:prev.length?Math.max(...prev):null};
   _rkdLastTickTs=Math.max(_rkdLastTickTs||0,ts);
   _rkdOpenTicks.push(t);
+  // shown at once as "collecting evidence" — a fresh tick used to be invisible for 2 minutes
+  if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
   // Live ticks wait out the 2-min post-window; backfilled ones already have it.
   // Backfilled ticks wait 3s so the rest of the replay (incl. a kill just after the tick) arrives first.
   setTimeout(()=>rkdFinalize(t),Math.max(3000,ts+RKD_WIN_AFTER-Date.now()));
@@ -12076,6 +12087,12 @@ function rkdAttribute(t){
 function rkdFinalize(t){
   if(!_rkdOpenTicks.includes(t))return;
   _rkdOpenTicks=_rkdOpenTicks.filter(x=>x!==t);
+  // a Scan logs during the 2-minute wait may already have added this tick — don't add it twice
+  const dup=rkdLog.find(r=>Math.abs(t.ts-r.ts)<=RKD_TICK_DEDUPE);
+  if(dup){
+    if(dup.tier!=='none'){if(!dup.zone&&t.zone){dup.zone=t.zone;rkdSave();}if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();return;}
+    rkdLog=rkdLog.filter(r=>r!==dup);
+  }
   const a=rkdAttribute(t);
   const _up=rkdUpInZone(t);
   rkdLog.push({id:t.id,ts:t.ts,char:t.char,poster:t.poster,channels:t.channels,sameZone:t.sameZone,zone:t.zone||null,text:t.text,
@@ -12130,8 +12147,26 @@ function rkdUpInZone(t){
 }
 // "No boss" ticks of the last 3 days are re-tried against the timer board each time Auto-Detect opens —
 // the guild tracker is often updated after the tick.
+// One tick logged twice (Scan logs during the live 2-minute wait, before 1.6.4): keep the row with the
+// better attribution / more evidence; it also skews the "#2 not recorded" repeat-kill count.
+function rkdDedupe(){
+  const rank={strong:3,weak:2,ambiguous:1,none:0};let out=[],removed=0;
+  for(const r of rkdLog.slice().sort((a,b)=>a.ts-b.ts)){
+    const p=out[out.length-1];
+    if(p&&Math.abs(r.ts-p.ts)<=RKD_TICK_DEDUPE){
+      const keepNew=(rank[r.tier]||0)>(rank[p.tier]||0)||((rank[r.tier]||0)===(rank[p.tier]||0)&&(r.evidence||[]).length>(p.evidence||[]).length);
+      const keep=keepNew?r:p,drop=keepNew?p:r;
+      if(!keep.zone&&drop.zone)keep.zone=drop.zone;if(keep.upZone===undefined&&drop.upZone!==undefined)keep.upZone=drop.upZone;
+      out[out.length-1]=keep;removed++;continue;
+    }
+    out.push(r);
+  }
+  if(removed){rkdLog=out;rkdSave();}
+  return removed>0;
+}
 function rkdRetryNoBoss(){
   if(typeof btLoaded!=='undefined'&&!btLoaded)return false;
+  rkdDedupe();
   let changed=false;const since=Date.now()-3*864e5;
   for(const r of rkdLog){
     // test build 2026-09-30 turned "bosses up in zone" into a Pick — those are Mobs up, not suggestions
@@ -12356,7 +12391,14 @@ function renderAutoDetectPanel(){
     if(onlyUncredited)return odkpState(r).k==='missing';
     return showNoise||r.tier!=='none'||r.sameZone;
   });
-  const body=rows.map(r=>{
+  // live ticks still in their 2-minute evidence window
+  const pending=_rkdOpenTicks.filter(t=>!rkdLog.some(r=>Math.abs(t.ts-r.ts)<=RKD_TICK_DEDUPE)).slice().sort((a,b)=>b.ts-a.ts).map(t=>
+    `<tr style="border-bottom:1px solid var(--border);background:rgba(201,168,76,.06)">
+      <td style="padding:.3rem .5rem;white-space:nowrap">${fmt(t.ts)}</td>
+      <td style="padding:.3rem .5rem">${esc(t.char||'')}${t.zone?`<div style="font-size:.68rem;color:var(--text-muted)">${esc(t.zone)}</div>`:''}</td>
+      <td colspan="7" style="padding:.3rem .5rem;color:var(--text-muted);font-size:.78rem">⏳ Collecting evidence — the suggestion appears about 2 minutes after the tick (kill lines often come right after it).</td>
+    </tr>`).join('');
+  const body=pending+rows.map(r=>{
     const [tl,tc]=TIER[r.tier]||TIER.none;
     const who=r.tier==='ambiguous'?(r.cands||[]).map(esc).join(' / '):r.boss?esc(r.boss):'<span style="color:var(--text-muted)">—</span>';
     let rec='';
@@ -12376,7 +12418,7 @@ function renderAutoDetectPanel(){
       <td style="padding:.3rem .5rem;white-space:nowrap">${fmt(r.ts)}</td>
       <td style="padding:.3rem .5rem">${esc(r.char||'')}${r.zone?`<div style="font-size:.68rem;color:var(--text-muted)" title="Zone the tick was taken in">${esc(r.zone)}</div>`:''}</td>
       <td style="padding:.3rem .5rem;font-weight:600">${who}</td>
-      <td style="padding:.3rem .5rem;font-size:.74rem;color:var(--text-muted)" title="Up in ${esc(r.zone||'this zone')} at the tick, per the spawn timers">${Array.isArray(r.upZone)?(r.upZone.length?r.upZone.map(b=>esc(btLabel(b))).join('<br>'):'<span style="font-size:.7rem">none on the timers</span>'):'—'}</td>
+      <td style="padding:.3rem .5rem;font-size:.74rem;color:var(--text-muted)" title="Up in ${esc(r.zone||'this zone')} at the tick, per the spawn timers">${Array.isArray(r.upZone)?(r.upZone.length?'<div style="display:grid;grid-template-columns:repeat(2,max-content);column-gap:.9rem;row-gap:.05rem">'+r.upZone.map(b=>'<span style="white-space:nowrap">'+esc(btLabel(b))+'</span>').join('')+'</div>':'<span style="font-size:.7rem">none on the timers</span>'):'—'}</td>
       <td style="padding:.3rem .5rem;color:${tc};white-space:nowrap">${tl}${r.basis?` <span style="font-size:.7rem;color:var(--text-muted)">(${esc(r.basis)})</span>`:''}</td>
       <td style="padding:.3rem .5rem;white-space:nowrap">${r.tod?fmt(r.tod).split(', ').pop()+` <span style="font-size:.68rem;color:var(--text-muted)">${esc(r.todSource||'')}</span>`:'—'}</td>
       <td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted)">${r.sameZone?'OOC+':''}${esc(r.poster||'')}<div style="font-size:.68rem">${ev}</div></td>
@@ -14342,6 +14384,7 @@ function btClear(){ if(!confirm('Clear all windows and the logged quake?')) retu
 function btStatusOf(s){
   const now = Date.now();
   if(!s) return {k:'none', order:5, inMs:Infinity};
+  if(s.dead) return {k:'dead', order:4, inMs:Infinity, sinceMs: now-(s.deadSince||s.updatedAt||now)};   // Unknown ToD (Dead)
   if(s.up) return {k:'up', order:3, inMs:-1};
   if(s.open == null) return {k:'none', order:5, inMs:Infinity};
   if(now < s.open) return {k:'soon', order:2, inMs:s.open-now};
@@ -14381,6 +14424,7 @@ function btTick(){
     else if(st.k === 'soon'){ inCell=btFmtDur(st.inMs); stCell='<span class="bt-soon">opens in '+btFmtDur(st.inMs)+'</span>'; }
     else if(st.k === 'open'){ rcls='bt-r-open'; inCell='<span class="bt-open">NOW</span>'; stCell='<span class="bt-open">IN WINDOW</span> <span class="bt-src">\u00b7'+(st.leftMs!=null?btFmtDur(st.leftMs)+' left':'width unknown')+'</span>'; }
     else if(st.k === 'over'){ rcls='bt-r-spawned'; inCell='<span class="bt-spawned">UP</span>'; stCell='<span class="bt-spawned">Spawned / Up</span> <span class="bt-src">\u00b7 '+btFmtDur(st.inMs)+' past window</span>'; }
+    else if(st.k === 'dead'){ inCell='<span class="bt-dead">DEAD</span>'; stCell='<span class="bt-dead">Dead \u00b7 ToD unknown</span> <span class="bt-src">\u00b7 for '+btFmtDur(st.sinceMs||0)+'</span>'; }
     const src = s ? '<span class="bt-src">'+s.src+'</span>' : '';
     html += '<tr class="'+rcls+'" data-bt="'+encodeURIComponent(t)+'" oncontextmenu="return btRowMenu(event,this)" title="right-click: set ToD"><td>'+btLabel(t)+'</td><td style="text-align:right">'+inCell+'</td><td style="text-align:right">'+(win!=null?btFmtDur(win):'\u2014')+'</td><td>'+stCell+src+'</td></tr>';
   }
@@ -14418,6 +14462,7 @@ function renderTimersPanel(){
         #timersPanel .bt-over{color:#a03030}
         #timersPanel .bt-up{color:#1f6f8a;font-weight:600}
         #timersPanel .bt-spawned{color:#2f8f4a;font-weight:600}
+        #timersPanel .bt-dead{color:#8a5a5a;font-weight:600}
         #timersPanel .bt-none{color:var(--text-muted)}
         #timersPanel tr.bt-r-open td{background:rgba(201,162,39,.14)}
         #timersPanel tr.bt-r-over td{background:rgba(160,48,48,.08)}
@@ -14573,6 +14618,14 @@ function btPopUnknown(t){
   if(!btTracked.includes(t)) btTracked.push(t);
   btSave(); btTick(); btRenderParkWarn(); btPopClose();
 }
+// Unknown ToD (Dead): it was killed, time unknown — no window can be projected, and it must NOT count
+// as up (no parking warning, not in Auto-Detect "Mobs up"). A quake, a ToD or a paste replaces it.
+function btPopUnknownDead(t){
+  const now = Date.now();
+  btState[t] = { open: null, close: null, src:'note', updatedAt: now, up:false, dead:true, deadSince: now };
+  if(!btTracked.includes(t)) btTracked.push(t);
+  btSave(); btTick(); btRenderParkWarn(); btPopClose();
+}
 function btPopOpen(t, x, y){
   btPopEnsure();
   const p = document.getElementById('btPop');
@@ -14583,7 +14636,12 @@ function btPopOpen(t, x, y){
     p.innerHTML =
       '<div style="font-family:\'Cinzel\',serif;font-size:.82rem;color:var(--gold);margin-bottom:.45rem">' + esc(label) + '</div>' +
       '<div style="font-size:.78rem;color:var(--text-muted);line-height:1.45">No baked timer \u2014 a ToD can\u2019t project a window. Use the guild paste, or mark it unknown.</div>' +
-      '<div style="margin-top:.6rem;display:flex;gap:.4rem"><button class="btn" style="flex:1" onclick="btPopUnknown(decodeURIComponent(\'' + tEnc + '\'))">Unknown ToD</button><button class="btn" style="flex:0 0 auto" onclick="btPopClose()">Close</button></div>';
+      '<div style="text-align:center;font-size:.62rem;letter-spacing:.08em;color:var(--text-muted);margin:.6rem 0 .3rem">— UNKNOWN ToD —</div>' +
+      '<div style="display:flex;gap:.4rem">' +
+        '<button class="btn" style="flex:1;min-width:0" title="Window open from now, width unknown — counts as possibly up" onclick="btPopUnknown(decodeURIComponent(\'' + tEnc + '\'))">Could be up</button>' +
+        '<button class="btn" style="flex:1;min-width:0" title="Killed, time unknown — not counted as up" onclick="btPopUnknownDead(decodeURIComponent(\'' + tEnc + '\'))">Dead</button>' +
+      '</div>' +
+      '<div style="margin-top:.4rem"><button class="btn" style="width:100%" onclick="btPopClose()">Close</button></div>';
   } else {
     p.innerHTML =
       '<div style="font-family:\'Cinzel\',serif;font-size:.82rem;color:var(--gold);margin-bottom:.5rem">' + esc(label) + ' \u2014 set ToD</div>' +
@@ -14597,7 +14655,11 @@ function btPopOpen(t, x, y){
         '<button class="btn" style="flex:1" onclick="btPopClose()">Cancel</button>' +
         '<button class="btn primary" style="flex:1" onclick="btPopSet(decodeURIComponent(\'' + tEnc + '\'))">Set ToD</button>' +
       '</div>' +
-      '<div style="margin-top:.4rem"><button class="btn" style="width:100%;font-size:.72rem" onclick="btPopUnknown(decodeURIComponent(\'' + tEnc + '\'))">Unknown ToD \u2014 could be up now</button></div>';
+      '<div style="text-align:center;font-size:.62rem;letter-spacing:.08em;color:var(--text-muted);margin:.6rem 0 .3rem">\u2014 UNKNOWN ToD \u2014</div>' +
+      '<div style="display:flex;gap:.4rem">' +
+        '<button class="btn" style="flex:1;min-width:0" title="Window open from now, width unknown \u2014 counts as possibly up" onclick="btPopUnknown(decodeURIComponent(\'' + tEnc + '\'))">Could be up</button>' +
+        '<button class="btn" style="flex:1;min-width:0" title="Killed, time unknown \u2014 not counted as up" onclick="btPopUnknownDead(decodeURIComponent(\'' + tEnc + '\'))">Dead</button>' +
+      '</div>';
   }
   p.style.display = 'block';
   const w = p.offsetWidth, h = p.offsetHeight;
