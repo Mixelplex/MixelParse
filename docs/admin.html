@@ -4260,7 +4260,10 @@ let _rwEv=[];
 const RW_KEY={magic:'mr',fire:'fr',cold:'cr',poison:'pr',disease:'dr'};
 async function rwLoad(){
   const st=document.getElementById('rw-status'),out=document.getElementById('rw-results');
-  const rd=window.MixelParseApp&&window.MixelParseApp.readResistWatch;
+  // Admin is opened with window.open from the app window, so the bridge lives on window.opener
+  // (same as `bridge` above); the separate admin window from the tray menu has its own.
+  const app=(window.opener&&window.opener.MixelParseApp&&window.opener.MixelParseApp.readResistWatch)?window.opener.MixelParseApp:window.MixelParseApp;
+  const rd=app&&app.readResistWatch&&app.readResistWatch.bind(app);
   if(!rd){out.innerHTML='<div style="color:#a03030;font-size:.8rem">Desktop app only — open Admin from MixelParse (this build needs the Resist Watch bridge).</div>';return;}
   st.textContent='Reading…';
   try{
