@@ -1,8 +1,11 @@
-## 1.6.2
+## 1.6.3
+
+- **Auto-Detect: add any boss** — the right-click menu on Kill Tracker → Auto-Detect has a search box over every boss in the roster: type a few letters, press Enter (or click), and the usual kill dialog opens for that tick's time. Works on "No boss" ticks too; a hand-picked boss is labelled "picked by hand".
+- **Auto-Detect: zone + Mobs up** — every tick shows the zone it was taken in, and a new **Mobs up** column lists that zone's bosses that were up at the tick per the spawn timers (also offered in the right-click menu). It's information, not a guess. When the logs show no boss but a boss's ToD on the spawn timers lands right at the tick (20 min before to 5 min after), that boss is suggested as Weak (spawn timer). Older ticks get their zone from ⛏ Scan logs.
+
+Everything from 1.6.2 and earlier is included:
 
 - **Auto-Detect → Kill Tracker** — right-click a suggested kill on Kill Tracker → Auto-Detect and choose **Add to Raid Kill Tracker**. It opens the usual kill dialog (roles, session, Start New Session, failtick) with the session from that night preselected, and a new session is dated to the kill so that day's boss values apply. For a "Pick" row you choose which boss. Auto-Detect itself still adds nothing on its own.
-
-Everything from 1.6.1 and earlier is included:
 
 - **Raid consumes: Eye of Zomm** — the Stalking Probe check now counts any Eye of Zomm: a **Stalking Probe** (5× instant), **Holgresh Elder Beads** (unlimited, 4s) or a **Clay Bracelet** (instant). All three click from inventory for any class; Wizards and Magicians pass on their own spell. Characters holding the beads no longer show ◐ Mostly Ready, and the Watch List follows the same rule.
 

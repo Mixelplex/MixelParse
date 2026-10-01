@@ -970,8 +970,14 @@ function raidSignal(line, charName) {
   if ((m = RE_RT_CALL.exec(line)) && RE_RT_CALLKIND.test(m[3])) return { type:'raidEvidence', charName, kind:'call', text:m[3], poster:m[1], channel:m[2], ts };
   return null;
 }
+// Zone each character was in, from the lines the raid path itself sees (live tail + 6 h backfill), so a
+// RAIDTICK carries the zone it was heard in — the renderer uses it with the spawn timers when a tick
+// has no boss evidence in the log.
+const _rtZone = {};
 function raidEvidence(line, charName) {
+  if (line.indexOf('You have entered ') >= 0) { const zm = /^\[[^\]]+\] You have entered (.+)\.$/.exec(line); if (zm) _rtZone[charName] = zm[1]; }
   const msg = raidSignal(line, charName);
+  if (msg && msg.type === 'raidTick') msg.zone = _rtZone[charName] || (zoneState[charName] && zoneState[charName].zone) || null;
   if (msg) broadcast(msg);
 }
 
@@ -996,11 +1002,14 @@ async function scanRaidHistory(sinceMs) {
       const charName = (path.basename(files[i]).match(/^eqlog_(.+?)_P1999Green/i) || [])[1];
       if (!charName) continue;
       broadcast({ type:'raidScanProgress', charName, fileIdx:i + 1, totalFiles:files.length });
+      let zone = null;
       await new Promise((resolve) => {
         const rl = require('readline').createInterface({ input: fs.createReadStream(files[i], { encoding:'latin1' }), crlfDelay: Infinity });
         rl.on('line', (line) => {
+          if (line.indexOf('You have entered ') >= 0) { const zm = /^\[[^\]]+\] You have entered (.+)\.$/.exec(line); if (zm) zone = zm[1]; }
           const msg = raidSignal(line, charName);
           if (!msg || msg.ts < since) return;
+          if (msg.type === 'raidTick') msg.zone = zone;
           const key = charName + '|' + line;          // archive copies repeat live-log lines
           if (seen.has(key)) return; seen.add(key);
           (msg.type === 'raidTick' ? ticks : evidence).push(msg);

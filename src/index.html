@@ -5448,10 +5448,11 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.6.2',
+  version:'1.6.3',
   date:'September 2026',
   features:[
-    ['Auto-Detect → Kill Tracker','Right-click a suggested kill on Kill Tracker → Auto-Detect and choose <b>Add to Raid Kill Tracker</b>. It opens the usual kill dialog (roles, session, new session, failtick) with the session from that night picked for you; a new session is dated to the kill. For a &ldquo;Pick&rdquo; row, choose which boss.'],
+    ['Auto-Detect: add any boss','The right-click menu on Kill Tracker → Auto-Detect now has a <b>search box over every boss</b> — type a few letters and press Enter. Works on &ldquo;No boss&rdquo; ticks too.'],
+    ['Auto-Detect: zone + Mobs up','Each tick shows the <b>zone</b> it was taken in, and a new <b>Mobs up</b> column lists that zone&rsquo;s bosses that were up at the tick per the spawn timers (also in the right-click menu). When the logs show no boss but a boss&rsquo;s ToD on the spawn timers lands right at the tick, it&rsquo;s suggested as Weak (spawn timer).'],
   ],
   fixes:[],
 };
@@ -11993,8 +11994,8 @@ window.ktSetView=function(v){sessionsView=v;renderKillsPanel();};
 const RKD_WIN_BEFORE=10*60e3, RKD_WIN_AFTER=2*60e3, RKD_TICK_DEDUPE=90e3, RKD_EVIDENCE_KEEP=40*60e3, RKD_LOG_MAX=2000;
 // faction = "Your faction standing with <boss> …got worse" (the kill, v1.5.18+); fight = the boss's
 // rampage / flurry in melee range — shows which boss a mid-fight tick is about.
-const RKD_RANK={slain:4,faction:4,enrage:3,land:2,fight:2,call:1};
-const RKD_BASIS={slain:'slain',faction:'faction hit',enrage:'enrage',land:'landed',fight:'rampage/flurry',call:'call'};
+const RKD_RANK={slain:4,faction:4,enrage:3,land:2,fight:2,call:1,timer:1};
+const RKD_BASIS={slain:'slain',faction:'faction hit',enrage:'enrage',land:'landed',fight:'rampage/flurry',call:'call',timer:'spawn timer'};
 function _rkdRaw(m){return m.kind==='call'?`${m.poster}: ${m.text}`:m.kind==='land'?`${m.mob} (${m.sub})`:
   `${m.mob} ${{slain:'slain',faction:'faction hit (kill)',fight:'rampage/flurry',enrage:'ENRAGED'}[m.kind]||m.kind}`;}
 let _rkdEvidence=[];      // {ts, kind, sub, boss, raw, sameZoneOnly}
@@ -12028,17 +12029,18 @@ function rkdOnTick(msg){
   const sameZone=/out of character|shouts/.test(msg.channel||'');
   // Same tick posted to OOC and guild — one tick, merged channels.
   const open=_rkdOpenTicks.find(t=>Math.abs(ts-t.ts)<=RKD_TICK_DEDUPE);
-  if(open){open.sameZone=open.sameZone||sameZone;if(!open.channels.includes(msg.channel))open.channels.push(msg.channel);return;}
+  // zone: a character who heard it in OOC/shout is in the raid zone — that one wins over guild-chat-only
+  if(open){open.sameZone=open.sameZone||sameZone;if(!open.channels.includes(msg.channel))open.channels.push(msg.channel);if(msg.zone&&(sameZone||!open.zone))open.zone=msg.zone;return;}
   // Startup backfill replays recent ticks (and requestAll fires more than once): a tick
   // already logged is skipped — unless it was logged as "No boss", which usually means
   // its evidence was lost to a restart, so it's re-evaluated with the backfilled evidence.
   const done=rkdLog.find(r=>Math.abs(ts-r.ts)<=RKD_TICK_DEDUPE);
   if(done){
-    if(done.tier!=='none'){_rkdLastTickTs=Math.max(_rkdLastTickTs||0,ts);return;}
+    if(done.tier!=='none'){_rkdLastTickTs=Math.max(_rkdLastTickTs||0,ts);if(msg.zone&&(sameZone||!done.zone)&&done.zone!==msg.zone){done.zone=msg.zone;rkdSave();}return;}
     rkdLog=rkdLog.filter(r=>r!==done);
   }
   const prev=[...rkdLog.map(r=>r.ts),_rkdLastTickTs||0].filter(x=>x<ts-RKD_TICK_DEDUPE);
-  const t={id:'rkd_'+ts,ts,char:msg.charName,poster:msg.poster,text:msg.text||'',channels:[msg.channel],sameZone,prevTickTs:prev.length?Math.max(...prev):null};
+  const t={id:'rkd_'+ts,ts,char:msg.charName,poster:msg.poster,text:msg.text||'',channels:[msg.channel],sameZone,zone:msg.zone||null,prevTickTs:prev.length?Math.max(...prev):null};
   _rkdLastTickTs=Math.max(_rkdLastTickTs||0,ts);
   _rkdOpenTicks.push(t);
   // Live ticks wait out the 2-min post-window; backfilled ones already have it.
@@ -12062,7 +12064,7 @@ function rkdAttribute(t){
   for(const k of Object.keys(per))if(per[k].events.every(e=>e.kind==='faction'))delete per[k];
   const lastTs=c=>Math.max(...c.events.map(e=>e.ts));
   const cands=Object.values(per).sort((a,b)=>b.best-a.best||b.events.length-a.events.length||lastTs(b)-lastTs(a));
-  if(!cands.length)return{tier:'none'};
+  if(!cands.length)return rkdTimerGuess(t)||{tier:'none'};
   // Same rank is only a toss-up when the runner-up has comparable evidence (one stray rampage from
   // another character's log doesn't tie ~35 Statue lines).
   if(cands.length>1&&cands[1].best===cands[0].best&&cands[1].events.length*3>cands[0].events.length)return{tier:'ambiguous',cands:cands.filter(c=>c.best===cands[0].best).map(c=>c.boss),events:win};
@@ -12075,13 +12077,77 @@ function rkdFinalize(t){
   if(!_rkdOpenTicks.includes(t))return;
   _rkdOpenTicks=_rkdOpenTicks.filter(x=>x!==t);
   const a=rkdAttribute(t);
-  rkdLog.push({id:t.id,ts:t.ts,char:t.char,poster:t.poster,channels:t.channels,sameZone:t.sameZone,text:t.text,
+  const _up=rkdUpInZone(t);
+  rkdLog.push({id:t.id,ts:t.ts,char:t.char,poster:t.poster,channels:t.channels,sameZone:t.sameZone,zone:t.zone||null,text:t.text,
     tier:a.tier,boss:a.boss||null,cands:a.cands||null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,
-    evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw}))});
+    evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw})),...(_up?{upZone:_up}:{})});
   rkdLog.sort((a,b)=>a.ts-b.ts);
   if(rkdLog.length>RKD_LOG_MAX)rkdLog=rkdLog.slice(-RKD_LOG_MAX);
   rkdSave();
   if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
+}
+// ── Spawn-timer fallback for ticks with NO boss evidence in the logs (owner idea, 2026-09-30) ──
+// 1) a boss (in the tick's zone, if known) whose ToD on the spawn-timer board is right at the tick
+//    (20 min before … 5 min after) → Weak; several → Pick.
+// 2) zone known: that zone's bosses that were UP at the tick (window open/over or quake, with no
+//    ToD recorded after it) → one = Weak, a few = Pick. Assumptions, so never Strong.
+function _rkdTodOf(b){
+  const s=(typeof btState!=='undefined'&&btState)?btState[b]:null;
+  if(!s||s.up||s.open==null)return null;
+  if(s.src==='note')return s.updatedAt;                 // a ToD typed / noted directly
+  const T=btTimer(b);return T?s.open-(T.rh-T.v)*BT_HR:null;   // window open = ToD + (respawn - variance)
+}
+function _rkdLocOfZone(zone){
+  if(!zone||typeof PARK_LOCATIONS==='undefined')return null;
+  const z=parkNormZone(zone),L=PARK_LOCATIONS.find(l=>l.zones.some(x=>parkNormZone(x)===z));
+  return L?L.id:null;
+}
+function rkdTimerGuess(t){
+  if(typeof btState==='undefined'||!btState||!Object.keys(btState).length)return null;
+  const loc=_rkdLocOfZone(t.zone),f=ms=>new Date(ms).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  const inZone=b=>!loc||BT_PARK_LOC[b]===loc;
+  const hits=[];
+  for(const b of Object.keys(btState)){if(!inZone(b))continue;const tod=_rkdTodOf(b);if(tod!=null&&tod>=t.ts-20*60e3&&tod<=t.ts+5*60e3)hits.push({b,tod});}
+  const ev=x=>({ts:x.tod,kind:'timer',raw:btLabel(x.b)+' ToD '+f(x.tod)+' on the spawn timers'});
+  if(hits.length===1)return{tier:'weak',boss:hits[0].b,basis:'spawn timer',tod:hits[0].tod,todSource:'spawn timer',events:[ev(hits[0])]};
+  if(hits.length>1)return{tier:'ambiguous',cands:hits.map(h=>h.b),basis:'spawn timer',events:hits.map(ev)};
+  return null;
+}
+// Bosses of the tick's zone that were UP at the tick per the spawn timers (window open/over or up
+// since a quake, with no ToD recorded after it). Shown as "Mobs up" — information, NOT a suggestion
+// (owner, 2026-09-30). null = zone unknown / not a mapped raid zone.
+function rkdUpInZone(t){
+  const loc=_rkdLocOfZone(t.zone);
+  if(!loc||typeof btState==='undefined'||!btState)return null;
+  const up=[];
+  for(const b of Object.keys(BT_PARK_LOC)){
+    if(BT_PARK_LOC[b]!==loc)continue;const s=btState[b];if(!s)continue;
+    if(s.up){if((s.upSince||0)<=t.ts)up.push(b);continue;}
+    const tod=_rkdTodOf(b);
+    if(s.open!=null&&s.open<=t.ts&&(tod==null||tod<t.ts))up.push(b);
+  }
+  return up.sort((a,b)=>btLabel(a).localeCompare(btLabel(b)));
+}
+// "No boss" ticks of the last 3 days are re-tried against the timer board each time Auto-Detect opens —
+// the guild tracker is often updated after the tick.
+function rkdRetryNoBoss(){
+  if(typeof btLoaded!=='undefined'&&!btLoaded)return false;
+  let changed=false;const since=Date.now()-3*864e5;
+  for(const r of rkdLog){
+    // test build 2026-09-30 turned "bosses up in zone" into a Pick — those are Mobs up, not suggestions
+    if(r.basis==='bosses up in zone'||r.basis==='only boss up in zone'){
+      Object.assign(r,{tier:'none',boss:null,cands:null,basis:null,tod:null,todSource:null,evidence:[]});delete r.upZone;changed=true;
+    }
+    // Mobs up: taken once, close to the tick (the board moves on as bosses die and respawn)
+    if(r.zone&&r.upZone===undefined&&r.ts>=Date.now()-7*864e5){const u=rkdUpInZone(r);if(u){r.upZone=u;changed=true;}}
+    if(r.tier!=='none'||r.ts<since)continue;
+    const a=rkdTimerGuess(r);if(!a)continue;
+    Object.assign(r,{tier:a.tier,boss:a.boss||null,cands:a.cands||null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,
+      evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw}))});
+    changed=true;
+  }
+  if(changed)rkdSave();
+  return changed;
 }
 window.rkdToggleNoise=function(v){try{localStorage.setItem('mp_rkd_noise',v?'1':'0');}catch(e){}renderKillsPanel();};
 // Right-click a suggestion → "Add <boss> to Raid Kill Tracker…" opens the normal kill dialog (roles,
@@ -12099,21 +12165,52 @@ window.rkdRowMenu=function(ev,tr){
     document.addEventListener('keydown',e=>{if(e.key==='Escape'){const x=document.getElementById('rkdMenu');if(x)x.style.display='none';}});
   }
   const bosses=r.boss?[r.boss]:(r.tier==='ambiguous'?(r.cands||[]):[]);
+  const idE=encodeURIComponent(r.id);
+  const pick=b=>"rkdAddToTracker(decodeURIComponent('"+idE+"'),decodeURIComponent('"+encodeURIComponent(b)+"'))";
   const item=(html,on)=>`<div ${on?`onclick="${on}" onmouseover="this.style.background='rgba(201,168,76,.15)'" onmouseout="this.style.background=''" style="padding:.35rem .8rem;cursor:pointer"`:'style="padding:.35rem .8rem;color:var(--text-muted)"'}>${html}</div>`;
-  m.innerHTML=bosses.length
-    ?bosses.map(b=>item('⚔ Add <b>'+esc(btLabel?btLabel(b):b)+'</b> to Raid Kill Tracker…',"rkdAddToTracker(decodeURIComponent('"+encodeURIComponent(r.id)+"'),decodeURIComponent('"+encodeURIComponent(b)+"'))")).join('')
-    :item('No boss suggested for this tick',null);
+  m.innerHTML=(bosses.length
+      ?'<div style="padding:.2rem .8rem;font-size:.66rem;color:var(--text-muted);letter-spacing:.06em">SUGGESTED</div>'+bosses.map(b=>item('⚔ Add <b>'+esc(btLabel(b))+'</b> to Raid Kill Tracker…',pick(b))).join('')
+      :item('No boss suggested for this tick',null))+
+    (Array.isArray(r.upZone)&&r.upZone.filter(b=>!bosses.includes(b)).length
+      ?'<div style="border-top:1px solid var(--border);margin-top:4px;padding:.2rem .8rem;font-size:.66rem;color:var(--text-muted);letter-spacing:.06em">MOBS UP IN '+esc(String(r.zone||'ZONE').toUpperCase())+'</div>'+
+        r.upZone.filter(b=>!bosses.includes(b)).map(b=>item(esc(btLabel(b)),pick(b))).join('')
+      :'')+
+    '<div style="border-top:1px solid var(--border);margin-top:4px;padding:.4rem .6rem .2rem">'+
+      '<input id="rkdMenuSearch" type="text" placeholder="Search all bosses…" autocomplete="off" style="width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:.3rem .45rem;font-family:\'Crimson Pro\',serif;font-size:.85rem;outline:none">'+
+    '</div><div id="rkdMenuList" style="max-height:240px;overflow-y:auto"></div>';
+  m.dataset.rkd=r.id;
+  const inp=document.getElementById('rkdMenuSearch');
+  inp.oninput=()=>rkdMenuFilter(inp.value);
+  inp.onkeydown=e=>{if(e.key==='Enter'){const f=document.querySelector('#rkdMenuList [data-boss]');if(f)rkdAddToTracker(r.id,decodeURIComponent(f.getAttribute('data-boss')));}};
+  rkdMenuFilter('');
   m.style.display='block';
   const w=m.offsetWidth,h=m.offsetHeight;
-  m.style.left=Math.min(ev.clientX,window.innerWidth-w-8)+'px';m.style.top=Math.min(ev.clientY,window.innerHeight-h-8)+'px';
+  m.style.left=Math.min(ev.clientX,window.innerWidth-w-8)+'px';m.style.top=Math.max(8,Math.min(ev.clientY,window.innerHeight-h-8))+'px';
+  setTimeout(()=>inp.focus(),0);
   return false;
 };
+// Every roster boss, filtered by the search box (display name, full name or tracker key).
+function rkdMenuFilter(q){
+  const list=document.getElementById('rkdMenuList'),m=document.getElementById('rkdMenu');if(!list||!m)return;
+  const s=String(q||'').toLowerCase().trim(),seen=new Set(),rows=[];
+  for(const b of BOSS_ROSTER){
+    if(!b||!b.target||seen.has(b.target))continue;seen.add(b.target);
+    const name=btLabel(b.target),full=b.full||b.target;
+    if(s&&![name,full,b.target].some(x=>String(x).toLowerCase().includes(s)))continue;
+    rows.push({t:b.target,name,full});
+  }
+  rows.sort((a,b)=>a.name.localeCompare(b.name));
+  const id=m.dataset.rkd;
+  list.innerHTML=rows.length?rows.map(x=>`<div data-boss="${encodeURIComponent(x.t)}" onclick="rkdAddToTracker(decodeURIComponent('${encodeURIComponent(id)}'),decodeURIComponent('${encodeURIComponent(x.t)}'))" onmouseover="this.style.background='rgba(201,168,76,.15)'" onmouseout="this.style.background=''" style="padding:.28rem .8rem;cursor:pointer;font-size:.82rem">${esc(x.name)}${x.full!==x.name?` <span style="font-size:.7rem;color:var(--text-muted)">${esc(x.full)}</span>`:''}</div>`).join('')
+    :'<div style="padding:.35rem .8rem;color:var(--text-muted);font-size:.8rem">No boss matches “'+esc(q)+'”</div>';
+}
 window.rkdAddToTracker=function(id,boss){
   const m=document.getElementById('rkdMenu');if(m)m.style.display='none';
   const r=rkdLog.find(x=>String(x.id)===String(id));if(!r)return;
   const b=BOSS_ROSTER.find(x=>x.target===boss),when=r.tod||r.ts;
   const label=new Date(when).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-  todEnqueue(boss,b?b.full:boss,'Auto-Detect · '+(r.basis||r.tier),label,when);
+  const suggested=boss===r.boss||(r.cands||[]).includes(boss);
+  todEnqueue(boss,b?b.full:boss,'Auto-Detect · '+(suggested?(r.basis||r.tier):'picked by hand'),label,when);
 };
 window.rkdClearLog=function(){if(!confirm('Clear the auto-detect log?'))return;rkdLog=[];rkdSave();renderKillsPanel();};
 // ── Auto-Detect: history scan + ODKP credit per RAIDTICK ─────────────────────
@@ -12153,17 +12250,17 @@ function rkdImportScan(ticks,evidence){
   for(const m of ticks.slice().sort((a,b)=>a.ts-b.ts)){
     const sameZone=/out of character|shouts/.test(m.channel||'');
     const p=merged[merged.length-1];
-    if(p&&m.ts-p.ts<=RKD_TICK_DEDUPE){p.sameZone=p.sameZone||sameZone;if(!p.channels.includes(m.channel))p.channels.push(m.channel);continue;}
-    merged.push({id:'rkd_'+m.ts,ts:m.ts,char:m.charName,poster:m.poster,text:m.text||'',channels:[m.channel],sameZone});
+    if(p&&m.ts-p.ts<=RKD_TICK_DEDUPE){p.sameZone=p.sameZone||sameZone;if(!p.channels.includes(m.channel))p.channels.push(m.channel);if(m.zone&&(sameZone||!p.zone))p.zone=m.zone;continue;}
+    merged.push({id:'rkd_'+m.ts,ts:m.ts,char:m.charName,poster:m.poster,text:m.text||'',channels:[m.channel],sameZone,zone:m.zone||null});
   }
   let added=0,prevTs=null;
   for(const t of merged){
     t.prevTickTs=prevTs;prevTs=t.ts;
     const done=rkdLog.find(r=>Math.abs(t.ts-r.ts)<=RKD_TICK_DEDUPE);
-    if(done&&done.tier!=='none')continue;
+    if(done&&done.tier!=='none'){if(!done.zone&&t.zone){done.zone=t.zone;}continue;}   // a rescan fills in the zone of older rows
     if(done)rkdLog=rkdLog.filter(r=>r!==done);
     const a=rkdAttribute(t);
-    rkdLog.push({id:t.id,ts:t.ts,char:t.char,poster:t.poster,channels:t.channels,sameZone:t.sameZone,text:t.text,
+    rkdLog.push({id:t.id,ts:t.ts,char:t.char,poster:t.poster,channels:t.channels,sameZone:t.sameZone,zone:t.zone||null,text:t.text,
       tier:a.tier,boss:a.boss||null,cands:a.cands||null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,
       evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw})),src:'scan'});
     if(!done)added++;
@@ -12235,6 +12332,9 @@ window.rkdToggleUncredited=function(v){try{localStorage.setItem('mp_rkd_uncredit
 function renderAutoDetectPanel(){
   let showNoise=false,onlyUncredited=false;
   try{showNoise=localStorage.getItem('mp_rkd_noise')==='1';onlyUncredited=localStorage.getItem('mp_rkd_uncredited')==='1';}catch(e){}
+  // "No boss" ticks: try the spawn-timer board (loads it once, then re-renders if anything changed)
+  if(typeof btLoaded!=='undefined'&&!btLoaded&&typeof btEnsureLoaded==='function'){btEnsureLoaded().then(()=>{if(rkdRetryNoBoss()&&typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();});}
+  else rkdRetryNoBoss();
   const fmt=ts=>ts?new Date(ts).toLocaleString([], {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';
   const TIER={strong:['Strong','#4caf7d'],weak:['Weak','#c9a84c'],ambiguous:['Pick','#6ab4c4'],none:['No boss','var(--text-muted)']};
   const counts={strong:0,weak:0,ambiguous:0,none:0};rkdLog.forEach(r=>counts[r.tier]=(counts[r.tier]||0)+1);
@@ -12274,8 +12374,9 @@ function renderAutoDetectPanel(){
     const ev=(r.evidence||[]).map(e=>`<div>${fmt(e.ts).split(', ').pop()} <b>${esc(e.kind)}</b> ${esc(e.raw)}</div>`).join('');
     return `<tr data-rkd="${esc(r.id)}" oncontextmenu="return rkdRowMenu(event,this)" title="Right-click: add to the Raid Kill Tracker" style="border-bottom:1px solid var(--border)${o.k==='missing'?';background:rgba(180,40,40,.07)':''}">
       <td style="padding:.3rem .5rem;white-space:nowrap">${fmt(r.ts)}</td>
-      <td style="padding:.3rem .5rem">${esc(r.char||'')}</td>
+      <td style="padding:.3rem .5rem">${esc(r.char||'')}${r.zone?`<div style="font-size:.68rem;color:var(--text-muted)" title="Zone the tick was taken in">${esc(r.zone)}</div>`:''}</td>
       <td style="padding:.3rem .5rem;font-weight:600">${who}</td>
+      <td style="padding:.3rem .5rem;font-size:.74rem;color:var(--text-muted)" title="Up in ${esc(r.zone||'this zone')} at the tick, per the spawn timers">${Array.isArray(r.upZone)?(r.upZone.length?r.upZone.map(b=>esc(btLabel(b))).join('<br>'):'<span style="font-size:.7rem">none on the timers</span>'):'—'}</td>
       <td style="padding:.3rem .5rem;color:${tc};white-space:nowrap">${tl}${r.basis?` <span style="font-size:.7rem;color:var(--text-muted)">(${esc(r.basis)})</span>`:''}</td>
       <td style="padding:.3rem .5rem;white-space:nowrap">${r.tod?fmt(r.tod).split(', ').pop()+` <span style="font-size:.68rem;color:var(--text-muted)">${esc(r.todSource||'')}</span>`:'—'}</td>
       <td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted)">${r.sameZone?'OOC+':''}${esc(r.poster||'')}<div style="font-size:.68rem">${ev}</div></td>
@@ -12304,7 +12405,7 @@ function renderAutoDetectPanel(){
     </div>
     <div style="overflow:auto;max-height:72vh">${rows.length?`<table style="width:100%;border-collapse:collapse;font-size:.8rem">
       <thead><tr style="text-align:left;font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.06em;color:var(--text-muted)">
-        <th style="padding:.35rem .5rem">TICK</th><th style="padding:.35rem .5rem">CHAR</th><th style="padding:.35rem .5rem">SUGGESTED</th><th style="padding:.35rem .5rem">CONFIDENCE</th><th style="padding:.35rem .5rem">ToD</th><th style="padding:.35rem .5rem">EVIDENCE</th><th style="padding:.35rem .5rem">TRACKER</th><th style="padding:.35rem .5rem">ODKP CREDIT</th>
+        <th style="padding:.35rem .5rem">TICK</th><th style="padding:.35rem .5rem">CHAR</th><th style="padding:.35rem .5rem">SUGGESTED</th><th style="padding:.35rem .5rem" title="Bosses of the tick's zone that were up at the tick, per the spawn timers">MOBS UP</th><th style="padding:.35rem .5rem">CONFIDENCE</th><th style="padding:.35rem .5rem">ToD</th><th style="padding:.35rem .5rem">EVIDENCE</th><th style="padding:.35rem .5rem">TRACKER</th><th style="padding:.35rem .5rem">ODKP CREDIT</th>
       </tr></thead><tbody>${body}</tbody></table>`
       :`<div style="padding:1.2rem;color:var(--text-muted);font-style:italic">${onlyUncredited?'Every RAIDTICK you were in zone for has a credited ODKP tick.':'No raid ticks yet. Suggestions appear about 2 minutes after each RAIDTICK while MixelParse is running — or use ⛏ Scan logs to load past raid nights.'}</div>`}</div>`;
 }
