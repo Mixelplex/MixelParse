@@ -1,8 +1,11 @@
-## 1.6.5
+## 1.6.6
+
+- **Auto-Detect: Watch / Active mode** — a per-PC switch on the Auto-Detect tab. Watch (default) is unchanged: suggestions only. Active acts on live raid ticks you were at: Strong kills are added to the Raid Kill Tracker automatically and set the spawn-timer ToD (right-click the tick → Undo auto-add). With "Ask me about unsure ticks" on (shown under the switch), Weak suggestions open the kill dialog to confirm, and Pick / No-boss ticks ask which boss — suggestions, mobs up in the zone, or search — or Not a kill.
+- **No double counting** — a /note within 30 minutes of an auto-added kill counts as the same kill. A tick for a kill you already /noted doesn't prompt; two kills a couple of minutes apart each get their own prompt.
+
+Everything from 1.6.5 and earlier is included:
 
 - **Auto-Detect: Mobs up = potential spawns** — Mobs up and the right-click menu only offer bosses that could be up at the tick: in their window, or past it / up since a quake for under a day. Bosses marked Dead or not in window yet aren't listed; ones the spawn timers show up for more than a day (almost always a kill nobody recorded) are only counted as "+N stale". Any boss can still be added from the search box.
-
-Everything from 1.6.4 and earlier is included:
 
 - **Spawn Timers: Unknown ToD (Dead)** — right-click a boss → Unknown ToD now offers **Could be up** and **Dead**. Dead is for a kill whose time you don't know: it shows as DEAD on the board and isn't counted as up (no parking warning, not in Auto-Detect's Mobs up). A quake, a ToD or a tracker paste replaces it.
 - **Auto-Detect** — a new tick shows immediately as "⏳ Collecting evidence" until its suggestion is ready (about 2 minutes after the tick); Mobs up is shown in two columns.

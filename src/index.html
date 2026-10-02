@@ -5448,10 +5448,11 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.6.5',
+  version:'1.6.6',
   date:'October 2026',
   features:[
-    ['Auto-Detect: Mobs up = potential spawns','Mobs up (and the right-click menu) only offers bosses that could be up at the tick: in their window, or up for under a day. Bosses marked Dead or not in window yet aren&rsquo;t listed; ones the timers show up for over a day (almost always an unrecorded kill) are just counted as &ldquo;+N stale&rdquo;. You can still search for any boss.'],
+    ['Auto-Detect: Watch / Active mode','A switch on the Auto-Detect tab (saved on this PC). <b>Watch</b> (default) works as before: suggestions only. <b>Active</b> acts on live raid ticks you were at: <b>Strong</b> kills are added to the Raid Kill Tracker automatically and set the spawn-timer ToD (right-click the tick to undo). With &ldquo;Ask me about unsure ticks&rdquo; on, <b>Weak</b> suggestions open the kill dialog to confirm, and <b>Pick / No boss</b> ticks ask which boss (suggestions, mobs up, or search) &mdash; or click Not a kill.'],
+    ['No double counting','A /note right after an auto-added kill is treated as the same kill (no #2). A tick for a kill you already /noted doesn&rsquo;t ask &mdash; but two kills minutes apart each still get their own prompt.'],
   ],
   fixes:[],
 };
@@ -7659,7 +7660,13 @@ window.applyDBToChar    = applyDBToChar;
       const _bossText  = _sfxM ? _sfxM[1] : ll;
       {
         const boss = _noteBossMatch(_bossText);
-        if(boss){
+        if(boss && !/^fail/.test(_directAct||'') && _rkdAutoAddedNear(boss.target, timestamp)){
+          // Auto-Detect (Active mode) already added this kill — the /note is the same kill, not a #2
+          showWatcherToast('⚔ '+btLabel(boss.target)+' already added by Auto-Detect');
+          btNoteTod(boss.target, timestamp);
+          matched = true;
+        }
+        else if(boss){
           if(_directAct) todDirectNote(boss.target, _directAct, timestamp);
           else           todEnqueue(boss.target, boss.full, line, timestamp);
           btNoteTod(boss.target, timestamp);   // also advance the spawn timer (newer-wins); does not touch the kill tracker
@@ -8002,10 +8009,15 @@ function todEnqueue(target, full, noteText, timestamp, when){
 
 function _todShowNext(){
   if(!_todQueue.length || _todModalOpen) return;
+  // Auto-Detect prompt whose kill got /note'd (or added) while it waited in the queue → drop it quietly
+  while(_todQueue.length && _todQueue[0].auto && (_todQueue[0].target ? _rkdRecordedCount(_todQueue[0].target, _todQueue[0].when) > 0 : _rkdKillNear(_todQueue[0].when, _todQueue[0].rkdId))){ rkdAutoResolved(_todQueue[0], 'noted'); _todQueue.shift(); }
+  if(!_todQueue.length){ if(window.MixelParseApp && window.MixelParseApp.todRelease) window.MixelParseApp.todRelease(); return; }
   _todModalOpen = true;
-  if(window.MixelParseApp && window.MixelParseApp.todSurface) window.MixelParseApp.todSurface();
   const item = _todQueue[0];
+  // an Auto-Detect prompt never pulls the window over the game — the toast says it's waiting
+  if(!item.auto && window.MixelParseApp && window.MixelParseApp.todSurface) window.MixelParseApp.todSurface();
   if(item.tick) showTickModal(item.desc, item.value, item.timestamp);
+  else if(item.auto && !item.target) showRkdPickModal(item);
   else showTodModal(item.target, item.full, item.noteText, item.timestamp);
 }
 
@@ -8019,6 +8031,7 @@ function _todAdvance(){
 }
 
 function _todSkipAll(){
+  _todQueue.forEach(it => { if(it.auto) rkdAutoResolved(it, 'dismissed'); });
   _todQueue.length = 0;
   _todModalOpen = false;
   const overlay = document.getElementById('tod-modal-overlay');
@@ -8148,6 +8161,7 @@ function showTodModal(target, full, noteText, timestamp){
 
   // Session dropdown — a past kill (Auto-Detect) preselects the session covering it, even if older than the last 8
   const _when = _todQueue[0] && _todQueue[0].when;
+  const _auto = _todQueue[0] && _todQueue[0].auto ? _todQueue[0] : null;
   const _pre = _when ? _todSessionFor(_when) : null;
   const _sl = raidSessions.slice().reverse().slice(0,8);
   if(_pre && !_sl.includes(_pre)) _sl.unshift(_pre);
@@ -8169,9 +8183,10 @@ function showTodModal(target, full, noteText, timestamp){
 
   overlay.innerHTML = `
     <div style="background:#1a1510;border:2px solid #8b6914;border-radius:6px;padding:1.6rem 2rem;min-width:360px;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.8)">
-      <div style="font-size:.85rem;color:#c9a84c;letter-spacing:.1em;margin-bottom:.3rem">⚔ KILL DETECTED${_todQueue.length>1?` <span style="font-size:.6rem;color:#888;font-family:monospace">1 of ${_todQueue.length}</span>`:''}</div>
+      <div style="font-size:.85rem;color:#c9a84c;letter-spacing:.1em;margin-bottom:.3rem">${_auto?'⚔ AUTO-DETECT — CONFIRM KILL':'⚔ KILL DETECTED'}${_todQueue.length>1?` <span style="font-size:.6rem;color:#888;font-family:monospace">1 of ${_todQueue.length}</span>`:''}</div>
       <div style="font-size:1.25rem;color:#e8d5a0;margin-bottom:.2rem">${esc(full)}</div>
-      <div style="font-size:.68rem;color:#666;font-family:monospace;margin-bottom:1.2rem">${esc(noteText)} · ${esc(timestamp)}</div>
+      <div style="font-size:.68rem;color:#666;font-family:monospace;margin-bottom:${_auto?'.5rem':'1.2rem'}">${esc(noteText)} · ${esc(timestamp)}</div>
+      ${_auto ? `<div style="font-size:.66rem;color:#8a8070;font-family:monospace;margin-bottom:1.1rem;padding:.35rem .5rem;border:1px solid rgba(200,184,144,.15);border-radius:3px;max-height:7.5em;overflow-y:auto">${(_auto.ev||[]).map(e=>`<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(e)}">${esc(e)}</div>`).join('') || 'no log lines — spawn timer match'}<div style="color:#6a8a5a;margin-top:.25rem;font-family:'Crimson Pro',serif;font-size:.72rem">Not in the tracker yet. Confirming adds it and sets the spawn-timer ToD.</div></div>` : ''}
 
       <div style="margin-bottom:1rem">
         <div style="font-size:.62rem;color:#999;letter-spacing:.08em;margin-bottom:.35rem">SESSION</div>
@@ -8191,7 +8206,7 @@ function showTodModal(target, full, noteText, timestamp){
       <div style="display:flex;gap:.6rem;margin-top:1rem">
         ${raidSessions.length ? `<button type="button" onclick="todAddToSession('killed')" style="flex:1;background:#2a3a1a;border:1px solid #4a6a2a;color:#8fc46a;padding:.5rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Add to Session</button>` : ''}
         <button type="button" onclick="todStartNewSession('killed')" style="flex:1;background:#1a2a3a;border:1px solid #2a4a6a;color:#6ab4c4;padding:.5rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Start New Session</button>
-        <button type="button" onclick="_todAdvance()" style="background:#2a1a1a;border:1px solid #5a2a2a;color:#a46a6a;padding:.5rem .8rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">${_todQueue.length>1?'Skip →':'Dismiss'}</button>
+        <button type="button" onclick="${_auto?'todAutoDismiss()':'_todAdvance()'}" title="${_auto?'Not a kill — never ask about this tick again':''}" style="background:#2a1a1a;border:1px solid #5a2a2a;color:#a46a6a;padding:.5rem .8rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">${_auto?'Not a kill':_todQueue.length>1?'Skip →':'Dismiss'}</button>
         ${_todQueue.length>1?`<button type="button" onclick="_todSkipAll()" style="background:#1a1a1a;border:1px solid #444;color:#666;padding:.5rem .8rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Skip All</button>`:''}
       </div>
       <div style="display:flex;gap:.6rem;margin-top:.4rem">
@@ -8267,6 +8282,7 @@ function todAddToSession(killState){
   const label = ktRecordBossState(session, target, killState, _todGetCheckedRoles());
   if(killState==='killed') session.lastKillAt = _todKillAtFor(session);
   saveSessionsToSupabase();
+  rkdAutoResolved(_todQueue[0], killState==='killed' ? 'confirmed' : 'failtick');
   _todAdvance();
   switchTopView('kills');
   showWatcherToast(`${killState==='failtick'?'💀':'⚔'} ${label} ${killState==='failtick'?'failtick':'marked as killed'}`);
@@ -8289,6 +8305,7 @@ function todStartNewSession(killState){
   raidSessions.push(session);
   activeSession = session;
   saveSessionsToSupabase();
+  rkdAutoResolved(_todQueue[0], killState==='killed' ? 'confirmed' : 'failtick');
   _todAdvance();
   switchTopView('kills');
   showWatcherToast(`${killState==='failtick'?'💀':'⚔'} New session — ${target} ${killState==='failtick'?'failtick':'killed'}`);
@@ -12098,6 +12115,7 @@ function rkdFinalize(t){
   if(rkdLog.length>RKD_LOG_MAX)rkdLog=rkdLog.slice(-RKD_LOG_MAX);
   rkdSave();
   if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
+  try{rkdActOnTick(rkdLog.find(r=>r.id===t.id));}catch(e){console.warn('rkd active',e);}
 }
 // ── Spawn-timer fallback for ticks with NO boss evidence in the logs (owner idea, 2026-09-30) ──
 // 1) a boss (in the tick's zone, if known) whose ToD on the spawn-timer board is right at the tick
@@ -12208,7 +12226,7 @@ window.rkdRowMenu=function(ev,tr){
   const idE=encodeURIComponent(r.id);
   const pick=b=>"rkdAddToTracker(decodeURIComponent('"+idE+"'),decodeURIComponent('"+encodeURIComponent(b)+"'))";
   const item=(html,on)=>`<div ${on?`onclick="${on}" onmouseover="this.style.background='rgba(201,168,76,.15)'" onmouseout="this.style.background=''" style="padding:.35rem .8rem;cursor:pointer"`:'style="padding:.35rem .8rem;color:var(--text-muted)"'}>${html}</div>`;
-  m.innerHTML=(bosses.length
+  m.innerHTML=(r.confirm==='auto'?item('↶ Undo auto-add of <b>'+esc(btLabel(r.boss))+'</b>',"rkdUndoAuto(decodeURIComponent('"+idE+"'))")+'<div style="border-top:1px solid var(--border);margin:4px 0"></div>':'')+(bosses.length
       ?'<div style="padding:.2rem .8rem;font-size:.66rem;color:var(--text-muted);letter-spacing:.06em">SUGGESTED</div>'+bosses.map(b=>item('⚔ Add <b>'+esc(btLabel(b))+'</b> to Raid Kill Tracker…',pick(b))).join('')
       :item('No boss suggested for this tick',null))+
     (Array.isArray(r.upZone)&&r.upZone.filter(b=>!bosses.includes(b)).length
@@ -12368,6 +12386,144 @@ function _rkdRecordedCount(boss,ts){
   return best;
 }
 
+// ── Auto-Detect modes (owner, 2026-10-01) ──
+// WATCH (default): suggestions only. ACTIVE (per PC), on a live tick you were at:
+//   Strong + not in the tracker  → added automatically (no prompt); right-click the row to undo.
+//   Weak                         → the kill dialog, headed "AUTO-DETECT — confirm kill".
+//   Pick / No boss               → "which boss?" picker (candidates, mobs up, search) → the kill dialog.
+// Unsure-tick prompts can be turned off with the sub-checkbox. Kills added or confirmed also set the
+// spawn-timer ToD (newer-wins, like /note). The tally (mp_rkd_confirm_stats) is the track record.
+window.rkdToggleConfirm=function(v){try{localStorage.setItem('mp_rkd_confirm',v?'1':'0');}catch(e){}renderKillsPanel();};
+function rkdMode(){try{return localStorage.getItem('mp_rkd_mode')==='active'?'active':'watch';}catch(e){return 'watch';}}
+window.rkdSetMode=function(m){try{localStorage.setItem('mp_rkd_mode',m==='active'?'active':'watch');}catch(e){}renderKillsPanel();};
+function rkdConfirmOn(){try{return rkdMode()==='active'&&localStorage.getItem('mp_rkd_confirm')!=='0';}catch(e){return false;}}
+function rkdConfirmTally(k){try{const t=JSON.parse(localStorage.getItem('mp_rkd_confirm_stats')||'{}');if(k){t[k]=(t[k]||0)+1;localStorage.setItem('mp_rkd_confirm_stats',JSON.stringify(t));}return t;}catch(e){return {};}}
+function rkdTallyText(){const c=rkdConfirmTally(),p=[];
+  if(c.auto)p.push(c.auto+' auto-added'+(c.undone?' ('+c.undone+' undone)':''));if(c.confirmed)p.push(c.confirmed+' confirmed');if(c.dismissed)p.push(c.dismissed+' not a kill');if(c.failtick)p.push(c.failtick+' failtick');
+  return p.length?' So far: '+p.join(', ')+'.':'';}
+// Every session incl. an unsaved working session, and the one whose night covers ms.
+function _rkdAllSessions(){const all=(raidSessions||[]).slice();if(activeSession&&!all.some(s=>s.id===activeSession.id))all.push(activeSession);return all;}
+function _rkdSessionAt(ms){let best=null,bs=-Infinity;
+  for(const s of _rkdAllSessions()){const st=Date.parse(s.startedAt||s.date||0),end=Date.parse(s.lastKillAt||s.startedAt||s.date||0);
+    if(ms>=st-3600e3&&ms<=Math.max(end,st)+12*3600e3&&st>bs){best=s;bs=st;}}
+  return best;}
+// A kill was recorded (any boss) right around this tick AND this is the tick nearest that kill — the tick is for
+// that kill, nothing to ask. "Nearest" matters: two kills 2 min apart each have their own tick (owner, 2026-10-02;
+// a plain "any kill within 20 min" swallowed Queen Bee 2, Lord of Ire, Lepethida, Casalen… in the log replay).
+function _rkdKillNear(ms,selfId){
+  const mine=rkdLog.filter(r=>_rkdAttended(r));
+  return _rkdAllSessions().some(s=>{
+    const k=Date.parse(s.lastKillAt||0);if(!k||k<ms-20*60e3||k>ms+5*60e3)return false;
+    let best=null,bd=Infinity;for(const r of mine){const d=Math.abs(r.ts-k);if(d<bd){bd=d;best=r;}}
+    return !best||(selfId?best.id===selfId:Math.abs(best.ts-ms)<=RKD_TICK_DEDUPE);
+  });
+}
+// /note right after an auto-add is the same kill — don't record it a second time (#2).
+function _rkdAutoAddedNear(boss,ms){return rkdLog.some(r=>r.confirm==='auto'&&r.boss===boss&&Math.abs((r.tod||r.ts)-ms)<=30*60e3);}
+function rkdActOnTick(r){
+  if(!r||r.confirm||rkdMode()!=='active')return;
+  if(Date.now()-r.ts>10*60e3)return;                       // live ticks only — never scans / startup replay
+  if(!_rkdAttended(r))return;                               // in zone or raid chat, not just guild chat
+  const when=r.tod||r.ts;
+  if(r.boss&&_rkdRecordedCount(r.boss,when)>0)return;       // already /note'd or added
+  if(r.tier==='strong'&&r.boss){rkdAutoAdd(r);return;}
+  if(!rkdConfirmOn())return;
+  let item;
+  const ts=new Date(when).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}),hm=ms=>new Date(ms).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  const ev=(r.evidence||[]).slice(-4).map(e=>hm(e.ts)+'  '+e.raw);
+  if(r.tier==='weak'&&r.boss){
+    const b=BOSS_ROSTER.find(x=>x.target===r.boss);
+    item={target:r.boss,full:b?b.full:r.boss,noteText:'Weak · '+(r.basis||'log evidence')+' · tick by '+(r.poster||'?'),timestamp:ts,when,auto:true,rkdId:r.id,ev};
+  }else if(r.tier==='ambiguous'||r.tier==='none'){
+    if(_rkdKillNear(r.ts,r.id))return;
+    if((r.cands||[]).some(b=>_rkdRecordedCount(b,r.ts)>0))return;
+    item={target:null,full:null,noteText:(r.tier==='none'?'No boss':'Pick')+' · tick by '+(r.poster||'?'),timestamp:ts,when,auto:true,pick:true,rkdId:r.id,ev,
+      cands:(r.cands||[]).slice(),up:(r.upZone||[]).filter(b=>!(r.cands||[]).includes(b)),zone:r.zone||null,text:r.text||''};
+  }else return;
+  _todQueue.push(item);
+  if(typeof showWatcherToast==='function')showWatcherToast(item.target?'⚔ Auto-Detect: confirm '+btLabel(item.target)+' kill':'⚔ Auto-Detect: which boss was the '+hm(r.ts)+' tick?');
+  if(!_todModalOpen){clearTimeout(_todEnqueueTimer);_todEnqueueTimer=setTimeout(_todShowNext,150);}
+}
+// Strong in Active mode: record it on the session covering the kill (a new session dated to it if none).
+function rkdAutoAdd(r){
+  const when=r.tod||r.ts;let s=_rkdSessionAt(when);
+  if(!s){s=newSession();const d=new Date(when);s.date=localYmd(d);s.startedAt=d.toISOString();}
+  if(!raidSessions.some(x=>x.id===s.id))raidSessions.push(s);
+  const saved=raidSessions.find(x=>x.id===s.id);
+  const label=ktRecordBossState(saved,r.boss,'killed',null);
+  saved.lastKillAt=new Date(Math.max(Date.parse(saved.lastKillAt||0)||0,when)).toISOString();
+  // a loaded working copy of that session is what the tracker shows (and what Save writes back) — mark it too
+  if(activeSession&&activeSession!==saved&&activeSession.id===saved.id){ktRecordBossState(activeSession,r.boss,'killed',null);activeSession.lastKillAt=saved.lastKillAt;}
+  saveSessionsToSupabase();
+  btNoteTod(r.boss,when);
+  r.confirm='auto';r.autoSession=saved.id;r.autoLabel=label;rkdSave();rkdConfirmTally('auto');
+  if(typeof showWatcherToast==='function')showWatcherToast('⚔ Auto-Detect added '+label.replace(r.boss,btLabel(r.boss))+' (Strong) — right-click the tick to undo');
+  if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
+}
+function _rkdUnrecord(s,boss,label){
+  if(!s)return;
+  if(label===boss){if(s.killState)delete s.killState[boss];if(s.bossRoles)delete s.bossRoles[boss];}
+  else{const n=(label.match(/#(\d+)$/)||[])[1];if(n&&s.extraSpawns)s.extraSpawns=s.extraSpawns.filter(sp=>sp.key!==boss+'__'+n);}
+}
+window.rkdUndoAuto=function(id){
+  const m=document.getElementById('rkdMenu');if(m)m.style.display='none';
+  const r=rkdLog.find(x=>String(x.id)===String(id));if(!r||r.confirm!=='auto')return;
+  const s=raidSessions.find(x=>x.id===r.autoSession);
+  _rkdUnrecord(s,r.boss,r.autoLabel||r.boss);
+  if(activeSession&&activeSession!==s&&activeSession.id===r.autoSession)_rkdUnrecord(activeSession,r.boss,r.autoLabel||r.boss);
+  saveSessionsToSupabase();
+  r.confirm='undone';rkdSave();rkdConfirmTally('undone');
+  showWatcherToast('↶ Removed the auto-added '+btLabel(r.boss)+' kill (spawn-timer ToD left as is)');
+  renderKillsPanel();
+};
+// Called by the kill dialog for an Auto-Detect prompt: mark the row, count it, and (kills) set the spawn-timer ToD.
+function rkdAutoResolved(item,how){
+  if(!item||!item.auto)return;
+  const r=rkdLog.find(x=>x.id===item.rkdId);if(r){r.confirm=how;if(how==='confirmed'&&item.pick)r.picked=item.target;rkdSave();}
+  rkdConfirmTally(how);
+  if(how==='confirmed'&&item.target)btNoteTod(item.target,item.when);
+}
+window.todAutoDismiss=function(){rkdAutoResolved(_todQueue[0],'dismissed');_todAdvance();if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();};
+// "Which boss?" — Pick / No-boss ticks in Active mode. Choosing one opens the normal kill dialog for it.
+function showRkdPickModal(item){
+  const overlay=document.createElement('div');overlay.id='tod-modal-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:10000;display:flex;align-items:center;justify-content:center;font-family:"Cinzel",serif';
+  const bb=(b,strong)=>`<button type="button" onclick="rkdPickBoss(decodeURIComponent('${encodeURIComponent(b)}'))" style="background:${strong?'#2a3a1a':'#1f1a12'};border:1px solid ${strong?'#4a6a2a':'#5a4a2a'};color:${strong?'#8fc46a':'#c8b890'};padding:.35rem .6rem;border-radius:3px;font-family:'Crimson Pro',serif;font-size:.8rem;cursor:pointer">${esc(btLabel(b))}</button>`;
+  const sec=(t,arr,strong)=>arr.length?`<div style="font-size:.62rem;color:#999;letter-spacing:.08em;margin:.6rem 0 .3rem">${t}</div><div style="display:flex;flex-wrap:wrap;gap:.35rem">${arr.map(b=>bb(b,strong)).join('')}</div>`:'';
+  overlay.innerHTML=`
+    <div style="background:#1a1510;border:2px solid #8b6914;border-radius:6px;padding:1.4rem 1.8rem;min-width:360px;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.8)">
+      <div style="font-size:.85rem;color:#c9a84c;letter-spacing:.1em;margin-bottom:.3rem">⚔ AUTO-DETECT — WHICH BOSS?${_todQueue.length>1?` <span style="font-size:.6rem;color:#888;font-family:monospace">1 of ${_todQueue.length}</span>`:''}</div>
+      <div style="font-size:1.05rem;color:#e8d5a0;margin-bottom:.2rem">RAIDTICK ${esc(item.timestamp)}${item.zone?` <span style="font-size:.75rem;color:#8a8070">· ${esc(item.zone)}</span>`:''}</div>
+      <div style="font-size:.68rem;color:#666;font-family:monospace;margin-bottom:.4rem">${esc(item.noteText)}${item.text?' · “'+esc(String(item.text).slice(0,90))+'”':''}</div>
+      ${(item.ev||[]).length?`<div style="font-size:.66rem;color:#8a8070;font-family:monospace;padding:.3rem .5rem;border:1px solid rgba(200,184,144,.15);border-radius:3px;max-height:6em;overflow-y:auto">${item.ev.map(e=>`<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(e)}">${esc(e)}</div>`).join('')}</div>`:''}
+      ${sec('SUGGESTED',item.cands||[],true)}${sec('MOBS UP'+(item.zone?' IN '+esc(String(item.zone).toUpperCase()):''),item.up||[],false)}
+      <div style="font-size:.62rem;color:#999;letter-spacing:.08em;margin:.7rem 0 .3rem">SEARCH ALL BOSSES</div>
+      <input id="rkdPickSearch" type="text" placeholder="Type a boss name…" autocomplete="off" oninput="rkdPickFilter(this.value)" onkeydown="if(event.key==='Enter'){const f=document.querySelector('#rkdPickList [data-boss]');if(f)rkdPickBoss(decodeURIComponent(f.getAttribute('data-boss')));}" style="width:100%;box-sizing:border-box;background:#111;border:1px solid #555;color:#e8d5a0;padding:.4rem .5rem;font-size:.8rem;border-radius:3px;font-family:'Crimson Pro',serif">
+      <div id="rkdPickList" style="max-height:150px;overflow-y:auto;margin-top:.2rem"></div>
+      <div style="display:flex;gap:.6rem;margin-top:1rem">
+        <button type="button" onclick="todAutoDismiss()" title="Hourly / attendance tick, or not a kill — never ask about this tick again" style="flex:1;background:#2a1a1a;border:1px solid #5a2a2a;color:#a46a6a;padding:.5rem .8rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Not a kill</button>
+        ${_todQueue.length>1?`<button type="button" onclick="_todSkipAll()" style="background:#1a1a1a;border:1px solid #444;color:#666;padding:.5rem .8rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Skip All</button>`:''}
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+window.rkdPickFilter=function(q){
+  const list=document.getElementById('rkdPickList');if(!list)return;
+  const s=String(q||'').toLowerCase().trim();if(!s){list.innerHTML='';return;}
+  const seen=new Set(),rows=[];
+  for(const b of BOSS_ROSTER){if(!b||!b.target||seen.has(b.target))continue;seen.add(b.target);
+    const name=btLabel(b.target),full=b.full||b.target;if(![name,full,b.target].some(x=>String(x).toLowerCase().includes(s)))continue;rows.push({t:b.target,name,full});}
+  rows.sort((a,b)=>a.name.localeCompare(b.name));
+  list.innerHTML=rows.length?rows.slice(0,30).map(x=>`<div data-boss="${encodeURIComponent(x.t)}" onclick="rkdPickBoss(decodeURIComponent('${encodeURIComponent(x.t)}'))" onmouseover="this.style.background='rgba(201,168,76,.15)'" onmouseout="this.style.background=''" style="padding:.25rem .5rem;cursor:pointer;font-family:'Crimson Pro',serif;font-size:.82rem;color:#c8b890">${esc(x.name)}${x.full!==x.name?` <span style="font-size:.7rem;color:#777">${esc(x.full)}</span>`:''}</div>`).join('')
+    :`<div style="padding:.3rem .5rem;color:#777;font-family:'Crimson Pro',serif;font-size:.8rem">No boss matches “${esc(q)}”</div>`;
+};
+window.rkdPickBoss=function(boss){
+  const item=_todQueue[0];if(!item||!item.pick)return;
+  const b=BOSS_ROSTER.find(x=>x.target===boss);
+  item.target=boss;item.full=b?b.full:boss;item.noteText+=' · you picked '+btLabel(boss);
+  const o=document.getElementById('tod-modal-overlay');if(o)o.remove();
+  showTodModal(item.target,item.full,item.noteText,item.timestamp);
+};
 window.rkdToggleUncredited=function(v){try{localStorage.setItem('mp_rkd_uncredited',v?'1':'0');}catch(e){}renderKillsPanel();};
 function renderAutoDetectPanel(){
   let showNoise=false,onlyUncredited=false;
@@ -12412,6 +12568,7 @@ function renderAutoDetectPanel(){
       rec=have>=n?'<span style="color:#4caf7d" title="Marked in the kill tracker">✓ in tracker'+(n>1?' (#'+n+')':'')+'</span>'
                  :'<span style="color:var(--text-muted)">'+(n>1?'#'+n+' not recorded':'not recorded')+'</span>';
     }else if(r.tier==='ambiguous')rec=(r.cands||[]).map(b=>_rkdRecordedCount(b,r.ts)?'✓':'·').join(' / ');
+    if(r.confirm)rec+={auto:'<div style="font-size:.66rem;color:#4caf7d" title="Active mode added it — right-click to undo">auto-added</div>',undone:'<div style="font-size:.66rem;color:#c07050">auto-add undone</div>',confirmed:'<div style="font-size:.66rem;color:#4caf7d">confirmed by prompt'+(r.picked?' ('+esc(btLabel(r.picked))+')':'')+'</div>',dismissed:'<div style="font-size:.66rem;color:#c07050">prompt: not a kill</div>',failtick:'<div style="font-size:.66rem;color:#c48a3a">prompt: failtick</div>',noted:'<div style="font-size:.66rem;color:var(--text-muted)">/noted before the prompt</div>'}[r.confirm]||'';
     const o=odkpState(r);
     const odkp=o.k==='ok'?'<span style="color:#4caf7d" title="'+esc(o.t.l)+(OM.offset&&OM.offset[r.id]?' — ODKP time is 1 hour off from the RAIDTICK':'')+'">✓ '+(OM.offset&&OM.offset[r.id]?'<span style="color:var(--text-muted)">(±1h)</span> ':'')+esc(o.t.l.replace(/^\d{1,2}-\d{1,2}\s+\d{1,2}:\d{2}\s+/,''))+(o.t.v!=null?' <b>'+o.t.v+'</b>':'')+'</span>'
       :o.k==='missing'?'<span style="color:#c03030;font-weight:600" title="You were in zone for this RAIDTICK but no credited ODKP tick is within 10 minutes">✗ not credited</span>'
@@ -12439,8 +12596,11 @@ function renderAutoDetectPanel(){
     ?`<span style="font-size:.75rem">ODKP: <span style="color:#4caf7d">✓ ${nOk} credited</span> · <span style="color:${nMiss?'#c03030':'var(--text-muted)'}">✗ ${nMiss} not credited</span>${nNewer?` · <span style="color:var(--text-muted)">${nNewer} after upload</span>`:''}</span>`
     :`<span style="font-size:.72rem;color:var(--text-muted)">Upload dkp-details on Credit Check to see ODKP credit per tick</span>`;
   return `<div style="padding:.6rem 1rem;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
-      <span style="font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.06em;color:var(--gold-light)">WATCH-ONLY</span>
-      <span style="font-size:.75rem;color:var(--text-muted)">Suggested kills from RAIDTICK + enrage/slain/tash/malo/slow, checked against your ODKP credit. Nothing is added to your sessions.</span>
+      ${(()=>{const m=rkdMode(),btn=(id,lbl,tip,on,col)=>`<button type="button" onclick="rkdSetMode('${id}')" title="${tip}" style="font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.06em;padding:.25rem .6rem;border:none;cursor:pointer;background:${on?col:'transparent'};color:${on?'#fff':'var(--text-muted)'};font-weight:${on?700:400}">${lbl}</button>`;
+        // Active's sub-option sits right under the switch (owner, 2026-10-02: make it prominent)
+        const sub=m!=='active'?'':`<label title="Weak suggestions open the kill dialog to confirm; Pick / No-boss ticks ask which boss first. Off = only Strong kills are added, nothing asks. Saved on this PC only." style="display:flex;align-items:center;gap:.4rem;padding:.25rem .5rem;border:1px solid ${rkdConfirmOn()?'#3a7a4a':'var(--border)'};border-radius:4px;background:${rkdConfirmOn()?'rgba(58,122,74,.12)':'transparent'};font-size:.74rem;font-weight:600;color:${rkdConfirmOn()?'var(--text)':'var(--text-muted)'};cursor:pointer;white-space:nowrap"><input type="checkbox" ${rkdConfirmOn()?'checked':''} onchange="rkdToggleConfirm(this.checked)" style="accent-color:#3a7a4a;margin:0">Ask me about unsure ticks <span style="font-weight:400;font-size:.68rem;color:var(--text-muted)">(Weak · Pick · No boss)</span></label>`;
+        return `<span style="display:inline-flex;flex-direction:column;gap:.3rem;flex-shrink:0"><span style="display:inline-flex;border:1px solid var(--border);border-radius:4px;overflow:hidden;align-self:flex-start">${btn('watch','WATCH MODE','Suggestions only — Auto-Detect never asks or adds anything',m==='watch','#8b6914')}${btn('active','ACTIVE MODE','Auto-Detect acts on live ticks you were at: Strong kills are added to the tracker automatically (right-click to undo); Weak / Pick / No-boss ticks ask you. Saved on this PC only.'+esc(rkdTallyText()),m==='active','#3a7a4a')}</span>${sub}</span>`;})()}
+      <span style="font-size:.75rem;color:var(--text-muted)">Suggested kills from RAIDTICK + enrage/slain/tash/malo/slow, checked against your ODKP credit. ${rkdMode()==='active'?'<b>Active:</b> Strong kills you were at are added automatically'+(rkdConfirmOn()?'; Weak / Pick / No-boss ticks ask you':'')+'.':'Nothing is added to your sessions.'}</span>
       <span style="font-size:.75rem">Strong ${counts.strong} · Weak ${counts.weak} · Pick ${counts.ambiguous} · No boss ${counts.none}</span>
       ${odkpSum}
       <span style="margin-left:auto;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
