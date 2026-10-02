@@ -5448,16 +5448,12 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.6.4',
+  version:'1.6.5',
   date:'October 2026',
   features:[
-    ['Spawn Timers: Unknown ToD (Dead)','Right-click a boss &rarr; <b>Unknown ToD</b> now has <b>Could be up</b> and <b>Dead</b>. &ldquo;Dead&rdquo; is for a kill whose time you don&rsquo;t know: it shows as DEAD on the board and doesn&rsquo;t count as up (no parking warning, not in Mobs up). A quake, a ToD or a paste replaces it.'],
-    ['Auto-Detect','A new tick shows right away as &ldquo;&#9203; Collecting evidence&rdquo; until its suggestion is ready (about 2 minutes). Mobs up is in two columns.'],
+    ['Auto-Detect: Mobs up = potential spawns','Mobs up (and the right-click menu) only offers bosses that could be up at the tick: in their window, or up for under a day. Bosses marked Dead or not in window yet aren&rsquo;t listed; ones the timers show up for over a day (almost always an unrecorded kill) are just counted as &ldquo;+N stale&rdquo;. You can still search for any boss.'],
   ],
-  fixes:[
-    ['Loaded sessions','Bot Loot / Tick Sub changes on a loaded session stay in the working copy until you Save (they used to change the saved session immediately).'],
-    ['Auto-Detect','Ticks heard on a character without an inventory file now show its zone; a log line written in two pieces can no longer lose a tick; duplicate tick rows are merged (fixes &ldquo;#2 not recorded&rdquo;).'],
-  ],
+  fixes:[],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -12097,7 +12093,7 @@ function rkdFinalize(t){
   const _up=rkdUpInZone(t);
   rkdLog.push({id:t.id,ts:t.ts,char:t.char,poster:t.poster,channels:t.channels,sameZone:t.sameZone,zone:t.zone||null,text:t.text,
     tier:a.tier,boss:a.boss||null,cands:a.cands||null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,
-    evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw})),...(_up?{upZone:_up}:{})});
+    evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw})),...(_up?{upZone:_up.slice(),upStale:_up.stale||0,upV:2}:{})});
   rkdLog.sort((a,b)=>a.ts-b.ts);
   if(rkdLog.length>RKD_LOG_MAX)rkdLog=rkdLog.slice(-RKD_LOG_MAX);
   rkdSave();
@@ -12133,17 +12129,25 @@ function rkdTimerGuess(t){
 // Bosses of the tick's zone that were UP at the tick per the spawn timers (window open/over or up
 // since a quake, with no ToD recorded after it). Shown as "Mobs up" — information, NOT a suggestion
 // (owner, 2026-09-30). null = zone unknown / not a mapped raid zone.
+// Only POTENTIAL spawns (owner, 2026-10-01: "if a mob is down why have it as an option"): in window, or up
+// for under a day (past window < 24 h, quake < 24 h). "Up for days" on the board is almost always a kill
+// nobody recorded, so those are only counted (upZoneStale), not offered.
+const RKD_UP_FRESH_MS=24*3600e3;
 function rkdUpInZone(t){
   const loc=_rkdLocOfZone(t.zone);
   if(!loc||typeof btState==='undefined'||!btState)return null;
-  const up=[];
+  const up=[];let stale=0;
   for(const b of Object.keys(BT_PARK_LOC)){
-    if(BT_PARK_LOC[b]!==loc)continue;const s=btState[b];if(!s)continue;
-    if(s.up){if((s.upSince||0)<=t.ts)up.push(b);continue;}
+    if(BT_PARK_LOC[b]!==loc)continue;const s=btState[b];if(!s||s.dead)continue;
+    if(s.up){if((s.upSince||0)<=t.ts){if(t.ts-(s.upSince||0)<=RKD_UP_FRESH_MS)up.push(b);else stale++;}continue;}
     const tod=_rkdTodOf(b);
-    if(s.open!=null&&s.open<=t.ts&&(tod==null||tod<t.ts))up.push(b);
+    if(s.open!=null&&s.open<=t.ts&&(tod==null||tod<t.ts)){
+      if(s.close==null||t.ts<=s.close||t.ts-s.close<=RKD_UP_FRESH_MS)up.push(b);else stale++;
+    }
   }
-  return up.sort((a,b)=>btLabel(a).localeCompare(btLabel(b)));
+  up.sort((a,b)=>btLabel(a).localeCompare(btLabel(b)));
+  up.stale=stale;
+  return up;
 }
 // "No boss" ticks of the last 3 days are re-tried against the timer board each time Auto-Detect opens —
 // the guild tracker is often updated after the tick.
@@ -12174,7 +12178,8 @@ function rkdRetryNoBoss(){
       Object.assign(r,{tier:'none',boss:null,cands:null,basis:null,tod:null,todSource:null,evidence:[]});delete r.upZone;changed=true;
     }
     // Mobs up: taken once, close to the tick (the board moves on as bosses die and respawn)
-    if(r.zone&&r.upZone===undefined&&r.ts>=Date.now()-7*864e5){const u=rkdUpInZone(r);if(u){r.upZone=u;changed=true;}}
+    // (re)computed once per row — upV 2 = potential spawns only (rows from 1.6.3 listed every "up" boss)
+    if(r.zone&&r.upV!==2&&r.ts>=Date.now()-7*864e5){const u=rkdUpInZone(r);if(u){r.upZone=u.slice();r.upStale=u.stale||0;r.upV=2;changed=true;}}
     if(r.tier!=='none'||r.ts<since)continue;
     const a=rkdTimerGuess(r);if(!a)continue;
     Object.assign(r,{tier:a.tier,boss:a.boss||null,cands:a.cands||null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,
@@ -12418,7 +12423,7 @@ function renderAutoDetectPanel(){
       <td style="padding:.3rem .5rem;white-space:nowrap">${fmt(r.ts)}</td>
       <td style="padding:.3rem .5rem">${esc(r.char||'')}${r.zone?`<div style="font-size:.68rem;color:var(--text-muted)" title="Zone the tick was taken in">${esc(r.zone)}</div>`:''}</td>
       <td style="padding:.3rem .5rem;font-weight:600">${who}</td>
-      <td style="padding:.3rem .5rem;font-size:.74rem;color:var(--text-muted)" title="Up in ${esc(r.zone||'this zone')} at the tick, per the spawn timers">${Array.isArray(r.upZone)?(r.upZone.length?'<div style="display:grid;grid-template-columns:repeat(2,max-content);column-gap:.9rem;row-gap:.05rem">'+r.upZone.map(b=>'<span style="white-space:nowrap">'+esc(btLabel(b))+'</span>').join('')+'</div>':'<span style="font-size:.7rem">none on the timers</span>'):'—'}</td>
+      <td style="padding:.3rem .5rem;font-size:.74rem;color:var(--text-muted)" title="Up in ${esc(r.zone||'this zone')} at the tick, per the spawn timers">${Array.isArray(r.upZone)?(r.upZone.length?'<div style="display:grid;grid-template-columns:repeat(2,max-content);column-gap:.9rem;row-gap:.05rem">'+r.upZone.map(b=>'<span style="white-space:nowrap">'+esc(btLabel(b))+'</span>').join('')+'</div>':'<span style="font-size:.7rem">none on the timers</span>')+(r.upStale?`<div style="font-size:.66rem;opacity:.75;margin-top:.15rem" title="Up on the spawn timers for more than a day at the tick — almost always a kill nobody recorded, so not offered. Search for them in the right-click menu if needed.">+${r.upStale} stale (up 1 day+)</div>`:''):'—'}</td>
       <td style="padding:.3rem .5rem;color:${tc};white-space:nowrap">${tl}${r.basis?` <span style="font-size:.7rem;color:var(--text-muted)">(${esc(r.basis)})</span>`:''}</td>
       <td style="padding:.3rem .5rem;white-space:nowrap">${r.tod?fmt(r.tod).split(', ').pop()+` <span style="font-size:.68rem;color:var(--text-muted)">${esc(r.todSource||'')}</span>`:'—'}</td>
       <td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted)">${r.sameZone?'OOC+':''}${esc(r.poster||'')}<div style="font-size:.68rem">${ev}</div></td>
