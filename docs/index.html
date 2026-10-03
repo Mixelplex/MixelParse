@@ -5448,13 +5448,18 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.6.6',
+  version:'1.6.7',
   date:'October 2026',
   features:[
-    ['Auto-Detect: Watch / Active mode','A switch on the Auto-Detect tab (saved on this PC). <b>Watch</b> (default) works as before: suggestions only. <b>Active</b> acts on live raid ticks you were at: <b>Strong</b> kills are added to the Raid Kill Tracker automatically and set the spawn-timer ToD (right-click the tick to undo). With &ldquo;Ask me about unsure ticks&rdquo; on, <b>Weak</b> suggestions open the kill dialog to confirm, and <b>Pick / No boss</b> ticks ask which boss (suggestions, mobs up, or search) &mdash; or click Not a kill.'],
-    ['No double counting','A /note right after an auto-added kill is treated as the same kill (no #2). A tick for a kill you already /noted doesn&rsquo;t ask &mdash; but two kills minutes apart each still get their own prompt.'],
+    ['Auto-Detect: zone-aware','A tick only counts boss lines from the zone it was called in. Porting, a /q to another character or a relog no longer carries one fight into the next tick (a Kael Tormax rampage used to name the Dread tick in Fear).'],
+    ['Auto-Detect: faction hit confirms the kill','A Weak tick (calls, rampage or spell landings on the boss) with a kill faction hit in the same zone right around the tick is now <b>Strong</b>, and its ToD is the first faction line &mdash; skipping hits that came from a trash kill in the same second.'],
+    ['Auto-Detect: one fight per tick','A boss&rsquo;s lines in the 2 minutes after its own tick belong to that tick and can&rsquo;t name the next one (Nevederia&rsquo;s enrage no longer names the Cekenar tick).'],
+    ['Auto-Detect: /q after the tick','A tick followed within 5 minutes by a login (a /q to another character, a relog) with no kill line seen is marked &ldquo;/q or relog after the tick &mdash; kill not seen&rdquo;. Its suggestion stays as it is.'],
+    ['Scan logs re-judges','&#9935; Scan logs now upgrades ticks you haven&rsquo;t answered yet when today&rsquo;s rules give a stronger suggestion (e.g. Weak &rarr; Strong with the kill&rsquo;s ToD). Answered or auto-added ticks keep theirs.'],
   ],
-  fixes:[],
+  fixes:[
+    ['Dracoliche','Listed under Plane of Fear (was ToV / Western Wastes) for Raid Parking, Mobs up and Auto-Detect.'],
+  ],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -7904,6 +7909,7 @@ window.applyDBToChar    = applyDBToChar;
         if(msg.type==='raidTick') rkdOnTick(msg);
         if(msg.type==='skyCorpses'){ skyCorpseState=msg; skyRenderWarn(); if(activeTopView==='keys') renderKeysPanel(); }
         if(msg.type==='raidEvidence') rkdOnEvidence(msg);
+        if(msg.type==='raidLogin') rkdOnLogin(msg);
         if(msg.type==='raidScanProgress'||msg.type==='raidScanResult') rkdHandleScanMsg(msg);
         if(msg.type==='killScanProgress'||msg.type==='killScanResult') handleKillScanMsg(msg);
         if(msg.type==='sessScanProgress'||msg.type==='sessScanResult') handleSessScanMsg(msg);
@@ -12039,9 +12045,9 @@ function _rkdBossInText(text){
 function rkdSave(){try{localStorage.setItem('mp_rkd_log',JSON.stringify(rkdLog.slice(-RKD_LOG_MAX)));}catch(e){}}
 function rkdOnEvidence(msg){
   const b=msg.kind==='call'?_rkdBossInText(msg.text):_rkdBossByMob(msg.mob);
-  if(!b)return;
+  if(!b&&msg.kind!=='faction'&&msg.kind!=='slain')return;   // boss-less faction hits mark a death; named trash kills explain some of them
   const raw=_rkdRaw(msg);
-  _rkdEvidence.push({ts:msg.ts||Date.now(),kind:msg.kind,sub:msg.sub||null,boss:b.target,raw,char:msg.charName});
+  _rkdEvidence.push({ts:msg.ts||Date.now(),kind:msg.kind,sub:msg.sub||null,boss:b?b.target:null,raw,char:msg.charName,zone:msg.zone||null});
   // Prune by the event's own time, not the wall clock — backfilled evidence from hours ago
   // must survive long enough to be matched to its tick.
   const cut=(msg.ts||Date.now())-RKD_EVIDENCE_KEEP; _rkdEvidence=_rkdEvidence.filter(e=>e.ts>=cut);
@@ -12071,11 +12077,34 @@ function rkdOnTick(msg){
   // Backfilled ticks wait 3s so the rest of the replay (incl. a kill just after the tick) arrives first.
   setTimeout(()=>rkdFinalize(t),Math.max(3000,ts+RKD_WIN_AFTER-Date.now()));
 }
+// A boss line only explains a tick from the zone it was logged in (owner, 2026-10-02). Porting, a /q to
+// another character and a crash + relog all change zone without any camp line, and the 10-minute look-back
+// used to reach across that: King Tormax's rampage in Kael explained the Dread tick in Fear (5/7) and the
+// Takish tick in Plane of Growth (7/30). Two checks: the line's own zone (from the watcher) must be the
+// tick's zone, and a boss whose home zone is known can't be a kill in a different raid zone — the backstop
+// for lines logged before the app knew the zone. Only for a tick heard in OOC / shout: those are zone-local,
+// so the listener's zone IS the raid zone; a guild-chat tick's zone is just wherever the listener stood.
+function _rkdEvInZone(e,t){
+  if(!t.zone||!t.sameZone)return true;
+  if(e.zone&&e.zone!==t.zone)return false;
+  const tl=_rkdLocOfZone(t.zone),bl=typeof BT_PARK_LOC!=='undefined'?BT_PARK_LOC[e.boss]:null;
+  return !(tl&&bl&&bl!==tl);
+}
 function rkdAttribute(t){
   const from=Math.max(t.ts-RKD_WIN_BEFORE,t.prevTickTs!=null?t.prevTickTs+1:-Infinity);
-  const win=_rkdEvidence.filter(e=>e.ts>=from&&e.ts<=t.ts+RKD_WIN_AFTER&&(e.kind!=='call'||t.sameZone));
+  // The previous tick's boss: its lines in the 2 minutes after that tick are the tail of its own fight and belong
+  // to that tick, never this one (7/1: Nevederia's enrage 30 s after her 12:18 tick named the 12:28 Cekenar tick).
+  // Only that window — the same boss over several ticks is normal (Sky Queen Bees, Vulak attempts, Statue, hourly
+  // ticks on one boss), and excluding all its later lines cost 14 right ticks in the replay.
+  const pv=t.prevTickTs!=null?rkdLog.find(r=>Math.abs(r.ts-t.prevTickTs)<=RKD_TICK_DEDUPE):null,pvBoss=pv?(pv.picked||pv.boss):null;
+  // A boss-less faction hit in that tail is the previous boss dying after its tick (6/23: Sevalak ticked 4:09:10, her
+  // ClawsofVeeshan hit 4:10:30 — next to the raid's calls on Cekenar it made the 4:10:48 re-tick "Cekenar") — but
+  // only while that tick hasn't seen its own kill yet; after it, the hit is a new kill (7/11: two Hate minis 2 min apart).
+  const pvOpen=pv&&!/slain|faction/.test(pv.todSource||'');
+  const pvTail=e=>pvBoss&&(e.boss===pvBoss||(pvOpen&&!e.boss&&e.kind==='faction'))&&e.ts>pv.ts&&e.ts<=pv.ts+RKD_WIN_AFTER;
+  const win=_rkdEvidence.filter(e=>e.ts>=from&&e.ts<=t.ts+RKD_WIN_AFTER&&(e.kind!=='call'||t.sameZone)&&_rkdEvInZone(e,t)&&!pvTail(e));
   const per={};
-  for(const e of win){const p=per[e.boss]||(per[e.boss]={boss:e.boss,best:0,events:[]});p.best=Math.max(p.best,RKD_RANK[e.kind]);p.events.push(e);}
+  for(const e of win){if(!e.boss)continue;const p=per[e.boss]||(per[e.boss]={boss:e.boss,best:0,events:[]});p.best=Math.max(p.best,RKD_RANK[e.kind]);p.events.push(e);}
   // Rampage/flurry only counts for a fight already under way 90 s before the tick — a boss pulled
   // just before it is the next pull (backtest 2026-08-12: KDT tick, Vindicator pulled 39 s earlier).
   for(const k of Object.keys(per)){const p=per[k],f=p.events.filter(e=>e.kind==='fight');
@@ -12094,8 +12123,40 @@ function rkdAttribute(t){
   if(cands.length>1&&cands[1].best===cands[0].best&&cands[1].events.length*3>cands[0].events.length)return{tier:'ambiguous',cands:cands.filter(c=>c.best===cands[0].best).map(c=>c.boss),events:win};
   const top=cands[0],slain=top.events.find(e=>e.kind==='slain'||e.kind==='faction');
   const bestEv=top.events.filter(e=>RKD_RANK[e.kind]===top.best).pop();
+  // Weak + a kill-faction hit in the tick's zone (3 min before … 2 min after the tick) → Strong, ToD = that hit
+  // (owner, 2026-10-03; KDT 10/3: only <MALO>/<Slowed> calls, Kromzek hit 6 s before the tick). The hit names a
+  // faction, not the boss — trash gives the same one — so alone it proves nothing; next to the boss's own
+  // evidence it marks the kill. Replay May–Oct: 18 such ticks, 14 right, 2 wrong (Fright called as Dracoliche
+  // died 6/17; Mirenilla on an hourly tick 7/3), 2 not checkable.
+  if(top.best<3){
+    // a hit in the same second as a named trash kill is that trash (6/19: Cleric of Innoruuk at 12:23:51, Innoruuk
+    // at 12:25:17; 6/30: Nelaarn the Ebon Claw at 23:00:22, Essedera out of range at 22:59:27)
+    const trash=win.filter(e=>e.kind==='slain'&&!e.boss).map(e=>e.ts);
+    const fh=win.filter(e=>e.kind==='faction'&&!e.boss&&e.ts>=t.ts-180e3&&!trash.some(x=>Math.abs(x-e.ts)<=1000));
+    if(fh.length){
+      const k=fh.reduce((a,e)=>e.ts<a.ts?e:a);   // the FIRST hit is the kill (owner) — as a boss-named faction hit already does
+      return{tier:'strong',boss:top.boss,basis:(RKD_BASIS[bestEv.kind]||bestEv.kind)+' + faction hit',tod:k.ts,todSource:'faction hit',events:[...top.events,k].sort((a,b)=>a.ts-b.ts)};
+    }
+  }
   return{tier:top.best>=3?'strong':'weak',boss:top.boss,basis:RKD_BASIS[bestEv.kind]||bestEv.kind,
          tod:slain?slain.ts:t.ts,todSource:slain?RKD_BASIS[slain.kind]:'tick',events:top.events};
+}
+// Ticks taken before the kill (so people can /q before the faction hit): the kill line counts if it lands within the
+// 2-minute post-window — in the replay it always did (23 of 23). A kill 9–12 min after a tick was always followed by a
+// NEW tick for it (Sky Queen Bees, VS 6/15), so a later kill is never moved back onto the earlier tick.
+// A login ("Welcome to EverQuest!": /q to another character, a relog) within a few minutes after a tick whose boss
+// has no kill line: you left before the kill — shown on the row so a missing death line reads as expected.
+const RKD_Q_AFTER=5*60e3;
+function _rkdMarkLogin(ts){
+  let r=null;for(const x of rkdLog)if(x.ts<ts&&(!r||x.ts>r.ts))r=x;
+  if(!r||ts-r.ts>RKD_Q_AFTER||r.qAfter||/slain|faction/.test(r.todSource||''))return false;
+  r.qAfter=ts;return true;
+}
+let _rkdLogins=[];   // live logins not yet matched to a finalized tick
+function rkdOnLogin(msg){
+  const ts=msg.ts||Date.now();
+  if(_rkdOpenTicks.some(t=>t.ts<ts&&ts-t.ts<=RKD_Q_AFTER)){_rkdLogins.push(ts);_rkdLogins=_rkdLogins.filter(x=>x>ts-RKD_Q_AFTER);return;}
+  if(_rkdMarkLogin(ts)){rkdSave();if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();}
 }
 function rkdFinalize(t){
   if(!_rkdOpenTicks.includes(t))return;
@@ -12115,6 +12176,7 @@ function rkdFinalize(t){
   if(rkdLog.length>RKD_LOG_MAX)rkdLog=rkdLog.slice(-RKD_LOG_MAX);
   rkdSave();
   if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
+  if(_rkdLogins.length){for(const ts of _rkdLogins)_rkdMarkLogin(ts);_rkdLogins=_rkdLogins.filter(x=>x<t.ts);rkdSave();}
   try{rkdActOnTick(rkdLog.find(r=>r.id===t.id));}catch(e){console.warn('rkd active',e);}
 }
 // ── Spawn-timer fallback for ticks with NO boss evidence in the logs (owner idea, 2026-09-30) ──
@@ -12290,17 +12352,17 @@ function rkdHandleScanMsg(msg){
     return;
   }
   if(msg.error){_rkdScan={state:'error',msg:msg.error};}
-  else{const n=rkdImportScan(msg.ticks||[],msg.evidence||[]);_rkdScan={state:'done',msg:n.added+' tick'+(n.added!==1?'s':'')+' added from '+(msg.files||0)+' log files ('+n.seen+' in logs)'};}
+  else{const n=rkdImportScan(msg.ticks||[],msg.evidence||[],msg.logins||[]);_rkdScan={state:'done',msg:n.added+' tick'+(n.added!==1?'s':'')+' added'+(n.upgraded?', '+n.upgraded+' re-judged stronger':'')+' from '+(msg.files||0)+' log files ('+n.seen+' in logs)'};}
   if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
 }
-function rkdImportScan(ticks,evidence){
+function rkdImportScan(ticks,evidence,logins){
   const saved=_rkdEvidence;
   const ev=[];
   for(const m of evidence){
     const b=m.kind==='call'?_rkdBossInText(m.text):_rkdBossByMob(m.mob);
-    if(!b)continue;
+    if(!b&&m.kind!=='faction'&&m.kind!=='slain')continue;
     const raw=_rkdRaw(m);
-    ev.push({ts:m.ts,kind:m.kind,sub:m.sub||null,boss:b.target,raw,char:m.charName});
+    ev.push({ts:m.ts,kind:m.kind,sub:m.sub||null,boss:b?b.target:null,raw,char:m.charName,zone:m.zone||null});
   }
   _rkdEvidence=ev;
   // merge the same tick heard on several channels / characters (as rkdOnTick does)
@@ -12311,11 +12373,21 @@ function rkdImportScan(ticks,evidence){
     if(p&&m.ts-p.ts<=RKD_TICK_DEDUPE){p.sameZone=p.sameZone||sameZone;if(!p.channels.includes(m.channel))p.channels.push(m.channel);if(m.zone&&(sameZone||!p.zone))p.zone=m.zone;continue;}
     merged.push({id:'rkd_'+m.ts,ts:m.ts,char:m.charName,poster:m.poster,text:m.text||'',channels:[m.channel],sameZone,zone:m.zone||null});
   }
-  let added=0,prevTs=null;
+  let added=0,upgraded=0,prevTs=null;const rank={strong:3,weak:2,ambiguous:1,none:0};
   for(const t of merged){
     t.prevTickTs=prevTs;prevTs=t.ts;
     const done=rkdLog.find(r=>Math.abs(t.ts-r.ts)<=RKD_TICK_DEDUPE);
-    if(done&&done.tier!=='none'){if(!done.zone&&t.zone){done.zone=t.zone;}continue;}   // a rescan fills in the zone of older rows
+    if(done&&done.tier!=='none'){
+      if(!done.zone&&t.zone){done.zone=t.zone;}   // a rescan fills in the zone of older rows
+      // …and re-judges a row nobody has answered yet when today's rules give a stronger verdict (owner, 2026-10-03:
+      // the 10/3 KDT tick stayed "Weak · ToD 02:51:59 tick" after the faction-hit rule; a rescan makes it Strong,
+      // ToD 02:51:53). Rows with a prompt answer / auto-add (confirm) keep their verdict.
+      if(!done.confirm){const a=rkdAttribute(t);
+        if(a.boss&&(rank[a.tier]||0)>(rank[done.tier]||0)){
+          Object.assign(done,{tier:a.tier,boss:a.boss,cands:null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,
+            evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw})),rejudged:Date.now()});upgraded++;}}
+      continue;
+    }
     if(done)rkdLog=rkdLog.filter(r=>r!==done);
     const a=rkdAttribute(t);
     rkdLog.push({id:t.id,ts:t.ts,char:t.char,poster:t.poster,channels:t.channels,sameZone:t.sameZone,zone:t.zone||null,text:t.text,
@@ -12323,11 +12395,12 @@ function rkdImportScan(ticks,evidence){
       evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw})),src:'scan'});
     if(!done)added++;
   }
-  _rkdEvidence=saved;
   rkdLog.sort((a,b)=>a.ts-b.ts);
+  for(const ts of (logins||[]).map(l=>l.ts).sort((a,b)=>a-b))_rkdMarkLogin(ts);
+  _rkdEvidence=saved;
   if(rkdLog.length>RKD_LOG_MAX)rkdLog=rkdLog.slice(-RKD_LOG_MAX);
   rkdSave();
-  return{added,seen:merged.length};
+  return{added,upgraded,seen:merged.length};
 }
 // A tick you were at: heard in OOC/shout (same zone) or the raid channel.
 function _rkdAttended(r){return !!(r.sameZone||(r.channels||[]).some(c=>/tells the raid/.test(c)));}
@@ -12583,7 +12656,7 @@ function renderAutoDetectPanel(){
       <td style="padding:.3rem .5rem;font-size:.74rem;color:var(--text-muted)" title="Up in ${esc(r.zone||'this zone')} at the tick, per the spawn timers">${Array.isArray(r.upZone)?(r.upZone.length?'<div style="display:grid;grid-template-columns:repeat(2,max-content);column-gap:.9rem;row-gap:.05rem">'+r.upZone.map(b=>'<span style="white-space:nowrap">'+esc(btLabel(b))+'</span>').join('')+'</div>':'<span style="font-size:.7rem">none on the timers</span>')+(r.upStale?`<div style="font-size:.66rem;opacity:.75;margin-top:.15rem" title="Up on the spawn timers for more than a day at the tick — almost always a kill nobody recorded, so not offered. Search for them in the right-click menu if needed.">+${r.upStale} stale (up 1 day+)</div>`:''):'—'}</td>
       <td style="padding:.3rem .5rem;color:${tc};white-space:nowrap">${tl}${r.basis?` <span style="font-size:.7rem;color:var(--text-muted)">(${esc(r.basis)})</span>`:''}</td>
       <td style="padding:.3rem .5rem;white-space:nowrap">${r.tod?fmt(r.tod).split(', ').pop()+` <span style="font-size:.68rem;color:var(--text-muted)">${esc(r.todSource||'')}</span>`:'—'}</td>
-      <td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted)">${r.sameZone?'OOC+':''}${esc(r.poster||'')}<div style="font-size:.68rem">${ev}</div></td>
+      <td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted)">${r.sameZone?'OOC+':''}${esc(r.poster||'')}<div style="font-size:.68rem">${ev}</div>${r.qAfter?`<div style="font-size:.68rem;color:#c48a3a" title="A character logged in ${Math.max(1,Math.round((r.qAfter-r.ts)/60e3))} min after this tick (/q to another character, or a relog) and no kill line was seen — if you left before the kill, the log can't show it">${fmt(r.qAfter).split(', ').pop()} /q or relog after the tick — kill not seen</div>`:''}</td>
       <td style="padding:.3rem .5rem;white-space:nowrap;font-size:.75rem">${rec}</td>
       <td style="padding:.3rem .5rem;font-size:.75rem">${odkp}</td>
     </tr>`;
@@ -14188,12 +14261,13 @@ const BT_PARK_LOC = {
   Cekenar:'wwtov', Dagarn:'wwtov', Dozekar:'wwtov', Ikatiar:'wwtov', Jorlleag:'wwtov',
   Feshlak:'wwtov', Koi:'wwtov', Kreizenn:'wwtov', Mirenilla:'wwtov', Nevederia:'wwtov',
   Sevalak:'wwtov', Telk:'wwtov', Zlexak:'wwtov', Gozzrem:'wwtov', LTK:'wwtov',
-  Dracoliche:'wwtov', Casalen:'wwtov', Essedera:'wwtov', Grozzmel:'wwtov', Krigara:'wwtov',
+  Casalen:'wwtov', Essedera:'wwtov', Grozzmel:'wwtov', Krigara:'wwtov',
   Lepethida:'wwtov', Midayor:'wwtov', Tavekalem:'wwtov', Ymmeln:'wwtov', Eashen:'wwtov',
   // Veeshan's Peak — separate zone (Ring of Scale, led by Phara Dar), its own park:
   'Phara Dar':'vp', Druushk:'vp', Nexona:'vp', Hoshkar:'vp', Silverwing:'vp', Xygoz:'vp',
   // Plane of Fear (parked toon can also sit in The Feerrott at the CT temple portal):
   'Cazic Thule':'fear', Dread:'fear', Fright:'fear', Terror:'fear',
+  Dracoliche:'fear',   // "a dracoliche", fought among the boogeymen (logs 7/9, 9/5, 9/30) — was filed under ToV
 };
 // Is any timed boss mapped to this park location currently in window? null = no mapped boss.
 function btLocInWindow(locId){
