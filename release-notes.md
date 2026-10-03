@@ -1,9 +1,16 @@
-## 1.6.6
+## 1.6.7
+
+- **Auto-Detect: zone-aware** — a tick only counts boss lines from the zone it was called in. Porting, a /q to another character or a relog no longer carries one fight into the next tick (a Kael Tormax rampage used to name the Dread tick in Fear).
+- **Auto-Detect: faction hit confirms the kill** — a Weak tick (calls, rampage or spell landings on the boss) with a kill faction hit in the same zone between 3 minutes before and 2 minutes after the tick is now Strong; its ToD is the first faction line, skipping hits from a trash kill in the same second.
+- **Auto-Detect: one fight per tick** — a boss's lines in the 2 minutes after its own tick belong to that tick and can't name the next one.
+- **Auto-Detect: /q after the tick** — a tick followed within 5 minutes by a login (/q to another character, relog) with no kill line seen is marked "/q or relog after the tick — kill not seen". Its suggestion is unchanged.
+- **Scan logs re-judges** — ⛏ Scan logs upgrades ticks you haven't answered yet when the current rules give a stronger suggestion; answered or auto-added ticks keep theirs.
+- **Fix: Dracoliche** is listed under Plane of Fear (was ToV / Western Wastes) for Raid Parking, Mobs up and Auto-Detect.
+
+Everything from 1.6.6 and earlier is included:
 
 - **Auto-Detect: Watch / Active mode** — a per-PC switch on the Auto-Detect tab. Watch (default) is unchanged: suggestions only. Active acts on live raid ticks you were at: Strong kills are added to the Raid Kill Tracker automatically and set the spawn-timer ToD (right-click the tick → Undo auto-add). With "Ask me about unsure ticks" on (shown under the switch), Weak suggestions open the kill dialog to confirm, and Pick / No-boss ticks ask which boss — suggestions, mobs up in the zone, or search — or Not a kill.
 - **No double counting** — a /note within 30 minutes of an auto-added kill counts as the same kill. A tick for a kill you already /noted doesn't prompt; two kills a couple of minutes apart each get their own prompt.
-
-Everything from 1.6.5 and earlier is included:
 
 - **Auto-Detect: Mobs up = potential spawns** — Mobs up and the right-click menu only offer bosses that could be up at the tick: in their window, or past it / up since a quake for under a day. Bosses marked Dead or not in window yet aren't listed; ones the spawn timers show up for more than a day (almost always a kill nobody recorded) are only counted as "+N stale". Any boss can still be added from the search box.
 

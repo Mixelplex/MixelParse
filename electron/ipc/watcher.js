@@ -990,14 +990,30 @@ function _lastZoneInLog(charName) {
     return last;
   } catch { return null; }
 }
-function raidEvidence(line, charName) {
+// Every raid signal — boss evidence too, not just ticks — carries the zone its character was in, so a
+// tick only counts boss lines from its own zone (owner, 2026-10-02). A port, a /q to another character
+// or a crash + relog all start a new zone: the King Tormax rampage in Kael at 7:58 must not explain
+// the 8:07 Dread tick in Fear (5/7 and 7/30 in the replay did exactly that).
+// "Welcome to EverQuest!" (/q swap, relog after a crash) = zone unknown until its "You have entered".
+let _rtBackfilling = false;
+const _rtLookedUp = new Set();   // characters whose log was already searched for a zone line
+function _rtNoteZone(line, charName) {
   if (line.indexOf('You have entered ') >= 0) { const zm = /^\[[^\]]+\] You have entered (.+)\.$/.exec(line); if (zm) _rtZone[charName] = zm[1]; }
+  else if (RE_SESSION_LOGIN.test(line)) _rtZone[charName] = '';
+}
+function _rtZoneOf(charName) {
+  if (charName in _rtZone) return _rtZone[charName] || null;
+  if (_rtBackfilling) return null;   // an old line before the first zone line — not today's zone
+  if (zoneState[charName] && zoneState[charName].zone) return zoneState[charName].zone;
+  if (!_rtLookedUp.has(charName)) { _rtLookedUp.add(charName); const z = _lastZoneInLog(charName); if (z) { _rtZone[charName] = z; return z; } }
+  return null;
+}
+function raidEvidence(line, charName) {
+  _rtNoteZone(line, charName);
+  // a login (/q to another character, relog after a crash): the renderer marks a tick just before it "logged out before the kill"
+  if (line.indexOf('Welcome to EverQuest!') >= 0 && RE_SESSION_LOGIN.test(line)) { broadcast({ type:'raidLogin', charName, ts:_rtLineTs(line) }); return; }
   const msg = raidSignal(line, charName);
-  if (msg && msg.type === 'raidTick') {
-    if (!_rtZone[charName] && !(zoneState[charName] && zoneState[charName].zone)) _rtZone[charName] = _lastZoneInLog(charName);
-    msg.zone = _rtZone[charName] || (zoneState[charName] && zoneState[charName].zone) || null;
-  }
-  if (msg) broadcast(msg);
+  if (msg) { msg.zone = _rtZoneOf(charName); broadcast(msg); }
 }
 
 // ── Raid tick history scan (Auto-Detect → Scan logs) ─────────────────────────
@@ -1012,7 +1028,7 @@ async function scanRaidHistory(sinceMs) {
   if (!_config || !_config.logDir) { broadcast({ type:'raidScanResult', error:'No log directory configured' }); return; }
   _raidScanRunning = true;
   const since = sinceMs || 0;
-  const ticks = [], evidence = [], seen = new Set();
+  const ticks = [], evidence = [], logins = [], seen = new Set();
   try {
     const dirs = [_config.logDir, path.join(_config.logDir, 'archive')].filter(d => { try { return fs.statSync(d).isDirectory(); } catch { return false; } });
     const files = [];
@@ -1026,9 +1042,10 @@ async function scanRaidHistory(sinceMs) {
         const rl = require('readline').createInterface({ input: fs.createReadStream(files[i], { encoding:'latin1' }), crlfDelay: Infinity });
         rl.on('line', (line) => {
           if (line.indexOf('You have entered ') >= 0) { const zm = /^\[[^\]]+\] You have entered (.+)\.$/.exec(line); if (zm) zone = zm[1]; }
+          else if (RE_SESSION_LOGIN.test(line)) { zone = null; const ts = _rtLineTs(line); if (ts >= since) logins.push({ charName, ts }); return; }
           const msg = raidSignal(line, charName);
           if (!msg || msg.ts < since) return;
-          if (msg.type === 'raidTick') msg.zone = zone;
+          msg.zone = zone;
           const key = charName + '|' + line;          // archive copies repeat live-log lines
           if (seen.has(key)) return; seen.add(key);
           (msg.type === 'raidTick' ? ticks : evidence).push(msg);
@@ -1042,7 +1059,8 @@ async function scanRaidHistory(sinceMs) {
     const nearTick = ts => { let lo = 0, hi = tt.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (tt[mid] < ts - 2 * 60e3) lo = mid + 1; else hi = mid; } return lo < tt.length && tt[lo] <= ts + 10 * 60e3; };
     const ev = evidence.filter(e => nearTick(e.ts)).sort((a, b) => a.ts - b.ts);
     log(`[RAIDSCAN] ${files.length} file(s): ${ticks.length} RAIDTICK(s), ${ev.length} evidence line(s)`);
-    broadcast({ type:'raidScanResult', ticks, evidence: ev, files: files.length });
+    const lg = logins.filter(l => nearTick(l.ts)).sort((a, b) => a.ts - b.ts);   // only logins near some tick matter
+    broadcast({ type:'raidScanResult', ticks, evidence: ev, logins: lg, files: files.length });
   } catch (e) {
     err('[RAIDSCAN]', e.message);
     broadcast({ type:'raidScanResult', error: e.message });
@@ -1072,10 +1090,21 @@ function raidBackfill() {
       fs.readSync(fd, buf, 0, readSize, stat.size - readSize);
       fs.closeSync(fd);
       let n = 0;
-      for (const raw of buf.toString('utf8').split('\n')) {
-        const line = raw.trim();
-        if (!line || _rtLineTs(line) < since) continue;
-        raidEvidence(line, charName); n++;
+      // Replay the zone changes too, so each backfilled line carries the zone it was logged in (the
+      // character's zone right now is wrong for anything before a port or a /q). Synchronous, so the
+      // live tail can't interleave; ends on the log's last zone line = where the character is now.
+      const keep = _rtZone[charName], had = charName in _rtZone;
+      delete _rtZone[charName]; _rtBackfilling = true;
+      try {
+        for (const raw of buf.toString('utf8').split('\n')) {
+          const line = raw.trim();
+          if (!line) continue;
+          if (_rtLineTs(line) < since) { _rtNoteZone(line, charName); continue; }
+          raidEvidence(line, charName); n++;
+        }
+      } finally {
+        _rtBackfilling = false;
+        if (!_rtZone[charName]) { if (had) _rtZone[charName] = keep; else delete _rtZone[charName]; }
       }
       log(`[RAID] backfilled ${charName}: ${n} lines from the last 6 hours`);
     } catch (e) { err('[RAID] backfill error:', f, e.message); }
