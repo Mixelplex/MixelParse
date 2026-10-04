@@ -5448,18 +5448,14 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.6.7',
+  version:'1.7.0',
   date:'October 2026',
   features:[
-    ['Auto-Detect: zone-aware','A tick only counts boss lines from the zone it was called in. Porting, a /q to another character or a relog no longer carries one fight into the next tick (a Kael Tormax rampage used to name the Dread tick in Fear).'],
-    ['Auto-Detect: faction hit confirms the kill','A Weak tick (calls, rampage or spell landings on the boss) with a kill faction hit in the same zone right around the tick is now <b>Strong</b>, and its ToD is the first faction line &mdash; skipping hits that came from a trash kill in the same second.'],
-    ['Auto-Detect: one fight per tick','A boss&rsquo;s lines in the 2 minutes after its own tick belong to that tick and can&rsquo;t name the next one (Nevederia&rsquo;s enrage no longer names the Cekenar tick).'],
-    ['Auto-Detect: /q after the tick','A tick followed within 5 minutes by a login (a /q to another character, a relog) with no kill line seen is marked &ldquo;/q or relog after the tick &mdash; kill not seen&rdquo;. Its suggestion stays as it is.'],
-    ['Scan logs re-judges','&#9935; Scan logs now upgrades ticks you haven&rsquo;t answered yet when today&rsquo;s rules give a stronger suggestion (e.g. Weak &rarr; Strong with the kill&rsquo;s ToD). Answered or auto-added ticks keep theirs.'],
+    ['&#129302; Spawn timers live from the Discord timer bot','The Spawn Timers board now follows the guild&rsquo;s Discord timer bot automatically. Every ToD the bot records shows up in MixelParse within minutes &mdash; no more pasting the tracker. A ToD newer than the board&rsquo;s replaces it; your own newer <code>/note</code>, quake or Dead mark still wins. The status line on Raid Info &rarr; Spawn Timers shows how many timers came in and when the bot last synced.'],
+    ['Everything uses the live timers','Mobs up, the raid-parking warnings and Auto-Detect&rsquo;s spawn-timer checks all read the same bot timers, so a &ldquo;which boss?&rdquo; tick can be named from the bot&rsquo;s ToD.'],
+    ['Simpler Spawn Timers','The manual Log quake, Add ToD and Clear board controls are gone. Quakes are still picked up automatically (Ring 8 wiki, hourly) and from <code>/note Quake!</code>, and you can still right-click a boss to set a ToD.'],
   ],
-  fixes:[
-    ['Dracoliche','Listed under Plane of Fear (was ToV / Western Wastes) for Raid Parking, Mobs up and Auto-Detect.'],
-  ],
+  fixes:[],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -12187,7 +12183,7 @@ function rkdFinalize(t){
 function _rkdTodOf(b){
   const s=(typeof btState!=='undefined'&&btState)?btState[b]:null;
   if(!s||s.up||s.open==null)return null;
-  if(s.src==='note')return s.updatedAt;                 // a ToD typed / noted directly
+  if(s.src==='note'||s.src==='sheet')return s.updatedAt;   // a ToD typed / noted directly, or from the bot sheet
   const T=btTimer(b);return T?s.open-(T.rh-T.v)*BT_HR:null;   // window open = ToD + (respawn - variance)
 }
 function _rkdLocOfZone(zone){
@@ -14222,6 +14218,8 @@ const BT_ALIAS = {
   // tracker short-names -> kill-tracker targets (Alex, 8/2026)
   Zlandica:'Zlandicar', VanikiEQ:'Vaniki', Kozz:'Kozzalym',
   'Lady Nev':'Nevederia', Nev:'Nevederia', Gore:'Gorenaire', KD:'Kelorek Dar',
+  // Castle Bot Timers sheet names (2026-10-03)
+  Gozz:'Gozzrem', Vaniki1:'Vaniki',
 };
 let btState = {}, btLastQuake = null, btSortKey = 'in', btLoaded = false, _btBuilt = false, _btIv = null;
 let btAutoSig = null, _btAutoIv = null;
@@ -14503,10 +14501,13 @@ async function btEnsureLoaded(){
     const {data} = await sb.from('guild_data').select('boss_windows').eq('pool','SoV').not('boss_windows','is',null).order('updated_at',{ascending:false}).limit(1).maybeSingle();
     if(data && data.boss_windows){ btState = data.boss_windows.windows || {}; btLastQuake = data.boss_windows.lastQuake || null; btAutoSig = data.boss_windows.autoSig || null; if(Array.isArray(data.boss_windows.tracked) && data.boss_windows.tracked.length) btTracked = data.boss_windows.tracked; if(Array.isArray(data.boss_windows.ignored)) btIgnored = data.boss_windows.ignored; btIgnoredAt = data.boss_windows.ignoredAt || null; if(data.boss_windows.parkAck) btParkAck = data.boss_windows.parkAck; }
   }catch(e){ console.warn('[TIMERS] load skipped (run the boss_windows migration?):', e && e.message); }
+  btApplySheetCache();   // the last bot-sheet sync (this PC only) over what was loaded
 }
 async function btSave(){
   try{
-    const payload = { boss_windows:{ windows:btState, lastQuake:btLastQuake, autoSig:btAutoSig, tracked:btTracked, ignored:btIgnored, ignoredAt:btIgnoredAt, parkAck:btParkAck }, updated_at:new Date().toISOString() };
+    // bot-sheet windows stay on this PC: save the entry each one replaced (or nothing) instead
+    const windows = {}; for(const k in btState){ const v = btState[k]; if(v && v.src === 'sheet'){ if(v.base) windows[k] = v.base; } else windows[k] = v; }
+    const payload = { boss_windows:{ windows, lastQuake:btLastQuake, autoSig:btAutoSig, tracked:btTracked, ignored:btIgnored, ignoredAt:btIgnoredAt, parkAck:btParkAck }, updated_at:new Date().toISOString() };
     const {data:ex} = await sb.from('guild_data').select('pool').eq('pool','SoV').eq('user_id',currentUser.id).maybeSingle();
     if(ex){ await sb.from('guild_data').update(payload).eq('pool','SoV').eq('user_id',currentUser.id); }
     else  { await sb.from('guild_data').insert({ pool:'SoV', user_id:currentUser.id, ...payload }); }
@@ -14598,7 +14599,6 @@ function handleQuakeNote(ts){
     console.log('[TIMERS] quake logged @', new Date(ts).toLocaleString());
   });
 }
-function btQuakeManual(){ const v = document.getElementById('btQuakeAt').value; if(!v){ alert('Pick a quake time.'); return; } handleQuakeNote(new Date(v).getTime()); }
 // Shared ToD -> window projection (used by the Add-ToD control, the right-click popover, and /note).
 function btSetTod(t, ms){
   const T = btTimer(t); if(!T) return false;
@@ -14613,12 +14613,6 @@ function btParseEqStamp(s){
   const m = (s||'').match(/([A-Za-z]{3}\s+[A-Za-z]{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\d{4})/);
   if(!m) return null; const d = new Date(m[1]); return isNaN(d) ? null : d.getTime();
 }
-function btDoTod(){
-  const t = document.getElementById('btTodBoss').value;
-  const v = document.getElementById('btTodAt').value; if(!v){ alert('Pick a time.'); return; }
-  if(!btSetTod(t, new Date(v).getTime())){ alert('No baked timer for '+btLabel(t)); }
-}
-function btClear(){ if(!confirm('Clear all windows and the logged quake?')) return; btState = {}; btLastQuake = null; btSave(); btTick(); }
 
 function btStatusOf(s){
   const now = Date.now();
@@ -14693,7 +14687,6 @@ function renderTimersPanel(){
   const panel = document.getElementById('timersPanel'); if(!panel) return;
   btEnsureLoaded().then(() => {
     if(!_btBuilt){
-      const opts = BOSS_ROSTER.filter(b => b.respawnHours != null).map(b => b.target).sort((a,b2)=>btLabel(a).localeCompare(btLabel(b2))).map(t => `<option value="${t}">${btLabel(t)}</option>`).join('');
       panel.innerHTML = `
       <style>
         #timersPanel .bt-open{color:#c9a227;font-weight:600}
@@ -14719,15 +14712,8 @@ function renderTimersPanel(){
           <div style="margin-top:.45rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><button class="btn primary" onclick="btDoPaste()">Parse &amp; apply</button><span id="btPreview" style="font-size:.78rem;color:var(--text-muted)"></span></div>
           <div style="font-size:.72rem;color:var(--text-muted);margin-top:.35rem">Assumes the paste is fresh (In is measured from now).</div>
         </div>
-        <div style="flex:0 0 auto;display:flex;flex-direction:column;gap:.55rem">
-          <div style="font-size:.75rem;color:var(--text-muted)">Log quake &mdash; marks every timed mob UP</div>
-          <div style="display:flex;gap:.45rem;align-items:center;flex-wrap:wrap"><input type="datetime-local" id="btQuakeAt" class="bt-in"><button class="btn" onclick="document.getElementById('btQuakeAt').value=btLocalInput(Date.now())">Now</button><button class="btn" onclick="btQuakeManual()">Log quake</button></div>
-          <div style="font-size:.72rem;color:var(--text-muted);display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">Auto from Ring 8 wiki (hourly)<button class="btn" style="padding:.2rem .5rem;font-size:.72rem" onclick="btAutoQuakeCheck(true)">Check now</button><span id="btAutoStatus" style="color:var(--text-muted)"></span></div>
-          <div style="font-size:.75rem;color:var(--text-muted);margin-top:.35rem">Add ToD (like <code>/note &lt;boss&gt;</code>)</div>
-          <div style="display:flex;gap:.45rem;align-items:center;flex-wrap:wrap"><select id="btTodBoss" class="bt-in">${opts}</select><input type="datetime-local" id="btTodAt" class="bt-in"><button class="btn" onclick="document.getElementById('btTodAt').value=btLocalInput(Date.now())">Now</button><button class="btn" onclick="btDoTod()">Set ToD</button></div>
-          <button class="btn danger" style="margin-top:.35rem;align-self:flex-start" onclick="btClear()">Clear board</button>
-        </div>
       </div>
+      <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin:0 0 .8rem;padding:.4rem .7rem;border:1px solid var(--border);border-radius:5px;background:var(--surface2);font-size:.8rem" title="The guild bot's Castle Bot Timers sheet, copied into MixelParse every 5 minutes. Newer ToDs from the sheet replace older ones on this board; a newer /note, quake or Dead mark wins.">&#129302; <b>Bot timers</b> <span id="btSheetStatus"></span><button class="btn" style="padding:.1rem .45rem;font-size:.7rem;margin-left:auto" onclick="btSheetSync(true)">Refresh</button><span id="btSheetIgnored" style="flex-basis:100%;font-size:.7rem;color:var(--text-muted)"></span></div>
       <table class="rc-table">
         <thead><tr>
           <th style="cursor:pointer" onclick="btSortKey='in';btTick()">Name</th>
@@ -14740,12 +14726,10 @@ function renderTimersPanel(){
       <div id="btNoTimers" style="margin-top:.55rem"></div>
       <div style="margin-top:.6rem;font-size:.72rem;color:var(--text-muted)">paste covers Future / Entering-24h / In-Window sections &middot; <span class="bt-open">in window</span> &middot; <span class="bt-spawned">spawned/up</span> &middot; <span class="bt-up">up (quake)</span></div>
       <div id="btIgnoredWrap"></div>`;
-      const qa = document.getElementById('btQuakeAt'); if(qa) qa.value = btLocalInput(Date.now());
-      const ta = document.getElementById('btTodAt'); if(ta) ta.value = btLocalInput(Date.now());
       _btBuilt = true;
-      if(!_btIv) _btIv = setInterval(() => { if(typeof activeTopView !== 'undefined' && activeTopView === 'timers') btTick(); }, 1000);
+      if(!_btIv) _btIv = setInterval(() => { if(typeof activeTopView !== 'undefined' && activeTopView === 'timers'){ btTick(); if(Date.now()%15000<1000) btSheetRender(); } }, 1000);
     }
-    btTick(); btRenderIgnored(); btRenderParkWarn();
+    btTick(); btRenderIgnored(); btRenderParkWarn(); btSheetRender();
   });
 }
 
@@ -14801,6 +14785,93 @@ function btStartAuto(){
   }, 5000);
 }
 btStartAuto();
+/* ═══ Castle Bot Timers (owner, 2026-10-03) ═══════════════════════════════════════════════════════════════════
+   The guild bot keeps every boss's last ToD + window in a Google Sheet ("Timers" tab). The sheet owner shared it (Viewer)
+   with the MixelParse Google service account; a Supabase Edge Function copies it into public.bot_timers (columns boss,
+   status, window_opens, window_closes, last_tod, skip_count, sheet_updated_at, synced_at). The app reads it every 5 min.
+   A sheet ToD newer than the board's replaces it (src 'sheet'); a /note, quake or Dead mark newer than it wins.
+   Every client reads bot_timers itself, so sheet windows are never written into the shared boss_windows row: btSave
+   writes the entry a sheet window replaced (or nothing). */
+const BT_SHEET_EVERY=5*60e3;
+let _btSheetIv=null, btSheetInfo=null;   // {at (table's last sync), n, changed, ignored[], lastErr, cached}
+const BT_SHEET_STALE=20*60e3;           // no sync for 20 min → say so (the copy still applies)
+// bot_timers rows → {target: {tod, open, close, name}} (newest ToD per target), plus names the kill tracker doesn't know.
+function btSheetRows(rows){
+  const ms=v=>{const t=Date.parse(v==null?'':String(v));return isFinite(t)?t:null;};
+  const map={},ignored=[];
+  for(const r of (rows||[])){
+    const name=String(r.boss||'').trim();if(!name)continue;
+    const tod=ms(r.last_tod);if(tod==null)continue;                       // "no tod" rows say nothing
+    const t=btResolve(name);if(!t){ignored.push(name);continue;}
+    if(!map[t]||tod>map[t].tod)map[t]={tod,open:ms(r.window_opens),close:ms(r.window_closes),name};
+  }
+  return{map,ignored};
+}
+function btApplySheet(map){
+  let n=0;
+  for(const t in map){
+    const x=map[t],cur=btState[t];
+    if(cur&&cur.src!=='sheet'&&cur.src!=='paste'&&(cur.updatedAt||0)>=x.tod)continue;   // a newer /note, quake or Dead mark wins
+    if(cur&&cur.src==='sheet'&&cur.updatedAt===x.tod&&cur.open===x.open&&cur.close===x.close)continue;
+    const T=btTimer(t);
+    const open=x.open!=null?x.open:(T?x.tod+(T.rh-T.v)*BT_HR:null);
+    const close=x.close!=null?x.close:(T&&open!=null?open+2*T.v*BT_HR:null);
+    if(open==null)continue;
+    btState[t]={open,close,src:'sheet',updatedAt:x.tod,up:false,base:cur?(cur.src==='sheet'?(cur.base||null):cur):null};
+    if(!btTracked.includes(t))btTracked.push(t);
+    n++;
+  }
+  return n;
+}
+function btApplySheetCache(){
+  try{
+    const c=JSON.parse(localStorage.getItem('mp_bt_sheet_cache')||'null');
+    if(c&&c.map){btApplySheet(c.map);if(!btSheetInfo)btSheetInfo={at:c.at,n:Object.keys(c.map).length,changed:0,ignored:c.ignored||[],cached:true};}
+  }catch(e){}
+}
+async function btSheetSync(manual){
+  if(typeof sb==='undefined'||!sb)return;
+  if(manual){const el=document.getElementById('btSheetStatus');if(el)el.textContent='reading…';}
+  let rows=null,err=null;
+  try{
+    const r=await sb.from('bot_timers').select('boss,last_tod,window_opens,window_closes,synced_at');
+    if(r.error)err=/does not exist|relation|schema cache/i.test(r.error.message||'')?'not set up in Supabase yet':r.error.message;else rows=r.data||[];
+  }catch(e){err=e&&e.message||'read failed';}
+  if(err||!rows){btSheetInfo={...(btSheetInfo||{}),lastErr:err||'no rows',errAt:Date.now()};btSheetRender();return;}
+  if(!rows.length){btSheetInfo={...(btSheetInfo||{}),lastErr:'the sheet hasn’t been synced yet',errAt:Date.now()};btSheetRender();return;}
+  const at=Math.max(...rows.map(r=>Date.parse(r.synced_at||0)||0))||Date.now();
+  const{map,ignored}=btSheetRows(rows);
+  try{localStorage.setItem('mp_bt_sheet_cache',JSON.stringify({at,map,ignored}));}catch(e){}
+  await btEnsureLoaded();
+  const n=btApplySheet(map);
+  // the table keeps the last good copy; a failing bot sync shows as a warning next to it
+  btSheetInfo={at,n:Object.keys(map).length,changed:n,ignored,lastErr:null};
+  if(n){btTick();btRenderParkWarn();}
+  btSheetRender();
+}
+function btSheetRender(){
+  const el=document.getElementById('btSheetStatus');if(!el)return;
+  const i=btSheetInfo,ago=ms=>btFmtDur(Date.now()-ms)+' ago';
+  let t;
+  if(i&&i.n)t='<span style="color:#4caf7d">'+i.n+' timers</span> <span style="color:var(--text-muted)">· bot sheet synced '+ago(i.at)+(i.cached?' (saved copy)':'')+'</span>'+
+    (Date.now()-i.at>BT_SHEET_STALE?' <span style="color:#c07050" title="The copy in Supabase hasn’t been refreshed for a while — the sync job may have stopped. These timers still apply.">· sync stalled</span>':'')+
+    (i.lastErr?' <span style="color:#c07050" title="'+esc(i.lastErr)+'">· last read failed</span>':'');
+  else if(i&&i.lastErr)t='<span style="color:var(--text-muted)">'+esc(i.lastErr)+'</span>';
+  else t='<span style="color:var(--text-muted)">waiting…</span>';
+  el.innerHTML=t;
+  const ig=document.getElementById('btSheetIgnored');
+  if(ig){ig.textContent=i&&i.ignored&&i.ignored.length?'not on the kill tracker: '+i.ignored.join(', '):'';}
+}
+function btSheetStart(){
+  if(_btSheetIv)return;
+  const ready=()=>(typeof sb!=='undefined'&&sb&&typeof currentUser!=='undefined'&&currentUser);
+  let tries=0;
+  const kick=setInterval(()=>{
+    if(ready()){clearInterval(kick);btEnsureLoaded().then(()=>btSheetSync(false));_btSheetIv=setInterval(()=>btSheetSync(false),BT_SHEET_EVERY);}
+    else if(++tries>60)clearInterval(kick);
+  },5000);
+}
+btSheetStart();
 // Header park-warning refreshes globally (any tab), once loaded, then every 30s.
 (function(){
   let tries = 0;
