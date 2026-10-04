@@ -1,6 +1,6 @@
 # MixelParse — notes for Claude sessions
 
-Start with the newest `HANDOFF_v*.md` **by version number** (currently `HANDOFF_v1.6.6.md`), then read the code.
+Start with the newest `HANDOFF_v*.md` **by version number** (currently `HANDOFF_v1.7.0.md`), then read the code.
 
 ## Standing rules
 - Never push `main` or a `v*` tag without the owner's explicit all-clear (main redeploys Pages; a tag publishes a release + auto-update).
@@ -9,7 +9,8 @@ Start with the newest `HANDOFF_v*.md` **by version number** (currently `HANDOFF_
 - The desktop app is the focus, not the website/PWA. `src/admin.html` is a public troubleshooting tool by design.
 - Gear Planner rules are intended (max-only linear haste, STA scored via HP, NO DROP excluded from buy lists) — don't flag them.
 - Ask before writing to the shared Supabase `item_db` table. Never enter credentials.
-- Auto-Detect: Watch mode never writes; Active mode is exactly what the handoff describes — don't widen it without the owner asking.
+- Auto-Detect: Watch mode never writes; Active mode is exactly what the handoff describes — don't widen it without the owner asking. Roster / chat data may only upgrade a tick, never downgrade one.
+- Bot timers come from Supabase `bot_timers` (the Discord bot's sheet, via a service account). Never publish that sheet; its key stays in Supabase secrets.
 
 ## Working in this repo
 - Build: `npx.cmd electron-builder --win --publish never`
