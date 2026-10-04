@@ -1,4 +1,10 @@
-## 1.6.7
+## 1.7.0
+
+- **🤖 Spawn timers live from the Discord timer bot** — the Spawn Timers board follows the guild's Discord timer bot automatically: every ToD the bot records shows up in MixelParse within minutes, no tracker paste needed. A ToD newer than the board's replaces it; your own newer /note, quake or Dead mark still wins. The status line on Raid Info → Spawn Timers shows how many timers came in and when the bot last synced.
+- **Everything uses the live timers** — Mobs up, the raid-parking warnings and Auto-Detect's spawn-timer checks all read the same bot timers, so a "which boss?" tick can be named from the bot's ToD.
+- **Simpler Spawn Timers** — the manual Log quake, Add ToD and Clear board controls are gone. Quakes are still picked up automatically (Ring 8 wiki, hourly) and from /note Quake!, and right-click a boss to set a ToD.
+
+Everything from 1.6.7 and earlier is included:
 
 - **Auto-Detect: zone-aware** — a tick only counts boss lines from the zone it was called in. Porting, a /q to another character or a relog no longer carries one fight into the next tick (a Kael Tormax rampage used to name the Dread tick in Fear).
 - **Auto-Detect: faction hit confirms the kill** — a Weak tick (calls, rampage or spell landings on the boss) with a kill faction hit in the same zone between 3 minutes before and 2 minutes after the tick is now Strong; its ToD is the first faction line, skipping hits from a trash kill in the same second.
@@ -6,8 +12,6 @@
 - **Auto-Detect: /q after the tick** — a tick followed within 5 minutes by a login (/q to another character, relog) with no kill line seen is marked "/q or relog after the tick — kill not seen". Its suggestion is unchanged.
 - **Scan logs re-judges** — ⛏ Scan logs upgrades ticks you haven't answered yet when the current rules give a stronger suggestion; answered or auto-added ticks keep theirs.
 - **Fix: Dracoliche** is listed under Plane of Fear (was ToV / Western Wastes) for Raid Parking, Mobs up and Auto-Detect.
-
-Everything from 1.6.6 and earlier is included:
 
 - **Auto-Detect: Watch / Active mode** — a per-PC switch on the Auto-Detect tab. Watch (default) is unchanged: suggestions only. Active acts on live raid ticks you were at: Strong kills are added to the Raid Kill Tracker automatically and set the spawn-timer ToD (right-click the tick → Undo auto-add). With "Ask me about unsure ticks" on (shown under the switch), Weak suggestions open the kill dialog to confirm, and Pick / No-boss ticks ask which boss — suggestions, mobs up in the zone, or search — or Not a kill.
 - **No double counting** — a /note within 30 minutes of an auto-added kill counts as the same kill. A tick for a kill you already /noted doesn't prompt; two kills a couple of minutes apart each get their own prompt.
