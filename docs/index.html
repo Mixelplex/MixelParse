@@ -5448,14 +5448,16 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.0',
+  version:'1.7.1',
   date:'October 2026',
   features:[
-    ['&#129302; Spawn timers live from the Discord timer bot','The Spawn Timers board now follows the guild&rsquo;s Discord timer bot automatically. Every ToD the bot records shows up in MixelParse within minutes &mdash; no more pasting the tracker. A ToD newer than the board&rsquo;s replaces it; your own newer <code>/note</code>, quake or Dead mark still wins. The status line on Raid Info &rarr; Spawn Timers shows how many timers came in and when the bot last synced.'],
-    ['Everything uses the live timers','Mobs up, the raid-parking warnings and Auto-Detect&rsquo;s spawn-timer checks all read the same bot timers, so a &ldquo;which boss?&rdquo; tick can be named from the bot&rsquo;s ToD.'],
-    ['Simpler Spawn Timers','The manual Log quake, Add ToD and Clear board controls are gone. Quakes are still picked up automatically (Ring 8 wiki, hourly) and from <code>/note Quake!</code>, and you can still right-click a boss to set a ToD.'],
+    ['Raid Parking: bind age','The Bound here line shows how old each bind is and where it came from (e.g. &ldquo;/char today&rdquo;, &ldquo;bind cast 11 days ago&rdquo;), amber when it&rsquo;s over a week old.'],
+    ['&#10068; Unknown timers','A boss with no ToD, or more than 12 hours past its window with no new ToD, shows as &#10068; Unknown in amber &mdash; never green, never counted as up. Raid Parking shows &ldquo;timer unknown&rdquo; for those locations and lists the unknown bosses on cards like ToV / WW.'],
   ],
-  fixes:[],
+  fixes:[
+    ['Binds made while MixelParse was closed','At startup MixelParse now reads each character&rsquo;s log back to its last bind (a /charinfo, or a bind cast and the zone it was cast in), so a rebind it didn&rsquo;t see no longer leaves an old bind in place.'],
+    ['Auto-Detect spawn-timer suggestions','Only for ticks you were at, in a raid zone, and only that zone&rsquo;s bosses &mdash; a guild-chat tick heard elsewhere no longer gets a boss from the timers.'],
+  ],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -12193,8 +12195,12 @@ function _rkdLocOfZone(zone){
 }
 function rkdTimerGuess(t){
   if(typeof btState==='undefined'||!btState||!Object.keys(btState).length)return null;
+  // Only for a tick you were at (OOC / shout / raid chat) taken in a raid zone, and only that zone's bosses (owner,
+  // 2026-10-04: a guild-chat tick heard in Nektulos Forest became "VS · Weak (spawn timer)" from any-zone ToDs).
+  if(!_rkdAttended(t))return null;
   const loc=_rkdLocOfZone(t.zone),f=ms=>new Date(ms).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
-  const inZone=b=>!loc||BT_PARK_LOC[b]===loc;
+  if(!loc)return null;
+  const inZone=b=>BT_PARK_LOC[b]===loc;
   const hits=[];
   for(const b of Object.keys(btState)){if(!inZone(b))continue;const tod=_rkdTodOf(b);if(tod!=null&&tod>=t.ts-20*60e3&&tod<=t.ts+5*60e3)hits.push({b,tod});}
   const ev=x=>({ts:x.tod,kind:'timer',raw:btLabel(x.b)+' ToD '+f(x.tod)+' on the spawn timers'});
@@ -12218,7 +12224,7 @@ function rkdUpInZone(t){
     if(s.up){if((s.upSince||0)<=t.ts){if(t.ts-(s.upSince||0)<=RKD_UP_FRESH_MS)up.push(b);else stale++;}continue;}
     const tod=_rkdTodOf(b);
     if(s.open!=null&&s.open<=t.ts&&(tod==null||tod<t.ts)){
-      if(s.close==null||t.ts<=s.close||t.ts-s.close<=RKD_UP_FRESH_MS)up.push(b);else stale++;
+      if(s.close==null||t.ts<=s.close||t.ts-s.close<=BT_UP_GRACE)up.push(b);else stale++;   // past window: up for 12 h, then Unknown
     }
   }
   up.sort((a,b)=>btLabel(a).localeCompare(btLabel(b)));
@@ -12250,6 +12256,10 @@ function rkdRetryNoBoss(){
   let changed=false;const since=Date.now()-3*864e5;
   for(const r of rkdLog){
     // test build 2026-09-30 turned "bosses up in zone" into a Pick — those are Mobs up, not suggestions
+    // spawn-timer guesses on ticks you weren't at / outside a raid zone (before 2026-10-04) — back to No boss, unless answered
+    if(r.basis==='spawn timer'&&!r.confirm&&(!_rkdAttended(r)||!_rkdLocOfZone(r.zone))){
+      Object.assign(r,{tier:'none',boss:null,cands:null,basis:null,tod:null,todSource:null,evidence:[]});changed=true;
+    }
     if(r.basis==='bosses up in zone'||r.basis==='only boss up in zone'){
       Object.assign(r,{tier:'none',boss:null,cands:null,basis:null,tod:null,todSource:null,evidence:[]});delete r.upZone;changed=true;
     }
@@ -14033,16 +14043,31 @@ async function saveRaidMulesToSupabase(){
   return saveGuildDataField('raid_mules', raidMules, 'RaidMules');
 }
 // ── Bind locations: per-user {char(lower) -> {zone,ts,src}} — guild_data.bind_data ──
+// Binds the watcher reports before this load (its startup look-back) are merged newest-wins, and nothing is saved
+// until the load has happened — saving first would overwrite the stored binds with only the few seen so far.
+let _bindsLoaded=false;
 async function loadBindDataFromSupabase(){
   try{
     const{data,error}=await sb.from('guild_data').select('bind_data').eq('pool','SoV').eq('user_id',currentUser.id).single();
-    if(!error && data && data.bind_data && typeof data.bind_data==='object' && !Array.isArray(data.bind_data)){
-      charBinds = data.bind_data;
+    if(!error || (error && error.code==='PGRST116')){   // PGRST116 = no row yet
+      const stored=(data && data.bind_data && typeof data.bind_data==='object' && !Array.isArray(data.bind_data))?data.bind_data:{};
+      const early=charBinds; charBinds=stored; let changed=false;
+      for(const k in early){ const a=early[k], b=charBinds[k]; if(!b || (a.ts||0)>(b.ts||0)){ charBinds[k]=a; changed=true; } }
+      _bindsLoaded=true;
+      if(changed) saveBindDataToSupabase();
       if(typeof renderZoneBar==='function') renderZoneBar();
+      if(typeof renderParkingPanel==='function'&&typeof activeSub!=='undefined'&&activeSub==='parking') renderParkingPanel();
     }
   }catch(e){console.error('[Bind] Load exception',e);}
 }
-async function saveBindDataToSupabase(){ return saveGuildDataField('bind_data', charBinds, 'Bind'); }
+async function saveBindDataToSupabase(){ if(!_bindsLoaded) return; return saveGuildDataField('bind_data', charBinds, 'Bind'); }
+// " · /char 14d ago" — how old a bind is and where it came from, so a stale one is visible on Raid Parking.
+function parkBindAge(name){
+  const b=getCharBind(name); if(!b||!b.ts) return '';
+  const d=Math.floor((Date.now()-b.ts)/86400000), how={charinfo:'/char',affinity:'bind cast',manual:'set by hand'}[b.src]||'seen';
+  const age=d<=0?'today':d===1?'1 day ago':d+' days ago';
+  return ' \u00b7 <span style="color:'+(d>7?'#c48a3a':'inherit')+'" title="Bind last confirmed '+age+' ('+how+'). /charinfo in game refreshes it.">'+how+' '+age+'</span>';
+}
 // ── Park ignores: per-user "don't care / no pre-park needed" raids (Farm-style) ──
 async function saveParkIgnoresToSupabase(){
   return saveGuildDataField('park_ignores', parkIgnores, 'ParkIgnores');
@@ -14196,6 +14221,7 @@ const PARK_BADGE={
   waiting:   {t:'\u23F3 Parked \u00b7 not up yet', c:'#8a6d3b'},
   coveredup: {t:'\u2705 Covered \u00b7 UP', c:'#3a7a3a'},
   coveredwin:{t:'\u2705 Covered \u00b7 in window', c:'#3a7a3a'},
+  coveredunk:{t:'\u2754 Covered \u00b7 timer unknown', c:'#c48a3a'},
   nokey:     {t:'\uD83D\uDD11 Needs key', c:'#9a3a3a'},
   unknown:   {t:'\u2754 Unverified', c:'#8a7a3a'},
   ineligible:{t:'\u26a0 Under level', c:'#a05a20'},
@@ -14229,6 +14255,10 @@ let btParkAck = {};  // target -> the window.open ms it was acknowledged against
 // Seeded from the current guild paste; every future paste adds its mobs automatically.
 let btTracked = ['Inny','Telk','Vulak','Kreizenn','Vyemm','Aaryonar','Koi','Mirenilla','Feshlak','Cekenar','Sevalak','Dagarn','Jorlleag','Phara Dar','Zlexak','Cazic Thule','Eashen','Yelinak','Tunare','Dracoliche','Dain','Ikatiar','Dozekar','Tormax','Casalen','Tavekalem','Ymmeln','Grozzmel','Midayor','Trakanon','Lepethida','Prog','Yael','Fright','Velketor','VS','Essedera','MOTG','Dread','TFA'];
 const BT_HR = 3600e3, BT_MIN = 60e3;
+// Past its window with no new ToD: "Spawned / Up" for 12 h, then Unknown — by then it was almost always killed and
+// not recorded (owner, 2026-10-04). No ToD at all is Unknown too: never green, never counted as up.
+const BT_UP_GRACE = 12*BT_HR;
+function btIsUnknown(k){ return k === 'none' || k === 'stale'; }
 const BT_RING8_PAGE = 'Ring 8 Player Agreement';
 const BT_TZADD = { EDT:4, EST:5, CDT:5, CST:6, MDT:6, MST:7, PDT:7, PST:8 };
 
@@ -14278,8 +14308,9 @@ function btLocInWindow(locId){
 //   'up'     any mapped boss over/up (spawned/up now)      -> green Covered · UP
 //   'window' any mapped boss in its spawn window           -> green Covered · in window
 //   'soon'   mapped bosses exist, hottest still on timer   -> the ONLY downgrade (not up yet)
-//   'cold'   mapped but no ToD entered yet                 -> don't downgrade (no window claim)
+//   'unknown' every mapped boss has no ToD / is past window > 12 h -> amber "timer unknown", never green (2026-10-04)
 //   null     no mapped boss for this loc                   -> not gated
+// A Dead mark (down, ToD unknown) counts as not up yet ('soon'). btLocUnknown lists a loc's Unknown bosses.
 function btLocHeat(locId){
   let mapped=false, up=false, open=false, soon=false;
   for(const t in BT_PARK_LOC){
@@ -14288,13 +14319,18 @@ function btLocHeat(locId){
     const k=btStatusOf(btState[t]).k;
     if(k==='up'||k==='over') up=true;
     else if(k==='open') open=true;
-    else if(k==='soon') soon=true;
+    else if(k==='soon'||k==='dead') soon=true;
   }
   if(!mapped) return null;
   if(up) return 'up';
   if(open) return 'window';
   if(soon) return 'soon';
-  return 'cold';
+  return 'unknown';
+}
+function btLocUnknown(locId){
+  const out=[];
+  for(const t in BT_PARK_LOC) if(BT_PARK_LOC[t]===locId && btIsUnknown(btStatusOf(btState[t]).k)) out.push(t);
+  return out.sort((a,b)=>btLabel(a).localeCompare(btLabel(b)));
 }
 // Has the user cogwheel-ignored this whole park location (every target hidden)? Then no alerts.
 function btLocIgnored(locId){
@@ -14319,10 +14355,11 @@ function btParkedInLoc(locId, roster){
 }
 function btParkAcknowledge(t){ const s = btState[t]; if(s) btParkAck[t] = s.open; btSave(); btRenderParkWarn(); }
 function btParkAckLoc(loc, open){ btParkAck['@'+loc] = open; btSave(); btRenderParkWarn(); }
-// A parked target is green-covered unless its location's mapped boss is still on timer
-// ('soon'). Up / in-window / no-ToD / no-mapped-boss all stay green (see btLocHeat).
+// A parked target is green-covered unless its location's mapped bosses are still on timer ('soon') or their
+// timers are unknown ('unknown': amber, the yellow tier). Up / in-window / no-mapped-boss stay green (see btLocHeat).
 function parkCoveredNow(t, roster){
-  return parkTargetStatus(t, roster).status === 'covered' && btLocHeat(t.loc) !== 'soon';
+  const h = btLocHeat(t.loc);
+  return parkTargetStatus(t, roster).status === 'covered' && h !== 'soon' && h !== 'unknown';
 }
 // A live /note <boss> advances that boss's spawn timer off the note's timestamp.
 // Newer-wins: only applies if the note is newer than the current window's source (paste or older note).
@@ -14623,6 +14660,7 @@ function btStatusOf(s){
   if(now < s.open) return {k:'soon', order:2, inMs:s.open-now};
   if(s.close == null) return {k:'open', order:0, inMs:0, leftMs:null};   // open now, width unknown
   if(now <= s.close) return {k:'open', order:0, inMs:0, leftMs:s.close-now};
+  if(now - s.close > BT_UP_GRACE) return {k:'stale', order:4.5, inMs:now-s.close};   // past window > 12 h, no new ToD → Unknown
   return {k:'over', order:1, inMs:now-s.close};
 }
 function btTick(){
@@ -14651,12 +14689,14 @@ function btTick(){
   let html = '';
   const noTimer = [];
   for(const {t, s, st, win} of rows){
-    if(st.k === 'none'){ noTimer.push(t); continue; }   // no window yet -> No Timers dropdown
+    // no ToD at all: listed on the board as Unknown (it used to sit in a collapsed "No Timers" list)
     let rcls = '', inCell = '\u2014', stCell = '<span class="bt-none">no data</span>';
     if(st.k === 'up'){ rcls='bt-r-up'; inCell='<span class="bt-up">UP</span>'; stCell='<span class="bt-up">up since quake</span>'; }
     else if(st.k === 'soon'){ inCell=btFmtDur(st.inMs); stCell='<span class="bt-soon">opens in '+btFmtDur(st.inMs)+'</span>'; }
     else if(st.k === 'open'){ rcls='bt-r-open'; inCell='<span class="bt-open">NOW</span>'; stCell='<span class="bt-open">IN WINDOW</span> <span class="bt-src">\u00b7'+(st.leftMs!=null?btFmtDur(st.leftMs)+' left':'width unknown')+'</span>'; }
-    else if(st.k === 'over'){ rcls='bt-r-spawned'; inCell='<span class="bt-spawned">UP</span>'; stCell='<span class="bt-spawned">Spawned / Up</span> <span class="bt-src">\u00b7 '+btFmtDur(st.inMs)+' past window</span>'; }
+    else if(st.k === 'over'){ rcls='bt-r-spawned'; inCell='<span class="bt-spawned">UP</span>'; stCell='<span class="bt-spawned">Spawned / Up</span> <span class="bt-src">\u00b7 '+btFmtDur(st.inMs)+' past window \u00b7 unknown in '+btFmtDur(BT_UP_GRACE-st.inMs)+'</span>'; }
+    else if(st.k === 'stale'){ rcls='bt-r-unk'; inCell='<span class="bt-unk">\u2754</span>'; stCell='<span class="bt-unk">Unknown</span> <span class="bt-src">\u00b7 window ended '+btFmtDur(st.inMs)+' ago, no new ToD \u2014 probably killed, not recorded</span>'; }
+    else if(st.k === 'none'){ rcls='bt-r-unk'; inCell='<span class="bt-unk">\u2754</span>'; stCell='<span class="bt-unk">Unknown</span> <span class="bt-src">\u00b7 no ToD</span>'; }
     else if(st.k === 'dead'){ inCell='<span class="bt-dead">DEAD</span>'; stCell='<span class="bt-dead">Dead \u00b7 ToD unknown</span> <span class="bt-src">\u00b7 for '+btFmtDur(st.sinceMs||0)+'</span>'; }
     const src = s ? '<span class="bt-src">'+s.src+'</span>' : '';
     html += '<tr class="'+rcls+'" data-bt="'+encodeURIComponent(t)+'" oncontextmenu="return btRowMenu(event,this)" title="right-click: set ToD"><td>'+btLabel(t)+'</td><td style="text-align:right">'+inCell+'</td><td style="text-align:right">'+(win!=null?btFmtDur(win):'\u2014')+'</td><td>'+stCell+src+'</td></tr>';
@@ -14695,6 +14735,8 @@ function renderTimersPanel(){
         #timersPanel .bt-up{color:#1f6f8a;font-weight:600}
         #timersPanel .bt-spawned{color:#2f8f4a;font-weight:600}
         #timersPanel .bt-dead{color:#8a5a5a;font-weight:600}
+        #timersPanel .bt-unk{color:#c48a3a;font-weight:600}
+        #timersPanel tr.bt-r-unk td{background:rgba(196,138,58,.08)}
         #timersPanel .bt-none{color:var(--text-muted)}
         #timersPanel tr.bt-r-open td{background:rgba(201,162,39,.14)}
         #timersPanel tr.bt-r-over td{background:rgba(160,48,48,.08)}
@@ -14724,7 +14766,7 @@ function renderTimersPanel(){
         <tbody id="btBoard"></tbody>
       </table>
       <div id="btNoTimers" style="margin-top:.55rem"></div>
-      <div style="margin-top:.6rem;font-size:.72rem;color:var(--text-muted)">paste covers Future / Entering-24h / In-Window sections &middot; <span class="bt-open">in window</span> &middot; <span class="bt-spawned">spawned/up</span> &middot; <span class="bt-up">up (quake)</span></div>
+      <div style="margin-top:.6rem;font-size:.72rem;color:var(--text-muted)">paste covers Future / Entering-24h / In-Window sections &middot; <span class="bt-open">in window</span> &middot; <span class="bt-spawned">spawned/up</span> &middot; <span class="bt-up">up (quake)</span> &middot; <span class="bt-unk">&#10068; unknown</span> (no ToD, or past window 12 h+)</div>
       <div id="btIgnoredWrap"></div>`;
       _btBuilt = true;
       if(!_btIv) _btIv = setInterval(() => { if(typeof activeTopView !== 'undefined' && activeTopView === 'timers'){ btTick(); if(Date.now()%15000<1000) btSheetRender(); } }, 1000);
@@ -15034,8 +15076,11 @@ function renderParkingPanel(){
         if(heat==='soon') st='waiting';         // genuinely on timer, not up yet
         else if(heat==='up') st='coveredup';    // past window / quake -> UP now
         else if(heat==='window') st='coveredwin'; // in spawn window
-        // 'cold' (no ToD) or null (no mapped boss) -> keep plain 'covered'
+        else if(heat==='unknown') st='coveredunk'; // no ToD / past window > 12 h -> amber, not green
+        // null (no mapped boss) -> keep plain 'covered'
       }
+      const _unk=btLocUnknown(t.loc);
+      const unkTag=_unk.length&&btLocHeat(t.loc)!=='unknown'?` <span style="color:#c48a3a;font-size:.68rem" title="No ToD (or past window over 12 h) for: ${esc(_unk.map(btLabel).join(', '))}">\u2754 +${_unk.length} no timer</span>`:'';
       const b=PARK_BADGE[st];
       const g=PARK_EXC_GROUPS[t.exc]||{};
       const exBits=Object.keys(g).map(c=>c+' '+g[c]);
@@ -15049,7 +15094,7 @@ function renderParkingPanel(){
       return `<div style="display:flex;align-items:baseline;gap:.5rem;padding:.2rem 0">
         <span style="min-width:112px;color:${b.c};font-size:.74rem;font-weight:600">${b.t}</span>
         ${tierTag}
-        <span style="flex:1"><b>${esc(t.name)}</b> <span style="color:var(--text-muted);font-size:.74rem">need ${t.lvl}</span>${exHint}${keyTag}${also}${note}</span>
+        <span style="flex:1"><b>${esc(t.name)}</b> <span style="color:var(--text-muted);font-size:.74rem">need ${t.lvl}</span>${exHint}${keyTag}${also}${note}${unkTag}</span>
       </div>`;
     }).join('');
 
@@ -15073,7 +15118,7 @@ function renderParkingPanel(){
       }).join(' \u00b7 ');
     }else if(s.bindParked.length){
       const _bl=s.bindParked.map(o=>{
-        const lc=(o.lvl!=null?o.lvl:'?')+' '+(o.cls||'?')+' · '+esc(parkGateHow(o));
+        const lc=(o.lvl!=null?o.lvl:'?')+' '+(o.cls||'?')+' · '+esc(parkGateHow(o))+parkBindAge(o.name);
         return `${esc(o.name)} <span style="color:var(--text-muted);font-size:.72rem">(${lc})</span>`;
       }).join(' \u00b7 ');
       parkedLine=`<span style="color:#c9a227">\u2693 Bound here:</span> ${_bl}`;
