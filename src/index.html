@@ -5448,16 +5448,13 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.1',
+  version:'1.7.2',
   date:'October 2026',
   features:[
-    ['Raid Parking: bind age','The Bound here line shows how old each bind is and where it came from (e.g. &ldquo;/char today&rdquo;, &ldquo;bind cast 11 days ago&rdquo;), amber when it&rsquo;s over a week old.'],
-    ['&#10068; Unknown timers','A boss with no ToD, or more than 12 hours past its window with no new ToD, shows as &#10068; Unknown in amber &mdash; never green, never counted as up. Raid Parking shows &ldquo;timer unknown&rdquo; for those locations and lists the unknown bosses on cards like ToV / WW.'],
+    ['Auto-Detect: faction hit = ToD','When a kill-faction hit lands for the boss (the moment it dies), that is the ToD on every tick &mdash; not only on Weak ones. A kill ticked before the boss died (so people can /q) now gets its real time. Run &#9935; Scan logs to correct ticks already in the list; auto-added and confirmed kills move their spawn timer too.'],
+    ['Auto-Detect: failed attempts show up','A boss talking in your zone (&ldquo;Fright says &hellip;&rdquo;, &ldquo;&hellip; You will not evade me&rdquo;) now counts as Weak evidence, so a failtick on a boss you were near is a Weak suggestion (and an Active-mode prompt with Failtick) instead of No boss. A tick posted only in guild chat counts as yours when your character logged that boss&rsquo;s own lines in the zone.'],
   ],
-  fixes:[
-    ['Binds made while MixelParse was closed','At startup MixelParse now reads each character&rsquo;s log back to its last bind (a /charinfo, or a bind cast and the zone it was cast in), so a rebind it didn&rsquo;t see no longer leaves an old bind in place.'],
-    ['Auto-Detect spawn-timer suggestions','Only for ticks you were at, in a raid zone, and only that zone&rsquo;s bosses &mdash; a guild-chat tick heard elsewhere no longer gets a boss from the timers.'],
-  ],
+  fixes:[],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -12020,10 +12017,11 @@ window.ktSetView=function(v){sessionsView=v;renderKillsPanel();};
 const RKD_WIN_BEFORE=10*60e3, RKD_WIN_AFTER=2*60e3, RKD_TICK_DEDUPE=90e3, RKD_EVIDENCE_KEEP=40*60e3, RKD_LOG_MAX=2000;
 // faction = "Your faction standing with <boss> …got worse" (the kill, v1.5.18+); fight = the boss's
 // rampage / flurry in melee range — shows which boss a mid-fight tick is about.
-const RKD_RANK={slain:4,faction:4,enrage:3,land:2,fight:2,call:1,timer:1};
-const RKD_BASIS={slain:'slain',faction:'faction hit',enrage:'enrage',land:'landed',fight:'rampage/flurry',call:'call',timer:'spawn timer'};
+// say = the boss talking in your zone ("Fright says 'JAEJEE'", "… says 'You will not evade me …'") — as weak as a call
+const RKD_RANK={slain:4,faction:4,enrage:3,land:2,fight:2,call:1,say:1,timer:1};
+const RKD_BASIS={slain:'slain',faction:'faction hit',enrage:'enrage',land:'landed',fight:'rampage/flurry',call:'call',say:'boss spoke',timer:'spawn timer'};
 function _rkdRaw(m){return m.kind==='call'?`${m.poster}: ${m.text}`:m.kind==='land'?`${m.mob} (${m.sub})`:
-  `${m.mob} ${{slain:'slain',faction:'faction hit (kill)',fight:'rampage/flurry',enrage:'ENRAGED'}[m.kind]||m.kind}`;}
+  `${m.mob} ${{slain:'slain',faction:'faction hit (kill)',fight:'rampage/flurry',enrage:'ENRAGED',say:'spoke'}[m.kind]||m.kind}`;}
 let _rkdEvidence=[];      // {ts, kind, sub, boss, raw, sameZoneOnly}
 let _rkdOpenTicks=[];     // ticks awaiting their post-tick evidence window
 let _rkdLastTickTs=null;  // previous tick — evidence before it is already spent
@@ -12045,7 +12043,7 @@ function rkdOnEvidence(msg){
   const b=msg.kind==='call'?_rkdBossInText(msg.text):_rkdBossByMob(msg.mob);
   if(!b&&msg.kind!=='faction'&&msg.kind!=='slain')return;   // boss-less faction hits mark a death; named trash kills explain some of them
   const raw=_rkdRaw(msg);
-  _rkdEvidence.push({ts:msg.ts||Date.now(),kind:msg.kind,sub:msg.sub||null,boss:b?b.target:null,raw,char:msg.charName,zone:msg.zone||null});
+  _rkdEvidence.push({ts:msg.ts||Date.now(),kind:msg.kind,sub:msg.sub||null,boss:b?b.target:null,raw,char:msg.charName,zone:msg.zone||null,channel:msg.channel||null});
   // Prune by the event's own time, not the wall clock — backfilled evidence from hours ago
   // must survive long enough to be matched to its tick.
   const cut=(msg.ts||Date.now())-RKD_EVIDENCE_KEEP; _rkdEvidence=_rkdEvidence.filter(e=>e.ts>=cut);
@@ -12099,26 +12097,30 @@ function rkdAttribute(t){
   // ClawsofVeeshan hit 4:10:30 — next to the raid's calls on Cekenar it made the 4:10:48 re-tick "Cekenar") — but
   // only while that tick hasn't seen its own kill yet; after it, the hit is a new kill (7/11: two Hate minis 2 min apart).
   const pvOpen=pv&&!/slain|faction/.test(pv.todSource||'');
-  const pvTail=e=>pvBoss&&(e.boss===pvBoss||(pvOpen&&!e.boss&&e.kind==='faction'))&&e.ts>pv.ts&&e.ts<=pv.ts+RKD_WIN_AFTER;
+  // …and the faction hit that already is that tick's ToD (its death) never counts again (6/23: Sevalak's 4:10:30 hit)
+  const pvTail=e=>pvBoss&&(e.boss===pvBoss||(!e.boss&&e.kind==='faction'&&(pvOpen||e.ts===pv.tod)))&&e.ts>pv.ts&&e.ts<=pv.ts+RKD_WIN_AFTER;
   const win=_rkdEvidence.filter(e=>e.ts>=from&&e.ts<=t.ts+RKD_WIN_AFTER&&(e.kind!=='call'||t.sameZone)&&_rkdEvInZone(e,t)&&!pvTail(e));
   const per={};
   for(const e of win){if(!e.boss)continue;const p=per[e.boss]||(per[e.boss]={boss:e.boss,best:0,events:[]});p.best=Math.max(p.best,RKD_RANK[e.kind]);p.events.push(e);}
   // Rampage/flurry only counts for a fight already under way 90 s before the tick — a boss pulled
   // just before it is the next pull (backtest 2026-08-12: KDT tick, Vindicator pulled 39 s earlier).
-  for(const k of Object.keys(per)){const p=per[k],f=p.events.filter(e=>e.kind==='fight');
+  // Same for boss speech: Vindicator says "Only the strong will survive" when pulled.
+  for(const k of Object.keys(per)){const p=per[k],f=p.events.filter(e=>e.kind==='fight'||e.kind==='say');
     if(!f.length||Math.min(...f.map(e=>e.ts))<=t.ts-90e3)continue;
-    p.events=p.events.filter(e=>e.kind!=='fight');
+    p.events=p.events.filter(e=>e.kind!=='fight'&&e.kind!=='say');
     if(!p.events.length){delete per[k];continue;}
     p.best=Math.max(...p.events.map(e=>RKD_RANK[e.kind]));}
   // A faction hit alone isn't a boss kill — trash in Permafrost / Skyshrine hits the Vox / Yelinak
   // factions too (backtest: 11 "Vox kills" in one day). It counts only next to other evidence.
   for(const k of Object.keys(per))if(per[k].events.every(e=>e.kind==='faction'))delete per[k];
   const lastTs=c=>Math.max(...c.events.map(e=>e.ts));
-  const cands=Object.values(per).sort((a,b)=>b.best-a.best||b.events.length-a.events.length||lastTs(b)-lastTs(a));
+  // boss speech only breaks a silence: at equal rank a boss with real fight evidence (calls, rampage, landings…) wins
+  const real=c=>c.events.some(e=>e.kind!=='say')?1:0;
+  const cands=Object.values(per).sort((a,b)=>b.best-a.best||real(b)-real(a)||b.events.length-a.events.length||lastTs(b)-lastTs(a));
   if(!cands.length)return rkdTimerGuess(t)||{tier:'none'};
   // Same rank is only a toss-up when the runner-up has comparable evidence (one stray rampage from
   // another character's log doesn't tie ~35 Statue lines).
-  if(cands.length>1&&cands[1].best===cands[0].best&&cands[1].events.length*3>cands[0].events.length)return{tier:'ambiguous',cands:cands.filter(c=>c.best===cands[0].best).map(c=>c.boss),events:win};
+  if(cands.length>1&&cands[1].best===cands[0].best&&real(cands[1])===real(cands[0])&&cands[1].events.length*3>cands[0].events.length)return{tier:'ambiguous',cands:cands.filter(c=>c.best===cands[0].best).map(c=>c.boss),events:win};
   const top=cands[0],slain=top.events.find(e=>e.kind==='slain'||e.kind==='faction');
   const bestEv=top.events.filter(e=>RKD_RANK[e.kind]===top.best).pop();
   // Weak + a kill-faction hit in the tick's zone (3 min before … 2 min after the tick) → Strong, ToD = that hit
@@ -12126,18 +12128,24 @@ function rkdAttribute(t){
   // faction, not the boss — trash gives the same one — so alone it proves nothing; next to the boss's own
   // evidence it marks the kill. Replay May–Oct: 18 such ticks, 14 right, 2 wrong (Fright called as Dracoliche
   // died 6/17; Mirenilla on an hourly tick 7/3), 2 not checkable.
-  if(top.best<3){
-    // a hit in the same second as a named trash kill is that trash (6/19: Cleric of Innoruuk at 12:23:51, Innoruuk
-    // at 12:25:17; 6/30: Nelaarn the Ebon Claw at 23:00:22, Essedera out of range at 22:59:27)
-    const trash=win.filter(e=>e.kind==='slain'&&!e.boss).map(e=>e.ts);
-    const fh=win.filter(e=>e.kind==='faction'&&!e.boss&&e.ts>=t.ts-180e3&&!trash.some(x=>Math.abs(x-e.ts)<=1000));
-    if(fh.length){
-      const k=fh.reduce((a,e)=>e.ts<a.ts?e:a);   // the FIRST hit is the kill (owner) — as a boss-named faction hit already does
-      return{tier:'strong',boss:top.boss,basis:(RKD_BASIS[bestEv.kind]||bestEv.kind)+' + faction hit',tod:k.ts,todSource:'faction hit',events:[...top.events,k].sort((a,b)=>a.ts-b.ts)};
-    }
-  }
+  // Faction hit = death = ToD, on EVERY tick (owner, 2026-10-04: Statue / Avatar of War were ticked before they died;
+  // their KingTormax/Kromzek hits 1:30:52 / 2:00:42 were ignored because the ticks were already Strong from enrage).
+  // The kill is the first boss-less kill-faction hit at or after the boss's own last line — a hit while it is still
+  // fighting is trash — skipping a hit in the same second as a named trash kill (6/19 Cleric of Innoruuk, 6/30 Nelaarn).
+  const trash=win.filter(e=>e.kind==='slain'&&!e.boss).map(e=>e.ts);
+  // the boss's own fight lines (rampage, enrage, spell landings) — raid calls keep naming it after it dies
+  const own=top.events.filter(e=>e.kind!=='call'), lastLine=own.length?Math.max(...own.map(e=>e.ts)):-Infinity;
+  const killHit=slain?null:win.filter(e=>e.kind==='faction'&&!e.boss&&e.ts>=t.ts-180e3&&e.ts>=lastLine-5000&&!trash.some(x=>Math.abs(x-e.ts)<=1000))
+    .reduce((a,e)=>!a||e.ts<a.ts?e:a,null);
+  const inZoneP=(!t.sameZone&&!!t.zone&&own.some(e=>e.zone===t.zone&&(!e.char||!t.char||e.char===t.char)));
+  if(top.best<3&&killHit&&real(top))
+    return{tier:'strong',boss:top.boss,basis:(RKD_BASIS[bestEv.kind]||bestEv.kind)+' + faction hit',tod:killHit.ts,todSource:'faction hit',events:[...top.events,killHit].sort((a,b)=>a.ts-b.ts),inZone:inZoneP};
+  // A tick heard only in guild chat still counts as one you were at (inZone) when the character that heard it was in
+  // that zone and logged the boss's own lines there (owner, 2026-10-04: Fright failtick, Mixelplex in Fear).
+  const inZone=(!t.sameZone&&!!t.zone&&own.some(e=>e.zone===t.zone&&(!e.char||!t.char||e.char===t.char)));
   return{tier:top.best>=3?'strong':'weak',boss:top.boss,basis:RKD_BASIS[bestEv.kind]||bestEv.kind,
-         tod:slain?slain.ts:t.ts,todSource:slain?RKD_BASIS[slain.kind]:'tick',events:top.events};
+         tod:slain?slain.ts:killHit?killHit.ts:t.ts,todSource:slain?RKD_BASIS[slain.kind]:killHit?'faction hit':'tick',
+         events:killHit?[...top.events,killHit].sort((a,b)=>a.ts-b.ts):top.events,inZone};
 }
 // Ticks taken before the kill (so people can /q before the faction hit): the kill line counts if it lands within the
 // 2-minute post-window — in the replay it always did (23 of 23). A kill 9–12 min after a tick was always followed by a
@@ -12168,7 +12176,7 @@ function rkdFinalize(t){
   const a=rkdAttribute(t);
   const _up=rkdUpInZone(t);
   rkdLog.push({id:t.id,ts:t.ts,char:t.char,poster:t.poster,channels:t.channels,sameZone:t.sameZone,zone:t.zone||null,text:t.text,
-    tier:a.tier,boss:a.boss||null,cands:a.cands||null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,
+    tier:a.tier,boss:a.boss||null,cands:a.cands||null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,inZone:!!a.inZone,
     evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw})),...(_up?{upZone:_up.slice(),upStale:_up.stale||0,upV:2}:{})});
   rkdLog.sort((a,b)=>a.ts-b.ts);
   if(rkdLog.length>RKD_LOG_MAX)rkdLog=rkdLog.slice(-RKD_LOG_MAX);
@@ -12368,7 +12376,7 @@ function rkdImportScan(ticks,evidence,logins){
     const b=m.kind==='call'?_rkdBossInText(m.text):_rkdBossByMob(m.mob);
     if(!b&&m.kind!=='faction'&&m.kind!=='slain')continue;
     const raw=_rkdRaw(m);
-    ev.push({ts:m.ts,kind:m.kind,sub:m.sub||null,boss:b?b.target:null,raw,char:m.charName,zone:m.zone||null});
+    ev.push({ts:m.ts,kind:m.kind,sub:m.sub||null,boss:b?b.target:null,raw,char:m.charName,zone:m.zone||null,channel:m.channel||null});
   }
   _rkdEvidence=ev;
   // merge the same tick heard on several channels / characters (as rkdOnTick does)
@@ -12388,16 +12396,23 @@ function rkdImportScan(ticks,evidence,logins){
       // …and re-judges a row nobody has answered yet when today's rules give a stronger verdict (owner, 2026-10-03:
       // the 10/3 KDT tick stayed "Weak · ToD 02:51:59 tick" after the faction-hit rule; a rescan makes it Strong,
       // ToD 02:51:53). Rows with a prompt answer / auto-add (confirm) keep their verdict.
-      if(!done.confirm){const a=rkdAttribute(t);
+      const a=rkdAttribute(t);
+      // a ToD that is still the tick time takes the kill time (faction hit / slain) for the same boss — also on answered
+      // rows; an auto-added or confirmed kill's spawn timer moves to it (newer-wins)
+      if(a.boss&&a.boss===(done.picked||done.boss)&&done.todSource==='tick'&&a.todSource&&a.todSource!=='tick'&&a.tod){
+        done.tod=a.tod;done.todSource=a.todSource;done.evidence=(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw}));upgraded++;
+        if((done.confirm==='auto'||done.confirm==='confirmed')&&typeof btNoteTod==='function'&&Date.now()-a.tod<14*864e5)btNoteTod(a.boss,a.tod);
+      }
+      if(!done.confirm){
         if(a.boss&&(rank[a.tier]||0)>(rank[done.tier]||0)){
-          Object.assign(done,{tier:a.tier,boss:a.boss,cands:null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,
+          Object.assign(done,{tier:a.tier,boss:a.boss,cands:null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,inZone:!!(done.inZone||a.inZone),
             evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw})),rejudged:Date.now()});upgraded++;}}
       continue;
     }
     if(done)rkdLog=rkdLog.filter(r=>r!==done);
     const a=rkdAttribute(t);
     rkdLog.push({id:t.id,ts:t.ts,char:t.char,poster:t.poster,channels:t.channels,sameZone:t.sameZone,zone:t.zone||null,text:t.text,
-      tier:a.tier,boss:a.boss||null,cands:a.cands||null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,
+      tier:a.tier,boss:a.boss||null,cands:a.cands||null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,inZone:!!a.inZone,
       evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw})),src:'scan'});
     if(!done)added++;
   }
@@ -12409,7 +12424,10 @@ function rkdImportScan(ticks,evidence,logins){
   return{added,upgraded,seen:merged.length};
 }
 // A tick you were at: heard in OOC/shout (same zone) or the raid channel.
-function _rkdAttended(r){return !!(r.sameZone||(r.channels||[]).some(c=>/tells the raid/.test(c)));}
+// …or a guild-chat tick whose boss lines your character logged in that zone (inZone). Standing in a raid zone alone
+// is not enough: parked / boxed characters sit in WW, Cobalt Scar, Karnor's… (replay 2026-10-04: 101 guild ticks would
+// have become 'which boss?' prompts, none with evidence).
+function _rkdAttended(r){return !!(r.sameZone||r.inZone||(r.channels||[]).some(c=>/tells the raid/.test(c)));}
 const RKD_ODKP_WINDOW=15*60e3, RKD_ODKP_TZ_SLOP=10*60e3;
 // Match each RAIDTICK to a credited ODKP tick by time (label "M-D H:MM"), one-to-one,
 // nearest first within ±15 min (ODKP times often run ~10 min ahead of the call).

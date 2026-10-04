@@ -1,4 +1,4 @@
-# MixelParse — Handoff v1.7.1 (2026-10-04)
+# MixelParse — Handoff v1.7.2 (2026-10-04)
 
 Supersedes `HANDOFF_v1.6.6.md` (kept for history; its §3 still describes Auto-Detect Watch / Active mode accurately).
 Start here, then read the code. Git history is the source of truth.
@@ -24,8 +24,9 @@ New this session:
 | 1.6.7 | Auto-Detect: zone-aware evidence, faction-hit Strong, one fight per tick, /q marker, Scan logs re-judges, Dracoliche → Fear |
 | 1.7.0 | Spawn timers live from the Discord timer bot (Supabase `bot_timers`); manual Log quake / Add ToD / Clear board removed |
 | 1.7.1 | Bind look-back + bind age on Raid Parking; ❔ Unknown timers (no ToD / past window > 12 h); spawn-timer suggestions only for attended raid-zone ticks |
+| 1.7.2 | Auto-Detect: faction hit = ToD on every tick; boss speech = Weak evidence; guild-chat tick attended when your char logged the boss's lines in that zone |
 
-Release template: `session-data-2026-10-03/scratchpad/rel171.js` (same shape as rel166/rel167/rel170).
+Release template: `session-data-2026-10-03/scratchpad/rel172.js` + `rel172-content.js` (same shape as rel166–rel171).
 
 ## 3. Auto-Detect changes (1.6.7) — index.html `rkdAttribute`, watcher.js `raidEvidence`
 - **Zone-aware evidence.** The watcher tags every raid signal (ticks *and* evidence) with the zone its character was
@@ -92,6 +93,26 @@ Release template: `session-data-2026-10-03/scratchpad/rel171.js` (same shape as 
   only that zone's bosses. `rkdRetryNoBoss` returns older unanswered "spawn timer" rows that fail this to No boss.
   Cause: a guild-chat tick heard by lvl 13 Mixelcoth in Nektulos Forest was "VS · Weak (spawn timer)".
 - Zone names: "Permafrost Caverns" (zone line) vs "Permafrost Keep" (/charinfo) — not checked against parkNormZone.
+
+## 4c. 1.7.2 (2026-10-04) — Auto-Detect evidence, current rules
+- **Ranks** (`RKD_RANK`): slain / boss-named faction 4 · enrage 3 · landing / rampage 2 · call / **boss speech (say)** 1.
+  Strong = top rank ≥ 3, or real (non-speech) Weak evidence + a boss-less kill-faction hit. Weak = rank 1–2, or the
+  zone's spawn timer (attended raid-zone tick, one boss ToD −20…+5 min). Pick = top tie with comparable evidence (a boss
+  with real evidence beats one that only spoke). ToD = slain / boss-named faction → else the **first boss-less faction
+  hit at/after the boss's last fight line** (calls excluded; not the same second as a named trash kill; not a hit that
+  is already the previous tick's ToD) → else the tick.
+- **Boss speech**: watcher `RE_RT_SAY` — NPC speech has no comma ("Fright says 'JAEJEE'"; Fear golems call their
+  target, CT / Vulak / Nagafen say "You will not evade me <name>", Vindi "Only the strong will survive"). Rank 1, the
+  90 s next-pull rule applies, never promoted to Strong by a faction hit, loses ties to real evidence.
+- **Guild-chat ticks** count as attended (`r.inZone`) when the character that heard it logged the boss's own lines
+  (non-call) in its zone. Tonight's Fright failtick (Mixelplex in Fear, guild-chat RAIDTICK) → Weak Fright, prompted.
+- **Scan logs** moves a row's ToD from 'tick' to the kill time for the same boss (also answered rows; btNoteTod for
+  auto-added / confirmed kills within 14 days).
+- **Tried and dropped (don't redo without new data):** "in a raid zone + heard the tick = attended" (+101 evidence-less
+  prompts from parked / boxed chars in WW / Cobalt Scar / Karnor's, −11 labels); OOC calls in your zone as proof
+  (+1 wrong, −1 label); "contested target" via the Castle roster (owner: rabbit hole; Eluare is an ODKP placeholder
+  record, actually an & Co raider — "not Castle" ≠ "not our raid").
+- Replay vs 1.7.1: Strong unchanged; ~12 No boss → Weak (9 right, mostly failed attempts); 98 ToDs move to the death.
 
 ## 5. Open items
 - **`bot_timers` is readable with the public anon key** (no sign-in). The owner was given

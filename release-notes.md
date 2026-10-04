@@ -1,11 +1,14 @@
-## 1.7.1
+## 1.7.2
+
+- **Auto-Detect: faction hit = ToD** — when a kill-faction hit lands for the boss (the moment it dies), that is the ToD on every tick, not only on Weak ones. A kill ticked before the boss died now gets its real time. ⛏ Scan logs corrects ticks already in the list; auto-added and confirmed kills move their spawn timer too.
+- **Auto-Detect: failed attempts show up** — a boss talking in your zone ("Fright says …", "… You will not evade me") counts as Weak evidence, so a failtick on a boss you were near is a Weak suggestion (and an Active-mode prompt with Failtick) instead of No boss. A tick posted only in guild chat counts as yours when your character logged that boss's own lines in the zone.
+
+Everything from 1.7.1 and earlier is included:
 
 - **Raid Parking: bind age** — the Bound here line shows how old each bind is and where it came from ("/char today", "bind cast 11 days ago"), amber when over a week old.
 - **❔ Unknown timers** — a boss with no ToD, or more than 12 hours past its window with no new ToD, shows as Unknown in amber, never green and never counted as up. Raid Parking shows "timer unknown" for those locations and lists the unknown bosses on cards like ToV / WW.
 - **Fix: binds made while MixelParse was closed** — at startup each character's log is read back to its last bind (/charinfo, or a bind cast and its zone), so a missed rebind no longer leaves an old bind in place.
 - **Fix: Auto-Detect spawn-timer suggestions** — only for ticks you were at, in a raid zone, and only that zone's bosses.
-
-Everything from 1.7.0 and earlier is included:
 
 - **🤖 Spawn timers live from the Discord timer bot** — the Spawn Timers board follows the guild's Discord timer bot automatically: every ToD the bot records shows up in MixelParse within minutes, no tracker paste needed. A ToD newer than the board's replaces it; your own newer /note, quake or Dead mark still wins. The status line on Raid Info → Spawn Timers shows how many timers came in and when the bot last synced.
 - **Everything uses the live timers** — Mobs up, the raid-parking warnings and Auto-Detect's spawn-timer checks all read the same bot timers, so a "which boss?" tick can be named from the bot's ToD.

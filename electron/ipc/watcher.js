@@ -949,6 +949,9 @@ const RE_RT_SLAIN    = /^\[.+?\] (.+?) has been slain by .+!$/;
 const RE_RT_YOUSLAIN = /^\[.+?\] You have slain (.+)!$/;
 const RE_RT_LAND     = /^\[.+?\] (.+?) (glances nervously about|looks very uncomfortable|yawns|slows down)\.$/;
 const RE_RT_CALL     = /^\[.+?\] (\w+) (tells the guild|says out of character|tells the raid|shouts|says), '(.*)'$/;
+// A boss talking: NPC speech has no comma ("Fright says 'JAEJEE'", "Cazic Thule says 'You will not evade me …'",
+// "Derakor the Vindicator says 'Only the strong will survive'"); players' /say has one. Only roster bosses count.
+const RE_RT_SAY      = /^\[.+?\] (.+?) says '(.*)'$/;
 const RE_RT_CALLKIND = /<\s*(tash|malo|slow|brd slow)\s*>|\b(tashed|malo|slowed)\b/i;
 const RT_LAND_KIND   = { 'glances nervously about':'tash', 'looks very uncomfortable':'malo', 'yawns':'slow', 'slows down':'slow' };
 const _rtGeneric     = name => /^(a|an) /i.test(name);   // "a fiery watcher" — never a roster boss
@@ -961,7 +964,7 @@ function _rtLineTs(line) {
 }
 // Parse one log line into a raid signal message (raidTick / raidEvidence), or null.
 function raidSignal(line, charName) {
-  if (!/RAID ?TICK|ENRAGED|slain|nervously|uncomfortable|yawns\.|slows down\.|tash|malo|slow|faction standing|RAMPAGE|FLURRY/i.test(line)) return null;   // cheap pre-filter
+  if (!/RAID ?TICK|ENRAGED|slain|nervously|uncomfortable|yawns\.|slows down\.|tash|malo|slow|faction standing|RAMPAGE|FLURRY| says '/i.test(line)) return null;   // cheap pre-filter
   let m; const ts = _rtLineTs(line);
   if ((m = RE_RT_TICK.exec(line)))   return { type:'raidTick', charName, poster:m[1], channel:m[2], text:m[3].trim(), ts };
   // Enrage + landing lines are low-volume, so generic names pass too — some bosses are
@@ -971,6 +974,7 @@ function raidSignal(line, charName) {
   if ((m = RE_RT_LAND.exec(line)))   return { type:'raidEvidence', charName, kind:'land', sub:RT_LAND_KIND[m[2]], mob:m[1], ts };
   if ((m = RE_RT_FACTION.exec(line))) return { type:'raidEvidence', charName, kind:'faction', mob:m[1], ts };
   if ((m = RE_RT_FIGHT.exec(line)))  return _rtGeneric(m[1]) ? null : { type:'raidEvidence', charName, kind:'fight', mob:m[1], ts };
+  if ((m = RE_RT_SAY.exec(line)))   return _rtGeneric(m[1]) ? null : { type:'raidEvidence', charName, kind:'say', mob:m[1], ts };
   if ((m = RE_RT_CALL.exec(line)) && RE_RT_CALLKIND.test(m[3])) return { type:'raidEvidence', charName, kind:'call', text:m[3], poster:m[1], channel:m[2], ts };
   return null;
 }
