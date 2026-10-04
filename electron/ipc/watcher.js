@@ -1111,6 +1111,71 @@ function raidBackfill() {
   }
 }
 
+// Bind look-back (owner, 2026-10-04: Mixelboom rebound in Western Wastes on 9/22 while MixelParse was closed; the app
+// kept a 9/20 /charinfo "The Feerrott" and parking showed him bound at Plane of Fear — a Dread call was missed).
+// Once per run, read each live log BACKWARDS to its last bind signal — a /charinfo readout, or a Bind Affinity plus
+// the zone it was cast in — and send it with that line's time; the renderer keeps the newest bind it knows.
+// Async, 4 MB chunks from the end, stops at the first hit (the logs total ~340 MB).
+let _bindBackfilled = false;
+const BIND_CI = 'You are currently bound in:', BIND_AF = 'You feel yourself bind to the area.', BIND_ZN = '] You have entered ';
+async function lastBindSignal(fp) {
+  const fh = await fs.promises.open(fp, 'r');
+  try {
+    const size = (await fh.stat()).size, CH = 4 * 1024 * 1024;
+    let pos = size, tail = '', aff = null;
+    while (pos > 0) {
+      const start = Math.max(0, pos - CH), buf = Buffer.alloc(pos - start);
+      await fh.read(buf, 0, buf.length, start);
+      const text = buf.toString('latin1') + tail;
+      const nl = start > 0 ? text.indexOf('\n') : -1;          // the first line may be cut by the chunk edge
+      tail = nl >= 0 ? text.slice(0, nl) : '';
+      const body = nl >= 0 ? text.slice(nl + 1) : text;
+      const lineAt = i => { const a = body.lastIndexOf('\n', i) + 1, b = body.indexOf('\n', i); return body.slice(a, b < 0 ? undefined : b).replace(/\r$/, ''); };
+      if (!aff) {
+        const ic = body.lastIndexOf(BIND_CI), ia = body.lastIndexOf(BIND_AF);
+        if (ic >= 0 && ic > ia) {
+          const line = lineAt(ic), zone = line.slice(line.indexOf(BIND_CI) + BIND_CI.length).trim();
+          if (zone) return { zone, ts: _rtLineTs(line), src: 'charinfo' };
+        }
+        if (ia >= 0) {
+          aff = { ts: _rtLineTs(lineAt(ia)) };
+          const iz = body.lastIndexOf(BIND_ZN, ia);
+          if (iz >= 0) { const zl = lineAt(iz); return { zone: zl.slice(zl.indexOf(BIND_ZN) + BIND_ZN.length).replace(/\.$/, '').trim(), ts: aff.ts, src: 'affinity' }; }
+        }
+      } else {
+        const iz = body.lastIndexOf(BIND_ZN);
+        if (iz >= 0) { const zl = lineAt(iz); return { zone: zl.slice(zl.indexOf(BIND_ZN) + BIND_ZN.length).replace(/\.$/, '').trim(), ts: aff.ts, src: 'affinity' }; }
+      }
+      pos = start;
+    }
+    return null;
+  } finally { await fh.close(); }
+}
+async function bindBackfill() {
+  if (_bindBackfilled || !_config || !_config.logDir) return;
+  _bindBackfilled = true;
+  let files = [], older = [];
+  try { files = fs.readdirSync(_config.logDir).filter(f => /^eqlog_.+_P1999Green\.txt$/i.test(f)); } catch { return; }
+  // rotated copies (.old next to the logs, Logs\archive) — searched newest first when the live log has no bind line
+  for (const d of [_config.logDir, path.join(_config.logDir, 'archive')]) {
+    try { for (const f of fs.readdirSync(d)) if (/^eqlog_.+?_P1999Green.+\.(txt|old)$/i.test(f)) { const fp = path.join(d, f); older.push({ fp, f, m: fs.statSync(fp).mtimeMs }); } } catch {}
+  }
+  older.sort((x, y) => y.m - x.m);
+  let n = 0;
+  for (const f of files) {
+    const charName = extractCharFromLog(f); if (!charName) continue;
+    try {
+      let b = await lastBindSignal(path.join(_config.logDir, f));
+      if (!b) for (const o of older) {
+        if ((o.f.match(/^eqlog_(.+?)_P1999Green/i) || [])[1] !== charName) continue;
+        if ((b = await lastBindSignal(o.fp))) break;
+      }
+      if (b && b.zone) { broadcast({ type: 'bindUpdate', charName, zone: b.zone, src: b.src, timestamp: b.ts }); n++; }
+    } catch (e) { err('[BIND] look-back', f, e.message); }
+  }
+  log(`[BIND] look-back: ${n} bind(s) read from ${files.length} log(s)`);
+}
+
 function processLogLine(line, charName) {
   raidEvidence(line, charName);
   try { resistWatch.line(line, charName, _rtLineTs(line), zoneState[charName] && zoneState[charName].zone); } catch (e) { err('[RESIST]', e.message); }
@@ -1145,24 +1210,24 @@ function processLogLine(line, charName) {
     return;
   }
 
-  // Bind point. Two live signals, forward-looking only (no historical backfill —
-  // a bind that happened before the watcher was running leaves nothing to read):
+  // Bind point. Two live signals (a bind made while the app was closed is picked up by bindBackfill at startup):
   //   1) /charinfo readout — names the zone directly, works from anywhere.
   //   2) Bind Affinity landing — doesn't name the zone, so resolve it from the
   //      character's current zone (you bind where you stand).
+  // Stamped with the LOG LINE's time, so the renderer's newest-wins compares real bind times.
   const boundInMatch = line.match(/You are currently bound in:\s*(.+)/);
   if (boundInMatch) {
     const zone = boundInMatch[1].replace(/[\r\s]+$/, '').trim();
     if (zone) {
-      broadcast({ type: 'bindUpdate', charName, zone, src: 'charinfo', timestamp: Date.now() });
+      broadcast({ type: 'bindUpdate', charName, zone, src: 'charinfo', timestamp: _rtLineTs(line) });
       log(`[BIND] ${charName} /charinfo -> ${zone}`);
     }
     return;
   }
   if (/You feel yourself bind to the area\./.test(line)) {
-    const z = zoneState[charName] && zoneState[charName].zone;
+    const z = (zoneState[charName] && zoneState[charName].zone) || _rtZoneOf(charName);
     if (z) {
-      broadcast({ type: 'bindUpdate', charName, zone: z, src: 'affinity', timestamp: Date.now() });
+      broadcast({ type: 'bindUpdate', charName, zone: z, src: 'affinity', timestamp: _rtLineTs(line) });
       log(`[BIND] ${charName} bind affinity -> ${z} (current zone)`);
     } else {
       log(`[BIND] ${charName} bind affinity but current zone unknown — skipped`);
@@ -2094,6 +2159,7 @@ function command(cmd, args) {
   if (cmd === 'requestAll') {
     sendFullSnapshot();
     raidBackfill();
+    bindBackfill();
     skyCorpse.emit();
   } else if (cmd === 'reload') {
     stop();

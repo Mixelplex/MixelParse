@@ -1,4 +1,4 @@
-# MixelParse — Handoff v1.7.0 (2026-10-03)
+# MixelParse — Handoff v1.7.1 (2026-10-04)
 
 Supersedes `HANDOFF_v1.6.6.md` (kept for history; its §3 still describes Auto-Detect Watch / Active mode accurately).
 Start here, then read the code. Git history is the source of truth.
@@ -23,8 +23,9 @@ New this session:
 |---|---|
 | 1.6.7 | Auto-Detect: zone-aware evidence, faction-hit Strong, one fight per tick, /q marker, Scan logs re-judges, Dracoliche → Fear |
 | 1.7.0 | Spawn timers live from the Discord timer bot (Supabase `bot_timers`); manual Log quake / Add ToD / Clear board removed |
+| 1.7.1 | Bind look-back + bind age on Raid Parking; ❔ Unknown timers (no ToD / past window > 12 h); spawn-timer suggestions only for attended raid-zone ticks |
 
-Release template: `session-data-2026-10-03/scratchpad/rel170.js` (same shape as rel166/rel167).
+Release template: `session-data-2026-10-03/scratchpad/rel171.js` (same shape as rel166/rel167/rel170).
 
 ## 3. Auto-Detect changes (1.6.7) — index.html `rkdAttribute`, watcher.js `raidEvidence`
 - **Zone-aware evidence.** The watcher tags every raid signal (ticks *and* evidence) with the zone its character was
@@ -72,6 +73,25 @@ Release template: `session-data-2026-10-03/scratchpad/rel170.js` (same shape as 
   (owner asked whether to keep it as a backup — not answered).
 - Tried and dropped: an Apps Script relay in the owner's Google account (owner didn't like it), publish-to-web (not
   allowed), Claude in Chrome reads (one-off only).
+
+## 4b. 1.7.1 (2026-10-04)
+- **Bind look-back** (watcher.js `bindBackfill`, on requestAll, once per run): each live log is read backwards in 4 MB
+  chunks to its last bind signal — "You are currently bound in: X" (/charinfo) or "You feel yourself bind to the area."
+  plus the last "You have entered" before it — falling back to the character's `.old` / `Logsarchive` files. ~0.5 s for
+  171 logs. Live and look-back binds carry the LOG LINE's time; `setCharBind` keeps the newest. Cause: Mixelboom rebound
+  in Western Wastes 9/22 while the app was closed; the 9/20 /charinfo "The Feerrott" made parking show him bound at
+  Fear and the owner missed Dread. `loadBindDataFromSupabase` now merges binds that arrived before it (newest wins) and
+  `saveBindDataToSupabase` does nothing until the load ran (it used to be able to overwrite the stored map with a
+  partial one). Raid Parking's "Bound here" shows `parkBindAge` ("/char today", "bind cast 11 days ago", amber > 7 d).
+- **Unknown timers** (owner's choice): `btStatusOf` → `'stale'` when more than `BT_UP_GRACE` (12 h) past the window;
+  no ToD stays `'none'`; both are `btIsUnknown`. Board lists them as ❔ Unknown (amber) — the "No Timers" dropdown is
+  gone. `btLocHeat` returns `'unknown'` when every mapped boss is unknown (Dead counts as 'soon'); `parkCoveredNow`
+  is false for it (yellow tier, badge "❔ Covered · timer unknown"); cards with some unknown bosses show "❔ +N no timer".
+  Mobs up uses the same 12 h for past-window bosses.
+- **Spawn-timer suggestions** (`rkdTimerGuess`): only for attended ticks (`_rkdAttended`) in a mapped raid zone, and
+  only that zone's bosses. `rkdRetryNoBoss` returns older unanswered "spawn timer" rows that fail this to No boss.
+  Cause: a guild-chat tick heard by lvl 13 Mixelcoth in Nektulos Forest was "VS · Weak (spawn timer)".
+- Zone names: "Permafrost Caverns" (zone line) vs "Permafrost Keep" (/charinfo) — not checked against parkNormZone.
 
 ## 5. Open items
 - **`bot_timers` is readable with the public anon key** (no sign-in). The owner was given
