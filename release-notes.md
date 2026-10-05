@@ -1,9 +1,15 @@
-## 1.7.2
+## 1.7.3
+
+- **🔄 DKP straight from ODKP** — no more exports: DKP History (every item sale + the item DKP prices) and your Credit Check ledger sync themselves from Castle's ODKP at sign-in and every 2 hours. Credit Check finds your ODKP account from your characters and shows whose it is ("synced from ODKP · Frown's account (9 characters)"). ⟳ Sync from ODKP pulls now; CSV upload stays as a fallback.
+- **Factions: right-click to set** — right-click any faction chip (Skyshrine, Kael Drakkel, …) to set that character's standing, or Not Set. A newer reading from your logs still wins.
+- **DKP History: wiki links** — item names open the item's P99 wiki page in your browser.
+- **Spawn Timers: quakes removed** — the Ring 8 quake check, /note Quake! and "up since quake" are gone; the Discord bot's timers replace them. Bosses with no ToD show as ❔ Unknown.
+- **Fix: DKP balance** — a tick credited to two characters on one account is counted twice, as ODKP does; balances now match ODKP exactly.
+
+Everything from 1.7.2 and earlier is included:
 
 - **Auto-Detect: faction hit = ToD** — when a kill-faction hit lands for the boss (the moment it dies), that is the ToD on every tick, not only on Weak ones. A kill ticked before the boss died now gets its real time. ⛏ Scan logs corrects ticks already in the list; auto-added and confirmed kills move their spawn timer too.
 - **Auto-Detect: failed attempts show up** — a boss talking in your zone ("Fright says …", "… You will not evade me") counts as Weak evidence, so a failtick on a boss you were near is a Weak suggestion (and an Active-mode prompt with Failtick) instead of No boss. A tick posted only in guild chat counts as yours when your character logged that boss's own lines in the zone.
-
-Everything from 1.7.1 and earlier is included:
 
 - **Raid Parking: bind age** — the Bound here line shows how old each bind is and where it came from ("/char today", "bind cast 11 days ago"), amber when over a week old.
 - **❔ Unknown timers** — a boss with no ToD, or more than 12 hours past its window with no new ToD, shows as Unknown in amber, never green and never counted as up. Raid Parking shows "timer unknown" for those locations and lists the unknown bosses on cards like ToV / WW.

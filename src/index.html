@@ -5448,13 +5448,17 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.2',
+  version:'1.7.3',
   date:'October 2026',
   features:[
-    ['Auto-Detect: faction hit = ToD','When a kill-faction hit lands for the boss (the moment it dies), that is the ToD on every tick &mdash; not only on Weak ones. A kill ticked before the boss died (so people can /q) now gets its real time. Run &#9935; Scan logs to correct ticks already in the list; auto-added and confirmed kills move their spawn timer too.'],
-    ['Auto-Detect: failed attempts show up','A boss talking in your zone (&ldquo;Fright says &hellip;&rdquo;, &ldquo;&hellip; You will not evade me&rdquo;) now counts as Weak evidence, so a failtick on a boss you were near is a Weak suggestion (and an Active-mode prompt with Failtick) instead of No boss. A tick posted only in guild chat counts as yours when your character logged that boss&rsquo;s own lines in the zone.'],
+    ['&#128260; DKP straight from ODKP','No more exports: <b>DKP History</b> (every item sale + the item DKP prices) and your <b>Credit Check</b> ledger now sync themselves from Castle&rsquo;s ODKP at sign-in and every 2 hours. Credit Check finds your ODKP account from your characters and shows whose it is (&ldquo;synced from ODKP &middot; Frown&rsquo;s account (9 characters)&rdquo;). &#10227; Sync from ODKP pulls now; CSV upload stays as a fallback.'],
+    ['Factions: right-click to set','Right-click any faction chip (Skyshrine, Kael Drakkel, &hellip;) to set that character&rsquo;s standing, or Not Set. A newer reading from your logs still wins.'],
+    ['DKP History: wiki links','Item names in DKP History open the item&rsquo;s P99 wiki page in your browser.'],
+    ['Spawn Timers: quakes removed','The Ring 8 quake check, <code>/note Quake!</code> and &ldquo;up since quake&rdquo; are gone &mdash; the Discord bot&rsquo;s timers replace them. Bosses with no ToD show as &#10068; Unknown.'],
   ],
-  fixes:[],
+  fixes:[
+    ['DKP balance','A tick credited to two characters on one account is counted twice, as ODKP does (balances now match ODKP exactly).'],
+  ],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -6714,6 +6718,37 @@ function toggleCityConfig(id){
   const row=document.getElementById(cfg.configId);if(!row)return;
   row.style.display=row.style.display==='flex'?'none':'flex';
 }
+// Right-click menu on a faction chip: pick a standing (or Not Set). A newer reading from the logs still overwrites it.
+function factionChipMenu(ev, nEnc, fEnc){
+  ev.preventDefault();
+  const n = decodeURIComponent(nEnc), f = decodeURIComponent(fEnc), cur = getFaction(n, f);
+  let m = document.getElementById('facChipMenu');
+  if(!m){
+    m = document.createElement('div'); m.id = 'facChipMenu';
+    m.style.cssText = 'position:fixed;z-index:10050;background:var(--surface);border:1px solid var(--border);border-radius:5px;box-shadow:0 6px 20px rgba(0,0,0,.35);padding:.3rem;min-width:170px;font-size:.8rem';
+    document.body.appendChild(m);
+    document.addEventListener('mousedown', e => { const mm = document.getElementById('facChipMenu'); if(mm && mm.style.display !== 'none' && !mm.contains(e.target)) mm.style.display = 'none'; });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape'){ const mm = document.getElementById('facChipMenu'); if(mm) mm.style.display = 'none'; } });
+  }
+  const item = (val, label) => {
+    const c = factionColor(val), dot = c==='green'?'#3a7a3a':c==='red'?'#c03030':c==='yellow'?'#b07800':'var(--text-muted)';
+    return '<div class="fac-menu-item" data-v="'+encodeURIComponent(val)+'" style="padding:.22rem .5rem;border-radius:3px;cursor:pointer;display:flex;align-items:center;gap:.45rem'+(val===cur?';background:rgba(201,162,39,.18);font-weight:600':'')+'">'
+      + '<span style="width:.55rem;height:.55rem;border-radius:50%;background:'+dot+';flex:0 0 auto"></span>'+esc(label)+'</div>';
+  };
+  m.innerHTML = '<div style="padding:.15rem .5rem .3rem;font-size:.7rem;color:var(--text-muted);border-bottom:1px solid var(--border);margin-bottom:.2rem">'+esc(n)+' \u00b7 '+esc(f)+'</div>'
+    + FACTION_LEVELS.map(l => item(l, l==='Ready to Attack'?'KOS (Ready to Attack)':l)).join('')
+    + '<div style="border-top:1px solid var(--border);margin-top:.2rem;padding-top:.2rem">'+item('', 'Not Set')+'</div>';
+  m.querySelectorAll('.fac-menu-item').forEach(el => {
+    el.onmouseenter = () => { if(decodeURIComponent(el.dataset.v) !== cur) el.style.background = 'rgba(201,162,39,.10)'; };
+    el.onmouseleave = () => { if(decodeURIComponent(el.dataset.v) !== cur) el.style.background = ''; };
+    el.onclick = () => { m.style.display = 'none'; setFaction(n, f, decodeURIComponent(el.dataset.v)); if(typeof renderFactionsPanel === 'function') renderFactionsPanel(); };
+  });
+  m.style.display = 'block';
+  const w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.min(ev.clientX, window.innerWidth - w - 6) + 'px';
+  m.style.top = Math.min(ev.clientY, window.innerHeight - h - 6) + 'px';
+  return false;
+}
 function renderCityBars(){
   const allNames=charNames().filter(n=>n!=='__all__');
   const isAll=activeTab==='__all__';
@@ -6740,7 +6775,7 @@ function renderCityBars(){
         const color=factionColor(lvl);
         const cls=color==='green'?'tov-chip-ally':color==='red'?'tov-chip-warn':color==='yellow'?'tov-chip-yellow':'tov-chip-none';
         const icon=color==='green'?'✔':color==='red'?'✘':'◐';
-        return`<td style="padding:.15rem .5rem;white-space:nowrap"><span class="tov-chip ${cls}">${icon} ${esc(lvl==='Ready to Attack'?'KOS':lvl||'Not Set')}</span></td>`;
+        return`<td style="padding:.15rem .5rem;white-space:nowrap"><span class="tov-chip ${cls}" style="cursor:context-menu" title="Right-click to set ${esc(f)} for ${esc(n)}" oncontextmenu="return factionChipMenu(event,'${encodeURIComponent(n)}','${encodeURIComponent(f)}')">${icon} ${esc(lvl==='Ready to Attack'?'KOS':lvl||'Not Set')}</span></td>`;
       }).join('');
       const nameCell=isAll?`<td class="watchlist-item-name" style="padding:.15rem .5rem;min-width:100px;white-space:nowrap">${esc(n)}</td>`:'';
       return`<tr>${nameCell}${cells}</tr>`;
@@ -7651,8 +7686,9 @@ window.applyDBToChar    = applyDBToChar;
         if (timerSec && logName) updateZoneTimer(logName, timerSec);
         continue;
       }
-      // ── Quake: "/note Quake!" — global raid repop (marks all timed mobs UP) ──
-      if(/^quake\b/i.test(ll)){ handleQuakeNote(timestamp); continue; }
+      // "/note Quake!" — the quake system was removed (2026-10-04, the Discord bot's timers replace it); ignored, so it
+      // isn't read as a boss name
+      if(/^quake\b/i.test(ll)){ continue; }
       // No-prompt suffix: "/note <boss> new|add|fail|failnew" runs the action directly.
       // Suffix must be a trailing word; failnew is matched before fail.
       const _sfxM = ll.match(/^(.*\S)\s+(failnew|fail|add|new)\s*$/);
@@ -8776,10 +8812,7 @@ let dkpExpanded = null;
 
 function parseDkpCsv(text){
   const lines = text.split('\n');
-  const items = {};
-  const hist = {};
-  const recent = {};
-  const cutoff = new Date(Date.now() - 60*24*60*60*1000);
+  const rows = [];
   for(let i=1;i<lines.length;i++){
     const line=lines[i].trim();
     if(!line)continue;
@@ -8791,11 +8824,17 @@ function parseDkpCsv(text){
     }
     cols.push(cur);
     if(cols.length<7)continue;
-    const name=cols[0].trim();
-    const charN=cols[2].trim();
-    const dkp=parseInt(cols[3]);
-    const date=cols[6].trim();
-    const raid=cols[9]?.trim()||'';
+    rows.push([cols[0].trim(), cols[2].trim(), parseInt(cols[3]), cols[6].trim(), cols[9]?.trim()||'']);
+  }
+  return buildDkpLookup(rows);
+}
+// rows: [itemName, character, dkp, date, raid] — from the items CSV or the ODKP /items API
+function buildDkpLookup(rows){
+  const items = {};
+  const hist = {};
+  const recent = {};
+  const cutoff = new Date(Date.now() - 60*24*60*60*1000);
+  for(const [name,charN,dkp,date,raid] of rows){
     if(!name||isNaN(dkp)||dkp<=0)continue;
     if(!items[name])items[name]=[];
     items[name].push(dkp);
@@ -8820,6 +8859,97 @@ function parseDkpCsv(text){
   }
   return {lookup, txCount: Object.values(items).reduce((a,b)=>a+b.length,0)};
 }
+
+/* ═══ ODKP auto-sync (owner, 2026-10-05) ═══════════════════════════════════════════════════════════════════════
+   DKP History and the Credit Check ledger come straight from Castle's OpenDKP (public read-only API, via the main
+   process) at startup and every 2 hours — no more CSV exports. The CSV uploads stay as a fallback. ODKP's own lag
+   (officers enter raids late) still applies. */
+const ODKP_EVERY=2*3600e3;
+let _odkpIv=null, odkpSyncState={items:null,ledger:null};   // {at, msg, err}
+async function odkpGet(path){
+  if(!(window.MixelParseApp&&window.MixelParseApp.odkpGet))return {ok:false,error:'desktop app only'};
+  try{return await window.MixelParseApp.odkpGet(path);}catch(e){return {ok:false,error:e&&e.message||'failed'};}
+}
+// DKP History: newest sale first — pull everything only when there's a sale we haven't seen
+window.odkpSyncItems=async function(manual){
+  const head=await odkpGet('/clients/castle/items?page=1&ItemsPerPage=1');
+  if(!head.ok||!head.data||!Array.isArray(head.data.Items)){odkpSyncState.items={at:Date.now(),err:head.error||'no data'};if(manual)alert('ODKP sync failed: '+(head.error||'no data'));return;}
+  const newest=(head.data.Items[0]||{}).TransactionId||0, total=head.data.TotalItems||0;
+  if(!manual&&dkpMeta.src==='odkp'&&dkpMeta.lastTx===newest&&dkpMeta.txCount===total){odkpSyncState.items={at:Date.now(),msg:'no new sales'};return;}
+  const rows=[];let page=1,pages=1;
+  do{
+    const r=await odkpGet('/clients/castle/items?page='+page+'&ItemsPerPage=5000');
+    if(!r.ok||!r.data||!Array.isArray(r.data.Items)){odkpSyncState.items={at:Date.now(),err:'page '+page+': '+(r.error||'no data')};if(manual)alert('ODKP sync failed on page '+page);return;}
+    pages=r.data.TotalPages||1;
+    for(const it of r.data.Items)rows.push([String(it.ItemName||'').trim(),String(it.CharacterName||'').trim(),Math.round(+it.DKP),it.Timestamp||'',String(it.Notes||it.Raid||'').replace(/\s*https?:\/\/\S*/g,'').trim()]);
+    page++;
+  }while(page<=pages&&page<=50);
+  if(rows.length<total*0.95){odkpSyncState.items={at:Date.now(),err:'short read ('+rows.length+' of '+total+')'};return;}   // never replace good data with a partial pull
+  const {lookup,txCount}=buildDkpLookup(rows);
+  dkpLookup=lookup;dkpMeta={updatedAt:new Date().toISOString(),txCount,src:'odkp',lastTx:newest};dkpCacheKey='';
+  saveDkpToSupabase();
+  if(typeof activeTopView!=='undefined'&&activeTopView==='dkp')renderDkpPanel();
+  odkpApplyPrices();
+  odkpSyncState.items={at:Date.now(),msg:rows.length+' sales'};
+  console.log('[ODKP] DKP History synced:',rows.length,'sales,',Object.keys(lookup).length,'items');
+};
+// item DKP prices (60-day avg) into the item DB, as the CSV upload does — only once the cloud item DB has loaded
+function odkpApplyPrices(tries){
+  if(typeof _itemDBCloudLoaded!=='undefined'&&!_itemDBCloudLoaded){if((tries||0)<60)setTimeout(()=>odkpApplyPrices((tries||0)+1),10000);return;}
+  applyDkpToItemDB();
+}
+// Credit Check / Auto-Detect ledger: your ODKP account's full DKP history (same data as the dkp-details export)
+function _odkpLedgerUi(){ if(typeof activeTopView!=='undefined'&&activeTopView==='kills'&&typeof renderKillsPanel==='function')renderKillsPanel(); }
+window.odkpSyncLedger=async function(manual){
+  const mine=(typeof charNames==='function'?charNames():[]).filter(n=>n&&n!=='__all__').map(n=>n.toLowerCase());
+  if(!mine.length){odkpSyncState.ledger={at:Date.now(),wait:'chars'};_odkpLedgerUi();return;}
+  odkpSyncState.ledger={at:Date.now(),busy:true};_odkpLedgerUi();
+  const ch=await odkpGet('/clients/castle/characters');
+  if(!ch.ok||!Array.isArray(ch.data)){odkpSyncState.ledger={at:Date.now(),err:ch.error||'no roster'};_odkpLedgerUi();return;}
+  const me=ch.data.filter(c=>mine.includes(String(c.Name).toLowerCase())&&c.Deleted!==1);
+  if(!me.length){odkpSyncState.ledger={at:Date.now(),wait:'notOnOdkp',chars:mine.length};_odkpLedgerUi();return;}
+  const mainIds=[...new Set(me.map(c=>c.ParentId&&c.ParentId>0?c.ParentId:c.CharacterId))];
+  const mainId=mainIds.map(id=>[id,me.filter(c=>(c.ParentId>0?c.ParentId:c.CharacterId)===id).length]).sort((a,b)=>b[1]-a[1])[0][0];
+  const mainRow=ch.data.find(c=>c.CharacterId===mainId), mainName=mainRow?mainRow.Name:'';
+  const acctSize=ch.data.filter(c=>c.CharacterId===mainId||c.ParentId===mainId).length;
+  const led=await odkpGet('/clients/castle/characters/'+mainId+'/dkp');
+  if(!led.ok||!Array.isArray(led.data)||!led.data.length){odkpSyncState.ledger={at:Date.now(),err:led.error||'empty ledger'};_odkpLedgerUi();return;}
+  const sig=led.data.length+':'+(led.data[0].SourceId||0);
+  if(!manual&&odkpTicksMeta&&odkpTicksMeta.odkpSig===sig){odkpSyncState.ledger={at:Date.now(),msg:'no change'};_odkpLedgerUi();return;}
+  // same columns as the dkp-details export → the existing parser
+  const q=v=>{const s=v==null?'':String(v);return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  const cols=['Order','Date','SourceType','Source','SourceId','CharacterName','CharacterId','Value','Cumulative','TickId'];
+  const csv=cols.join(',')+'\n'+led.data.map(r=>cols.map(c=>q(r[c])).join(',')).join('\n');
+  const res=parseDkpDetailsCsv(csv);
+  if(!res||res==='OLDFORMAT'){odkpSyncState.ledger={at:Date.now(),err:'ledger did not parse'};_odkpLedgerUi();return;}
+  odkpTicks=res.ticks;
+  odkpTicksMeta={updatedAt:new Date().toISOString(),updatedBy:'ODKP sync',raidCount:res.raidCount,charNames:res.charNames,dkp:res.dkp,odkpSig:sig,mainName,acctSize};
+  saveOdkpTicksToSupabase(res.raidCount);
+  odkpSyncState.ledger={at:Date.now(),msg:res.ticks.length+' credited ticks'};
+  _odkpLedgerUi();
+  console.log('[ODKP] ledger synced:',res.ticks.length,'credited ticks,',res.raidCount,'raids, chars',res.charNames.join(', '));
+};
+function odkpStart(){
+  if(_odkpIv)return;
+  const signedIn=()=>(typeof sb!=='undefined'&&sb&&typeof currentUser!=='undefined'&&currentUser&&window.MixelParseApp&&window.MixelParseApp.odkpGet);
+  const hasChars=()=>typeof charNames==='function'&&charNames().filter(n=>n&&n!=='__all__').length>0;
+  const items=()=>odkpSyncItems(false).catch(e=>console.warn('[ODKP] items',e));
+  const ledger=()=>odkpSyncLedger(false).catch(e=>console.warn('[ODKP] ledger',e));
+  let tries=0;
+  const kick=setInterval(()=>{
+    if(!signedIn()){ if(++tries>240) clearInterval(kick); return; }
+    clearInterval(kick);
+    setTimeout(items,15000);
+    // a new user's characters arrive with their EQ inventory files — sync the ledger as soon as there are some
+    let waits=0;
+    const waitChars=setInterval(()=>{
+      if(hasChars()){ clearInterval(waitChars); ledger(); }
+      else { if(!odkpSyncState.ledger) { odkpSyncState.ledger={at:Date.now(),wait:'chars'}; _odkpLedgerUi(); } if(++waits>60) clearInterval(waitChars); }
+    },30000);
+    _odkpIv=setInterval(()=>{ items(); if(hasChars()) ledger(); },ODKP_EVERY);
+  },5000);
+}
+odkpStart();
 
 async function loadDkpFromSupabase(){
   if(!currentUser)return;
@@ -8896,7 +9026,7 @@ function updateDkpBody(){
     const isExp=dkpExpanded===name;
     const r60cell=r60avg!=null?`<span class="dkp-avg">${r60avg}</span> <span class="dkp-count">(${r60count})</span>`:`<span class="dkp-no-data">—</span>`;
     tableRows+=`<tr class="${isExp?'dkp-expanded':''}" onclick="dkpToggle('${esc(name)}')">
-      <td>${esc(name)}</td>
+      <td><a href="${wikiUrl(name)}" target="_blank" rel="noopener" title="View on P99 wiki" onclick="event.stopPropagation()" style="color:var(--gold-light);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(name)}</a></td>
       <td class="dkp-td-right">${r60cell}</td>
       <td class="dkp-td-right dkp-high">${high}</td>
       <td class="dkp-td-right dkp-avg">${avg}</td>
@@ -8924,7 +9054,7 @@ function renderDkpPanel(){
   const panel=document.getElementById('dkpPanel');
   if(!panel)return;
   const hasData=Object.keys(dkpLookup).length>0;
-  const metaStr=dkpMeta.updatedAt?`${Object.keys(dkpLookup).length.toLocaleString()} items · ${(dkpMeta.txCount||0).toLocaleString()} transactions · Updated ${new Date(dkpMeta.updatedAt).toLocaleDateString()}`:'No data loaded';
+  const metaStr=dkpMeta.updatedAt?`${Object.keys(dkpLookup).length.toLocaleString()} items · ${(dkpMeta.txCount||0).toLocaleString()} transactions · ${dkpMeta.src==='odkp'?'synced from ODKP '+new Date(dkpMeta.updatedAt).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'}):'Updated '+new Date(dkpMeta.updatedAt).toLocaleDateString()}`:'No data loaded';
   const colIdx={high:0,low:1,avg:2,count:3,r60:5,name:-1};
   const th=(label,c)=>`<th data-col="${c}" class="${colIdx[c]===-1?'':'dkp-th-right'}${dkpSort.col===c?' sort-'+dkpSort.dir:''}" onclick="dkpSortBy('${c}')">${label}</th>`;
 
@@ -8932,10 +9062,11 @@ function renderDkpPanel(){
     <div class="dkp-toolbar">
       <input class="dkp-search" id="dkpSearch" placeholder="Search items…" value="${esc(dkpQuery)}"
         oninput="clearTimeout(dkpSearchTimer);dkpSearchTimer=setTimeout(()=>{dkpQuery=this.value;dkpPage=0;dkpExpanded=null;updateDkpBody();},150)">
-      <button type="button" class="dkp-upload-btn" onclick="document.getElementById('dkpCsvInput').click()">⚔ Update DKP Data</button>
+      <button type="button" class="dkp-upload-btn" onclick="odkpSyncItems(true)" title="DKP History syncs itself from Castle's ODKP every 2 hours — this pulls now">⟳ Sync from ODKP</button>
+      <button type="button" class="dkp-upload-btn" style="opacity:.7" onclick="document.getElementById('dkpCsvInput').click()" title="Fallback: load an ODKP items CSV by hand">⚔ Upload CSV</button>
       <span class="dkp-meta" id="dkpMeta">${metaStr}</span>
     </div>
-    ${!hasData?`<div class="dkp-empty">No DKP data loaded yet.<br>Upload your ODKP items CSV to get started.</div>`:`
+    ${!hasData?`<div class="dkp-empty">No DKP data yet — syncing item sales from Castle's ODKP…<br><span style="font-size:.8rem;opacity:.75">This takes a few seconds after you sign in. Use ⟳ Sync from ODKP to pull now.</span></div>`:`
     <div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;overflow-x:auto">
       <table class="dkp-table" id="dkpTable">
         <thead><tr>${th('Item','name')}${th('60d Avg','r60')}${th('High','high')}${th('Avg','avg')}${th('Low','low')}${th('Sales','count')}</tr></thead>
@@ -12188,7 +12319,7 @@ function rkdFinalize(t){
 // ── Spawn-timer fallback for ticks with NO boss evidence in the logs (owner idea, 2026-09-30) ──
 // 1) a boss (in the tick's zone, if known) whose ToD on the spawn-timer board is right at the tick
 //    (20 min before … 5 min after) → Weak; several → Pick.
-// 2) zone known: that zone's bosses that were UP at the tick (window open/over or quake, with no
+// 2) zone known: that zone's bosses that were UP at the tick (window open/over, with no
 //    ToD recorded after it) → one = Weak, a few = Pick. Assumptions, so never Strong.
 function _rkdTodOf(b){
   const s=(typeof btState!=='undefined'&&btState)?btState[b]:null;
@@ -12217,19 +12348,17 @@ function rkdTimerGuess(t){
   return null;
 }
 // Bosses of the tick's zone that were UP at the tick per the spawn timers (window open/over or up
-// since a quake, with no ToD recorded after it). Shown as "Mobs up" — information, NOT a suggestion
+// with no ToD recorded after it). Shown as "Mobs up" — information, NOT a suggestion
 // (owner, 2026-09-30). null = zone unknown / not a mapped raid zone.
 // Only POTENTIAL spawns (owner, 2026-10-01: "if a mob is down why have it as an option"): in window, or up
-// for under a day (past window < 24 h, quake < 24 h). "Up for days" on the board is almost always a kill
-// nobody recorded, so those are only counted (upZoneStale), not offered.
-const RKD_UP_FRESH_MS=24*3600e3;
+// for up to 12 h (BT_UP_GRACE: past window < 12 h — was 24 h until 2026-10-04). Longer is almost always
+// a kill nobody recorded, so those are only counted (upZoneStale), not offered.
 function rkdUpInZone(t){
   const loc=_rkdLocOfZone(t.zone);
   if(!loc||typeof btState==='undefined'||!btState)return null;
   const up=[];let stale=0;
   for(const b of Object.keys(BT_PARK_LOC)){
     if(BT_PARK_LOC[b]!==loc)continue;const s=btState[b];if(!s||s.dead)continue;
-    if(s.up){if((s.upSince||0)<=t.ts){if(t.ts-(s.upSince||0)<=RKD_UP_FRESH_MS)up.push(b);else stale++;}continue;}
     const tod=_rkdTodOf(b);
     if(s.open!=null&&s.open<=t.ts&&(tod==null||tod<t.ts)){
       if(s.close==null||t.ts<=s.close||t.ts-s.close<=BT_UP_GRACE)up.push(b);else stale++;   // past window: up for 12 h, then Unknown
@@ -13140,12 +13269,13 @@ function parseDkpDetailsCsv(text){
     const cols=rows[r];
     const srcType=(cols[iType]||'').trim();
     const tid=(cols[iTick]||'').trim();
-    if(tid&&tid!=='0'){if(seen.has(tid))continue;seen.add(tid);}
-    // Balance = sum of every Value in the ledger (values carry their own signs).
+    // Balance = sum of every Value in the ledger (values carry their own signs) — counted BEFORE the tick de-dup:
+    // one tick credited to two characters of an account counts twice in ODKP too (Frown 8/16 Dozekar: Folic + Fled).
     const val=iVal>=0?(parseFloat(cols[iVal])||0):0;
     if(srcType==='Raid')dkpEarned+=val;
     else if(srcType==='Item')dkpSpent+=val;
     else if(srcType==='Adjustment')dkpAdjust+=val;
+    if(tid&&tid!=='0'){if(seen.has(tid))continue;seen.add(tid);}
     if(srcType!=='Raid')continue;
     const iso=(cols[iDate]||'').trim();
     let src=(cols[iSrc]||'').replace(/\r/g,'').trim();
@@ -14248,7 +14378,7 @@ const PARK_BADGE={
 
 /* ═══ Spawn Timers (v1.4.22) ═══════════════════════════════════════════════════
    Three window sources unified into per-target {open,close,src,updatedAt,up}:
-   paste (guild tracker), /note Quake! (global repop — Model A), and /note ToD.
+   paste (guild tracker), /note ToD and the Discord bot's timers (quakes were removed 2026-10-04).
    Baked respawn data lives on BOSS_ROSTER (.respawnHours / .varianceHours). */
 const BT_ALIAS = {
   Innoruuk:'Inny', Telk:'Telk', Vulak:'Vulak', Kreizenn:'Kreizenn', Vyemm:'Vyemm',
@@ -14266,10 +14396,10 @@ const BT_ALIAS = {
   Gozz:'Gozzrem', Vaniki1:'Vaniki',
 };
 let btState = {}, btLastQuake = null, btSortKey = 'in', btLoaded = false, _btBuilt = false, _btIv = null;
-let btAutoSig = null, _btAutoIv = null;
+let btAutoSig = null;   // lastQuake / autoSig: legacy quake fields, only passed through on load / save (quakes removed 2026-10-04)
 let btIgnored = [], btIgnoredAt = null;  // last paste's rows that didn't resolve to a kill-tracker boss
 let btParkAck = {};  // target -> the window.open ms it was acknowledged against (auto-stale when window changes)
-// Quake-synced set: mobs the guild's tracker paste covers. A quake only flips these.
+// Tracked set: mobs the tracker paste / bot timers cover (it used to scope quakes, removed 2026-10-04).
 // Seeded from the current guild paste; every future paste adds its mobs automatically.
 let btTracked = ['Inny','Telk','Vulak','Kreizenn','Vyemm','Aaryonar','Koi','Mirenilla','Feshlak','Cekenar','Sevalak','Dagarn','Jorlleag','Phara Dar','Zlexak','Cazic Thule','Eashen','Yelinak','Tunare','Dracoliche','Dain','Ikatiar','Dozekar','Tormax','Casalen','Tavekalem','Ymmeln','Grozzmel','Midayor','Trakanon','Lepethida','Prog','Yael','Fright','Velketor','VS','Essedera','MOTG','Dread','TFA'];
 const BT_HR = 3600e3, BT_MIN = 60e3;
@@ -14277,8 +14407,6 @@ const BT_HR = 3600e3, BT_MIN = 60e3;
 // not recorded (owner, 2026-10-04). No ToD at all is Unknown too: never green, never counted as up.
 const BT_UP_GRACE = 12*BT_HR;
 function btIsUnknown(k){ return k === 'none' || k === 'stale'; }
-const BT_RING8_PAGE = 'Ring 8 Player Agreement';
-const BT_TZADD = { EDT:4, EST:5, CDT:5, CST:6, MDT:6, MST:7, PDT:7, PST:8 };
 
 const BT_DISPLAY = { 'Lord Bob':'Doljonijiarnimorinar', LTK:'Lendiniara the Keeper', Nevederia:'Lady Nevederia',
   Naggy:'Nagafen', Vox:'Lady Vox', Inny:'Innoruuk', Vindi:'Vindicator', Telk:'Telkorenar', Vulak:"Vulak`Aerr",
@@ -14322,7 +14450,7 @@ function btLocInWindow(locId){
   return mapped ? false : null;
 }
 // Heat of a park location, from its mapped bosses' timer states. Past-window ('over')
-// and quake ('up') both mean the mob is on the ground now -> 'up'. Precedence up>window>soon>cold.
+// means the mob is on the ground now -> 'up'. Precedence up>window>soon>cold.
 //   'up'     any mapped boss over/up (spawned/up now)      -> green Covered · UP
 //   'window' any mapped boss in its spawn window           -> green Covered · in window
 //   'soon'   mapped bosses exist, hottest still on timer   -> the ONLY downgrade (not up yet)
@@ -14335,7 +14463,7 @@ function btLocHeat(locId){
     if(BT_PARK_LOC[t] !== locId) continue;
     mapped=true;
     const k=btStatusOf(btState[t]).k;
-    if(k==='up'||k==='over') up=true;
+    if(k==='over') up=true;
     else if(k==='open') open=true;
     else if(k==='soon'||k==='dead') soon=true;
   }
@@ -14556,6 +14684,7 @@ async function btEnsureLoaded(){
     const {data} = await sb.from('guild_data').select('boss_windows').eq('pool','SoV').not('boss_windows','is',null).order('updated_at',{ascending:false}).limit(1).maybeSingle();
     if(data && data.boss_windows){ btState = data.boss_windows.windows || {}; btLastQuake = data.boss_windows.lastQuake || null; btAutoSig = data.boss_windows.autoSig || null; if(Array.isArray(data.boss_windows.tracked) && data.boss_windows.tracked.length) btTracked = data.boss_windows.tracked; if(Array.isArray(data.boss_windows.ignored)) btIgnored = data.boss_windows.ignored; btIgnoredAt = data.boss_windows.ignoredAt || null; if(data.boss_windows.parkAck) btParkAck = data.boss_windows.parkAck; }
   }catch(e){ console.warn('[TIMERS] load skipped (run the boss_windows migration?):', e && e.message); }
+  for(const k in btState) if(btState[k] && (btState[k].src === 'quake' || btState[k].up)) delete btState[k];   // legacy quake "up" entries (removed 2026-10-04)
   btApplySheetCache();   // the last bot-sheet sync (this PC only) over what was loaded
 }
 async function btSave(){
@@ -14638,22 +14767,6 @@ function btRenderIgnored(){
     + '<div style="padding:0 .75rem .55rem;font-size:.72rem;color:var(--text-muted)">These paste rows didn\u2019t match a kill-tracker boss, so no timer was set. Add an alias or roster entry to start timing them.</div>'
     + '</details>';
 }
-function handleQuakeNote(ts){
-  btEnsureLoaded().then(() => {
-    if(ts >= (btLastQuake || 0)) btLastQuake = ts;   // don't downgrade to an older quake
-    for(const b of BOSS_ROSTER){
-      if(!btTracked.includes(b.target)) continue;   // independent-timer mob: quakes don't touch it
-      // Note: no respawnHours requirement — being UP needs no timer (only ToD projection does).
-      const cur = btState[b.target];
-      if(cur && cur.updatedAt != null && cur.updatedAt > ts) continue;  // newer per-mob ToD wins over a stale quake
-      btState[b.target] = { open:null, close:null, src:'quake', updatedAt:ts, up:true, upSince:ts };
-    }
-    btSave();
-    btParkAck = {};   // new quake resets every ack; unparked bosses re-warn next cycle
-    if(typeof activeTopView !== 'undefined' && activeTopView === 'timers') btTick();
-    console.log('[TIMERS] quake logged @', new Date(ts).toLocaleString());
-  });
-}
 // Shared ToD -> window projection (used by the Add-ToD control, the right-click popover, and /note).
 function btSetTod(t, ms){
   const T = btTimer(t); if(!T) return false;
@@ -14673,7 +14786,6 @@ function btStatusOf(s){
   const now = Date.now();
   if(!s) return {k:'none', order:5, inMs:Infinity};
   if(s.dead) return {k:'dead', order:4, inMs:Infinity, sinceMs: now-(s.deadSince||s.updatedAt||now)};   // Unknown ToD (Dead)
-  if(s.up) return {k:'up', order:3, inMs:-1};
   if(s.open == null) return {k:'none', order:5, inMs:Infinity};
   if(now < s.open) return {k:'soon', order:2, inMs:s.open-now};
   if(s.close == null) return {k:'open', order:0, inMs:0, leftMs:null};   // open now, width unknown
@@ -14683,10 +14795,6 @@ function btStatusOf(s){
 }
 function btTick(){
   const now = Date.now();
-  const ql = document.getElementById('btQuakeLine');
-  if(ql) ql.innerHTML = btLastQuake
-    ? 'last quake: <b style="color:var(--gold)">'+new Date(btLastQuake).toLocaleString()+'</b> \u2014 '+btFmtDur(now-btLastQuake)+' ago'
-    : 'no quake logged';
   const body = document.getElementById('btBoard'); if(!body) return;
   const targets = new Set();
   for(const b of BOSS_ROSTER) if(b.respawnHours != null) targets.add(b.target);
@@ -14709,8 +14817,7 @@ function btTick(){
   for(const {t, s, st, win} of rows){
     // no ToD at all: listed on the board as Unknown (it used to sit in a collapsed "No Timers" list)
     let rcls = '', inCell = '\u2014', stCell = '<span class="bt-none">no data</span>';
-    if(st.k === 'up'){ rcls='bt-r-up'; inCell='<span class="bt-up">UP</span>'; stCell='<span class="bt-up">up since quake</span>'; }
-    else if(st.k === 'soon'){ inCell=btFmtDur(st.inMs); stCell='<span class="bt-soon">opens in '+btFmtDur(st.inMs)+'</span>'; }
+    if(st.k === 'soon'){ inCell=btFmtDur(st.inMs); stCell='<span class="bt-soon">opens in '+btFmtDur(st.inMs)+'</span>'; }
     else if(st.k === 'open'){ rcls='bt-r-open'; inCell='<span class="bt-open">NOW</span>'; stCell='<span class="bt-open">IN WINDOW</span> <span class="bt-src">\u00b7'+(st.leftMs!=null?btFmtDur(st.leftMs)+' left':'width unknown')+'</span>'; }
     else if(st.k === 'over'){ rcls='bt-r-spawned'; inCell='<span class="bt-spawned">UP</span>'; stCell='<span class="bt-spawned">Spawned / Up</span> <span class="bt-src">\u00b7 '+btFmtDur(st.inMs)+' past window \u00b7 unknown in '+btFmtDur(BT_UP_GRACE-st.inMs)+'</span>'; }
     else if(st.k === 'stale'){ rcls='bt-r-unk'; inCell='<span class="bt-unk">\u2754</span>'; stCell='<span class="bt-unk">Unknown</span> <span class="bt-src">\u00b7 window ended '+btFmtDur(st.inMs)+' ago, no new ToD \u2014 probably killed, not recorded</span>'; }
@@ -14719,7 +14826,7 @@ function btTick(){
     const src = s ? '<span class="bt-src">'+s.src+'</span>' : '';
     html += '<tr class="'+rcls+'" data-bt="'+encodeURIComponent(t)+'" oncontextmenu="return btRowMenu(event,this)" title="right-click: set ToD"><td>'+btLabel(t)+'</td><td style="text-align:right">'+inCell+'</td><td style="text-align:right">'+(win!=null?btFmtDur(win):'\u2014')+'</td><td>'+stCell+src+'</td></tr>';
   }
-  body.innerHTML = html || '<tr><td colspan="4" style="color:var(--text-muted);padding:.5rem 0">No active timers \u2014 paste from the tracker, log a quake, or right-click a mob below to set a ToD.</td></tr>';
+  body.innerHTML = html || '<tr><td colspan="4" style="color:var(--text-muted);padding:.5rem 0">No active timers \u2014 waiting for the bot timers, or paste from the tracker / right-click a mob to set a ToD.</td></tr>';
   // No Timers dropdown: baked mobs with no window yet; auto-promote to the board on quake/ToD/paste.
   const nt = document.getElementById('btNoTimers');
   if(nt){
@@ -14764,7 +14871,7 @@ function renderTimersPanel(){
         #timersPanel .bt-in{background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.4rem .55rem;font-family:'Crimson Pro',serif;font-size:.9rem;outline:none}
         #timersPanel .bt-in:focus{border-color:var(--gold)}
       </style>
-      <div class="rc-header"><div class="rc-title">Spawn Timers</div><span id="btQuakeLine" style="font-size:.78rem;color:var(--text-muted);margin-left:auto"></span></div>
+      <div class="rc-header"><div class="rc-title">Spawn Timers</div></div>
       <div style="display:flex;gap:1.4rem;flex-wrap:wrap;align-items:flex-start;margin-bottom:1rem">
         <div style="flex:1 1 320px;min-width:280px">
           <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:.35rem">Paste from guild tracker</div>
@@ -14784,7 +14891,7 @@ function renderTimersPanel(){
         <tbody id="btBoard"></tbody>
       </table>
       <div id="btNoTimers" style="margin-top:.55rem"></div>
-      <div style="margin-top:.6rem;font-size:.72rem;color:var(--text-muted)">paste covers Future / Entering-24h / In-Window sections &middot; <span class="bt-open">in window</span> &middot; <span class="bt-spawned">spawned/up</span> &middot; <span class="bt-up">up (quake)</span> &middot; <span class="bt-unk">&#10068; unknown</span> (no ToD, or past window 12 h+)</div>
+      <div style="margin-top:.6rem;font-size:.72rem;color:var(--text-muted)">paste covers Future / Entering-24h / In-Window sections &middot; <span class="bt-open">in window</span> &middot; <span class="bt-spawned">spawned/up</span> &middot; <span class="bt-unk">&#10068; unknown</span> (no ToD, or past window 12 h+)</div>
       <div id="btIgnoredWrap"></div>`;
       _btBuilt = true;
       if(!_btIv) _btIv = setInterval(() => { if(typeof activeTopView !== 'undefined' && activeTopView === 'timers'){ btTick(); if(Date.now()%15000<1000) btSheetRender(); } }, 1000);
@@ -14793,63 +14900,11 @@ function renderTimersPanel(){
   });
 }
 
-/* ── Auto quake from the Ring 8 Player Agreement wiki ──────────────────────────
-   Green roll time = quake − 30 min (per the page's own rule). Fetched via
-   farmCrawl, deduped on the wiki's update signature, checked hourly + on start. */
-function btParseRing8(text){
-  text = String(text||'').replace(/\s+/g,' ');
-  const seg = text.match(/Green Current Ring 8 roll time:\s*(.{1,90}?)(?=\s*Green Current|\s*Retrieved|\s*Don't forget|$)/i);
-  if(!seg) return null;
-  const s = seg[1].trim();
-  if(/no longer tracked/i.test(s)) return null;
-  const rt = s.match(/(\d{1,2}):(\d{2})\s*([AP])M\b/i);
-  const date = s.match(/(\d{1,2})\/(\d{1,2})/);
-  if(!rt || !date) return null;
-  const tzm = s.match(/\b([EMCP][SD]T)\b/i);
-  const tz = tzm ? tzm[1].toUpperCase() : 'EDT';
-  const hh = parseInt(rt[1],10)%12 + (/p/i.test(rt[3])?12:0);
-  let total = hh*60 + parseInt(rt[2],10) + 30;
-  const dayOff = Math.floor(total/1440); total %= 1440;
-  const qh = Math.floor(total/60), qm = total%60;
-  const mo = parseInt(date[1],10), da = parseInt(date[2],10);
-  const mk = y => Date.UTC(y, mo-1, da+dayOff, qh, qm) + (BT_TZADD[tz]!=null?BT_TZADD[tz]:4)*BT_HR;
-  let year = new Date().getFullYear(), ts = mk(year);
-  if(ts > Date.now() + 2*864e5){ year -= 1; ts = mk(year); }
-  return { quakeTs: ts, sig: s };
-}
-async function btAutoQuakeCheck(manual){
-  const setStatus = t => { const el = document.getElementById('btAutoStatus'); if(el) el.textContent = t; };
-  if(!(window.MixelParseApp && window.MixelParseApp.farmCrawl)){ if(manual) setStatus('\u2014 desktop app only'); return; }
-  try{
-    if(manual) setStatus('\u2014 checking\u2026');
-    const res = await window.MixelParseApp.farmCrawl([BT_RING8_PAGE]);
-    const r = res && res[0];
-    if(!r || !r.ok){ setStatus('\u2014 fetch failed' + (r && r.error ? ': ' + r.error : '')); return; }
-    const p = btParseRing8(r.html);
-    if(!p){ setStatus('\u2014 roll time not found'); return; }
-    await btEnsureLoaded();
-    if(p.sig === btAutoSig){ setStatus('\u2014 no new quake ('+p.sig+')'); return; }
-    btAutoSig = p.sig;
-    handleQuakeNote(p.quakeTs);
-    setStatus('\u2014 quake logged: '+new Date(p.quakeTs).toLocaleString());
-    console.log('[TIMERS] auto quake from wiki:', p.sig, '->', new Date(p.quakeTs).toISOString());
-  }catch(e){ setStatus('\u2014 error'); console.warn('[TIMERS] auto check failed:', e && e.message); }
-}
-function btStartAuto(){
-  if(_btAutoIv) return;
-  const ready = () => (typeof sb !== 'undefined' && sb && typeof currentUser !== 'undefined' && currentUser && window.MixelParseApp && window.MixelParseApp.farmCrawl);
-  let tries = 0;
-  const kick = setInterval(() => {
-    if(ready()){ clearInterval(kick); btEnsureLoaded().then(() => btAutoQuakeCheck(false)); _btAutoIv = setInterval(() => btAutoQuakeCheck(false), 3600e3); }
-    else if(++tries > 60){ clearInterval(kick); }
-  }, 5000);
-}
-btStartAuto();
 /* ═══ Castle Bot Timers (owner, 2026-10-03) ═══════════════════════════════════════════════════════════════════
    The guild bot keeps every boss's last ToD + window in a Google Sheet ("Timers" tab). The sheet owner shared it (Viewer)
    with the MixelParse Google service account; a Supabase Edge Function copies it into public.bot_timers (columns boss,
    status, window_opens, window_closes, last_tod, skip_count, sheet_updated_at, synced_at). The app reads it every 5 min.
-   A sheet ToD newer than the board's replaces it (src 'sheet'); a /note, quake or Dead mark newer than it wins.
+   A sheet ToD newer than the board's replaces it (src 'sheet'); a /note or Dead mark newer than it wins.
    Every client reads bot_timers itself, so sheet windows are never written into the shared boss_windows row: btSave
    writes the entry a sheet window replaced (or nothing). */
 const BT_SHEET_EVERY=5*60e3;
@@ -14871,7 +14926,7 @@ function btApplySheet(map){
   let n=0;
   for(const t in map){
     const x=map[t],cur=btState[t];
-    if(cur&&cur.src!=='sheet'&&cur.src!=='paste'&&(cur.updatedAt||0)>=x.tod)continue;   // a newer /note, quake or Dead mark wins
+    if(cur&&cur.src!=='sheet'&&cur.src!=='paste'&&(cur.updatedAt||0)>=x.tod)continue;   // a newer /note or Dead mark wins
     if(cur&&cur.src==='sheet'&&cur.updatedAt===x.tod&&cur.open===x.open&&cur.close===x.close)continue;
     const T=btTimer(t);
     const open=x.open!=null?x.open:(T?x.tod+(T.rh-T.v)*BT_HR:null);
@@ -14989,7 +15044,7 @@ function btPopUnknown(t){
   btSave(); btTick(); btRenderParkWarn(); btPopClose();
 }
 // Unknown ToD (Dead): it was killed, time unknown — no window can be projected, and it must NOT count
-// as up (no parking warning, not in Auto-Detect "Mobs up"). A quake, a ToD or a paste replaces it.
+// as up (no parking warning, not in Auto-Detect "Mobs up"). A ToD (bot, /note) or a paste replaces it.
 function btPopUnknownDead(t){
   const now = Date.now();
   btState[t] = { open: null, close: null, src:'note', updatedAt: now, up:false, dead:true, deadSince: now };
@@ -15092,7 +15147,7 @@ function renderParkingPanel(){
       if(st==='covered'){
         const heat=btLocHeat(t.loc);
         if(heat==='soon') st='waiting';         // genuinely on timer, not up yet
-        else if(heat==='up') st='coveredup';    // past window / quake -> UP now
+        else if(heat==='up') st='coveredup';    // past window (< 12 h) -> UP now
         else if(heat==='window') st='coveredwin'; // in spawn window
         else if(heat==='unknown') st='coveredunk'; // no ToD / past window > 12 h -> amber, not green
         // null (no mapped boss) -> keep plain 'covered'
@@ -15794,15 +15849,21 @@ window.ccTeachAlias=function(selEl,key){
 function renderCreditCheckPanel(){
   const noTicks=!odkpTicks||odkpTicks.length===0;
 
+  const L=odkpSyncState.ledger||{}, synced=odkpTicksMeta&&odkpTicksMeta.updatedBy==='ODKP sync';
+  const ccStatus=L.busy?'<span style="color:var(--text-muted)">⟳ syncing your ODKP ledger…</span>'
+    :L.wait==='chars'?'<span style="color:#c48a3a" title="MixelParse finds your ODKP account from your characters. They load from the *-Inventory.txt files in your EQ folder — type /outputfile inventory in game on each character.">waiting for your characters to load</span>'
+    :L.wait==='notOnOdkp'?'<span style="color:#c48a3a" title="None of the '+(L.chars||0)+' characters loaded in MixelParse are on Castle\'s ODKP roster yet. Once an officer adds one, the next sync picks it up.">none of your characters are on Castle\'s ODKP yet</span>'
+    :L.err?'<span style="color:#c07050">ODKP sync failed: '+esc(L.err)+'</span>'
+    :synced?'<span style="color:#4caf7d">synced from ODKP</span><span style="color:var(--text-muted)">'+(odkpTicksMeta.mainName?' · '+esc(odkpTicksMeta.mainName)+'\'s account'+(odkpTicksMeta.acctSize?' ('+odkpTicksMeta.acctSize+' characters)':''):'')+' · '+new Date(odkpTicksMeta.updatedAt).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+'</span>':'';
   const uploadBtn=`<div style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;border-bottom:1px solid var(--border);background:var(--surface2);flex-wrap:wrap">
-    <button class="kt-save-btn" onclick="document.getElementById('creditCsvInput').click()" style="background:rgba(10,60,30,.15);border-color:#3a6040;color:#3a7050">
-      📥 ${noTicks?'Upload':'Re-upload'} ODKP dkp-details Export
-    </button>
-    ${odkpTicksMeta&&odkpTicksMeta.dkp?`<span title="Balance as of your last dkp-details upload${odkpTicksMeta.updatedAt?' ('+new Date(odkpTicksMeta.updatedAt).toLocaleDateString()+')':''}" style="display:inline-flex;flex-direction:column;line-height:1.15;padding:.15rem .6rem;border:1px solid var(--gold-light);border-radius:6px">
+    <button class="kt-save-btn" onclick="odkpSyncLedger(true)" style="background:rgba(10,60,30,.15);border-color:#3a6040;color:#3a7050" title="Credit Check pulls your ODKP ledger by itself every 2 hours — this pulls now">⟳ Sync from ODKP</button>
+    <span style="font-size:.74rem">${ccStatus}</span>
+    <a href="#" onclick="document.getElementById('creditCsvInput').click();return false" style="font-size:.68rem;color:var(--text-muted)" title="Fallback: load an ODKP dkp-details CSV by hand">upload CSV instead</a>
+    ${odkpTicksMeta&&odkpTicksMeta.dkp?`<span title="Balance as of the last ODKP sync / upload${odkpTicksMeta.updatedAt?' ('+new Date(odkpTicksMeta.updatedAt).toLocaleString()+')':''}" style="display:inline-flex;flex-direction:column;line-height:1.15;padding:.15rem .6rem;border:1px solid var(--gold-light);border-radius:6px">
       <span style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--gold-light)">${odkpTicksMeta.dkp.balance.toLocaleString()} DKP</span>
       <span style="font-size:.62rem;color:var(--text-muted)">raids ${odkpTicksMeta.dkp.earned>=0?'+':''}${odkpTicksMeta.dkp.earned.toLocaleString()} · items ${odkpTicksMeta.dkp.spent.toLocaleString()} · adj ${odkpTicksMeta.dkp.adjust>=0?'+':''}${odkpTicksMeta.dkp.adjust.toLocaleString()}</span>
     </span>`:''}
-    ${odkpTicksMeta&&!odkpTicksMeta.dkp&&odkpTicks&&odkpTicks.length?`<span style="font-size:.68rem;color:var(--text-muted);font-style:italic">re-upload dkp-details to see your DKP balance</span>`:''}
+    ${odkpTicksMeta&&!odkpTicksMeta.dkp&&odkpTicks&&odkpTicks.length?`<span style="font-size:.68rem;color:var(--text-muted);font-style:italic">sync from ODKP to see your DKP balance</span>`:''}
     ${odkpTicksMeta?`<span style="font-size:.72rem;color:var(--text-muted)">${(odkpTicks||[]).length.toLocaleString()} credited ticks from ${(odkpTicksMeta.raidCount||0).toLocaleString()} raids${odkpTicksMeta.charNames&&odkpTicksMeta.charNames.length?' · '+esc(odkpTicksMeta.charNames.join(', ')):''} · updated ${odkpTicksMeta.updatedAt?new Date(odkpTicksMeta.updatedAt).toLocaleDateString():'?'}</span>`:''}
     ${!noTicks?`<details class="cc-gear" style="margin-left:auto;position:relative">
       <summary title="Credit Check options" style="list-style:none;cursor:pointer;font-size:1rem;color:var(--text-muted);padding:.1rem .35rem;user-select:none">⚙</summary>
@@ -15815,8 +15876,8 @@ function renderCreditCheckPanel(){
 
   if(noTicks){
     return uploadBtn+`<div style="padding:2rem;text-align:center;color:var(--text-muted);font-size:.85rem">
-      Upload your personal ODKP <b>dkp-details</b> export to find raids you attended but weren't credited for.<br>
-      <span style="font-size:.75rem;opacity:.7">ODKP → your profile → Details → Export CSV. This is your own credited-tick ledger (private to you); learned aliases stay shared with the guild.</span>
+      Credit Check finds raids you attended but weren't credited for. MixelParse pulls your <b>ODKP ledger</b> by itself — no export needed.<br>
+      <span style="font-size:.75rem;opacity:.7">It finds your ODKP account from your characters (loaded from the *-Inventory.txt files in your EQ folder) and syncs every 2 hours. Your ledger is private to you; learned aliases stay shared with the guild.</span>
     </div>`;
   }
 

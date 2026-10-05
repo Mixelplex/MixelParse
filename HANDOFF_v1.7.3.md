@@ -1,4 +1,4 @@
-# MixelParse — Handoff v1.7.2 (2026-10-04)
+# MixelParse — Handoff v1.7.3 (2026-10-05)
 
 Supersedes `HANDOFF_v1.6.6.md` (kept for history; its §3 still describes Auto-Detect Watch / Active mode accurately).
 Start here, then read the code. Git history is the source of truth.
@@ -25,8 +25,9 @@ New this session:
 | 1.7.0 | Spawn timers live from the Discord timer bot (Supabase `bot_timers`); manual Log quake / Add ToD / Clear board removed |
 | 1.7.1 | Bind look-back + bind age on Raid Parking; ❔ Unknown timers (no ToD / past window > 12 h); spawn-timer suggestions only for attended raid-zone ticks |
 | 1.7.2 | Auto-Detect: faction hit = ToD on every tick; boss speech = Weak evidence; guild-chat tick attended when your char logged the boss's lines in that zone |
+| 1.7.3 | ODKP auto-sync (DKP History + item prices, Credit Check ledger); faction right-click; DKP History wiki links; quakes removed; balance counts double-credited ticks |
 
-Release template: `session-data-2026-10-03/scratchpad/rel172.js` + `rel172-content.js` (same shape as rel166–rel171).
+Release template: `session-data-2026-10-03/scratchpad/rel173.js` + `rel173-content.js` (same shape as rel166–rel172).
 
 ## 3. Auto-Detect changes (1.6.7) — index.html `rkdAttribute`, watcher.js `raidEvidence`
 - **Zone-aware evidence.** The watcher tags every raid signal (ticks *and* evidence) with the zone its character was
@@ -114,8 +115,29 @@ Release template: `session-data-2026-10-03/scratchpad/rel172.js` + `rel172-conte
   record, actually an & Co raider — "not Castle" ≠ "not our raid").
 - Replay vs 1.7.1: Strong unchanged; ~12 No boss → Weak (9 right, mostly failed attempts); 98 ToDs move to the death.
 
+## 4d. 1.7.3 (2026-10-05) — ODKP integration
+- **Castle's OpenDKP API is public and read-only**: `https://api.opendkp.com/clients/castle/…` — `/dkp` (1,701 chars:
+  CurrentDKP + 30/60/90/life RA), `/characters` (roster, ParentId = main), `/characters/{id}`, `/characters/{id}/dkp`
+  (an account's full ledger — identical to the dkp-details export), `/items?page&ItemsPerPage` (all item sales,
+  newest first, 5000/page works), `/raids?page&ItemsPerPage`, `/raids/{id}` (ticks, items, credited characters),
+  `/adjustments`, `/auctions`, `/accounts/{name}/characters`. **Never use `/status` (account holder's name + email)
+  or `/clients/castle` (login config).** main.js `odkp:get` only allows the read paths above (`ODKP_PATH`).
+- **Sync** (index.html "ODKP auto-sync"): items 15 s after sign-in and every 2 h — 1-row head check, full pull only for
+  a new TransactionId; `buildDkpLookup` (shared with the CSV upload) → dkpLookup / dkpMeta {src:'odkp'} →
+  saveDkpToSupabase + `odkpApplyPrices` (applyDkpToItemDB only once `_itemDBCloudLoaded`; owner approved the item_db
+  price writes). Ledger as soon as characters exist (charNames(): all character tabs minus bankers / excluded) →
+  the account holding most of them (`ParentId`) → `/characters/{main}/dkp` → CSV text → `parseDkpDetailsCsv` →
+  odkpTicks / odkpTicksMeta {mainName, acctSize, odkpSig} → `odkp_personal` (per user). Credit Check header shows
+  the sync state (waiting for characters / not on ODKP / syncing / synced · <main>'s account).
+- **Balance fix**: `parseDkpDetailsCsv` sums Values before the TickId de-dup (Frown 8/16 Dozekar was credited to
+  Folic + Fled; ODKP counts both).
+- Owner declined locking down `bot_timers` (the ODKP site is public anyway) — don't raise it again.
+- **Next (owner approved, 2026-10-05)**: 1) balance + RA next to buyers in DKP History, 2) Guild DKP list, 3) DKP + RA on
+  character tabs, 4) raid / tick detail + "ticks Auto-Detect saw that ODKP didn't credit", 5) main/alt names everywhere.
+
 ## 5. Open items
-- **`bot_timers` is readable with the public anon key** (no sign-in). The owner was given
+- ~~`bot_timers` readable with the anon key~~ (owner: leave it).
+- **(was) `bot_timers` is readable with the public anon key** (no sign-in). The owner was given
   `alter table … enable row level security; create policy … for select to authenticated using (true);` — as of the
   1.7.0 push anon reads still worked. After it's run, confirm anon is refused AND `synced_at` keeps advancing (if the
   owner's function writes with the anon key, RLS would block it; revert = `disable row level security`).

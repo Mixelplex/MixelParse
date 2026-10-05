@@ -495,6 +495,29 @@ ipcMain.handle('wiki:query', async (e, titles) => {
   });
 });
 
+// Castle OpenDKP (owner, 2026-10-05): the site's own public, read-only API — DKP History (items), the account ledger
+// (Credit Check / Auto-Detect), DKP balances. Only Castle's read endpoints; never /status or the client config
+// (those carry the account holder's details / login setup).
+const ODKP_PATH = /^\/clients\/castle\/(dkp|characters|characters\/\d+|characters\/\d+\/dkp|items|raids|raids\/\d+|accounts\/[A-Za-z]+\/characters)(\?(page=\d+|ItemsPerPage=\d+)(&(page=\d+|ItemsPerPage=\d+))?)?$/;
+ipcMain.handle('odkp:get', async (e, p) => {
+  if (typeof p !== 'string' || !ODKP_PATH.test(p)) return { ok: false, error: 'not an allowed ODKP path' };
+  return new Promise((resolve) => {
+    let settled = false; const done = v => { if (!settled) { settled = true; resolve(v); } };
+    let req; try { req = net.request({ method: 'GET', url: 'https://api.opendkp.com' + p, redirect: 'follow' }); } catch (err) { return done({ ok: false, error: String(err && err.message || err) }); }
+    req.setHeader('User-Agent', 'MixelParse (github.com/Mixelplex/MixelParse)');
+    const timer = setTimeout(() => { try { req.abort(); } catch {} done({ ok: false, error: 'timeout' }); }, 60000);
+    req.on('response', (res) => {
+      const decoder = new StringDecoder('utf8'); let body = '';
+      res.on('data', c => { body += decoder.write(c); });
+      res.on('end', () => { clearTimeout(timer); body += decoder.end();
+        if (res.statusCode !== 200) return done({ ok: false, error: 'HTTP ' + res.statusCode });
+        try { done({ ok: true, data: JSON.parse(body) }); } catch (err) { done({ ok: false, error: 'bad JSON' }); } });
+    });
+    req.on('error', err => { clearTimeout(timer); done({ ok: false, error: String(err && err.message || err) }); });
+    req.end();
+  });
+});
+
 ipcMain.handle('setup:detect-paths', () => detectEQPaths());
 
 ipcMain.handle('setup:browse-dir', async (e, defaultPath) => {
