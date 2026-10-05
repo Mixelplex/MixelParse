@@ -1018,13 +1018,14 @@ function _rtZoneOf(charName) {
 // of an opening are forwarded, so trade chatter (EC tunnel) never reaches the app. "You auction" = this character.
 const RE_AUC_LINE = /^\[.+?\] (\w+) auctions?, '(.*)'$/;
 const RE_AUC_OPEN = /~\[([^\]]+)\]\s*-\s*BID IN \/AUC/i;
+const RE_AUC_GRATS = /~\s*grat+[sz]*\s+\S+\s+on\s+\[/i;   // the officer's close — always forwarded
 let _aucLastOpen = 0;
 function auctionSignal(line, charName) {
   if (line.indexOf(' auction') < 0) return;
   const m = RE_AUC_LINE.exec(line); if (!m) return;
   const ts = _rtLineTs(line), open = RE_AUC_OPEN.test(m[2]);
   if (open) _aucLastOpen = Math.max(_aucLastOpen, ts);
-  else if (Math.abs(ts - _aucLastOpen) > 15 * 60e3) return;
+  else if (!RE_AUC_GRATS.test(m[2]) && Math.abs(ts - _aucLastOpen) > 45 * 60e3) return;   // auctions stay open until grats (owner, 2026-10-05)
   broadcast({ type: 'auctionLine', charName, who: m[1] === 'You' ? charName : m[1], text: m[2], ts, open });
 }
 function raidEvidence(line, charName) {

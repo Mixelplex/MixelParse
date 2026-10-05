@@ -28,7 +28,9 @@
   | Statue + Avatar of War, Tunare, Zlandicar | 60 | 60 |
 
   Class exceptions (Cleric 52, Bard 55, Mage 55) now apply to every raid except Klandicar, Sontalak and Veeshan's Peak — before, most raids only had Cleric 52. Fear and Hate farm nights stay at 55; ToV practice, progression and Halls of Testing stay at 58.
+- **⚖ Auction window, rebuilt** — bigger text (A− / A+ to size it), and each auction shows just the top 2 bids plus yours. The clock shows how long it's been running; an auction stays open until the officer's Gratss, then shows the winner(s) and folds into the Closed list. Click any item for its P99 wiki page. The window remembers its size and spot.
 - **Auto-Detect level check** — a tick shows "⚠ under level" when the character you were on was below Castle's floor for that boss. A note only; it never changes the tick.
+- **Auto-Detect: No kill, no credit** — right-click a tick for an attempt that wiped with no failtick before a round 2. Nothing is recorded, the round-2 kill counts as the first (not "#2"), and Credit Check stops flagging it.
 - **Fix: Your DKP in the header** now matches the Credit Check and updates whenever the Credit Check syncs.
 
 Everything from 1.7.4 and earlier is included:

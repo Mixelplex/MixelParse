@@ -183,15 +183,32 @@ function createAdminWindow() {
 
 // ─── Auction Window (live DKP auctions, 2026-10-05) ────────────────────────────
 // Same kind of overlay as the Session window. Popped open without taking focus, so EQ keeps the keyboard.
+// last size / position of the auction window (userData/auction-window.json); dropped if it's off every screen
+function _aucBoundsFile() { return path.join(app.getPath('userData'), 'auction-window.json'); }
+function _aucLoadBounds() {
+  try {
+    const b = JSON.parse(fs.readFileSync(_aucBoundsFile(), 'utf8'));
+    if (!b || !(b.width > 200) || !(b.height > 150)) return null;
+    const { screen } = require('electron');
+    const onScreen = screen.getAllDisplays().some(d => { const a = d.workArea; return b.x + 60 > a.x && b.x < a.x + a.width - 60 && b.y >= a.y - 10 && b.y < a.y + a.height - 40; });
+    return onScreen ? b : { width: b.width, height: b.height };
+  } catch (e) { return null; }
+}
+let _aucSaveT = null;
+function _aucSaveBounds() {
+  clearTimeout(_aucSaveT);
+  _aucSaveT = setTimeout(() => { try { if (auctionWindow && !auctionWindow.isDestroyed() && !auctionWindow.isMinimized()) fs.writeFileSync(_aucBoundsFile(), JSON.stringify(auctionWindow.getBounds())); } catch (e) {} }, 500);
+}
 function createAuctionWindow(focus) {
   if (auctionWindow && !auctionWindow.isDestroyed()) {
     if (focus) auctionWindow.show(); else auctionWindow.showInactive();
     auctionWindow.setAlwaysOnTop(true, 'screen-saver');
     return;
   }
+  const _b = _aucLoadBounds() || {};
   auctionWindow = new BrowserWindow({
-    width: 360, height: 520, minWidth: 280, minHeight: 200, resizable: true, frame: false, alwaysOnTop: true,
-    skipTaskbar: false, show: false, title: 'Auctions — MixelParse', icon: ICON_PATH, backgroundColor: '#22222e',
+    width: _b.width || 520, height: _b.height || 800, ...(_b.x != null ? { x: _b.x, y: _b.y } : {}), minWidth: 320, minHeight: 240, resizable: true, frame: false, alwaysOnTop: true,
+    skipTaskbar: false, show: false, title: 'Auctions — MixelParse', icon: ICON_PATH, backgroundColor: '#17161f',
     webPreferences: { nodeIntegration: false, contextIsolation: true, preload: path.join(__dirname, 'preload.js') },
   });
   auctionWindow.setAlwaysOnTop(true, 'screen-saver');
@@ -200,6 +217,8 @@ function createAuctionWindow(focus) {
   auctionWindow.loadFile(path.join(ROOT, 'src', 'auction.html'));
   auctionWindow.once('ready-to-show', () => { if (!auctionWindow || auctionWindow.isDestroyed()) return; if (focus) auctionWindow.show(); else auctionWindow.showInactive(); });
   auctionWindow.webContents.once('dom-ready', () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('auction-window-ready'); });
+  auctionWindow.on('resize', _aucSaveBounds);
+  auctionWindow.on('move', _aucSaveBounds);
   auctionWindow.on('closed', () => { auctionWindow = null; });
 }
 

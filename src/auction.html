@@ -5,110 +5,214 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Auctions — MixelParse</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-/* Live DKP auction board (owner, 2026-10-05) — same look as the Session overlay. Read-only: it never bids or posts. */
+/* Live DKP auction board (owner, 2026-10-05; redesigned after the first live raid: bigger text, less per card,
+   closed auctions folded away). Read-only: it never bids or posts. */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#22222e;--surface:#2a2a38;--surface2:#343448;--surface3:#3a3a52;--border:#252532;--border-soft:#343448;
-  --text:#e2ddd4;--text-dim:#a09c94;--text-muted:#6a6880;--gold:#c8a040;--gold-dim:#8c7030;--live:#4caf72;--danger:#d0503c;--warn:#d49a3a;
+  --fs:18;
+  --bg:#17161f;--bg2:#1d1c27;--card:#24232f;--card2:#2c2b39;--line:#353445;--line2:#45435a;
+  --text:#ece6da;--dim:#b9b2a5;--muted:#8a8597;
+  --gold:#e0b552;--gold2:#f3d58a;--golddk:#8a6a24;
+  --live:#55c47f;--warn:#e8a33d;--danger:#ef6650;--blue:#7fa8e8;
 }
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sans-serif;font-size:13px;overflow:hidden;user-select:none}
-.win{display:flex;flex-direction:column;height:100vh;border:1px solid var(--border-soft);border-radius:14px;overflow:hidden}
-.titlebar{display:flex;align-items:center;gap:.4rem;padding:.38rem .6rem;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;-webkit-app-region:drag;height:36px}
-.tb-dot{width:7px;height:7px;border-radius:50%;background:var(--border-soft);flex-shrink:0}
-.tb-dot.live{background:var(--live);box-shadow:0 0 5px var(--live);animation:livepulse 2.5s ease-in-out infinite}
-@keyframes livepulse{0%,100%{opacity:1}50%{opacity:.3}}
-.tb-lbl{font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);flex:1;pointer-events:none}
-.tb-pop{font-size:.6rem;color:var(--text-muted);display:flex;align-items:center;gap:.25rem;-webkit-app-region:no-drag;cursor:pointer}
-.tb-pop input{-webkit-app-region:no-drag;cursor:pointer}
-.tb-btns{display:flex;gap:.05rem;flex-shrink:0;-webkit-app-region:no-drag}
-.tb-btn{background:none;border:none;color:var(--text-muted);font-size:.95rem;cursor:pointer;padding:.08rem .3rem;line-height:1;border-radius:3px;-webkit-app-region:no-drag}
-.tb-btn:hover{background:var(--surface3);color:var(--text)}
-.body{flex:1;overflow-y:auto;background:var(--bg);padding:.45rem .5rem .6rem}
-.body::-webkit-scrollbar{width:3px}.body::-webkit-scrollbar-thumb{background:var(--border-soft);border-radius:2px}
-.empty{color:var(--text-muted);font-size:.78rem;text-align:center;padding:2.2rem 1rem;line-height:1.6}
-.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:10px;margin-bottom:.5rem;overflow:hidden}
-.card.closed{opacity:.55}
-.card.outbid{border-color:var(--danger)}
-.c-hdr{display:flex;align-items:baseline;gap:.5rem;padding:.5rem .65rem .2rem}
-.c-item{font-size:.92rem;font-weight:600;color:var(--gold);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none;cursor:pointer}
-.c-item:hover{text-decoration:underline}
-.c-clock{font-size:.68rem;color:var(--text-dim);font-variant-numeric:tabular-nums;white-space:nowrap}
-.c-clock.soon{color:var(--warn)}
-.c-price{font-size:.66rem;color:var(--text-muted);padding:0 .65rem .35rem}
-.c-top{display:flex;align-items:baseline;gap:.45rem;padding:.15rem .65rem .4rem;border-bottom:1px solid var(--border)}
-.c-top-n{font-size:1.35rem;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;line-height:1}
-.c-top-who{font-size:.8rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.c-top-bal{font-size:.66rem;color:var(--text-muted);white-space:nowrap}
-.banner{font-size:.7rem;font-weight:600;padding:.25rem .65rem;background:rgba(208,80,60,.15);color:var(--danger)}
-.banner.lead{background:rgba(76,175,114,.13);color:var(--live)}
-.bids{padding:.25rem .45rem .4rem}
-.bid{display:grid;grid-template-columns:2.6rem 1fr auto;align-items:center;gap:.4rem;padding:.2rem .25rem;border-radius:6px;font-size:.74rem}
-.bid+.bid{border-top:1px solid var(--border)}
-.bid.mine{background:rgba(200,160,64,.10)}
-.bid-n{font-weight:600;font-variant-numeric:tabular-nums;text-align:right;color:var(--text)}
-.bid-who{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-dim)}
-.bid-who .toon{color:var(--text-muted)}
-.bid-bal{font-size:.64rem;color:var(--text-muted);white-space:nowrap;text-align:right}
-.bid-bal.over{color:var(--danger);font-weight:600}
-.more{font-size:.64rem;color:var(--text-muted);text-align:center;padding:.15rem;cursor:pointer}
-.foot{font-size:.6rem;color:var(--text-muted);padding:.3rem .65rem;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;display:flex;justify-content:space-between;gap:.5rem}
+html{font-size:calc(var(--fs) * 1px)}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,'Segoe UI',sans-serif;overflow:hidden;user-select:none}
+.win{display:flex;flex-direction:column;height:100vh;border:1px solid var(--line2);border-radius:14px;overflow:hidden;background:var(--bg)}
+/* title bar */
+.tb{display:flex;align-items:center;gap:.5rem;padding:0 .5rem 0 .8rem;height:2.6rem;flex-shrink:0;-webkit-app-region:drag;
+  background:linear-gradient(180deg,#2b2738 0%,#211f2c 100%);border-bottom:1px solid var(--golddk)}
+.tb-title{font-family:'Cinzel',serif;font-weight:700;font-size:.95rem;letter-spacing:.08em;color:var(--gold2);display:flex;align-items:center;gap:.45rem;pointer-events:none}
+.tb-count{font-family:'Inter',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:.02em;padding:.12rem .5rem;border-radius:999px;background:rgba(85,196,127,.16);color:var(--live);border:1px solid rgba(85,196,127,.45)}
+.tb-count.none{background:transparent;color:var(--muted);border-color:var(--line2)}
+.tb-sp{flex:1}
+.nd{-webkit-app-region:no-drag}
+.tb-pop{font-size:.74rem;color:var(--dim);display:flex;align-items:center;gap:.3rem;cursor:pointer}
+.tb-pop input{accent-color:var(--gold);width:.95rem;height:.95rem;cursor:pointer}
+.tb-btn{background:none;border:1px solid transparent;color:var(--dim);font-size:.85rem;font-weight:600;cursor:pointer;padding:.15rem .45rem;line-height:1.2;border-radius:6px}
+.tb-btn:hover{background:var(--card2);border-color:var(--line2);color:var(--text)}
+.tb-x:hover{background:rgba(239,102,80,.2);border-color:rgba(239,102,80,.5);color:#fff}
+/* body */
+.body{flex:1;overflow-y:auto;padding:.6rem .6rem .8rem}
+.body::-webkit-scrollbar{width:6px}.body::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px}
+.empty{color:var(--muted);font-size:.95rem;text-align:center;padding:3rem 1.2rem;line-height:1.7}
+.empty b{color:var(--gold)}
+.empty .big{font-family:'Cinzel',serif;font-size:1.6rem;color:var(--golddk);display:block;margin-bottom:.4rem}
+/* auction card */
+.card{position:relative;background:linear-gradient(180deg,var(--card) 0%,var(--bg2) 100%);border:1px solid var(--line);border-left:4px solid var(--live);border-radius:12px;margin-bottom:.7rem;overflow:hidden}
+.card.late{border-left-color:var(--warn)}
+.card.out{border-left-color:var(--danger);box-shadow:0 0 0 1px rgba(239,102,80,.35),0 0 18px rgba(239,102,80,.15)}
+.card.lead{border-left-color:var(--live);box-shadow:0 0 0 1px rgba(85,196,127,.35),0 0 18px rgba(85,196,127,.12)}
+.c-hdr{display:flex;align-items:center;gap:.6rem;padding:.65rem .8rem .2rem}
+.c-item{font-family:'Cinzel',serif;font-weight:700;font-size:1.12rem;color:var(--gold2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;letter-spacing:.01em}
+.c-item:hover{text-decoration:underline;text-underline-offset:3px}
+.chip{flex-shrink:0;font-size:.78rem;font-weight:600;padding:.18rem .55rem;border-radius:999px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.chip.open{background:rgba(85,196,127,.14);color:var(--live)}
+.chip.soon{background:rgba(232,163,61,.18);color:var(--warn)}
+.chip.late{background:rgba(232,163,61,.12);color:var(--warn)}
+.chip.done{background:var(--card2);color:var(--muted)}
+.chip.sold{background:rgba(224,181,82,.18);color:var(--gold2)}
+.card.sold{border-left-color:var(--gold)}
+.card.won{border-left-color:var(--gold);box-shadow:0 0 0 1px rgba(224,181,82,.5),0 0 22px rgba(224,181,82,.2)}
+.grats{font-size:1.05rem;color:var(--gold2);padding:.55rem .8rem .75rem}
+.grats b{color:#fff}
+.c-price{display:flex;flex-wrap:wrap;gap:.35rem;padding:.25rem .8rem .55rem}
+.pp{font-size:.78rem;color:var(--dim);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:6px;padding:.1rem .45rem;white-space:nowrap}
+.pp b{color:var(--text);font-weight:600}
+.pp.key{border-color:var(--golddk);color:var(--gold2)}
+.pp.key b{color:var(--gold2)}
+.banner{font-size:.88rem;font-weight:700;padding:.4rem .8rem;background:rgba(239,102,80,.16);color:#ff8f7d;border-top:1px solid rgba(239,102,80,.3)}
+.banner.lead{background:rgba(85,196,127,.13);color:#7fe0a3;border-top-color:rgba(85,196,127,.3)}
+/* top bid hero */
+.hero{display:flex;align-items:center;gap:.8rem;padding:.6rem .8rem;background:rgba(0,0,0,.18);border-top:1px solid var(--line)}
+.hero-n{min-width:3.4rem;text-align:center;font-size:1.9rem;font-weight:700;line-height:1;color:var(--gold2);padding:.35rem .5rem;border-radius:10px;background:rgba(224,181,82,.1);border:1px solid var(--golddk);font-variant-numeric:tabular-nums}
+.hero-n small{display:block;font-size:.58rem;font-weight:700;letter-spacing:.12em;color:var(--gold);margin-top:.25rem}
+.hero-who{flex:1;min-width:0}
+.hero-name{font-size:1.08rem;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hero-name .for{font-weight:500;color:var(--blue);font-size:.92rem}
+.hero-bal{font-size:.86rem;color:var(--dim);margin-top:.15rem}
+.nobids{padding:.55rem .8rem .7rem;border-top:1px solid var(--line);color:var(--muted);font-size:.9rem;font-style:italic}
+/* bid rows */
+.bids{padding:.35rem .5rem .5rem}
+.bid{display:grid;grid-template-columns:2.4rem 1fr auto;align-items:center;gap:.55rem;padding:.32rem .35rem;border-radius:8px;font-size:.92rem}
+.bid:nth-child(odd){background:rgba(255,255,255,.025)}
+.bid.mine{background:rgba(224,181,82,.12);outline:1px solid rgba(224,181,82,.35)}
+.bid-n{font-weight:700;text-align:center;color:var(--text);background:var(--card2);border-radius:6px;padding:.08rem 0;font-variant-numeric:tabular-nums}
+.bid-who{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-weight:500}
+.bid-who .for{color:var(--blue);font-weight:400;font-size:.85rem}
+.bal{font-size:.82rem;color:var(--dim);white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+.bal .ra{color:var(--muted)}
+.bal.over{color:var(--danger);font-weight:700}
+.bal.none{color:var(--muted)}
+.more{font-size:.8rem;font-weight:600;color:var(--gold);text-align:center;padding:.3rem;cursor:pointer;border-radius:6px}
+.more:hover{background:rgba(224,181,82,.08)}
+/* closed list */
+.closed-h{display:flex;align-items:center;gap:.5rem;font-family:'Cinzel',serif;font-weight:700;font-size:.82rem;letter-spacing:.1em;color:var(--muted);padding:.5rem .3rem .4rem;cursor:pointer}
+.closed-h:hover{color:var(--dim)}
+.closed-h .ln{flex:1;height:1px;background:var(--line)}
+.cl{display:flex;align-items:baseline;gap:.6rem;padding:.4rem .6rem;border-radius:8px;font-size:.88rem;color:var(--dim)}
+.cl:nth-child(even){background:rgba(255,255,255,.025)}
+.cl-item{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);cursor:pointer}
+.cl-item:hover{text-decoration:underline}
+.cl-win{white-space:nowrap}
+.cl-win b{color:var(--gold2)}
+.cl-none{color:var(--muted);font-style:italic;white-space:nowrap}
+.foot{font-size:.72rem;color:var(--muted);padding:.4rem .8rem;background:var(--bg2);border-top:1px solid var(--line);flex-shrink:0;display:flex;justify-content:space-between;gap:.5rem}
 </style>
 </head>
 <body>
 <div class="win">
-  <div class="titlebar">
-    <span class="tb-dot" id="dot"></span>
-    <span class="tb-lbl" id="lbl">Auctions</span>
-    <label class="tb-pop" title="Open this window by itself when an officer starts an auction in /auction"><input type="checkbox" id="pop" onchange="cmd({type:'autoPop',on:this.checked})"> pop up</label>
-    <div class="tb-btns">
-      <button class="tb-btn" onclick="window.MixelParseApp&&window.MixelParseApp.minimizeAuction&&window.MixelParseApp.minimizeAuction()" title="Minimize">&#8211;</button>
-      <button class="tb-btn" onclick="window.MixelParseApp&&window.MixelParseApp.closeAuction&&window.MixelParseApp.closeAuction()" title="Close">&#215;</button>
-    </div>
+  <div class="tb">
+    <span class="tb-title">⚖ Auctions <span class="tb-count none" id="count">none open</span></span>
+    <span class="tb-sp"></span>
+    <label class="tb-pop nd" title="Open this window by itself when an officer starts an auction in /auction"><input type="checkbox" id="pop" onchange="cmd({type:'autoPop',on:this.checked})"> pop up</label>
+    <button class="tb-btn nd" onclick="zoom(-1)" title="Smaller text">A−</button>
+    <button class="tb-btn nd" onclick="zoom(1)" title="Bigger text">A+</button>
+    <button class="tb-btn nd" onclick="window.MixelParseApp&&window.MixelParseApp.minimizeAuction&&window.MixelParseApp.minimizeAuction()" title="Minimize">&#8211;</button>
+    <button class="tb-btn tb-x nd" onclick="window.MixelParseApp&&window.MixelParseApp.closeAuction&&window.MixelParseApp.closeAuction()" title="Close">&#215;</button>
   </div>
-  <div class="body" id="body"><div class="empty">No auctions right now.<br>This window opens when an officer starts one in <b>/auction</b>.</div></div>
-  <div class="foot"><span id="foot">Reads /auction only — it never bids for you.</span><span id="sync"></span></div>
+  <div class="body" id="body"></div>
+  <div class="foot"><span>Reads /auction only — it never bids for you.</span><span id="sync"></span></div>
 </div>
 <script>
 let S = { auctions: [], autoPop: true };
 const expanded = new Set();
+const SHOW = 1;   // top bid + the runner-up (owner: the rest don't matter); your own bid always shows
+// per-viewer conveniences: text size and whether the closed list is open
+function lsGet(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }
+function lsSet(k, v){ try { localStorage.setItem(k, v); } catch (e) {} }
+let fs = Math.min(28, Math.max(13, +lsGet('auc_fs2', 18) || 18));
+let showClosed = lsGet('auc_closed', '0') === '1';
+document.documentElement.style.setProperty('--fs', fs);
+function zoom(d){ fs = Math.min(28, Math.max(13, fs + d)); document.documentElement.style.setProperty('--fs', fs); lsSet('auc_fs2', fs); }
+function toggleClosed(){ showClosed = !showClosed; lsSet('auc_closed', showClosed ? '1' : '0'); render(); }
+function toggle(id){ expanded.has(id) ? expanded.delete(id) : expanded.add(id); render(); }
+
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function cmd(c){ if (window.MixelParseApp && window.MixelParseApp.sendAuctionCommand) window.MixelParseApp.sendAuctionCommand(c); }
 function mmss(ms){ ms = Math.max(0, Math.round(ms / 1000)); return Math.floor(ms / 60) + ':' + String(ms % 60).padStart(2, '0'); }
 function ago(ms){ const s = Math.max(0, Math.round(ms / 1000)); return s < 60 ? s + 's' : Math.floor(s / 60) + 'm'; }
-function balHtml(b){
-  if (b.bal == null) return '<span class="bid-bal" title="Not on Castle\'s ODKP">—</span>';
-  return '<span class="bid-bal' + (b.over ? ' over' : '') + '" title="' + esc((b.acct ? b.acct + '\'s account · ' : '') + b.bal + ' DKP now · 30-day RA ' + (b.ra || '—')) + '">' + (b.over ? '⚠ ' : '') + b.bal.toLocaleString() + ' · ' + esc(b.ra || '—') + '</span>';
+function num(n){ return Math.round(n).toLocaleString(); }
+// encodeURIComponent leaves ' alone, which broke the click on "Trakanon's Tooth" — escape it too
+function wiki(item){ return 'cmd({type:\'wiki\',item:decodeURIComponent(\'' + encodeURIComponent(item).replace(/'/g, '%27') + '\')})'; }
+function forToon(b){ return b.toon && b.toon.toLowerCase() !== String(b.who).toLowerCase() ? ' <span class="for">→ ' + esc(b.toon) + '</span>' : ''; }
+function bal(b){
+  if (b.bal == null) return '<span class="bal none" title="Not on Castle\'s ODKP">no ODKP</span>';
+  const tip = (b.acct ? b.acct + '\'s account · ' : '') + b.bal + ' DKP now' + (b.over ? ' — bid is more than they have' : '');
+  return '<span class="bal' + (b.over ? ' over' : '') + '" title="' + esc(tip) + '">' + (b.over ? '⚠ ' : '') + num(b.bal) + ' DKP</span>';
 }
-function who(b){ return esc(b.who) + (b.toon && b.toon.toLowerCase() !== b.who.toLowerCase() ? ' <span class="toon">→ ' + esc(b.toon) + '</span>' : ''); }
+// one row per bidder + toon: their highest bid (re-bids and corrections collapse)
+function bidRows(a){
+  const m = new Map();
+  for (const b of a.bids || []) {
+    const k = String(b.who).toLowerCase() + '|' + String(b.toon || '').toLowerCase();
+    const o = m.get(k);
+    if (!o || b.n > o.n || (b.n === o.n && b.ts > o.ts)) m.set(k, Object.assign({}, b, { mine: b.mine || (o && o.mine) }));
+  }
+  return [...m.values()].sort((x, y) => y.n - x.n || x.ts - y.ts);
+}
+function priceChips(p){
+  if (!p) return '<span class="pp">never sold on ODKP</span>';
+  return (p.r60 != null ? '<span class="pp key" title="Average of the last 60 days (' + p.r60n + ' sold)">usually <b>' + p.r60 + '</b></span>' : '<span class="pp" title="No sales in the last 60 days">no recent sales</span>')
+    + '<span class="pp">high <b>' + p.high + '</b></span><span class="pp">avg <b>' + p.avg + '</b></span><span class="pp">' + p.count + ' sold</span>';
+}
+// "Fled · 1 DKP", several winners for several copies, "rotted" for ROT
+function winText(ws, html){
+  return ws.map(w => /^rot$/i.test(w.who) ? 'rotted' : (html ? '<b>' + esc(w.who) + '</b>' : esc(w.who)) + (w.n != null ? ' · ' + w.n + ' DKP' : '')).join(html ? ' &nbsp;&amp;&nbsp; ' : ' & ');
+}
+function card(a, now){
+  const sold = !!(a.winners && a.winners.length), late = now >= a.closeAt;
+  const st = sold ? '<span class="chip sold">sold</span>'
+    // how long it's been running — a reference only; it stays open until the officer's grats (amber past the posted 2m30s)
+    : '<span class="chip ' + (late ? 'late' : 'open') + '" title="How long it\'s been open — it closes when the officer grats it">⏱ <span class="tm" data-o="' + a.open + '"></span></span>';
+  const rows = bidRows(a), top = a.top, iWon = sold && a.winners.some(w => w.mine);
+  const cls = sold ? (iWon ? ' won' : ' sold') : a.outbid ? ' out' : a.leading ? ' lead' : late ? ' late' : '';
+  if (sold) return '<div class="card' + cls + '">'
+    + '<div class="c-hdr"><span class="c-item" onclick="' + wiki(a.item) + '" title="Open on the P99 wiki">' + esc(a.item) + '</span>' + st + '</div>'
+    + '<div class="grats">' + (iWon ? '🎉 Grats — you won! ' : '✓ Grats ') + winText(a.winners, true) + '</div></div>';
+  const rest = top ? rows.filter(b => !(b.n === top.n && String(b.who).toLowerCase() === String(top.who).toLowerCase() && String(b.toon || '').toLowerCase() === String(top.toon || '').toLowerCase())) : rows;
+  let shown = expanded.has(a.id) ? rest : rest.slice(0, SHOW);
+  if (!expanded.has(a.id)) { const me = rest.find(b => b.mine); if (me && !shown.includes(me)) shown = shown.concat(me); }
+  const hidden = rest.length - shown.length;
+  return '<div class="card' + cls + '">'
+    + '<div class="c-hdr"><span class="c-item" onclick="' + wiki(a.item) + '" title="Open on the P99 wiki' + (a.by ? ' · opened by ' + esc(a.by) : '') + '">' + esc(a.item) + '</span>' + st + '</div>'
+    + '<div class="c-price">' + priceChips(a.stats) + '</div>'
+    + (a.outbid ? '<div class="banner">⚠ You\'ve been outbid — ' + top.n + ' by ' + esc(top.toon || top.who) + '</div>' : a.leading ? '<div class="banner lead">✓ You\'re the high bid</div>' : '')
+    + (top ? '<div class="hero"><div class="hero-n">' + top.n + '<small>TOP BID</small></div><div class="hero-who"><div class="hero-name">' + esc(top.who) + forToon(top) + '</div><div class="hero-bal">' + bal(top) + '</div></div></div>'
+           : '<div class="nobids">No bids yet</div>')
+    + (rest.length ? '<div class="bids">' + shown.map(b => '<div class="bid' + (b.mine ? ' mine' : '') + '" title="' + esc(new Date(b.ts).toLocaleTimeString()) + '"><span class="bid-n">' + b.n + '</span><span class="bid-who">' + esc(b.who) + forToon(b) + '</span>' + bal(b) + '</div>').join('')
+        + (hidden > 0 || (expanded.has(a.id) && rest.length > SHOW) ? '<div class="more" onclick="toggle(\'' + a.id + '\')">' + (expanded.has(a.id) ? 'show fewer' : '+ ' + hidden + ' more bidder' + (hidden === 1 ? '' : 's')) + '</div>' : '') + '</div>' : '')
+    + '</div>';
+}
+function closedRow(a){
+  const t = a.top, ws = a.winners || [];
+  return '<div class="cl"><span class="cl-item" onclick="' + wiki(a.item) + '" title="Open on the P99 wiki">' + esc(a.item) + '</span>'
+    + (ws.length ? '<span class="cl-win" title="From the officer\'s grats">✓ ' + winText(ws, true) + '</span>'
+      : '<span class="cl-none" title="No grats seen for 30 minutes' + (t ? ' — top bid was ' + t.n + ' by ' + esc(t.toon || t.who) : '') + '">no grats seen</span>') + '</div>';
+}
 function render(){
   const now = Date.now(), list = S.auctions || [];
-  const open = list.filter(a => !a.closed && now < a.idleAt);
-  document.getElementById('dot').classList.toggle('live', open.length > 0);
-  document.getElementById('lbl').textContent = open.length ? 'Auctions · ' + open.length + ' open' : 'Auctions';
+  // a grats stays up as a "sold" card for a minute, then folds into Closed
+  const justSold = a => a.gratsAt && now - a.gratsAt < 60e3;
+  const open = list.filter(a => (!a.closed && now < a.idleAt) || justSold(a)), done = list.filter(a => !open.includes(a));
+  const c = document.getElementById('count');
+  const nOpen = open.filter(a => !justSold(a)).length;
+  c.textContent = nOpen ? nOpen + ' open' : 'none open'; c.classList.toggle('none', !nOpen);
   document.getElementById('pop').checked = !!S.autoPop;
   document.getElementById('sync').textContent = S.dkpAsOf ? 'DKP as of ' + new Date(S.dkpAsOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
-  if (!list.length) { document.getElementById('body').innerHTML = '<div class="empty">No auctions right now.<br>This window opens when an officer starts one in <b>/auction</b>.</div>'; return; }
-  document.getElementById('body').innerHTML = list.map(a => {
-    const closed = a.closed || now >= a.idleAt;
-    const clock = closed ? 'closed' : now < a.closeAt ? 'closing in ' + mmss(a.closeAt - now) : 'still bidding · last bid ' + ago(now - a.last) + ' ago';
-    const p = a.stats;
-    const price = p ? (p.r60 != null ? '60-day avg ' + p.r60 + ' (' + p.r60n + ')' : 'no sales in 60 days') + ' · high ' + p.high + ' · avg ' + p.avg + ' · low ' + p.low + ' · ' + p.count + ' sold' : 'never sold on ODKP';
-    const top = a.top;
-    const bids = (a.bids || []).slice().reverse();
-    const show = expanded.has(a.id) ? bids : bids.slice(0, 6);
-    return '<div class="card' + (closed ? ' closed' : '') + (a.outbid && !closed ? ' outbid' : '') + '">'
-      + '<div class="c-hdr"><a class="c-item" onclick="cmd({type:\'wiki\',item:decodeURIComponent(\'' + encodeURIComponent(a.item) + '\')})" title="Open on the P99 wiki">' + esc(a.item) + '</a><span class="c-clock' + (!closed && now < a.closeAt && a.closeAt - now < 30000 ? ' soon' : '') + '">' + clock + '</span></div>'
-      + '<div class="c-price">' + esc(price) + (a.by ? ' · opened by ' + esc(a.by) : '') + '</div>'
-      + (a.outbid && !closed ? '<div class="banner">You\'ve been outbid — ' + top.n + ' by ' + esc(top.toon || top.who) + '</div>' : a.leading && !closed ? '<div class="banner lead">You\'re the high bid</div>' : '')
-      + (top ? '<div class="c-top"><span class="c-top-n">' + top.n + '</span><span class="c-top-who">' + who(top) + '</span>' + balHtml(top) + '</div>' : '<div class="c-top"><span class="c-top-who">no bids yet</span></div>')
-      + (bids.length ? '<div class="bids">' + show.map(b => '<div class="bid' + (b.mine ? ' mine' : '') + '" title="' + esc(new Date(b.ts).toLocaleTimeString()) + '"><span class="bid-n">' + b.n + '</span><span class="bid-who">' + who(b) + '</span>' + balHtml(b) + '</div>').join('')
-        + (bids.length > 6 ? '<div class="more" onclick="toggle(\'' + a.id + '\')">' + (expanded.has(a.id) ? 'show fewer' : 'all ' + bids.length + ' bids') + '</div>' : '') + '</div>' : '')
-      + '</div>';
-  }).join('');
+  const body = document.getElementById('body'), y = body.scrollTop;
+  // auctions you're in first (outbid, then leading), then newest opened — order doesn't jump as bids arrive
+  const order = open.slice().sort((x, y) => (y.outbid ? 2 : y.leading ? 1 : 0) - (x.outbid ? 2 : x.leading ? 1 : 0) || (y.open || 0) - (x.open || 0));
+  const html = !list.length ? '<div class="empty"><span class="big">⚖</span>No auctions right now.<br>This window opens when an officer starts one in <b>/auction</b>.</div>'
+    : (order.length ? order.map(a => card(a, now)).join('') : '<div class="empty" style="padding:1.6rem 1rem">Nothing open right now.</div>')
+    + (done.length ? '<div class="closed-h" onclick="toggleClosed()"><span>' + (showClosed ? '▾' : '▸') + ' CLOSED · ' + done.length + '</span><span class="ln"></span></div>'
+      + (showClosed ? done.slice().sort((x, y) => (y.last || 0) - (x.last || 0)).map(closedRow).join('') : '') : '');
+  // rebuild only when something changed — a rebuild every second ate clicks (item → wiki, "+ more", Closed)
+  if (html !== lastHtml) { body.innerHTML = html; lastHtml = html; body.scrollTop = y; }
+  for (const el of body.querySelectorAll('.tm')) el.textContent = mmss(now - +el.dataset.o);
 }
-function toggle(id){ expanded.has(id) ? expanded.delete(id) : expanded.add(id); render(); }
+let lastHtml = '';
 if (window.MixelParseApp && window.MixelParseApp.onAuctionState) window.MixelParseApp.onAuctionState(st => { S = st || S; render(); });
 setInterval(render, 1000);
 render();

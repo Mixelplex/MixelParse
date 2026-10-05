@@ -27,7 +27,7 @@ New this session:
 | 1.7.2 | Auto-Detect: faction hit = ToD on every tick; boss speech = Weak evidence; guild-chat tick attended when your char logged the boss's lines in that zone |
 | 1.7.3 | ODKP auto-sync (DKP History + item prices, Credit Check ledger); faction right-click; DKP History wiki links; quakes removed; balance counts double-credited ticks |
 | 1.7.4 | Live auction window; your DKP in the header; Guild DKP list; buyer DKP / RA + main names + raid detail in DKP History; date + raid-name fixes |
-| 1.7.5 | Raid Parking on the Castle Alliance level policy update; Auto-Detect "under level" note; header DKP follows the Credit Check ledger |
+| 1.7.5 | Raid Parking on the Castle Alliance level policy update; Auto-Detect "under level" note + No kill, no credit; auction window rebuilt (closes on Gratss); header DKP follows the Credit Check ledger |
 
 Release template: `session-data-2026-10-03/scratchpad/rel175.js` + `rel175-content.js` (built by `rel175-gen.js`; the What's New item can hold an HTML table) (same shape as rel166–rel173).
 
@@ -171,6 +171,18 @@ Release template: `session-data-2026-10-03/scratchpad/rel175.js` + `rel175-conte
 - **Header DKP fix**: `odkpHeaderDkp` uses the Credit Check ledger balance (`odkpTicksMeta.dkp.balance`) when it's the
   same account and newer than ODKP's `/dkp` AsOfDate (the summary trails the ledger); every ledger sync — auto,
   "no change" (sets `checkedAt`) or the Credit Check button — also re-pulls the guild list and redraws the header.
+- **No kill, no credit** (right-click only — owner: no prompt button): `rkdSetNknc(id,on)` sets `r.confirm='nknc'`
+  (undoes an Active auto-add first, drops a queued prompt for the tick). `rankOf` skips `nknc` and `dismissed` rows, so a
+  round-2 kill isn't "#2"; Credit Check shows "no credit expected". Case: Sontalak 10/4 (wipe 19:31, tick 19:37, kill +
+  faction 20:05, tick 20:07). A wipe tick is normally Weak, so Active never auto-adds it.
+- **Auction window rebuilt** after the first live raid (owner: too small, overwhelming): `--fs` 18 (A−/A+, localStorage
+  `auc_fs2`), top bid hero + runner-up + your own bid (`SHOW=1`), one row per bidder+toon, RA removed, closed auctions
+  folded into a "CLOSED" list, item names → wiki (apostrophes escaped — they broke the onclick). Renders only when the
+  HTML changes (a 1 s rebuild ate clicks); the ⏱ count-up fills `.tm` spans. Window 520×800 default, bounds saved to
+  userData/auction-window.json. **Close rule** (owner: "can't be closed until the officer has gratz it out"):
+  `RE_AUC_GRATS` "~Gratss <name> on [Item] (N DKP)!" sets `gratsAt` + `winners` (more grats for the item add winners —
+  2 Trakanon's Teeth 10/5; ROT = rotted; roll lines too); bids after it are ignored; `AUC_STALE` 30 min of no activity
+  = missed grats. Watcher always forwards grats lines and keeps other /auction lines 45 min after the last opening.
 
 ## 5. Open items
 - ~~`bot_timers` readable with the anon key~~ (owner: leave it).
