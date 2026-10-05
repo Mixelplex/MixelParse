@@ -1,4 +1,4 @@
-# MixelParse — Handoff v1.7.5 (2026-10-05)
+# MixelParse — Handoff v1.7.6 (2026-10-05)
 
 Supersedes `HANDOFF_v1.6.6.md` (kept for history; its §3 still describes Auto-Detect Watch / Active mode accurately).
 Start here, then read the code. Git history is the source of truth.
@@ -27,7 +27,7 @@ New this session:
 | 1.7.2 | Auto-Detect: faction hit = ToD on every tick; boss speech = Weak evidence; guild-chat tick attended when your char logged the boss's lines in that zone |
 | 1.7.3 | ODKP auto-sync (DKP History + item prices, Credit Check ledger); faction right-click; DKP History wiki links; quakes removed; balance counts double-credited ticks |
 | 1.7.4 | Live auction window; your DKP in the header; Guild DKP list; buyer DKP / RA + main names + raid detail in DKP History; date + raid-name fixes |
-| 1.7.5 | Raid Parking on the Castle Alliance level policy update; Auto-Detect "under level" note + No kill, no credit; auction window rebuilt (closes on Gratss); header DKP follows the Credit Check ledger |
+| 1.7.6 | (published as 1.7.6 — the 1.7.5 build was cancelled by a GitHub Actions outage and its tag left unused) Raid Parking on the Castle Alliance level policy update; Auto-Detect "under level" note + No kill, no credit; auction window rebuilt (closes on Gratss); header DKP follows the Credit Check ledger |
 
 Release template: `session-data-2026-10-03/scratchpad/rel175.js` + `rel175-content.js` (built by `rel175-gen.js`; the What's New item can hold an HTML table) (same shape as rel166–rel173).
 
@@ -155,7 +155,7 @@ Release template: `session-data-2026-10-03/scratchpad/rel175.js` + `rel175-conte
 - **Not yet observed live** (owner: "we will need to test it out"): the pop-up timing, focus behaviour over EQ, and
   multiple simultaneous auctions in a real raid.
 
-## 4f. 1.7.5 (2026-10-05) — Castle level policy
+## 4f. 1.7.6 (2026-10-05) — Castle level policy
 - **Policy table** (index.html `CASTLE_LVL` + `castleLvlReq(boss, cls)`, beside `PARK_EXC_GROUPS`), keyed by BOSS_ROSTER
   target, from the owner's pasted "Castle Alliance – Level Requirements Policy Update": 60 = ToV 7-day targets, city leads
   (Dain, Yelinak, Tormax), Statue / AoW / Tunare / Zlandicar, and with NO class exceptions Klandicar, Sontalak, all VP;

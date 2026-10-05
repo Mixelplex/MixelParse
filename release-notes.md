@@ -1,4 +1,4 @@
-## 1.7.5
+## 1.7.6
 
 - **Raid Parking: new Castle level requirements** — Raid Parking now follows the Castle Alliance level policy update; a character only counts as parked if it meets the new level.
 

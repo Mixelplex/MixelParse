@@ -1,6 +1,6 @@
 # MixelParse — notes for Claude sessions
 
-Start with the newest `HANDOFF_v*.md` **by version number** (currently `HANDOFF_v1.7.5.md`), then read the code.
+Start with the newest `HANDOFF_v*.md` **by version number** (currently `HANDOFF_v1.7.6.md`), then read the code.
 
 ## Standing rules
 - Never push `main` or a `v*` tag without the owner's explicit all-clear (main redeploys Pages; a tag publishes a release + auto-update).
