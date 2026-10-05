@@ -5449,17 +5449,14 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.4',
+  version:'1.7.5',
   date:'October 2026',
   features:[
-    ['&#9878; Live auction window','Pops up on its own when an officer opens an auction in <b>/auction</b> &mdash; without taking focus from EQ. One card per item: the clock, the item&rsquo;s DKP History prices, every bid with the bidder&rsquo;s <b>current DKP and RA</b> (&#9888; red when they bid more than they have), and a <b>&ldquo;You&rsquo;ve been outbid&rdquo;</b> alert. It only reads /auction &mdash; it never bids for you. Open it any time with &#9878; Auctions in the header.'],
-    ['&#9876; Your DKP in the header','Your ODKP balance sits next to Est. Market Value with when ODKP last updated it. Hover for your raid attendance; click for the Guild DKP list.'],
-    ['&#128101; Guild DKP','DKP History &rarr; Guild DKP: every account&rsquo;s balance and 30 / 60 / 90-day and lifetime attendance. Search any character &mdash; an alt finds its main.'],
-    ['DKP History: who&rsquo;s buying','Each sale shows the buyer&rsquo;s current DKP and RA, alts show their main (&ldquo;Fentin (Frown)&rdquo;), and a click on the raid opens its ticks, items and who was credited (&ldquo;you were credited on 2 of 2&rdquo;).'],
+    ['&#9873; Raid Parking: new Castle level requirements','Raid Parking now follows the Castle Alliance level policy update &mdash; a character only counts as parked if it meets the new level.<table style="width:100%;border-collapse:collapse;margin:.45rem 0 .35rem;font-size:.8rem"><tr><th style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:left;font-weight:600">Raid</th><th style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;font-weight:600">Before</th><th style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;font-weight:600">Now</th></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">ToV (7-day targets)</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">58</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">60</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Dain Frostreaver IV</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">60</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">King Tormax</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">60</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Lord Yelinak</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">60</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Veeshan&rsquo;s Peak</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">60</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">60, no class exceptions</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Sleeper&rsquo;s Tomb</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Plane of Fear (competitive)</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Plane of Hate (competitive)</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Ring War</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Derakor the Vindicator</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Velketor the Sorcerer</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Wuoshi</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Kelorek&rsquo;Dar</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Vaniki</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Trakanon</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Venril Sathir</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Gorenaire</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Severilous</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Talendor</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Faydedar</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr style="opacity:.6"><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Klandicar, Sontalak</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">60</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">60</td></tr><tr style="opacity:.6"><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Statue + Avatar of War, Tunare, Zlandicar</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">60</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">60</td></tr></table><b>Class exceptions</b> &mdash; Cleric 52, Bard 55, Mage 55 now apply to every raid except Klandicar, Sontalak and Veeshan&rsquo;s Peak (before, most raids only had Cleric 52). Fear and Hate farm nights stay at 55; ToV practice, progression and Halls of Testing stay at 58.'],
+    ['Auto-Detect level check','A tick shows &ldquo;&#9888; under level&rdquo; when the character you were on was below Castle&rsquo;s floor for that boss. It&rsquo;s a note only &mdash; it never changes the tick.'],
   ],
   fixes:[
-    ['DKP History dates','Sale dates read normally again (1.7.3 showed raw timestamps).'],
-    ['Raid names','No more cut-off Discord links at the end of raid names.'],
+    ['Your DKP in the header','Now matches the Credit Check and updates whenever the Credit Check syncs.'],
   ],
 };
 function showWhatsNew(){
@@ -8918,7 +8915,7 @@ window.odkpSyncLedger=async function(manual){
   const led=await odkpGet('/clients/castle/characters/'+mainId+'/dkp');
   if(!led.ok||!Array.isArray(led.data)||!led.data.length){odkpSyncState.ledger={at:Date.now(),err:led.error||'empty ledger'};_odkpLedgerUi();return;}
   const sig=led.data.length+':'+(led.data[0].SourceId||0);
-  if(!manual&&odkpTicksMeta&&odkpTicksMeta.odkpSig===sig){odkpSyncState.ledger={at:Date.now(),msg:'no change'};_odkpLedgerUi();return;}
+  if(!manual&&odkpTicksMeta&&odkpTicksMeta.odkpSig===sig){odkpTicksMeta.checkedAt=Date.now();odkpSyncState.ledger={at:Date.now(),msg:'no change'};_odkpLedgerUi();odkpSyncGuild(false).catch(e=>console.warn('[ODKP] guild',e));return;}
   // same columns as the dkp-details export → the existing parser
   const q=v=>{const s=v==null?'':String(v);return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
   const cols=['Order','Date','SourceType','Source','SourceId','CharacterName','CharacterId','Value','Cumulative','TickId'];
@@ -8930,6 +8927,8 @@ window.odkpSyncLedger=async function(manual){
   saveOdkpTicksToSupabase(res.raidCount);
   odkpSyncState.ledger={at:Date.now(),msg:res.ticks.length+' credited ticks'};
   _odkpLedgerUi();
+  // keep the header / Guild DKP in step with the Credit Check (owner, 2026-10-05)
+  odkpRenderAcctChip(); odkpSyncGuild(false).catch(e=>console.warn('[ODKP] guild',e));
   console.log('[ODKP] ledger synced:',res.ticks.length,'credited ticks,',res.raidCount,'raids, chars',res.charNames.join(', '));
 };
 function odkpStart(){
@@ -9000,10 +8999,16 @@ function odkpHeaderDkp(){
   const count={};for(const n of mine){const c=odkpC(n);if(c)count[c.mainId]=(count[c.mainId]||0)+1;}
   const id=Object.keys(count).sort((x,y)=>count[y]-count[x])[0]; if(!id) return '';
   const a=odkpGuild.accts[id], c=odkpC(a.main)||odkpGuild.chars[a.ids[0]]; if(!c) return '';
-  const asOf=Date.parse(odkpGuild.asOf||'')||odkpGuild.at;
+  let asOf=Date.parse(odkpGuild.asOf||'')||odkpGuild.at, bal=c.dkp;
+  // the Credit Check ledger is live; ODKP's /dkp summary is recomputed on their side and can trail it
+  const m=typeof odkpTicksMeta!=='undefined'&&odkpTicksMeta;
+  if(m&&m.dkp&&m.mainName&&m.mainName.toLowerCase()===String(a.main).toLowerCase()){
+    const lt=Math.max(Date.parse(m.updatedAt||'')||0,m.checkedAt||0);
+    if(lt>asOf){bal=Math.round(m.dkp.balance*10)/10;asOf=lt;}
+  }
   return '<div onclick="event.stopPropagation();odkpOpenGuild(decodeURIComponent(\''+encodeURIComponent(a.main)+'\'))" style="cursor:pointer" title="'+esc(a.main)+'\'s ODKP account ('+a.ids.length+' characters) · '+odkpRaTip(c)+' — click for the Guild DKP list">'
     +'<div class="nw-header-label">&#9876; Your DKP'+(Object.keys(count).length>1?' · '+esc(a.main):'')+'</div>'
-    +'<div class="nw-header-value">'+c.dkp.toLocaleString()+' DKP</div>'
+    +'<div class="nw-header-value">'+bal.toLocaleString()+' DKP</div>'
     +'<div class="nw-header-note">updated '+new Date(asOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div></div>';
 }
 function odkpRenderAcctChip(){ const old=document.getElementById('odkpAcctChip'); if(old) old.remove(); if(typeof renderNetworthBar==='function') renderNetworthBar(); }
@@ -12517,15 +12522,31 @@ function rkdFinalize(t){
   }
   const a=rkdAttribute(t);
   const _up=rkdUpInZone(t);
+  const _lv=_rkdCharLvl(t.char);
   rkdLog.push({id:t.id,ts:t.ts,char:t.char,poster:t.poster,channels:t.channels,sameZone:t.sameZone,zone:t.zone||null,text:t.text,
     tier:a.tier,boss:a.boss||null,cands:a.cands||null,basis:a.basis||null,tod:a.tod||null,todSource:a.todSource||null,inZone:!!a.inZone,
-    evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw})),...(_up?{upZone:_up.slice(),upStale:_up.stale||0,upV:2}:{})});
+    evidence:(a.events||[]).slice(-6).map(e=>({ts:e.ts,kind:e.kind,raw:e.raw})),...(_up?{upZone:_up.slice(),upStale:_up.stale||0,upV:2}:{}),...(_lv||{})});
   rkdLog.sort((a,b)=>a.ts-b.ts);
   if(rkdLog.length>RKD_LOG_MAX)rkdLog=rkdLog.slice(-RKD_LOG_MAX);
   rkdSave();
   if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
   if(_rkdLogins.length){for(const ts of _rkdLogins)_rkdMarkLogin(ts);_rkdLogins=_rkdLogins.filter(x=>x<t.ts);rkdSave();}
   try{rkdActOnTick(rkdLog.find(r=>r.id===t.id));}catch(e){console.warn('rkd active',e);}
+}
+// Level + class of the tick's character as it was at the tick (live ticks only; scans of old logs can't know it).
+function _rkdCharLvl(name){
+  if(!name||typeof charMeta==='undefined')return null;
+  const k=Object.keys(charMeta).find(n=>n.toLowerCase()===String(name).toLowerCase()),m=k?charMeta[k]:null;
+  if(!m||!m.level)return null;
+  return {lvl:Number(m.level),cls:(typeof PARK_CLASS_MAP!=='undefined'&&PARK_CLASS_MAP[String(m.class||'').toUpperCase()])||null};
+}
+// Castle level policy note (owner, 2026-10-05): the tick's character was under the floor for the boss. Never changes a tick.
+function rkdLvlWarn(r){
+  if(!r||!r.boss||r.lvl==null||typeof castleLvlReq!=='function')return null;
+  const q=castleLvlReq(r.boss,r.cls);if(r.lvl>=q.lvl)return null;
+  const farmOk=q.farm!=null&&r.lvl>=q.farm, who=(r.char||'This character')+' ('+r.lvl+(r.cls?' '+r.cls:'')+')';
+  return {farmOk,short:farmOk?'under '+q.lvl+' if competitive':'under level ('+(q.farm!=null?q.farm:q.lvl)+')',
+    tip:who+' was under Castle\'s level floor for '+btLabel(r.boss)+': '+q.lvl+(q.exc?' with the '+r.cls+' exception':'')+(q.farm!=null?' when competitive, '+q.farm+' on farm nights':'')+'. Baseline policy — the raid leader can change it on the night. This note never changes the tick.'};
 }
 // ── Spawn-timer fallback for ticks with NO boss evidence in the logs (owner idea, 2026-09-30) ──
 // 1) a boss (in the tick's zone, if known) whose ToD on the spawn-timer board is right at the tick
@@ -12878,7 +12899,7 @@ function rkdActOnTick(r){
       cands:(r.cands||[]).slice(),up:(r.upZone||[]).filter(b=>!(r.cands||[]).includes(b)),zone:r.zone||null,text:r.text||''};
   }else return;
   _todQueue.push(item);
-  if(typeof showWatcherToast==='function')showWatcherToast(item.target?'⚔ Auto-Detect: confirm '+btLabel(item.target)+' kill':'⚔ Auto-Detect: which boss was the '+hm(r.ts)+' tick?');
+  if(typeof showWatcherToast==='function')showWatcherToast((item.target?'⚔ Auto-Detect: confirm '+btLabel(item.target)+' kill':'⚔ Auto-Detect: which boss was the '+hm(r.ts)+' tick?')+(rkdLvlWarn(r)?' · ⚠ '+r.char+' is '+rkdLvlWarn(r).short:''));
   if(!_todModalOpen){clearTimeout(_todEnqueueTimer);_todEnqueueTimer=setTimeout(_todShowNext,150);}
 }
 // Strong in Active mode: record it on the session covering the kill (a new session dated to it if none).
@@ -12894,7 +12915,7 @@ function rkdAutoAdd(r){
   saveSessionsToSupabase();
   btNoteTod(r.boss,when);
   r.confirm='auto';r.autoSession=saved.id;r.autoLabel=label;rkdSave();rkdConfirmTally('auto');
-  if(typeof showWatcherToast==='function')showWatcherToast('⚔ Auto-Detect added '+label.replace(r.boss,btLabel(r.boss))+' (Strong) — right-click the tick to undo');
+  if(typeof showWatcherToast==='function')showWatcherToast('⚔ Auto-Detect added '+label.replace(r.boss,btLabel(r.boss))+' (Strong) — right-click the tick to undo'+(rkdLvlWarn(r)?' · ⚠ '+r.char+' is '+rkdLvlWarn(r).short:''));
   if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
 }
 function _rkdUnrecord(s,boss,label){
@@ -13015,7 +13036,7 @@ function renderAutoDetectPanel(){
     const ev=(r.evidence||[]).map(e=>`<div>${fmt(e.ts).split(', ').pop()} <b>${esc(e.kind)}</b> ${esc(e.raw)}</div>`).join('');
     return `<tr data-rkd="${esc(r.id)}" oncontextmenu="return rkdRowMenu(event,this)" title="Right-click: add to the Raid Kill Tracker" style="border-bottom:1px solid var(--border)${o.k==='missing'?';background:rgba(180,40,40,.07)':''}">
       <td style="padding:.3rem .5rem;white-space:nowrap">${fmt(r.ts)}</td>
-      <td style="padding:.3rem .5rem">${esc(r.char||'')}${r.zone?`<div style="font-size:.68rem;color:var(--text-muted)" title="Zone the tick was taken in">${esc(r.zone)}</div>`:''}</td>
+      <td style="padding:.3rem .5rem">${esc(r.char||'')}${r.zone?`<div style="font-size:.68rem;color:var(--text-muted)" title="Zone the tick was taken in">${esc(r.zone)}</div>`:''}${(()=>{const w=rkdLvlWarn(r);return w?`<div style="font-size:.66rem;color:${w.farmOk?'var(--text-muted)':'#c48a3a'}" title="${esc(w.tip)}">⚠ lvl ${r.lvl} — ${esc(w.short)}</div>`:'';})()}</td>
       <td style="padding:.3rem .5rem;font-weight:600">${who}</td>
       <td style="padding:.3rem .5rem;font-size:.74rem;color:var(--text-muted)" title="Up in ${esc(r.zone||'this zone')} at the tick, per the spawn timers">${Array.isArray(r.upZone)?(r.upZone.length?'<div style="display:grid;grid-template-columns:repeat(2,max-content);column-gap:.9rem;row-gap:.05rem">'+r.upZone.map(b=>'<span style="white-space:nowrap">'+esc(btLabel(b))+'</span>').join('')+'</div>':'<span style="font-size:.7rem">none on the timers</span>')+(r.upStale?`<div style="font-size:.66rem;opacity:.75;margin-top:.15rem" title="Up on the spawn timers for more than a day at the tick — almost always a kill nobody recorded, so not offered. Search for them in the right-click menu if needed.">+${r.upStale} stale (up 1 day+)</div>`:''):'—'}</td>
       <td style="padding:.3rem .5rem;color:${tc};white-space:nowrap">${tl}${r.basis?` <span style="font-size:.7rem;color:var(--text-muted)">(${esc(r.basis)})</span>`:''}</td>
@@ -14322,6 +14343,32 @@ const PARK_EXC_GROUPS = {
   yellow: { CLR:52, BRD:55, MAG:55 },
   green:  { CLR:52 },
 };
+// ── Castle Alliance level requirements (policy update, owner 2026-10-05) ──
+// Baseline floors only — the raid leader can change them on the night. Key class exceptions (CLR 52, BRD 55,
+// MAG 55) apply to every raid except Klandicar, Sontalak and Veeshan's Peak. Anything unlisted: 55.
+// Keyed by BOSS_ROSTER target. Fear / Hate are 58 when competitive, 55 on farm nights.
+const CASTLE_LVL = (()=>{
+  const m={}, put=(lvl,list,extra)=>list.forEach(b=>m[b]=Object.assign({lvl},extra||{}));
+  // 60: ToV 7-day targets, city leads, Velious bosses — and (no class exceptions) Klandicar, Sontalak, VP
+  put(60,['Aaryonar','Cekenar','Dagarn','Dozekar','Eashen','Ikatiar','Jorlleag','Feshlak','Koi','Kreizenn','Mirenilla',
+    'Nevederia','Sevalak','Telk','Zlexak','Gozzrem','LTK','Vulak','Vyemm',
+    'Dain','Yelinak','Tormax','Statue','Avatar of War','Tunare','Zlandicar']);
+  put(60,['Klandicar','Sontalak','Phara Dar','Druushk','Nexona','Hoshkar','Silverwing','Xygoz'],{noExc:true});
+  // 58: ToV practice / progression + Halls of Testing (incl. minis), Velious raid bosses, Ring War, Sleeper's Tomb, Kunark
+  put(58,['Essedera','Lepethida',"Magi P'Tasa",'Casalen','Grozzmel','Krigara','Midayor','Tavekalem','Ymmeln',
+    'Vindi','Velketor','Wuoshi','Kelorek Dar','Vaniki','RW Readiness','RW Wave 1','RW Wave 2','RW Wave 3',
+    'Prog','MOTG','TFA','Trakanon','VS','Gorenaire','Severilous','Talendor','Faydedar']);
+  put(58,['Cazic Thule','Dread','Fright','Terror','Dracoliche','Inny','Avatar of Abhorrence',"Coercer T'vala","Grandmaster R'Tal",
+    "High Priest M'kari",'Lord of Loathing','Master of Spite','Mistress of Scorn','Lord of Ire'],{farm:55});
+  put(50,['Naggy','Vox']);
+  return m;
+})();
+// Level floor for a boss + class code (CLR/BRD/MAG...). {lvl, farm?, exc?} — farm = the farm-night floor.
+function castleLvlReq(boss, clsCode){
+  const r=CASTLE_LVL[boss]||{lvl:55}, ex=r.noExc?null:PARK_EXC_GROUPS.yellow[clsCode];
+  const lvl=typeof ex==='number'?Math.min(r.lvl,ex):r.lvl, farm=r.farm!=null?Math.min(r.farm,lvl):null;
+  return {lvl, farm, exc:lvl<r.lvl, base:r.lvl};
+}
 // Park LOCATIONS are the physical spots you leave a toon; several zones can
 // count as the same location (WW + ToV entrance are one click apart).
 // zones (per target): coverage zones — covered if an eligible toon is in ANY.
@@ -14352,27 +14399,27 @@ const RAID_PARK_TARGETS = [
   {name:'Klandicar',                      lvl:60, zones:['Western Wastes','Temple of Veeshan'], exc:'none',   tier:'T4', dkp:2.5, loc:'wwtov'},
   {name:'Statue + Avatar of War',         lvl:60, zones:['Kael Drakkel'],                       exc:'yellow', tier:'T2', dkp:5, loc:'kael'},
   {name:'Tunare',                         lvl:60, zones:['The Wakening Land','The Wakening Lands','Plane of Growth'], exc:'yellow', tier:'T2', dkp:5, loc:'wl'},
-  {name:"Veeshan's Peak",                 lvl:60, zones:["Veeshan's Peak"],                     exc:'yellow', tier:'T3', dkp:4, key:"Key of Veeshan", loc:'vp'},
+  {name:"Veeshan's Peak",                 lvl:60, zones:["Veeshan's Peak"],                     exc:'none',   tier:'T3', dkp:4, key:"Key of Veeshan", loc:'vp'},
   {name:'Zlandicar',                      lvl:60, zones:['Dragon Necropolis'],                  exc:'yellow', tier:'T4', dkp:2.5, loc:'dn'},
-  {name:'ToV',                            lvl:58, zones:['Western Wastes','Temple of Veeshan'], exc:'yellow', tier:'T1', dkp:7.5, loc:'wwtov', note:'Includes practice'},
-  {name:'Dain Frostweaver IV',            lvl:55, zones:['Icewell Keep','City of Thurgadin','Thurgadin'],                       exc:'green',  tier:'T2', dkp:5, loc:'ice', port:'Vial of Velium Vapors'},
-  {name:'Derakor the Vindicator (Vindi)', lvl:55, zones:['Kael Drakkel'],                       exc:'green',  tier:'T7', dkp:0.5, loc:'kael'},
-  {name:"Kelorek`Dar",                    lvl:55, zones:['Cobalt Scar'],                        exc:'green',  tier:'T5', dkp:1.5, loc:'cs'},
-  {name:'King Tormax',                    lvl:55, zones:['Kael Drakkel'],                       exc:'green',  tier:'T2', dkp:5, loc:'kael'},
-  {name:'Gorenaire',                      lvl:55, zones:['The Dreadlands'],                     exc:'green',  tier:'T5', dkp:1.5, loc:'dl'},
-  {name:'Severilous',                     lvl:55, zones:['The Emerald Jungle'],                 exc:'green',  tier:'T5', dkp:1.5, loc:'ej'},
-  {name:'Trakanon',                       lvl:55, zones:['Old Sebilis'],                        exc:'green',  tier:'T5', dkp:1.5, key:'Trakanon Idol', loc:'seb'},
-  {name:'Talendor',                       lvl:55, zones:['Skyfire Mountains'],                  exc:'green',  tier:'T6', dkp:1, loc:'sf'},
-  {name:'Faydedar',                       lvl:55, zones:['Timorous Deep'],                      exc:'green',  tier:'\u2014', dkp:-1, loc:'td'},
-  {name:'Plane of Fear',                  lvl:55, zones:['Plane of Fear','The Feerrott'],         exc:'green',  tier:'T3', dkp:4, loc:'fear', note:'When competitive', port:'Lizard Blood Potion'},
-  {name:'Plane of Hate',                  lvl:55, zones:['Plane of Hate'],                      exc:'green',  tier:'T7', dkp:0.5, loc:'hate', note:'When competitive'},
-  {name:'Ring War',                       lvl:55, zones:['Great Divide'],                       exc:'green',  tier:'\u2014', dkp:-1, loc:'gd', note:'Last 2 ticks for loot'},
-  {name:"Sleeper's Tomb",                 lvl:55, zones:["Sleeper's Tomb"],                     exc:'green',  tier:'T3', dkp:4, note:'Prog / MOTG / TFA', key:"Sleeper's Key", loc:'st'},
-  {name:'Vaniki',                         lvl:55, zones:['Dragon Necropolis'],                  exc:'green',  tier:'T5', dkp:1.5, loc:'dn'},
-  {name:'Velketor the Sorcerer',          lvl:55, zones:["Velketor's Labyrinth"],               exc:'green',  tier:'T6', dkp:1, loc:'velk'},
-  {name:'Venril Sathir',                  lvl:55, zones:["Karnor's Castle"],                    exc:'green',  tier:'T5', dkp:1.5, loc:'kc'},
-  {name:'Wuoshi',                         lvl:55, zones:['The Wakening Land','The Wakening Lands'],                   exc:'green',  tier:'T7', dkp:0.5, loc:'wl'},
-  {name:'Yelinak',                        lvl:55, zones:['Skyshrine'],                          exc:'green',  tier:'T3', dkp:4, loc:'ss'},
+  {name:'ToV',                            lvl:60, zones:['Western Wastes','Temple of Veeshan'], exc:'yellow', tier:'T1', dkp:7.5, loc:'wwtov', note:'7-day targets — practice / progression & Halls of Testing: 58'},
+  {name:'Dain Frostweaver IV',            lvl:60, zones:['Icewell Keep','City of Thurgadin','Thurgadin'],                       exc:'yellow', tier:'T2', dkp:5, loc:'ice', port:'Vial of Velium Vapors'},
+  {name:'Derakor the Vindicator (Vindi)', lvl:58, zones:['Kael Drakkel'],                       exc:'yellow', tier:'T7', dkp:0.5, loc:'kael'},
+  {name:"Kelorek`Dar",                    lvl:58, zones:['Cobalt Scar'],                        exc:'yellow', tier:'T5', dkp:1.5, loc:'cs'},
+  {name:'King Tormax',                    lvl:60, zones:['Kael Drakkel'],                       exc:'yellow', tier:'T2', dkp:5, loc:'kael'},
+  {name:'Gorenaire',                      lvl:58, zones:['The Dreadlands'],                     exc:'yellow', tier:'T5', dkp:1.5, loc:'dl'},
+  {name:'Severilous',                     lvl:58, zones:['The Emerald Jungle'],                 exc:'yellow', tier:'T5', dkp:1.5, loc:'ej'},
+  {name:'Trakanon',                       lvl:58, zones:['Old Sebilis'],                        exc:'yellow', tier:'T5', dkp:1.5, key:'Trakanon Idol', loc:'seb'},
+  {name:'Talendor',                       lvl:58, zones:['Skyfire Mountains'],                  exc:'yellow', tier:'T6', dkp:1, loc:'sf'},
+  {name:'Faydedar',                       lvl:58, zones:['Timorous Deep'],                      exc:'yellow', tier:'\u2014', dkp:-1, loc:'td'},
+  {name:'Plane of Fear',                  lvl:58, zones:['Plane of Fear','The Feerrott'],         exc:'yellow', tier:'T3', dkp:4, loc:'fear', note:'When competitive — farm nights 55', port:'Lizard Blood Potion'},
+  {name:'Plane of Hate',                  lvl:58, zones:['Plane of Hate'],                      exc:'yellow', tier:'T7', dkp:0.5, loc:'hate', note:'When competitive — farm nights 55'},
+  {name:'Ring War',                       lvl:58, zones:['Great Divide'],                       exc:'yellow', tier:'\u2014', dkp:-1, loc:'gd', note:'Last 2 ticks for loot'},
+  {name:"Sleeper's Tomb",                 lvl:58, zones:["Sleeper's Tomb"],                     exc:'yellow', tier:'T3', dkp:4, note:'Prog / MOTG / TFA', key:"Sleeper's Key", loc:'st'},
+  {name:'Vaniki',                         lvl:58, zones:['Dragon Necropolis'],                  exc:'yellow', tier:'T5', dkp:1.5, loc:'dn'},
+  {name:'Velketor the Sorcerer',          lvl:58, zones:["Velketor's Labyrinth"],               exc:'yellow', tier:'T6', dkp:1, loc:'velk'},
+  {name:'Venril Sathir',                  lvl:58, zones:["Karnor's Castle"],                    exc:'yellow', tier:'T5', dkp:1.5, loc:'kc'},
+  {name:'Wuoshi',                         lvl:58, zones:['The Wakening Land','The Wakening Lands'],                   exc:'yellow', tier:'T7', dkp:0.5, loc:'wl'},
+  {name:'Yelinak',                        lvl:60, zones:['Skyshrine'],                          exc:'yellow', tier:'T3', dkp:4, loc:'ss'},
 ];
 const PARK_CLASSES = [
   ['Warrior','WAR'],['Cleric','CLR'],['Paladin','PAL'],['Ranger','RNG'],
