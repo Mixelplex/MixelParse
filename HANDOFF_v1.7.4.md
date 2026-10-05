@@ -1,4 +1,4 @@
-# MixelParse — Handoff v1.7.3 (2026-10-05)
+# MixelParse — Handoff v1.7.4 (2026-10-05)
 
 Supersedes `HANDOFF_v1.6.6.md` (kept for history; its §3 still describes Auto-Detect Watch / Active mode accurately).
 Start here, then read the code. Git history is the source of truth.
@@ -26,8 +26,9 @@ New this session:
 | 1.7.1 | Bind look-back + bind age on Raid Parking; ❔ Unknown timers (no ToD / past window > 12 h); spawn-timer suggestions only for attended raid-zone ticks |
 | 1.7.2 | Auto-Detect: faction hit = ToD on every tick; boss speech = Weak evidence; guild-chat tick attended when your char logged the boss's lines in that zone |
 | 1.7.3 | ODKP auto-sync (DKP History + item prices, Credit Check ledger); faction right-click; DKP History wiki links; quakes removed; balance counts double-credited ticks |
+| 1.7.4 | Live auction window; your DKP in the header; Guild DKP list; buyer DKP / RA + main names + raid detail in DKP History; date + raid-name fixes |
 
-Release template: `session-data-2026-10-03/scratchpad/rel173.js` + `rel173-content.js` (same shape as rel166–rel172).
+Release template: `session-data-2026-10-03/scratchpad/rel174.js` + `rel174-content.js` (same shape as rel166–rel173).
 
 ## 3. Auto-Detect changes (1.6.7) — index.html `rkdAttribute`, watcher.js `raidEvidence`
 - **Zone-aware evidence.** The watcher tags every raid signal (ticks *and* evidence) with the zone its character was
@@ -134,6 +135,24 @@ Release template: `session-data-2026-10-03/scratchpad/rel173.js` + `rel173-conte
 - Owner declined locking down `bot_timers` (the ODKP site is public anyway) — don't raise it again.
 - **Next (owner approved, 2026-10-05)**: 1) balance + RA next to buyers in DKP History, 2) Guild DKP list, 3) DKP + RA on
   character tabs, 4) raid / tick detail + "ticks Auto-Detect saw that ODKP didn't credit", 5) main/alt names everywhere.
+
+## 4e. 1.7.4 (2026-10-05) — guild DKP + live auctions
+- **Guild DKP snapshot** (index.html "Guild DKP from ODKP"): `/dkp` + `/characters` with the item sync (sign-in + 2 h),
+  cached in localStorage `mp_odkp_guild` {chars by lowercase name: dkp, class, rank, level, RA ticks, mainId; accts by
+  main id}. Helpers `odkpC`, `odkpAcctOf`, `odkpWho` ("Fentin (Frown)"), `odkpBal`. Used by DKP History sale rows
+  (balance + RA, main names, ISO dates formatted, raid link → `odkpRaidModal` from `/raids/{id}`), the **Guild DKP**
+  view (DKP History tab toggle `dkpView`; one row per account, search any character), and the **header** ("⚔ Your DKP"
+  beside Est. Market Value in `renderNetworthBar` → `odkpHeaderDkp`; "updated" = ODKP's AsOfDate). The tab-bar chip was
+  replaced by the header block. DKP / RA are per ODKP account.
+- **Live auction window**: watcher `auctionSignal` (in `raidEvidence`, so also the 6 h backfill) forwards `auctionLine`
+  only within 15 min of an officer's "~[Item] - BID IN /AUC" (trade chatter never leaves the watcher). Main app
+  `aucOnLine`: an auction is open until 5 min with no bid (bidding runs past "Closing in 2m30s"; nothing marks the close);
+  bids parsed by `aucParseBid` (item name + one number + optional toon: "Item 5", "Item5", "5 Item", "Item 3 toon");
+  re-posted identical bids collapse. State → `auction:push-state` → `src/auction.html` (frameless, always on top,
+  `showInactive` on pop so EQ keeps focus; "pop up" toggle = localStorage `mp_auc_autopop`). Outbid toast in the main
+  app. Log replay: top bid = ODKP winner (by account) 90%, price 86%, both 84% (1,646 auctions).
+- **Not yet observed live** (owner: "we will need to test it out"): the pop-up timing, focus behaviour over EQ, and
+  multiple simultaneous auctions in a real raid.
 
 ## 5. Open items
 - ~~`bot_timers` readable with the anon key~~ (owner: leave it).

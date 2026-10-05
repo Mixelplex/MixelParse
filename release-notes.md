@@ -1,12 +1,19 @@
-## 1.7.3
+## 1.7.4
+
+- **⚖ Live auction window** — pops up on its own when an officer opens an auction in /auction, without taking focus from EQ. One card per item: the clock, the item's DKP History prices, every bid with the bidder's current DKP and RA (⚠ red when they bid more than they have), and a "You've been outbid" alert. It only reads /auction; it never bids for you. ⚖ Auctions in the header opens it any time.
+- **⚔ Your DKP in the header** — your ODKP balance next to Est. Market Value, with when ODKP last updated it. Hover for raid attendance; click for the Guild DKP list.
+- **👥 Guild DKP** — DKP History → Guild DKP: every account's balance and 30 / 60 / 90-day and lifetime attendance. Search any character; an alt finds its main.
+- **DKP History: who's buying** — each sale shows the buyer's current DKP and RA, alts show their main ("Fentin (Frown)"), and a click on the raid opens its ticks, items and who was credited.
+- **Fix: DKP History dates** read normally again (1.7.3 showed raw timestamps).
+- **Fix: raid names** no longer end in cut-off Discord links.
+
+Everything from 1.7.3 and earlier is included:
 
 - **🔄 DKP straight from ODKP** — no more exports: DKP History (every item sale + the item DKP prices) and your Credit Check ledger sync themselves from Castle's ODKP at sign-in and every 2 hours. Credit Check finds your ODKP account from your characters and shows whose it is ("synced from ODKP · Frown's account (9 characters)"). ⟳ Sync from ODKP pulls now; CSV upload stays as a fallback.
 - **Factions: right-click to set** — right-click any faction chip (Skyshrine, Kael Drakkel, …) to set that character's standing, or Not Set. A newer reading from your logs still wins.
 - **DKP History: wiki links** — item names open the item's P99 wiki page in your browser.
 - **Spawn Timers: quakes removed** — the Ring 8 quake check, /note Quake! and "up since quake" are gone; the Discord bot's timers replace them. Bosses with no ToD show as ❔ Unknown.
 - **Fix: DKP balance** — a tick credited to two characters on one account is counted twice, as ODKP does; balances now match ODKP exactly.
-
-Everything from 1.7.2 and earlier is included:
 
 - **Auto-Detect: faction hit = ToD** — when a kill-faction hit lands for the boss (the moment it dies), that is the ToD on every tick, not only on Weak ones. A kill ticked before the boss died now gets its real time. ⛏ Scan logs corrects ticks already in the list; auto-added and confirmed kills move their spawn timer too.
 - **Auto-Detect: failed attempts show up** — a boss talking in your zone ("Fright says …", "… You will not evade me") counts as Weak evidence, so a failtick on a boss you were near is a Weak suggestion (and an Active-mode prompt with Failtick) instead of No boss. A tick posted only in guild chat counts as yours when your character logged that boss's own lines in the zone.

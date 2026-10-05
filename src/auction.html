@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Auctions — MixelParse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Live DKP auction board (owner, 2026-10-05) — same look as the Session overlay. Read-only: it never bids or posts. */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#22222e;--surface:#2a2a38;--surface2:#343448;--surface3:#3a3a52;--border:#252532;--border-soft:#343448;
+  --text:#e2ddd4;--text-dim:#a09c94;--text-muted:#6a6880;--gold:#c8a040;--gold-dim:#8c7030;--live:#4caf72;--danger:#d0503c;--warn:#d49a3a;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sans-serif;font-size:13px;overflow:hidden;user-select:none}
+.win{display:flex;flex-direction:column;height:100vh;border:1px solid var(--border-soft);border-radius:14px;overflow:hidden}
+.titlebar{display:flex;align-items:center;gap:.4rem;padding:.38rem .6rem;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;-webkit-app-region:drag;height:36px}
+.tb-dot{width:7px;height:7px;border-radius:50%;background:var(--border-soft);flex-shrink:0}
+.tb-dot.live{background:var(--live);box-shadow:0 0 5px var(--live);animation:livepulse 2.5s ease-in-out infinite}
+@keyframes livepulse{0%,100%{opacity:1}50%{opacity:.3}}
+.tb-lbl{font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);flex:1;pointer-events:none}
+.tb-pop{font-size:.6rem;color:var(--text-muted);display:flex;align-items:center;gap:.25rem;-webkit-app-region:no-drag;cursor:pointer}
+.tb-pop input{-webkit-app-region:no-drag;cursor:pointer}
+.tb-btns{display:flex;gap:.05rem;flex-shrink:0;-webkit-app-region:no-drag}
+.tb-btn{background:none;border:none;color:var(--text-muted);font-size:.95rem;cursor:pointer;padding:.08rem .3rem;line-height:1;border-radius:3px;-webkit-app-region:no-drag}
+.tb-btn:hover{background:var(--surface3);color:var(--text)}
+.body{flex:1;overflow-y:auto;background:var(--bg);padding:.45rem .5rem .6rem}
+.body::-webkit-scrollbar{width:3px}.body::-webkit-scrollbar-thumb{background:var(--border-soft);border-radius:2px}
+.empty{color:var(--text-muted);font-size:.78rem;text-align:center;padding:2.2rem 1rem;line-height:1.6}
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:10px;margin-bottom:.5rem;overflow:hidden}
+.card.closed{opacity:.55}
+.card.outbid{border-color:var(--danger)}
+.c-hdr{display:flex;align-items:baseline;gap:.5rem;padding:.5rem .65rem .2rem}
+.c-item{font-size:.92rem;font-weight:600;color:var(--gold);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none;cursor:pointer}
+.c-item:hover{text-decoration:underline}
+.c-clock{font-size:.68rem;color:var(--text-dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+.c-clock.soon{color:var(--warn)}
+.c-price{font-size:.66rem;color:var(--text-muted);padding:0 .65rem .35rem}
+.c-top{display:flex;align-items:baseline;gap:.45rem;padding:.15rem .65rem .4rem;border-bottom:1px solid var(--border)}
+.c-top-n{font-size:1.35rem;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;line-height:1}
+.c-top-who{font-size:.8rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c-top-bal{font-size:.66rem;color:var(--text-muted);white-space:nowrap}
+.banner{font-size:.7rem;font-weight:600;padding:.25rem .65rem;background:rgba(208,80,60,.15);color:var(--danger)}
+.banner.lead{background:rgba(76,175,114,.13);color:var(--live)}
+.bids{padding:.25rem .45rem .4rem}
+.bid{display:grid;grid-template-columns:2.6rem 1fr auto;align-items:center;gap:.4rem;padding:.2rem .25rem;border-radius:6px;font-size:.74rem}
+.bid+.bid{border-top:1px solid var(--border)}
+.bid.mine{background:rgba(200,160,64,.10)}
+.bid-n{font-weight:600;font-variant-numeric:tabular-nums;text-align:right;color:var(--text)}
+.bid-who{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-dim)}
+.bid-who .toon{color:var(--text-muted)}
+.bid-bal{font-size:.64rem;color:var(--text-muted);white-space:nowrap;text-align:right}
+.bid-bal.over{color:var(--danger);font-weight:600}
+.more{font-size:.64rem;color:var(--text-muted);text-align:center;padding:.15rem;cursor:pointer}
+.foot{font-size:.6rem;color:var(--text-muted);padding:.3rem .65rem;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;display:flex;justify-content:space-between;gap:.5rem}
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="titlebar">
+    <span class="tb-dot" id="dot"></span>
+    <span class="tb-lbl" id="lbl">Auctions</span>
+    <label class="tb-pop" title="Open this window by itself when an officer starts an auction in /auction"><input type="checkbox" id="pop" onchange="cmd({type:'autoPop',on:this.checked})"> pop up</label>
+    <div class="tb-btns">
+      <button class="tb-btn" onclick="window.MixelParseApp&&window.MixelParseApp.minimizeAuction&&window.MixelParseApp.minimizeAuction()" title="Minimize">&#8211;</button>
+      <button class="tb-btn" onclick="window.MixelParseApp&&window.MixelParseApp.closeAuction&&window.MixelParseApp.closeAuction()" title="Close">&#215;</button>
+    </div>
+  </div>
+  <div class="body" id="body"><div class="empty">No auctions right now.<br>This window opens when an officer starts one in <b>/auction</b>.</div></div>
+  <div class="foot"><span id="foot">Reads /auction only — it never bids for you.</span><span id="sync"></span></div>
+</div>
+<script>
+let S = { auctions: [], autoPop: true };
+const expanded = new Set();
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function cmd(c){ if (window.MixelParseApp && window.MixelParseApp.sendAuctionCommand) window.MixelParseApp.sendAuctionCommand(c); }
+function mmss(ms){ ms = Math.max(0, Math.round(ms / 1000)); return Math.floor(ms / 60) + ':' + String(ms % 60).padStart(2, '0'); }
+function ago(ms){ const s = Math.max(0, Math.round(ms / 1000)); return s < 60 ? s + 's' : Math.floor(s / 60) + 'm'; }
+function balHtml(b){
+  if (b.bal == null) return '<span class="bid-bal" title="Not on Castle\'s ODKP">—</span>';
+  return '<span class="bid-bal' + (b.over ? ' over' : '') + '" title="' + esc((b.acct ? b.acct + '\'s account · ' : '') + b.bal + ' DKP now · 30-day RA ' + (b.ra || '—')) + '">' + (b.over ? '⚠ ' : '') + b.bal.toLocaleString() + ' · ' + esc(b.ra || '—') + '</span>';
+}
+function who(b){ return esc(b.who) + (b.toon && b.toon.toLowerCase() !== b.who.toLowerCase() ? ' <span class="toon">→ ' + esc(b.toon) + '</span>' : ''); }
+function render(){
+  const now = Date.now(), list = S.auctions || [];
+  const open = list.filter(a => !a.closed && now < a.idleAt);
+  document.getElementById('dot').classList.toggle('live', open.length > 0);
+  document.getElementById('lbl').textContent = open.length ? 'Auctions · ' + open.length + ' open' : 'Auctions';
+  document.getElementById('pop').checked = !!S.autoPop;
+  document.getElementById('sync').textContent = S.dkpAsOf ? 'DKP as of ' + new Date(S.dkpAsOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+  if (!list.length) { document.getElementById('body').innerHTML = '<div class="empty">No auctions right now.<br>This window opens when an officer starts one in <b>/auction</b>.</div>'; return; }
+  document.getElementById('body').innerHTML = list.map(a => {
+    const closed = a.closed || now >= a.idleAt;
+    const clock = closed ? 'closed' : now < a.closeAt ? 'closing in ' + mmss(a.closeAt - now) : 'still bidding · last bid ' + ago(now - a.last) + ' ago';
+    const p = a.stats;
+    const price = p ? (p.r60 != null ? '60-day avg ' + p.r60 + ' (' + p.r60n + ')' : 'no sales in 60 days') + ' · high ' + p.high + ' · avg ' + p.avg + ' · low ' + p.low + ' · ' + p.count + ' sold' : 'never sold on ODKP';
+    const top = a.top;
+    const bids = (a.bids || []).slice().reverse();
+    const show = expanded.has(a.id) ? bids : bids.slice(0, 6);
+    return '<div class="card' + (closed ? ' closed' : '') + (a.outbid && !closed ? ' outbid' : '') + '">'
+      + '<div class="c-hdr"><a class="c-item" onclick="cmd({type:\'wiki\',item:decodeURIComponent(\'' + encodeURIComponent(a.item) + '\')})" title="Open on the P99 wiki">' + esc(a.item) + '</a><span class="c-clock' + (!closed && now < a.closeAt && a.closeAt - now < 30000 ? ' soon' : '') + '">' + clock + '</span></div>'
+      + '<div class="c-price">' + esc(price) + (a.by ? ' · opened by ' + esc(a.by) : '') + '</div>'
+      + (a.outbid && !closed ? '<div class="banner">You\'ve been outbid — ' + top.n + ' by ' + esc(top.toon || top.who) + '</div>' : a.leading && !closed ? '<div class="banner lead">You\'re the high bid</div>' : '')
+      + (top ? '<div class="c-top"><span class="c-top-n">' + top.n + '</span><span class="c-top-who">' + who(top) + '</span>' + balHtml(top) + '</div>' : '<div class="c-top"><span class="c-top-who">no bids yet</span></div>')
+      + (bids.length ? '<div class="bids">' + show.map(b => '<div class="bid' + (b.mine ? ' mine' : '') + '" title="' + esc(new Date(b.ts).toLocaleTimeString()) + '"><span class="bid-n">' + b.n + '</span><span class="bid-who">' + who(b) + '</span>' + balHtml(b) + '</div>').join('')
+        + (bids.length > 6 ? '<div class="more" onclick="toggle(\'' + a.id + '\')">' + (expanded.has(a.id) ? 'show fewer' : 'all ' + bids.length + ' bids') + '</div>' : '') + '</div>' : '')
+      + '</div>';
+  }).join('');
+}
+function toggle(id){ expanded.has(id) ? expanded.delete(id) : expanded.add(id); render(); }
+if (window.MixelParseApp && window.MixelParseApp.onAuctionState) window.MixelParseApp.onAuctionState(st => { S = st || S; render(); });
+setInterval(render, 1000);
+render();
+</script>
+</body>
+</html>

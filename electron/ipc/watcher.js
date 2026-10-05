@@ -1012,8 +1012,24 @@ function _rtZoneOf(charName) {
   if (!_rtLookedUp.has(charName)) { _rtLookedUp.add(charName); const z = _lastZoneInLog(charName); if (z) { _rtZone[charName] = z; return z; } }
   return null;
 }
+// Castle DKP auctions in /auction (owner, 2026-10-05): an officer opens one with
+//   "<officer> auctions, '~[Item] - BID IN /AUC, MIN 1 DKP. You MUST include the item name in your bid! Closing in 2m30s.'"
+// and bids follow as "<bidder> auctions, 'Item 5'" (also "Item5", "5 Item", "Item 3 toon"). Only lines within 15 min
+// of an opening are forwarded, so trade chatter (EC tunnel) never reaches the app. "You auction" = this character.
+const RE_AUC_LINE = /^\[.+?\] (\w+) auctions?, '(.*)'$/;
+const RE_AUC_OPEN = /~\[([^\]]+)\]\s*-\s*BID IN \/AUC/i;
+let _aucLastOpen = 0;
+function auctionSignal(line, charName) {
+  if (line.indexOf(' auction') < 0) return;
+  const m = RE_AUC_LINE.exec(line); if (!m) return;
+  const ts = _rtLineTs(line), open = RE_AUC_OPEN.test(m[2]);
+  if (open) _aucLastOpen = Math.max(_aucLastOpen, ts);
+  else if (Math.abs(ts - _aucLastOpen) > 15 * 60e3) return;
+  broadcast({ type: 'auctionLine', charName, who: m[1] === 'You' ? charName : m[1], text: m[2], ts, open });
+}
 function raidEvidence(line, charName) {
   _rtNoteZone(line, charName);
+  auctionSignal(line, charName);
   // a login (/q to another character, relog after a crash): the renderer marks a tick just before it "logged out before the kill"
   if (line.indexOf('Welcome to EverQuest!') >= 0 && RE_SESSION_LOGIN.test(line)) { broadcast({ type:'raidLogin', charName, ts:_rtLineTs(line) }); return; }
   const msg = raidSignal(line, charName);

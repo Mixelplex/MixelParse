@@ -37,6 +37,7 @@ let mainWindow    = null;
 let adminWindow   = null;
 let setupWindow   = null;
 let sessionWindow = null;
+let auctionWindow = null;   // live DKP auction board (2026-10-05)
 let reportWindow  = null;
 let mapWindow     = null;
 let tray          = null;
@@ -178,6 +179,28 @@ function createAdminWindow() {
   });
   adminWindow.loadFile(path.join(ROOT, 'src', 'admin.html'));
   adminWindow.on('closed', () => { adminWindow = null; });
+}
+
+// ─── Auction Window (live DKP auctions, 2026-10-05) ────────────────────────────
+// Same kind of overlay as the Session window. Popped open without taking focus, so EQ keeps the keyboard.
+function createAuctionWindow(focus) {
+  if (auctionWindow && !auctionWindow.isDestroyed()) {
+    if (focus) auctionWindow.show(); else auctionWindow.showInactive();
+    auctionWindow.setAlwaysOnTop(true, 'screen-saver');
+    return;
+  }
+  auctionWindow = new BrowserWindow({
+    width: 360, height: 520, minWidth: 280, minHeight: 200, resizable: true, frame: false, alwaysOnTop: true,
+    skipTaskbar: false, show: false, title: 'Auctions — MixelParse', icon: ICON_PATH, backgroundColor: '#22222e',
+    webPreferences: { nodeIntegration: false, contextIsolation: true, preload: path.join(__dirname, 'preload.js') },
+  });
+  auctionWindow.setAlwaysOnTop(true, 'screen-saver');
+  auctionWindow.on('restore', () => { if (auctionWindow && !auctionWindow.isDestroyed()) auctionWindow.setAlwaysOnTop(true, 'screen-saver'); });
+  auctionWindow.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:\/\//i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
+  auctionWindow.loadFile(path.join(ROOT, 'src', 'auction.html'));
+  auctionWindow.once('ready-to-show', () => { if (!auctionWindow || auctionWindow.isDestroyed()) return; if (focus) auctionWindow.show(); else auctionWindow.showInactive(); });
+  auctionWindow.webContents.once('dom-ready', () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('auction-window-ready'); });
+  auctionWindow.on('closed', () => { auctionWindow = null; });
 }
 
 // ─── Session Overlay Window ───────────────────────────────────────────────────
@@ -615,6 +638,26 @@ ipcMain.on('session:push-state', (event, state) => {
   if (mapWindow && !mapWindow.isDestroyed()) {
     mapWindow.webContents.send('map-state', state);
   }
+});
+
+// ── Auction window IPC ───────────────────────────────────────────────────────
+ipcMain.handle('auction:toggle', () => {
+  if (auctionWindow && !auctionWindow.isDestroyed() && auctionWindow.isVisible()) { auctionWindow.hide(); return; }
+  createAuctionWindow(true);
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('auction-window-ready');
+});
+ipcMain.handle('auction:pop', () => {   // a new auction opened — show without stealing focus from EQ
+  if (auctionWindow && !auctionWindow.isDestroyed() && auctionWindow.isVisible() && !auctionWindow.isMinimized()) return;
+  if (auctionWindow && !auctionWindow.isDestroyed() && auctionWindow.isMinimized()) auctionWindow.restore();
+  createAuctionWindow(false);
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('auction-window-ready');
+});
+ipcMain.handle('auction:close', () => { if (auctionWindow && !auctionWindow.isDestroyed()) auctionWindow.close(); });
+ipcMain.handle('auction:minimize', () => { if (auctionWindow && !auctionWindow.isDestroyed()) auctionWindow.minimize(); });
+ipcMain.on('auction:push-state', (event, state) => { if (auctionWindow && !auctionWindow.isDestroyed()) auctionWindow.webContents.send('auction-state', state); });
+ipcMain.on('auction:command', (event, cmd) => {
+  if (cmd && cmd.type === 'wiki' && typeof cmd.item === 'string') { shell.openExternal('https://wiki.project1999.com/' + encodeURIComponent(cmd.item.trim().replace(/ /g, '_'))); return; }
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('auction-command', cmd);
 });
 
 // ── Map window IPC ───────────────────────────────────────────────────────────

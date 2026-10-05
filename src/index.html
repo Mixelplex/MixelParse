@@ -892,6 +892,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
     <p>Project 1999 &middot; Guild Inventory Tool</p>
     <div class="ornament">&#10022;</div>
     <button id="sessionTitleBtn" onclick="sessionToggleOverlay()" title="Active Session" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.25rem;background:none;border:none;padding:0;display:block;width:100%;text-align:center;pointer-events:all">&#9711; Session</button>
+    <button id="aucOpenBtn" onclick="aucToggleWindow()" title="Live DKP auctions from /auction — current bids with each bidder's DKP" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:100%;text-align:center;pointer-events:all">&#9878; Auctions</button>
     <button id="twnOpenBtn" onclick="openThisWeek()" title="This Week in Norrath — weekly digest" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:100%;text-align:center;pointer-events:all">&#128240; This Week</button>
   </div>
   <div class="version-badge" id="versionBadge"></div>
@@ -5448,16 +5449,17 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.3',
+  version:'1.7.4',
   date:'October 2026',
   features:[
-    ['&#128260; DKP straight from ODKP','No more exports: <b>DKP History</b> (every item sale + the item DKP prices) and your <b>Credit Check</b> ledger now sync themselves from Castle&rsquo;s ODKP at sign-in and every 2 hours. Credit Check finds your ODKP account from your characters and shows whose it is (&ldquo;synced from ODKP &middot; Frown&rsquo;s account (9 characters)&rdquo;). &#10227; Sync from ODKP pulls now; CSV upload stays as a fallback.'],
-    ['Factions: right-click to set','Right-click any faction chip (Skyshrine, Kael Drakkel, &hellip;) to set that character&rsquo;s standing, or Not Set. A newer reading from your logs still wins.'],
-    ['DKP History: wiki links','Item names in DKP History open the item&rsquo;s P99 wiki page in your browser.'],
-    ['Spawn Timers: quakes removed','The Ring 8 quake check, <code>/note Quake!</code> and &ldquo;up since quake&rdquo; are gone &mdash; the Discord bot&rsquo;s timers replace them. Bosses with no ToD show as &#10068; Unknown.'],
+    ['&#9878; Live auction window','Pops up on its own when an officer opens an auction in <b>/auction</b> &mdash; without taking focus from EQ. One card per item: the clock, the item&rsquo;s DKP History prices, every bid with the bidder&rsquo;s <b>current DKP and RA</b> (&#9888; red when they bid more than they have), and a <b>&ldquo;You&rsquo;ve been outbid&rdquo;</b> alert. It only reads /auction &mdash; it never bids for you. Open it any time with &#9878; Auctions in the header.'],
+    ['&#9876; Your DKP in the header','Your ODKP balance sits next to Est. Market Value with when ODKP last updated it. Hover for your raid attendance; click for the Guild DKP list.'],
+    ['&#128101; Guild DKP','DKP History &rarr; Guild DKP: every account&rsquo;s balance and 30 / 60 / 90-day and lifetime attendance. Search any character &mdash; an alt finds its main.'],
+    ['DKP History: who&rsquo;s buying','Each sale shows the buyer&rsquo;s current DKP and RA, alts show their main (&ldquo;Fentin (Frown)&rdquo;), and a click on the raid opens its ticks, items and who was credited (&ldquo;you were credited on 2 of 2&rdquo;).'],
   ],
   fixes:[
-    ['DKP balance','A tick credited to two characters on one account is counted twice, as ODKP does (balances now match ODKP exactly).'],
+    ['DKP History dates','Sale dates read normally again (1.7.3 showed raw timestamps).'],
+    ['Raid names','No more cut-off Discord links at the end of raid names.'],
   ],
 };
 function showWhatsNew(){
@@ -7940,6 +7942,7 @@ window.applyDBToChar    = applyDBToChar;
         if(msg.type==='raidTick') rkdOnTick(msg);
         if(msg.type==='skyCorpses'){ skyCorpseState=msg; skyRenderWarn(); if(activeTopView==='keys') renderKeysPanel(); }
         if(msg.type==='raidEvidence') rkdOnEvidence(msg);
+        if(msg.type==='auctionLine') aucOnLine(msg);
         if(msg.type==='raidLogin') rkdOnLogin(msg);
         if(msg.type==='raidScanProgress'||msg.type==='raidScanResult') rkdHandleScanMsg(msg);
         if(msg.type==='killScanProgress'||msg.type==='killScanResult') handleKillScanMsg(msg);
@@ -8824,22 +8827,22 @@ function parseDkpCsv(text){
     }
     cols.push(cur);
     if(cols.length<7)continue;
-    rows.push([cols[0].trim(), cols[2].trim(), parseInt(cols[3]), cols[6].trim(), cols[9]?.trim()||'']);
+    rows.push([cols[0].trim(), cols[2].trim(), parseInt(cols[3]), cols[6].trim(), cols[9]?.trim()||'', parseInt(cols[4])||null]);
   }
   return buildDkpLookup(rows);
 }
-// rows: [itemName, character, dkp, date, raid] — from the items CSV or the ODKP /items API
+// rows: [itemName, character, dkp, date, raid, raidId] — from the items CSV or the ODKP /items API
 function buildDkpLookup(rows){
   const items = {};
   const hist = {};
   const recent = {};
   const cutoff = new Date(Date.now() - 60*24*60*60*1000);
-  for(const [name,charN,dkp,date,raid] of rows){
+  for(const [name,charN,dkp,date,raid,raidId] of rows){
     if(!name||isNaN(dkp)||dkp<=0)continue;
     if(!items[name])items[name]=[];
     items[name].push(dkp);
     if(!hist[name])hist[name]=[];
-    hist[name].push([charN,dkp,date,raid]);
+    hist[name].push([charN,dkp,date,raid,raidId||null]);
     // 60-day check
     try{
       const dt=new Date(date);
@@ -8881,7 +8884,7 @@ window.odkpSyncItems=async function(manual){
     const r=await odkpGet('/clients/castle/items?page='+page+'&ItemsPerPage=5000');
     if(!r.ok||!r.data||!Array.isArray(r.data.Items)){odkpSyncState.items={at:Date.now(),err:'page '+page+': '+(r.error||'no data')};if(manual)alert('ODKP sync failed on page '+page);return;}
     pages=r.data.TotalPages||1;
-    for(const it of r.data.Items)rows.push([String(it.ItemName||'').trim(),String(it.CharacterName||'').trim(),Math.round(+it.DKP),it.Timestamp||'',String(it.Notes||it.Raid||'').replace(/\s*https?:\/\/\S*/g,'').trim()]);
+    for(const it of r.data.Items)rows.push([String(it.ItemName||'').trim(),String(it.CharacterName||'').trim(),Math.round(+it.DKP),it.Timestamp||'',String(it.Notes||it.Raid||'').replace(/\s*https?:\S*/g,'').trim(),it.RaidId||null]);
     page++;
   }while(page<=pages&&page<=50);
   if(rows.length<total*0.95){odkpSyncState.items={at:Date.now(),err:'short read ('+rows.length+' of '+total+')'};return;}   // never replace good data with a partial pull
@@ -8933,7 +8936,7 @@ function odkpStart(){
   if(_odkpIv)return;
   const signedIn=()=>(typeof sb!=='undefined'&&sb&&typeof currentUser!=='undefined'&&currentUser&&window.MixelParseApp&&window.MixelParseApp.odkpGet);
   const hasChars=()=>typeof charNames==='function'&&charNames().filter(n=>n&&n!=='__all__').length>0;
-  const items=()=>odkpSyncItems(false).catch(e=>console.warn('[ODKP] items',e));
+  const items=()=>{ odkpSyncItems(false).catch(e=>console.warn('[ODKP] items',e)); odkpSyncGuild(false).catch(e=>console.warn('[ODKP] guild',e)); };
   const ledger=()=>odkpSyncLedger(false).catch(e=>console.warn('[ODKP] ledger',e));
   let tries=0;
   const kick=setInterval(()=>{
@@ -8950,6 +8953,213 @@ function odkpStart(){
   },5000);
 }
 odkpStart();
+
+/* ═══ Guild DKP from ODKP (owner, 2026-10-05) ════════════════════════════════════════════════════════════════
+   Everyone's current DKP and raid attendance (/dkp) plus who is whose alt (/characters → ParentId), cached on this
+   PC and refreshed with the item sync. Used by: DKP History (buyer's balance + RA, main names), the Guild DKP list,
+   the account chip on the character tab bar, and the raid detail view. DKP and RA are per ODKP account (alts share). */
+let odkpGuild=null;   // {at, asOf, chars:{lc:{n,id,dkp,cls,rank,lvl,a:[a30,t30,a60,t60,a90,t90,aL,tL],mainId,active}}, accts:{mainId:{main,ids:[lc]}}}
+try{const c=JSON.parse(localStorage.getItem('mp_odkp_guild')||'null');if(c&&c.chars)odkpGuild=c;}catch(e){}
+let dkpView=(function(){try{return localStorage.getItem('mp_dkp_view')==='guild'?'guild':'items';}catch(e){return 'items';}})();
+let odkpGuildQuery='', odkpGuildSort={col:'dkp',dir:'desc'}, odkpGuildOpen=null, odkpGuildActive=true, odkpGuildShown=150;
+window.odkpSyncGuild=async function(manual){
+  const [d,c]=await Promise.all([odkpGet('/clients/castle/dkp'),odkpGet('/clients/castle/characters')]);
+  if(!d.ok||!d.data||!Array.isArray(d.data.Models)||!c.ok||!Array.isArray(c.data)){ if(manual)alert('ODKP sync failed: '+(d.error||c.error||'no data')); return; }
+  const roster={};for(const r of c.data)roster[r.CharacterId]=r;
+  const chars={},accts={};
+  for(const m of d.data.Models){
+    const r=roster[m.CharacterId]||{}, mainId=r.ParentId>0?r.ParentId:m.CharacterId, lc=String(m.CharacterName).toLowerCase();
+    chars[lc]={n:m.CharacterName,id:m.CharacterId,dkp:Math.round((+m.CurrentDKP||0)*10)/10,cls:m.CharacterClass||'',rank:m.CharacterRank||'',lvl:m.CharacterLevel||0,
+      a:[m.AttendedTicks_30,m.TotalTicks_30,m.AttendedTicks_60,m.TotalTicks_60,m.AttendedTicks_90,m.TotalTicks_90,m.AttendedTicks_Life,m.TotalTicks_Life].map(x=>+x||0),
+      mainId,active:String(m.CharacterStatus)==='1'};
+    (accts[mainId]||(accts[mainId]={ids:[]})).ids.push(lc);
+  }
+  for(const id in accts){const mr=roster[id];accts[id].main=mr?mr.Name:chars[accts[id].ids[0]].n;}
+  odkpGuild={at:Date.now(),asOf:d.data.AsOfDate||null,chars,accts};
+  try{localStorage.setItem('mp_odkp_guild',JSON.stringify(odkpGuild));}catch(e){}
+  odkpRenderAcctChip();
+  if(typeof activeTopView!=='undefined'&&activeTopView==='dkp')renderDkpPanel();
+  console.log('[ODKP] guild DKP synced:',Object.keys(chars).length,'characters,',Object.keys(accts).length,'accounts');
+};
+function odkpC(name){ return odkpGuild&&name?odkpGuild.chars[String(name).toLowerCase()]||null:null; }
+function odkpAcctOf(name){ const c=odkpC(name); return c?odkpGuild.accts[c.mainId]||null:null; }
+function odkpMainName(name){ const a=odkpAcctOf(name); return a&&a.main&&a.main.toLowerCase()!==String(name).toLowerCase()?a.main:null; }
+function odkpPct(a,t){ return t?Math.round(100*a/t)+'%':'—'; }
+function odkpRaTip(c){ return 'RA 30-day '+odkpPct(c.a[0],c.a[1])+' ('+c.a[0]+'/'+c.a[1]+') · 60-day '+odkpPct(c.a[2],c.a[3])+' · 90-day '+odkpPct(c.a[4],c.a[5])+' · lifetime '+odkpPct(c.a[6],c.a[7]); }
+// "Fentin (Frown)" — the main behind an alt
+function odkpWho(name){ const m=odkpMainName(name); return esc(name)+(m?' <span style="color:var(--text-muted);font-size:.85em" title="'+esc(name)+' is on '+esc(m)+'\'s ODKP account">('+esc(m)+')</span>':''); }
+// current balance (the account's) and 30-day RA
+function odkpBal(name){ const c=odkpC(name); if(!c)return ''; return '<span style="color:var(--text-muted);font-size:.72rem;margin-left:.4rem" title="Now: '+c.dkp.toLocaleString()+' DKP (shared by the account) · '+odkpRaTip(c)+'">'+c.dkp.toLocaleString()+' DKP · '+odkpPct(c.a[0],c.a[1])+' RA</span>'; }
+function odkpDate(dt){ const t=Date.parse(dt||''); return isFinite(t)?new Date(t).toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'}):(dt||''); }
+
+// ── your DKP in the header, next to Est. Market Value (owner, 2026-10-05) ──
+// The account holding most of your characters (as the Credit Check ledger picks it); ODKP's "as of" time underneath.
+function odkpHeaderDkp(){
+  if(!odkpGuild) return '';
+  const mine=(typeof charNames==='function'?charNames():[]).filter(n=>n&&n!=='__all__');
+  const count={};for(const n of mine){const c=odkpC(n);if(c)count[c.mainId]=(count[c.mainId]||0)+1;}
+  const id=Object.keys(count).sort((x,y)=>count[y]-count[x])[0]; if(!id) return '';
+  const a=odkpGuild.accts[id], c=odkpC(a.main)||odkpGuild.chars[a.ids[0]]; if(!c) return '';
+  const asOf=Date.parse(odkpGuild.asOf||'')||odkpGuild.at;
+  return '<div onclick="event.stopPropagation();odkpOpenGuild(decodeURIComponent(\''+encodeURIComponent(a.main)+'\'))" style="cursor:pointer" title="'+esc(a.main)+'\'s ODKP account ('+a.ids.length+' characters) · '+odkpRaTip(c)+' — click for the Guild DKP list">'
+    +'<div class="nw-header-label">&#9876; Your DKP'+(Object.keys(count).length>1?' · '+esc(a.main):'')+'</div>'
+    +'<div class="nw-header-value">'+c.dkp.toLocaleString()+' DKP</div>'
+    +'<div class="nw-header-note">updated '+new Date(asOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div></div>';
+}
+function odkpRenderAcctChip(){ const old=document.getElementById('odkpAcctChip'); if(old) old.remove(); if(typeof renderNetworthBar==='function') renderNetworthBar(); }
+const _odkpBuildTabs=buildTabs;
+buildTabs=function(){ const r=_odkpBuildTabs.apply(this,arguments); try{ odkpRenderAcctChip(); }catch(e){} return r; };
+
+// ── DKP History: Item History | Guild DKP ──
+function dkpViewTabs(){
+  const b=(v,l)=>'<button type="button" class="dkp-upload-btn" onclick="dkpSetView(\''+v+'\')" style="'+(dkpView===v?'background:rgba(201,162,39,.18);border-color:var(--gold);color:var(--gold-light);font-weight:600':'opacity:.75')+'">'+l+'</button>';
+  return '<div style="display:flex;gap:.4rem;margin-bottom:.6rem">'+b('items','⚔ Item History')+b('guild','👥 Guild DKP')+'</div>';
+}
+window.dkpSetView=function(v){ dkpView=v==='guild'?'guild':'items'; try{localStorage.setItem('mp_dkp_view',dkpView);}catch(e){} renderDkpPanel(); };
+window.odkpOpenGuild=function(q){ dkpView='guild'; try{localStorage.setItem('mp_dkp_view','guild');}catch(e){} odkpGuildQuery=q||''; odkpGuildOpen=null; odkpGuildShown=150; if(typeof switchTopView==='function') switchTopView('dkp'); renderDkpPanel(); };
+function odkpGuildHtml(){
+  if(!odkpGuild) return '<div class="dkp-empty">No guild DKP yet — syncing from Castle\'s ODKP…<br><button type="button" class="dkp-upload-btn" style="margin-top:.6rem" onclick="odkpSyncGuild(true)">⟳ Sync from ODKP</button></div>';
+  const th=(l,c,r)=>'<th data-gcol="'+c+'" class="'+(r?'dkp-th-right':'')+(odkpGuildSort.col===c?' sort-'+odkpGuildSort.dir:'')+'" onclick="odkpGuildSortBy(\''+c+'\')">'+l+'</th>';
+  return '<div class="dkp-toolbar">'
+    +'<input class="dkp-search" id="odkpGuildSearch" placeholder="Search any character (alts find their main)…" value="'+esc(odkpGuildQuery)+'" oninput="clearTimeout(window._ogt);window._ogt=setTimeout(()=>{odkpGuildQuery=this.value;odkpGuildShown=150;odkpGuildBody();},150)">'
+    +'<label style="font-size:.74rem;display:flex;align-items:center;gap:.3rem;white-space:nowrap"><input type="checkbox" '+(odkpGuildActive?'checked':'')+' onchange="odkpGuildActive=this.checked;odkpGuildShown=150;odkpGuildBody()"> raided in the last 90 days</label>'
+    +'<button type="button" class="dkp-upload-btn" onclick="odkpSyncGuild(true)" title="Guild DKP syncs itself from Castle\'s ODKP every 2 hours — this pulls now">⟳ Sync from ODKP</button>'
+    +'<span class="dkp-meta" id="odkpGuildMeta"></span></div>'
+    +'<div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;overflow-x:auto"><table class="dkp-table" id="odkpGuildTable"><thead><tr>'
+    +th('Account (main)','name')+th('Class','cls')+th('DKP','dkp',1)+th('30d RA','r30',1)+th('60d','r60',1)+th('90d','r90',1)+th('Life','rl',1)+th('Chars','n',1)
+    +'</tr></thead><tbody id="odkpGuildTbody"></tbody></table></div>';
+}
+window.odkpGuildSortBy=function(c){ if(odkpGuildSort.col===c)odkpGuildSort.dir=odkpGuildSort.dir==='asc'?'desc':'asc'; else odkpGuildSort={col:c,dir:(c==='name'||c==='cls')?'asc':'desc'}; odkpGuildBody(); };
+window.odkpGuildToggle=function(id){ odkpGuildOpen=odkpGuildOpen===id?null:id; odkpGuildBody(); };
+function odkpGuildBody(){
+  const tb=document.getElementById('odkpGuildTbody'); if(!tb||!odkpGuild) return;
+  const q=odkpGuildQuery.trim().toLowerCase(), mineLc=new Set((typeof charNames==='function'?charNames():[]).map(n=>String(n).toLowerCase()));
+  let rows=Object.entries(odkpGuild.accts).map(([id,a])=>{ const c=odkpC(a.main)||odkpGuild.chars[a.ids[0]]; return {id,a,c,hits:q?a.ids.filter(lc=>lc.includes(q)):[],mine:a.ids.some(lc=>mineLc.has(lc))}; });
+  if(q) rows=rows.filter(r=>r.hits.length);
+  if(odkpGuildActive&&!q) rows=rows.filter(r=>r.c.a[4]>0||r.mine);
+  const key={name:r=>r.a.main.toLowerCase(),cls:r=>r.c.cls,dkp:r=>r.c.dkp,r30:r=>r.c.a[1]?r.c.a[0]/r.c.a[1]:-1,r60:r=>r.c.a[3]?r.c.a[2]/r.c.a[3]:-1,r90:r=>r.c.a[5]?r.c.a[4]/r.c.a[5]:-1,rl:r=>r.c.a[7]?r.c.a[6]/r.c.a[7]:-1,n:r=>r.a.ids.length}[odkpGuildSort.col];
+  rows.sort((x,y)=>{const a=key(x),b=key(y);const v=a<b?-1:a>b?1:0;return odkpGuildSort.dir==='asc'?v:-v;});
+  const total=rows.length, vis=rows.slice(0,odkpGuildShown);
+  let html='';
+  for(const r of vis){
+    const open=odkpGuildOpen===r.id, c=r.c;
+    html+='<tr class="'+(open?'dkp-expanded':'')+'" onclick="odkpGuildToggle(\''+r.id+'\')" style="'+(r.mine?'background:rgba(201,162,39,.10)':'')+'">'
+      +'<td><b>'+esc(r.a.main)+'</b>'+(r.hits.length&&!r.hits.includes(r.a.main.toLowerCase())?' <span style="color:var(--text-muted);font-size:.75rem">· '+r.hits.slice(0,3).map(lc=>esc(odkpGuild.chars[lc].n)).join(', ')+'</span>':'')+'</td>'
+      +'<td style="color:var(--text-muted)">'+esc(c.cls)+'</td>'
+      +'<td class="dkp-td-right" style="font-weight:600;color:var(--gold-light)">'+c.dkp.toLocaleString()+'</td>'
+      +'<td class="dkp-td-right" title="'+c.a[0]+'/'+c.a[1]+' ticks">'+odkpPct(c.a[0],c.a[1])+'</td>'
+      +'<td class="dkp-td-right">'+odkpPct(c.a[2],c.a[3])+'</td><td class="dkp-td-right">'+odkpPct(c.a[4],c.a[5])+'</td>'
+      +'<td class="dkp-td-right" title="'+c.a[6]+'/'+c.a[7]+' ticks">'+odkpPct(c.a[6],c.a[7])+'</td>'
+      +'<td class="dkp-td-right">'+r.a.ids.length+'</td></tr>';
+    if(open){
+      const alts=r.a.ids.map(lc=>odkpGuild.chars[lc]).sort((x,y)=>(y.lvl-x.lvl)||x.n.localeCompare(y.n));
+      html+='<tr class="dkp-history-row"><td colspan="8"><div class="dkp-history-inner"><table class="dkp-history-table"><thead><tr><th>Character</th><th>Class</th><th style="text-align:right">Level</th><th>Rank</th></tr></thead><tbody>'
+        +alts.map(x=>'<tr><td>'+(mineLc.has(x.n.toLowerCase())?'<b>'+esc(x.n)+'</b>':esc(x.n))+(x.active?'':' <span style="color:var(--text-muted);font-size:.72rem">inactive</span>')+'</td><td style="color:var(--text-muted)">'+esc(x.cls||'?')+'</td><td style="text-align:right">'+(x.lvl||'?')+'</td><td style="color:var(--text-muted)">'+esc(x.rank)+'</td></tr>').join('')
+        +'</tbody></table></div></td></tr>';
+    }
+  }
+  if(total>odkpGuildShown) html+='<tr><td colspan="8" style="text-align:center;padding:.75rem"><button type="button" class="dkp-upload-btn" onclick="odkpGuildShown+=150;odkpGuildBody()">Load more ('+odkpGuildShown+' of '+total+')</button></td></tr>';
+  tb.innerHTML=html||'<tr><td colspan="8" class="dkp-empty">No account matches.</td></tr>';
+  const m=document.getElementById('odkpGuildMeta');
+  if(m) m.textContent=Object.keys(odkpGuild.chars).length.toLocaleString()+' characters · '+Object.keys(odkpGuild.accts).length.toLocaleString()+' accounts · synced from ODKP '+new Date(odkpGuild.at).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'});
+  document.querySelectorAll('#odkpGuildTable th[data-gcol]').forEach(h=>{ h.className=(['dkp','r30','r60','r90','rl','n'].includes(h.dataset.gcol)?'dkp-th-right':'')+(odkpGuildSort.col===h.dataset.gcol?' sort-'+odkpGuildSort.dir:''); });
+}
+
+// ── raid detail: ticks, items, who was credited ──
+window.odkpRaidModal=async function(raidId){
+  let ov=document.getElementById('odkpRaidOverlay');
+  if(!ov){ ov=document.createElement('div'); ov.id='odkpRaidOverlay'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10040;display:flex;align-items:center;justify-content:center';
+    ov.addEventListener('mousedown',e=>{ if(e.target===ov) ov.remove(); }); document.body.appendChild(ov); }
+  const box=c=>'<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.5);width:min(760px,94vw);max-height:86vh;overflow:auto;padding:1rem 1.2rem;font-size:.85rem">'+c+'</div>';
+  ov.innerHTML=box('<div style="color:var(--text-muted)">Loading raid '+(+raidId)+' from ODKP…</div>');
+  const r=await odkpGet('/clients/castle/raids/'+(+raidId));
+  if(!r.ok||!r.data){ ov.innerHTML=box('<div>Couldn\'t load the raid: '+esc(r.error||'no data')+'</div><button class="dkp-upload-btn" style="margin-top:.6rem" onclick="document.getElementById(\'odkpRaidOverlay\').remove()">Close</button>'); return; }
+  const R=r.data, mineLc=new Set((typeof charNames==='function'?charNames():[]).map(n=>String(n).toLowerCase()));
+  const name=String(R.Name||'').replace(/\s*https?:\S*/g,'').trim(), ticks=R.Ticks||[], items=R.Items||[];
+  const myTicks=ticks.filter(t=>(t.Characters||[]).some(c=>mineLc.has(String(c.Name).toLowerCase())));
+  const tickRows=ticks.map((t,i)=>{ const cs=(t.Characters||[]).map(c=>c.Name).sort((a,b)=>a.localeCompare(b)), me=cs.filter(n=>mineLc.has(n.toLowerCase()));
+    return '<tr><td>'+esc(String(t.Description||'').replace(/\s*https?:\S*/g,''))+'</td><td style="text-align:right;font-weight:600">'+(+t.Value||0)+'</td><td style="text-align:right">'+cs.length+'</td><td>'+(me.length?'<span style="color:#4caf7d">✓ '+me.map(esc).join(', ')+'</span>':'<span style="color:var(--text-muted)">—</span>')+'</td></tr>'
+      +'<tr><td colspan="4" style="padding:0 .4rem .5rem"><details><summary style="cursor:pointer;font-size:.72rem;color:var(--text-muted)">credited characters ('+cs.length+')</summary><div style="font-size:.74rem;line-height:1.5;margin-top:.2rem">'+cs.map(n=>mineLc.has(n.toLowerCase())?'<b>'+odkpWho(n)+'</b>':odkpWho(n)).join(', ')+'</div></details></td></tr>'; }).join('');
+  const itemRows=items.map(it=>'<tr><td><a href="'+wikiUrl(it.ItemName)+'" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none">'+esc(it.ItemName)+'</a></td><td>'+odkpWho(it.CharacterName)+'</td><td style="text-align:right;font-weight:600">'+(+it.Dkp||0)+'</td></tr>').join('');
+  ov.innerHTML=box('<div style="display:flex;align-items:flex-start;gap:.6rem"><div style="flex:1"><div style="font-family:\'Cinzel\',serif;color:var(--gold-light);font-size:1rem">'+esc(name||('Raid '+R.RaidId))+'</div>'
+    +'<div style="color:var(--text-muted);font-size:.75rem">'+esc(odkpDate(R.Timestamp))+(R.Pool&&R.Pool.Name?' · pool '+esc(R.Pool.Name):'')+' · '+ticks.length+' tick'+(ticks.length===1?'':'s')+' · '+items.length+' item'+(items.length===1?'':'s')
+    +(mineLc.size?' · <b style="color:'+(myTicks.length===ticks.length?'#4caf7d':'#c48a3a')+'">you were credited on '+myTicks.length+' of '+ticks.length+'</b>':'')+'</div></div>'
+    +'<button class="dkp-upload-btn" onclick="document.getElementById(\'odkpRaidOverlay\').remove()">Close</button></div>'
+    +'<table class="dkp-history-table" style="width:100%;margin-top:.7rem"><thead><tr><th>Tick</th><th style="text-align:right">DKP</th><th style="text-align:right">Chars</th><th>Yours</th></tr></thead><tbody>'+(tickRows||'<tr><td colspan="4" style="color:var(--text-muted)">No ticks entered yet.</td></tr>')+'</tbody></table>'
+    +(items.length?'<table class="dkp-history-table" style="width:100%;margin-top:.7rem"><thead><tr><th>Item</th><th>Winner</th><th style="text-align:right">DKP</th></tr></thead><tbody>'+itemRows+'</tbody></table>':''));
+};
+
+/* ═══ Live DKP auctions (owner, 2026-10-05) ═══════════════════════════════════════════════════════════════════
+   Officers open an auction in /auction ("~[Item] - BID IN /AUC … Closing in 2m30s"); bids follow as "Item 5", "Item5",
+   "5 Item" or "Item 3 toon". Bidding often runs past the 2m30s and nothing marks the close, so an auction counts as
+   open until 5 minutes pass with no bid (log replay: top bid = ODKP winner 90%, price 86%). The auction window gets
+   the item's DKP History prices and each bidder's ODKP balance / RA; it pops up (without focus) when one opens. */
+const AUC_IDLE=5*60e3, AUC_GRACE=150e3, AUC_KEEP=20*60e3;
+let aucList=[];
+const _aucSeen=new Set();
+let aucAutoPop=(function(){try{return localStorage.getItem('mp_auc_autopop')!=='0';}catch(e){return true;}})();
+function aucNorm(s){ return String(s||'').toLowerCase().replace(/[`'’]/g,"'").replace(/\s+/g,' ').trim(); }
+// a bid on item I: the text holds the item name; the other words give one number (the bid) and maybe one name (the toon)
+function aucParseBid(text,item){
+  const t=aucNorm(text), it=aucNorm(item), k=t.indexOf(it); if(k<0) return null;
+  const rest=(t.slice(0,k)+' '+t.slice(k+it.length)).replace(/[^a-z0-9 ]/g,' ').trim().split(/\s+/).filter(Boolean);
+  const nums=rest.filter(w=>/^\d{1,4}$/.test(w)), words=rest.filter(w=>/^[a-z]{3,}$/.test(w)&&!/^(dkp|bid|bids|for|on|my|me|pls|please|the|and|alt|main)$/.test(w));
+  if(nums.length!==1||words.length>1) return null;
+  return {n:+nums[0],toon:words[0]||null};
+}
+function aucIsOpen(A,ts){ return ts>=A.open&&!(ts-A.last>AUC_IDLE&&ts-A.open>AUC_GRACE); }
+function aucOnLine(msg){
+  const key=msg.ts+'|'+msg.who+'|'+msg.text; if(_aucSeen.has(key)) return; _aucSeen.add(key);
+  if(_aucSeen.size>5000){ const it=_aucSeen.values(); for(let i=0;i<2000;i++) _aucSeen.delete(it.next().value); }
+  const now=Date.now();
+  if(msg.open){
+    const m=/~\[([^\]]+)\]/.exec(msg.text); if(!m) return;
+    const item=m[1].trim();
+    let A=aucList.find(a=>aucNorm(a.item)===aucNorm(item)&&aucIsOpen(a,msg.ts));   // a re-announce is the same auction
+    if(!A){ A={id:'a'+msg.ts+'_'+Math.random().toString(36).slice(2,6),item,by:msg.who,open:msg.ts,last:msg.ts,bids:[],wasMineTop:false}; aucList.push(A); }
+    if(aucAutoPop&&now-msg.ts<3*60e3&&window.MixelParseApp&&window.MixelParseApp.popAuction) window.MixelParseApp.popAuction();
+  }else{
+    const open=aucList.filter(A=>aucIsOpen(A,msg.ts)).sort((x,y)=>y.item.length-x.item.length);   // longest name first ("Scroll of War" vs "Iron Scroll of War")
+    for(const A of open){ const b=aucParseBid(msg.text,A.item); if(b){ A.bids.push({ts:msg.ts,who:msg.who,toon:b.toon,n:b.n}); A.last=msg.ts; aucOutbidCheck(A,now); break; } }
+  }
+  aucList=aucList.filter(A=>now-A.last<AUC_KEEP||aucIsOpen(A,now));
+  aucPush();
+}
+function aucMine(){ return new Set((typeof charNames==='function'?charNames():[]).map(n=>String(n).toLowerCase())); }
+function aucTop(A){ return A.bids.length?A.bids.reduce((m,b)=>b.n>m.n||(b.n===m.n&&b.ts<m.ts)?b:m):null; }
+function aucIsMine(b,mine){ return mine.has(String(b.who).toLowerCase())||(b.toon&&mine.has(String(b.toon).toLowerCase())); }
+function aucOutbidCheck(A,now){
+  const mine=aucMine(), top=aucTop(A); if(!top) return;
+  const mineTop=aucIsMine(top,mine);
+  if(A.wasMineTop&&!mineTop&&now-top.ts<60e3&&typeof showWatcherToast==='function') showWatcherToast('⚖ Outbid on '+A.item+' — '+top.n+' by '+(top.toon||top.who));
+  A.wasMineTop=mineTop;
+}
+function aucBidView(b,mine){
+  const name=b.toon||b.who, c=typeof odkpC==='function'?odkpC(name)||odkpC(b.who):null, acct=c&&typeof odkpAcctOf==='function'?odkpAcctOf(c.n):null;
+  return {ts:b.ts,who:b.who,toon:b.toon,n:b.n,mine:aucIsMine(b,mine),bal:c?c.dkp:null,ra:c?odkpPct(c.a[0],c.a[1]):null,over:!!(c&&b.n>c.dkp),acct:acct?acct.main:null};
+}
+function aucState(){
+  const mine=aucMine(), now=Date.now();
+  return {autoPop:aucAutoPop,dkpAsOf:odkpGuild?(Date.parse(odkpGuild.asOf||'')||odkpGuild.at):null,
+    auctions:aucList.slice().sort((x,y)=>{const ox=aucIsOpen(x,now),oy=aucIsOpen(y,now);return ox!==oy?(ox?-1:1):y.open-x.open;}).map(A=>{
+      const d=typeof getDkp==='function'?getDkp(A.item):null, top=aucTop(A);
+      const iBid=A.bids.some(b=>aucIsMine(b,mine)), topV=top?aucBidView(top,mine):null;
+      return {id:A.id,item:A.item,by:A.by,open:A.open,last:A.last,closeAt:A.open+AUC_GRACE,idleAt:Math.max(A.last+AUC_IDLE,A.open+AUC_GRACE),closed:!aucIsOpen(A,now),
+        stats:d?{high:d[0],low:d[1],avg:d[2],count:d[3],r60:d[5],r60n:d[6]}:null,
+        // a bid re-posted as a reminder (same bidder, toon and amount) shows once, at its latest time
+        top:topV,bids:[...A.bids.reduce((m,b)=>{const k=String(b.who).toLowerCase()+'|'+String(b.toon||'').toLowerCase()+'|'+b.n;m.delete(k);m.set(k,b);return m;},new Map()).values()].sort((x,y)=>x.ts-y.ts).map(b=>aucBidView(b,mine)),
+        outbid:!!(iBid&&topV&&!topV.mine),leading:!!(topV&&topV.mine)};
+    })};
+}
+function aucPush(){ if(window.MixelParseApp&&window.MixelParseApp.pushAuctionState) window.MixelParseApp.pushAuctionState(aucState()); }
+window.aucToggleWindow=function(){ if(window.MixelParseApp&&window.MixelParseApp.toggleAuction){ window.MixelParseApp.toggleAuction(); setTimeout(aucPush,300); } else alert('The auction window is in the desktop app.'); };
+if(window.MixelParseApp){
+  if(window.MixelParseApp.onAuctionWindowReady) window.MixelParseApp.onAuctionWindowReady(()=>aucPush());
+  if(window.MixelParseApp.onAuctionCommand) window.MixelParseApp.onAuctionCommand(c=>{
+    if(c&&c.type==='autoPop'){ aucAutoPop=!!c.on; try{localStorage.setItem('mp_auc_autopop',aucAutoPop?'1':'0');}catch(e){} aucPush(); }
+  });
+}
+setInterval(()=>{ if(aucList.length) aucPush(); },15000);   // closes idle auctions / refreshes balances
 
 async function loadDkpFromSupabase(){
   if(!currentUser)return;
@@ -9034,7 +9244,7 @@ function updateDkpBody(){
       <td class="dkp-td-right dkp-count">${count}</td>
     </tr>`;
     if(isExp&&hist?.length){
-      const hRows=hist.map(([c,v,dt,raid])=>`<tr><td>${esc(c)}</td><td style="text-align:right;font-weight:600">${v}</td><td style="color:var(--text-muted)">${esc(dt)}</td><td style="color:var(--text-muted);font-size:.75rem">${esc(raid||'')}</td></tr>`).join('');
+      const hRows=hist.map(([c,v,dt,raid,rid])=>`<tr><td>${odkpWho(c)}${odkpBal(c)}</td><td style="text-align:right;font-weight:600">${v}</td><td style="color:var(--text-muted)">${esc(odkpDate(dt))}</td><td style="color:var(--text-muted);font-size:.75rem">${rid?`<a href="#" onclick="event.stopPropagation();odkpRaidModal(${+rid});return false" title="Open this raid: ticks, items, who was credited" style="color:inherit">${esc(raid||'raid')}</a>`:esc(raid||'')}</td></tr>`).join('');
       tableRows+=`<tr class="dkp-history-row"><td colspan="6"><div class="dkp-history-inner">
         <table class="dkp-history-table"><thead><tr><th>Character</th><th style="text-align:right">DKP</th><th>Date</th><th>Raid</th></tr></thead>
         <tbody>${hRows}</tbody></table></div></td></tr>`;
@@ -9053,12 +9263,13 @@ function updateDkpBody(){
 function renderDkpPanel(){
   const panel=document.getElementById('dkpPanel');
   if(!panel)return;
+  if(dkpView==='guild'){panel.innerHTML=dkpViewTabs()+odkpGuildHtml();odkpGuildBody();return;}
   const hasData=Object.keys(dkpLookup).length>0;
   const metaStr=dkpMeta.updatedAt?`${Object.keys(dkpLookup).length.toLocaleString()} items · ${(dkpMeta.txCount||0).toLocaleString()} transactions · ${dkpMeta.src==='odkp'?'synced from ODKP '+new Date(dkpMeta.updatedAt).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'}):'Updated '+new Date(dkpMeta.updatedAt).toLocaleDateString()}`:'No data loaded';
   const colIdx={high:0,low:1,avg:2,count:3,r60:5,name:-1};
   const th=(label,c)=>`<th data-col="${c}" class="${colIdx[c]===-1?'':'dkp-th-right'}${dkpSort.col===c?' sort-'+dkpSort.dir:''}" onclick="dkpSortBy('${c}')">${label}</th>`;
 
-  panel.innerHTML=`
+  panel.innerHTML=dkpViewTabs()+`
     <div class="dkp-toolbar">
       <input class="dkp-search" id="dkpSearch" placeholder="Search items…" value="${esc(dkpQuery)}"
         oninput="clearTimeout(dkpSearchTimer);dkpSearchTimer=setTimeout(()=>{dkpQuery=this.value;dkpPage=0;dkpExpanded=null;updateDkpBody();},150)">
@@ -13286,7 +13497,7 @@ function parseDkpDetailsCsv(text){
     TICK_START.lastIndex=0;
     while((m=TICK_START.exec(src))!==null)last=m.index;
     if(last>0)label=src.slice(last);
-    label=label.split('\n')[0].replace(/https?:\/\/\S*/g,'').replace(/\s+/g,' ').trim();
+    label=label.split('\n')[0].replace(/https?:\S*/g,'').replace(/\s+/g,' ').trim();
     if(!label)continue;
     // date: label M-D + ISO year, rollover-guarded; fallback raid ISO date
     const isoYear=parseInt(iso.slice(0,4),10)||new Date().getFullYear();
@@ -14067,14 +14278,18 @@ function renderNetworthBar(){
   if(!el)return;
 
   const hasChars=Object.keys(chars).length>0;
-  if(!hasChars||!platData.length){el.style.display='none';return;}
-
-  const{totalPP,nowts,nodrop,priced}=buildNetworthData();
-  const unpriced=nowts.length+nodrop.length;
-
-  el.innerHTML=`<div class="nw-header-label">&#128230; Est. Market Value</div>
-    <div class="nw-header-value">${totalPP.toLocaleString()} pp</div>
-    ${unpriced?`<div class="nw-header-note">${unpriced} items excluded</div>`:''}`;
+  const dkpHtml=typeof odkpHeaderDkp==='function'?odkpHeaderDkp():'';
+  if((!hasChars||!platData.length)&&!dkpHtml){el.style.display='none';return;}
+  let nwHtml='';
+  if(hasChars&&platData.length){
+    const{totalPP,nowts,nodrop,priced}=buildNetworthData();
+    const unpriced=nowts.length+nodrop.length;
+    nwHtml=`<div><div class="nw-header-label">&#128230; Est. Market Value</div>
+      <div class="nw-header-value">${totalPP.toLocaleString()} pp</div>
+      ${unpriced?`<div class="nw-header-note">${unpriced} items excluded</div>`:''}</div>`;
+  }
+  // Est. Market Value and your DKP side by side (owner, 2026-10-05)
+  el.innerHTML=`<div style="display:flex;gap:1.8rem;align-items:flex-start">${nwHtml}${dkpHtml}</div>`;
   el.style.display='block';
   if(typeof btRenderParkWarn === 'function') btRenderParkWarn();
 }

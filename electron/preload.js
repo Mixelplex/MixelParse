@@ -49,6 +49,17 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   onSessionWindowReady: (cb)    => ipcRenderer.on('session-window-ready', () => cb()),
   onSessionWindowClosed: (cb)   => ipcRenderer.on('session-window-closed', () => cb()),
 
+  // ── Auction window (live DKP auctions) ─────────────────────────────────────
+  toggleAuction:      ()        => ipcRenderer.invoke('auction:toggle'),
+  popAuction:         ()        => ipcRenderer.invoke('auction:pop'),
+  closeAuction:       ()        => ipcRenderer.invoke('auction:close'),
+  minimizeAuction:    ()        => ipcRenderer.invoke('auction:minimize'),
+  pushAuctionState:   (state)   => ipcRenderer.send('auction:push-state', state),
+  onAuctionState:     (cb)      => ipcRenderer.on('auction-state',   (_, d) => cb(d)),
+  sendAuctionCommand: (cmd)     => ipcRenderer.send('auction:command', cmd),
+  onAuctionCommand:   (cb)      => ipcRenderer.on('auction-command', (_, d) => cb(d)),
+  onAuctionWindowReady: (cb)    => ipcRenderer.on('auction-window-ready', () => cb()),
+
   // ── Session report window ──────────────────────────────────────────────────
   onReportData:       (cb)      => ipcRenderer.on('report-data', (_, d) => cb(d)),
 
