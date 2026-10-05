@@ -3,6 +3,16 @@
 Supersedes `HANDOFF_v1.6.6.md` (kept for history; its §3 still describes Auto-Detect Watch / Active mode accurately).
 Start here, then read the code. Git history is the source of truth.
 
+## 0. State at hand-off (2026-10-05, evening)
+- **Published: 1.7.6** (GitHub latest release, installer + blockmap + latest.yml). `main` = `2b474b9` pushed; this handoff is one local commit on top (push with the next release).
+  Everyone on 1.7.4 auto-updates to it; the owner's PC had a 1.7.5 test build, which also updates to 1.7.6.
+- **1.7.5 was never published**: its build sat queued during a GitHub Actions outage and was cancelled. The remote tag
+  `v1.7.5` still points at `4d11a05` (level-policy commit) and is unused. Deleting a remote tag is blocked by Claude's
+  auto-mode permission check ("Git Destructive") — the owner chose to ship as 1.7.6 instead. Leave v1.7.5 alone.
+- **Next raid, watch for:** the rebuilt auction window (§4f) — every "~Gratss" closing its auction, multi-copy items,
+  pop-up timing / focus over EQ; and No kill, no credit on a real wipe. Nothing else is in flight.
+- No other uncommitted work. No test build pending.
+
 ---
 
 ## 1. Standing rules (owner — also in Claude memory)
@@ -29,7 +39,11 @@ New this session:
 | 1.7.4 | Live auction window; your DKP in the header; Guild DKP list; buyer DKP / RA + main names + raid detail in DKP History; date + raid-name fixes |
 | 1.7.6 | (published as 1.7.6 — the 1.7.5 build was cancelled by a GitHub Actions outage and its tag left unused) Raid Parking on the Castle Alliance level policy update; Auto-Detect "under level" note + No kill, no credit; auction window rebuilt (closes on Gratss); header DKP follows the Credit Check ledger |
 
-Release template: `session-data-2026-10-03/scratchpad/rel175.js` + `rel175-content.js` (built by `rel175-gen.js`; the What's New item can hold an HTML table) (same shape as rel166–rel173).
+Release scripts (`session-data-2026-10-03/scratchpad/`): **template for the next release = `rel174.js`** (FROM/TO
+version bump of package.json + lock head, WHATS_NEW block replace, release-notes prepend). `rel175-content.js` +
+`rel175-gen.js` show a What's New item holding an HTML table; `rel175b.js` added items to an unpublished version;
+`rel176.js` re-versioned 1.7.5 → 1.7.6. Commit with `git commit -F <file>`, then `git fetch` + `git merge origin/main`
+(the Pages bot commits "deploy src to docs"), then the three separate push commands.
 
 ## 3. Auto-Detect changes (1.6.7) — index.html `rkdAttribute`, watcher.js `raidEvidence`
 - **Zone-aware evidence.** The watcher tags every raid signal (ticks *and* evidence) with the zone its character was
@@ -146,16 +160,16 @@ Release template: `session-data-2026-10-03/scratchpad/rel175.js` + `rel175-conte
   beside Est. Market Value in `renderNetworthBar` → `odkpHeaderDkp`; "updated" = ODKP's AsOfDate). The tab-bar chip was
   replaced by the header block. DKP / RA are per ODKP account.
 - **Live auction window**: watcher `auctionSignal` (in `raidEvidence`, so also the 6 h backfill) forwards `auctionLine`
-  only within 15 min of an officer's "~[Item] - BID IN /AUC" (trade chatter never leaves the watcher). Main app
-  `aucOnLine`: an auction is open until 5 min with no bid (bidding runs past "Closing in 2m30s"; nothing marks the close);
+  only near an officer's "~[Item] - BID IN /AUC" (15 min in 1.7.4, 45 min + every grats line since 1.7.6; trade chatter
+  never leaves the watcher). Main app
+  `aucOnLine`: ~~an auction is open until 5 min with no bid~~ **superseded in 1.7.6 — closes only on the officer's Gratss, see §4f**;
   bids parsed by `aucParseBid` (item name + one number + optional toon: "Item 5", "Item5", "5 Item", "Item 3 toon");
   re-posted identical bids collapse. State → `auction:push-state` → `src/auction.html` (frameless, always on top,
   `showInactive` on pop so EQ keeps focus; "pop up" toggle = localStorage `mp_auc_autopop`). Outbid toast in the main
   app. Log replay: top bid = ODKP winner (by account) 90%, price 86%, both 84% (1,646 auctions).
-- **Not yet observed live** (owner: "we will need to test it out"): the pop-up timing, focus behaviour over EQ, and
-  multiple simultaneous auctions in a real raid.
+- First live raid (10/5) → owner feedback: text too small, too much per auction, "the look is awful" → rebuilt in 1.7.6.
 
-## 4f. 1.7.6 (2026-10-05) — Castle level policy
+## 4f. 1.7.6 (2026-10-05) — Castle level policy, No kill no credit, auction window rebuilt
 - **Policy table** (index.html `CASTLE_LVL` + `castleLvlReq(boss, cls)`, beside `PARK_EXC_GROUPS`), keyed by BOSS_ROSTER
   target, from the owner's pasted "Castle Alliance – Level Requirements Policy Update": 60 = ToV 7-day targets, city leads
   (Dain, Yelinak, Tormax), Statue / AoW / Tunare / Zlandicar, and with NO class exceptions Klandicar, Sontalak, all VP;
@@ -183,23 +197,44 @@ Release template: `session-data-2026-10-03/scratchpad/rel175.js` + `rel175-conte
   `RE_AUC_GRATS` "~Gratss <name> on [Item] (N DKP)!" sets `gratsAt` + `winners` (more grats for the item add winners —
   2 Trakanon's Teeth 10/5; ROT = rotted; roll lines too); bids after it are ignored; `AUC_STALE` 30 min of no activity
   = missed grats. Watcher always forwards grats lines and keeps other /auction lines 45 min after the last opening.
+  Grats format seen in logs: "~Gratss Fled on [Trakanon's Tooth] (1 DKP)!", "~Gratss ROT on [Bow of the Huntsman]
+  (0 DKP)!", rolls "~Gratss Queja on [Great Dragon's Head] with 1308 / 2222!". A grats'd auction shows as a "sold" card
+  for 60 s ("🎉 Grats — you won!" + toast if it's yours), then folds into Closed with the winner(s).
+- **Owner's auction preferences** (don't undo): only the top 2 bids matter (plus your own); no RA; big text; the timer
+  is only a reference; nothing closes until the grats.
+- **Auto-Detect preference**: No kill, no credit lives in the right-click menu only (owner rejected a prompt button).
+  Offered and unanswered: hiding NKNC-marked rows from the Auto-Detect list.
 
 ## 5. Open items
-- ~~`bot_timers` readable with the anon key~~ (owner: leave it).
-- **(was) `bot_timers` is readable with the public anon key** (no sign-in). The owner was given
-  `alter table … enable row level security; create policy … for select to authenticated using (true);` — as of the
-  1.7.0 push anon reads still worked. After it's run, confirm anon is refused AND `synced_at` keeps advancing (if the
-  owner's function writes with the anon key, RLS would block it; revert = `disable row level security`).
-- Paste box: keep or remove (owner to decide).
+- **Auction window, first raid on 1.7.6**: confirm each Gratss closes its card; if officers ever take more bids for a
+  2nd copy *after* the first grats, `aucOnLine` ignores them (bids after `gratsAt`) — revisit only if seen.
+- **Level policy judgement calls** (told to the owner, not confirmed): Magi P'Tasa 58 (treated as HoT), Guardian of
+  Takish unlisted → 55, ST a flat 58 (no farm-night 55 like Fear / Hate). Change `CASTLE_LVL` if the owner says so.
+- **Frown's carried weight shows 79** in his app; his exported inventory computes to 19 (6 Bags of the Tinkerers = 100%
+  reduction; no coins entered). Likely an older inventory file loaded in his app. Waiting on the chip's hover list or a
+  reload of the new file — no code change made.
+- `bot_timers` is readable with the anon key — **owner: leave it; don't raise it again.**
+- Paste box (Spawn Timers): keep — owner wants it for one-off timers.
 - The bot sheet gives exact ToDs with no lag — a better Auto-Detect check than ODKP. Tick-time ToDs were up to 2 min
   off vs the sheet; kill-line ToDs 0–4 s.
 - Carried: ODKP label parsing ("09-24 Vulak kill", "Vkill3", …) — low value given ODKP lag; log-gap warning
   (v1.6.5); ToV / WW share one park loc; Mixelflop MR 119 vs 80; older items in v1.5.21 §4.
 
-## 6. Session data
+## 6. Session data and how-to
 `C:\Users\Owner\Desktop\MixelParse-Source\session-data-2026-10-03\`:
 - `characters-export.csv` (ODKP roster), `bots-raw.txt` / `bots.txt` (owner's bot list, 208 names),
   `castle-bot-timers-2026-10-03.txt` (sheet snapshot), `scratchpad/rel167.js`, `rel170.js`, commit messages.
 - `scratchpad/simscan.js`: the log replay (now tags evidence zones and records logins) → `sim-scan.json`; serve it with
   the `scratch-mock` launch config (point it at the folder) and run the v1.6.6 §4 method; `chatscan.js` / `slainby.js`
   (roster / chat studies); `qtest.js` (a scripted /q swap through watcher.js); `jwttest.mjs` (service-account JWT check).
+- 1.7.4–1.7.6 edit scripts (Write-tool `.js` files run with node — shell heredocs drop backslashes and break regexes):
+  `header-dkp-sync-edit.js`, `castle-lvl-edit.js`, `nknc-edit.js`, `auc-bounds-edit.js`, `auc-grats-edit.js`,
+  `auc-gratsonly-edit.js`, `handoff175.js`; release scripts and `commit17x.txt` messages as in §2.
+- **Previewing `src/auction.html`** in the browser pane: `navigate` to its file:// URL (a reload keeps a stale
+  data: snapshot), wait for load, then set `S = {auctions:[…]}` with `javascript_tool` and call `render()`
+  (set `lastHtml=''` first — it only redraws on change). `resize_window` 520×800 matches the app's default.
+- **EQ logs**: `C:\Program Files (x86)\Sony\EverQuest\Logs\eqlog_<Char>_P1999Green.txt` (+ `archive`). The app's
+  Auto-Detect log (`mp_rkd_log`) lives in Electron localStorage (`%APPDATA%\MixelParse\Local Storage\leveldb`) and is
+  mostly compressed — read the EQ logs instead.
+- **ODKP live check** (read-only, public): e.g. `curl -H "Origin: https://castle.opendkp.com"
+  https://api.opendkp.com/clients/castle/dkp`. Never `/status` or `/clients/castle`.
