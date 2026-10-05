@@ -1,4 +1,37 @@
-## 1.7.4
+## 1.7.5
+
+- **Raid Parking: new Castle level requirements** — Raid Parking now follows the Castle Alliance level policy update; a character only counts as parked if it meets the new level.
+
+  | Raid | Before | Now |
+  |---|---|---|
+  | ToV (7-day targets) | 58 | **60** |
+  | Dain Frostreaver IV | 55 | **60** |
+  | King Tormax | 55 | **60** |
+  | Lord Yelinak | 55 | **60** |
+  | Veeshan's Peak | 60 | **60, no class exceptions** |
+  | Sleeper's Tomb | 55 | **58** |
+  | Plane of Fear (competitive) | 55 | **58** |
+  | Plane of Hate (competitive) | 55 | **58** |
+  | Ring War | 55 | **58** |
+  | Derakor the Vindicator | 55 | **58** |
+  | Velketor the Sorcerer | 55 | **58** |
+  | Wuoshi | 55 | **58** |
+  | Kelorek'Dar | 55 | **58** |
+  | Vaniki | 55 | **58** |
+  | Trakanon | 55 | **58** |
+  | Venril Sathir | 55 | **58** |
+  | Gorenaire | 55 | **58** |
+  | Severilous | 55 | **58** |
+  | Talendor | 55 | **58** |
+  | Faydedar | 55 | **58** |
+  | Klandicar, Sontalak | 60 | 60 |
+  | Statue + Avatar of War, Tunare, Zlandicar | 60 | 60 |
+
+  Class exceptions (Cleric 52, Bard 55, Mage 55) now apply to every raid except Klandicar, Sontalak and Veeshan's Peak — before, most raids only had Cleric 52. Fear and Hate farm nights stay at 55; ToV practice, progression and Halls of Testing stay at 58.
+- **Auto-Detect level check** — a tick shows "⚠ under level" when the character you were on was below Castle's floor for that boss. A note only; it never changes the tick.
+- **Fix: Your DKP in the header** now matches the Credit Check and updates whenever the Credit Check syncs.
+
+Everything from 1.7.4 and earlier is included:
 
 - **⚖ Live auction window** — pops up on its own when an officer opens an auction in /auction, without taking focus from EQ. One card per item: the clock, the item's DKP History prices, every bid with the bidder's current DKP and RA (⚠ red when they bid more than they have), and a "You've been outbid" alert. It only reads /auction; it never bids for you. ⚖ Auctions in the header opens it any time.
 - **⚔ Your DKP in the header** — your ODKP balance next to Est. Market Value, with when ODKP last updated it. Hover for raid attendance; click for the Guild DKP list.
@@ -6,8 +39,6 @@
 - **DKP History: who's buying** — each sale shows the buyer's current DKP and RA, alts show their main ("Fentin (Frown)"), and a click on the raid opens its ticks, items and who was credited.
 - **Fix: DKP History dates** read normally again (1.7.3 showed raw timestamps).
 - **Fix: raid names** no longer end in cut-off Discord links.
-
-Everything from 1.7.3 and earlier is included:
 
 - **🔄 DKP straight from ODKP** — no more exports: DKP History (every item sale + the item DKP prices) and your Credit Check ledger sync themselves from Castle's ODKP at sign-in and every 2 hours. Credit Check finds your ODKP account from your characters and shows whose it is ("synced from ODKP · Frown's account (9 characters)"). ⟳ Sync from ODKP pulls now; CSV upload stays as a fallback.
 - **Factions: right-click to set** — right-click any faction chip (Skyshrine, Kael Drakkel, …) to set that character's standing, or Not Set. A newer reading from your logs still wins.

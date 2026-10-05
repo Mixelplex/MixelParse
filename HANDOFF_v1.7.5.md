@@ -1,4 +1,4 @@
-# MixelParse — Handoff v1.7.4 (2026-10-05)
+# MixelParse — Handoff v1.7.5 (2026-10-05)
 
 Supersedes `HANDOFF_v1.6.6.md` (kept for history; its §3 still describes Auto-Detect Watch / Active mode accurately).
 Start here, then read the code. Git history is the source of truth.
@@ -27,8 +27,9 @@ New this session:
 | 1.7.2 | Auto-Detect: faction hit = ToD on every tick; boss speech = Weak evidence; guild-chat tick attended when your char logged the boss's lines in that zone |
 | 1.7.3 | ODKP auto-sync (DKP History + item prices, Credit Check ledger); faction right-click; DKP History wiki links; quakes removed; balance counts double-credited ticks |
 | 1.7.4 | Live auction window; your DKP in the header; Guild DKP list; buyer DKP / RA + main names + raid detail in DKP History; date + raid-name fixes |
+| 1.7.5 | Raid Parking on the Castle Alliance level policy update; Auto-Detect "under level" note; header DKP follows the Credit Check ledger |
 
-Release template: `session-data-2026-10-03/scratchpad/rel174.js` + `rel174-content.js` (same shape as rel166–rel173).
+Release template: `session-data-2026-10-03/scratchpad/rel175.js` + `rel175-content.js` (built by `rel175-gen.js`; the What's New item can hold an HTML table) (same shape as rel166–rel173).
 
 ## 3. Auto-Detect changes (1.6.7) — index.html `rkdAttribute`, watcher.js `raidEvidence`
 - **Zone-aware evidence.** The watcher tags every raid signal (ticks *and* evidence) with the zone its character was
@@ -153,6 +154,23 @@ Release template: `session-data-2026-10-03/scratchpad/rel174.js` + `rel174-conte
   app. Log replay: top bid = ODKP winner (by account) 90%, price 86%, both 84% (1,646 auctions).
 - **Not yet observed live** (owner: "we will need to test it out"): the pop-up timing, focus behaviour over EQ, and
   multiple simultaneous auctions in a real raid.
+
+## 4f. 1.7.5 (2026-10-05) — Castle level policy
+- **Policy table** (index.html `CASTLE_LVL` + `castleLvlReq(boss, cls)`, beside `PARK_EXC_GROUPS`), keyed by BOSS_ROSTER
+  target, from the owner's pasted "Castle Alliance – Level Requirements Policy Update": 60 = ToV 7-day targets, city leads
+  (Dain, Yelinak, Tormax), Statue / AoW / Tunare / Zlandicar, and with NO class exceptions Klandicar, Sontalak, all VP;
+  58 = ToV practice / HoT (incl. minis), Vindi, Velketor, Wuoshi, Kelorek, Vaniki, Ring War, ST, Kunark bosses, and
+  Fear / Hate when competitive (`farm:55`); 50 = Naggy, Vox; unlisted 55. Class exceptions CLR 52 / BRD 55 / MAG 55
+  everywhere else. Judgement calls told to the owner: Magi P'Tasa 58 (HoT), Takish unlisted → 55, Sky not parked.
+- **Raid Parking** (`RAID_PARK_TARGETS`): floors raised to match (all former 55 rows → 58 or 60, ToV 58 → 60, VP exc
+  → none); every row now uses the `yellow` exception group except Klandicar / Sontalak / VP. Row names unchanged
+  (park ignores key off them — "Dain Frostweaver IV" typo kept on purpose).
+- **Auto-Detect note**: `rkdFinalize` stores the tick character's level + class (`_rkdCharLvl`, live ticks only);
+  `rkdLvlWarn(r)` → "⚠ lvl N — under level (X)" under the character in the Auto-Detect table and appended to the
+  Active-mode toasts. Information only — never changes tier, never blocks an auto-add. Scanned / older rows get none.
+- **Header DKP fix**: `odkpHeaderDkp` uses the Credit Check ledger balance (`odkpTicksMeta.dkp.balance`) when it's the
+  same account and newer than ODKP's `/dkp` AsOfDate (the summary trails the ledger); every ledger sync — auto,
+  "no change" (sets `checkedAt`) or the Credit Check button — also re-pulls the guild list and redraws the header.
 
 ## 5. Open items
 - ~~`bot_timers` readable with the anon key~~ (owner: leave it).
