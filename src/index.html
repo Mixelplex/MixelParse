@@ -438,6 +438,9 @@
   .ss-item-name{font-weight:500;color:var(--text)}
   .ss-sub{font-size:.75rem;color:var(--text-muted);font-style:italic;margin-top:.1rem}
   .ss-check{text-align:center;font-size:1rem}
+  .flw-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+  @media (max-width:1150px){.flw-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:760px){.flw-grid{grid-template-columns:minmax(0,1fr)}}
   .ss-check-green{color:#3a7a3a}
   .ss-check-red{color:#a03030}
   .ss-check-na{color:var(--text-muted)}
@@ -893,6 +896,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
     <div class="ornament">&#10022;</div>
     <button id="sessionTitleBtn" onclick="sessionToggleOverlay()" title="Active Session" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.25rem;background:none;border:none;padding:0;display:block;width:100%;text-align:center;pointer-events:all">&#9711; Session</button>
     <button id="aucOpenBtn" onclick="aucToggleWindow()" title="Live DKP auctions from /auction — current bids with each bidder's DKP" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:100%;text-align:center;pointer-events:all">&#9878; Auctions</button>
+    <label id="aucEnLbl" title="Off: auctions are switched off completely — no auction window, no pop-up, no outbid / grats toasts" style="font-size:.62rem;cursor:pointer;font-family:monospace;user-select:none;margin:.05rem 0 0 .9rem;display:flex;align-items:center;justify-content:center;gap:.3rem;pointer-events:all"><input type="checkbox" id="aucEnChk" onchange="aucSetEnabled(this.checked)" style="margin:0;width:.7rem;height:.7rem;cursor:pointer;accent-color:#8a7a4a"><span id="aucEnTxt">Auction enabled</span></label>
     <button id="twnOpenBtn" onclick="openThisWeek()" title="This Week in Norrath — weekly digest" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:100%;text-align:center;pointer-events:all">&#128240; This Week</button>
   </div>
   <div class="version-badge" id="versionBadge"></div>
@@ -962,6 +966,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
   <div class="top-nav-item" data-view="kills">Raid Kill Tracker</div>
   <div class="top-nav-item" data-view="raidinfo">Raid Info</div>
   <div class="top-nav-item" data-view="keys">Keys</div>
+  <div class="top-nav-item" data-view="flowers">Flowers</div>
   <div class="top-nav-item" data-view="farm">Farm Targets</div>
   <div class="top-nav-item" data-view="bankers">Bankers</div>
   <div id="syncIndicator" title="Click to save now" onclick="forceSaveNow()" style="margin-left:auto;cursor:pointer;font-size:.65rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:4px;transition:background .15s">
@@ -1006,6 +1011,10 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
 
 <div id="keysView" style="display:none">
   <div class="rc-panel" id="keysPanel"></div>
+</div>
+
+<div id="flowersView" style="display:none">
+  <div class="rc-panel" id="flowersPanel"></div>
 </div>
 
 <div id="gearReportsView" style="display:none">
@@ -2935,6 +2944,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     const isKills=activeTopView==='kills';
     const isParking=activeTopView==='parking';
     const isKeys=activeTopView==='keys';
+    const isFlowers=activeTopView==='flowers';
     const isTimers=activeTopView==='timers';
     const isGearReports=activeTopView==='gearreports';
     const isBankers=activeTopView==='bankers';
@@ -2952,6 +2962,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     document.getElementById('killsView').style.display=isKills?'block':'none';
     document.getElementById('parkingView').style.display=isParking?'block':'none';
     document.getElementById('keysView').style.display=isKeys?'block':'none';
+    document.getElementById('flowersView').style.display=isFlowers?'block':'none';
     document.getElementById('timersView').style.display=isTimers?'block':'none';
     document.getElementById('gearReportsView').style.display=isGearReports?'block':'none';
     document.getElementById('bankersView').style.display=isBankers?'block':'none';
@@ -2961,6 +2972,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     else if(isKills){renderKillsPanel();}
     else if(isParking){renderParkingPanel();}
     else if(isKeys){renderKeysPanel();}
+    else if(isFlowers){renderFlowersPanel();}
     else if(isTimers){renderTimersPanel();}
     else if(isGearReports){renderGearReportsPanel();}
     else if(isBankers){setBankersSub(bankersSub);}
@@ -5330,6 +5342,11 @@ const HELP_CONTENT={
     'Charm anything and /pet attack Quillmane \u2014 if the pet answers, the app alarms: QUILLMANE IS UP.',
     'Killing Quillmane (yours or a snipe in visual range) collapses the window to an exact 78s. Use Mark cycle kill when the log couldn\u2019t see the death.',
   ]},
+  flowers:{title:'Flowers',sub:'Flowers of Functionality',tips:[
+    'The five Flowers of Functionality from the Deck of Spontaneous Generation quest (Plane of Mischief) \u2014 each a +50 resist clicky that works from inventory.',
+    'One card per flower: the four cards it needs, how many your characters hold of each and who \u2014 (1 - Mixelboom), bankers included.',
+    'The footer says who can combine now and who already has the flower. Hover a card for where it drops.',
+  ]},
   keys:{title:'Keys',sub:'Zone keys & Plane of Sky corpses',tips:[
     'One row per raider: Old Sebilis (Trakanon Idol), Veeshan’s Peak, Sleeper’s Tomb, Charasis and the Tooth of the Cobalt Scar, from your inventory exports. “✓ bank” means the key is banked — carry it to use it.',
     'Veeshan’s Peak shows your progress: Trakanon’s Tooth and each medallion’s pieces (x/3). Hover a cell for exactly what’s missing and where it drops.',
@@ -5449,16 +5466,14 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.6',
+  version:'1.7.7',
   date:'October 2026',
   features:[
-    ['&#9873; Raid Parking: new Castle level requirements','Raid Parking now follows the Castle Alliance level policy update &mdash; a character only counts as parked if it meets the new level.<table style="width:100%;border-collapse:collapse;margin:.45rem 0 .35rem;font-size:.8rem"><tr><th style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:left;font-weight:600">Raid</th><th style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;font-weight:600">Before</th><th style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;font-weight:600">Now</th></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">ToV (7-day targets)</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">58</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">60</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Dain Frostreaver IV</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">60</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">King Tormax</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">60</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Lord Yelinak</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">60</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Veeshan&rsquo;s Peak</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">60</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">60, no class exceptions</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Sleeper&rsquo;s Tomb</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Plane of Fear (competitive)</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Plane of Hate (competitive)</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Ring War</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Derakor the Vindicator</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Velketor the Sorcerer</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Wuoshi</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Kelorek&rsquo;Dar</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Vaniki</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Trakanon</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Venril Sathir</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Gorenaire</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Severilous</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Talendor</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Faydedar</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">55</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--gold-light);font-weight:700">58</td></tr><tr style="opacity:.6"><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Klandicar, Sontalak</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">60</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">60</td></tr><tr style="opacity:.6"><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border)">Statue + Avatar of War, Tunare, Zlandicar</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">60</td><td style="padding:.12rem .45rem;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">60</td></tr></table><b>Class exceptions</b> &mdash; Cleric 52, Bard 55, Mage 55 now apply to every raid except Klandicar, Sontalak and Veeshan&rsquo;s Peak (before, most raids only had Cleric 52). Fear and Hate farm nights stay at 55; ToV practice, progression and Halls of Testing stay at 58.'],
-    ['&#9878; Auction window, rebuilt','Bigger text (A&minus; / A+ to size it), and each auction shows just the <b>top 2 bids</b> plus yours. The clock shows how long it&rsquo;s been running; an auction stays open until the officer&rsquo;s <b>Gratss</b> &mdash; then it shows the winner(s) and folds into the Closed list. Click any item for its P99 wiki page. The window remembers its size and spot.'],
-    ['Auto-Detect level check','A tick shows &ldquo;&#9888; under level&rdquo; when the character you were on was below Castle&rsquo;s floor for that boss. It&rsquo;s a note only &mdash; it never changes the tick.'],
-    ['Auto-Detect: No kill, no credit','Right-click a tick &rarr; <b>No kill, no credit</b> for an attempt that wiped with no failtick before a round 2. Nothing is recorded, the round-2 kill counts as the first (not &ldquo;#2&rdquo;), and Credit Check stops flagging it.'],
+    ['&#127804; Flowers','New <b>Flowers</b> tab in the top bar for the five Flowers of Functionality (Deck of Spontaneous Generation, Plane of Mischief) &mdash; +50 resist clickies that work from inventory. One card per flower: the four cards it needs, how many your characters hold of each and who (<b>1 - Mixelboom</b>), who can combine now and who already has the flower. <b>Card Prices</b> shows PigParse prices for all 16 cards and what each flower costs in cards. Hover a card for where it drops.'],
+    ['&#9878; Auctions on / off','A checkbox under &#9878; Auctions in the header. Unticked (&ldquo;Auction disabled&rdquo;) switches auctions off completely: no auction window, no pop-up, no outbid or Grats toasts, and the &#9878; Auctions button greys out. Tick it to turn them back on.'],
   ],
   fixes:[
-    ['Your DKP in the header','Now matches the Credit Check and updates whenever the Credit Check syncs.'],
+    ['Guardian of Takish','Level requirement is now 60, the same as Tunare (was 55).'],
   ],
 };
 function showWhatsNew(){
@@ -9104,6 +9119,12 @@ window.odkpRaidModal=async function(raidId){
 const AUC_STALE=30*60e3, AUC_GRACE=150e3, AUC_KEEP=20*60e3;   // open until grats (30 min with no activity = missed grats); 2m30s = the posted clock; closed ones kept 20 min
 let aucList=[];
 const _aucSeen=new Set();
+// Auction on/off (owner, 2026-10-05): the header checkbox; off = /auction lines are ignored (no tracking, pop-up or toasts)
+let aucEnabled=(function(){try{return localStorage.getItem('mp_auc_enabled')!=='0';}catch(e){return true;}})();
+function aucEnUi(){ const c=document.getElementById('aucEnChk'), t=document.getElementById('aucEnTxt'), b=document.getElementById('aucOpenBtn');
+  if(c) c.checked=aucEnabled; if(t){ t.textContent=aucEnabled?'Auction enabled':'Auction disabled'; t.style.color=aucEnabled?'#8a9a6a':'#555'; } if(b){ b.disabled=!aucEnabled; b.style.opacity=aucEnabled?'':'.4'; b.style.cursor=aucEnabled?'pointer':'default'; b.style.pointerEvents=aucEnabled?'all':'none'; b.title=aucEnabled?"Live DKP auctions from /auction — current bids with each bidder's DKP":'Auctions are disabled — tick the box below to turn them on'; } }
+window.aucSetEnabled=function(on){ aucEnabled=!!on; try{localStorage.setItem('mp_auc_enabled',aucEnabled?'1':'0');}catch(e){} if(!aucEnabled){ aucList=[]; aucPush(); if(window.MixelParseApp&&window.MixelParseApp.closeAuction) window.MixelParseApp.closeAuction(); } aucEnUi(); };
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',aucEnUi); else aucEnUi();
 let aucAutoPop=(function(){try{return localStorage.getItem('mp_auc_autopop')!=='0';}catch(e){return true;}})();
 function aucNorm(s){ return String(s||'').toLowerCase().replace(/[`'’]/g,"'").replace(/\s+/g,' ').trim(); }
 // a bid on item I: the text holds the item name; the other words give one number (the bid) and maybe one name (the toon)
@@ -9120,6 +9141,7 @@ function aucKeep(A,now){ return aucIsOpen(A,now)||now-aucClosedAt(A)<AUC_KEEP; }
 // the officer's close: "~Gratss Fled on [Trakanon's Tooth] (1 DKP)!" (or "… with 958 / 3333!" for a roll)
 const RE_AUC_GRATS=/~\s*grat+[sz]*\s+(\S+)\s+on\s+\[([^\]]+)\](?:\s*\((\d+)\s*dkp\))?/i;
 function aucOnLine(msg){
+  if(!aucEnabled) return;
   const key=msg.ts+'|'+msg.who+'|'+msg.text; if(_aucSeen.has(key)) return; _aucSeen.add(key);
   if(_aucSeen.size>5000){ const it=_aucSeen.values(); for(let i=0;i<2000;i++) _aucSeen.delete(it.next().value); }
   const now=Date.now();
@@ -9180,7 +9202,7 @@ function aucState(){
     })};
 }
 function aucPush(){ if(window.MixelParseApp&&window.MixelParseApp.pushAuctionState) window.MixelParseApp.pushAuctionState(aucState()); }
-window.aucToggleWindow=function(){ if(window.MixelParseApp&&window.MixelParseApp.toggleAuction){ window.MixelParseApp.toggleAuction(); setTimeout(aucPush,300); } else alert('The auction window is in the desktop app.'); };
+window.aucToggleWindow=function(){ if(!aucEnabled) return; if(window.MixelParseApp&&window.MixelParseApp.toggleAuction){ window.MixelParseApp.toggleAuction(); setTimeout(aucPush,300); } else alert('The auction window is in the desktop app.'); };
 if(window.MixelParseApp){
   if(window.MixelParseApp.onAuctionWindowReady) window.MixelParseApp.onAuctionWindowReady(()=>aucPush());
   if(window.MixelParseApp.onAuctionCommand) window.MixelParseApp.onAuctionCommand(c=>{
@@ -9373,6 +9395,7 @@ async function fetchPlatData(){
     console.log('[Plat] Sample record:',platData[0]); // so we can see the shape
     renderPlatPanel();
     if(activeTopView==='farm')renderFarmPanel();
+    if(activeTopView==='flowers')renderFlowersPanel();
     applyPlatToItemDB();
     renderNetworthBar();
   }catch(e){
@@ -14400,7 +14423,7 @@ const CASTLE_LVL = (()=>{
   // 60: ToV 7-day targets, city leads, Velious bosses — and (no class exceptions) Klandicar, Sontalak, VP
   put(60,['Aaryonar','Cekenar','Dagarn','Dozekar','Eashen','Ikatiar','Jorlleag','Feshlak','Koi','Kreizenn','Mirenilla',
     'Nevederia','Sevalak','Telk','Zlexak','Gozzrem','LTK','Vulak','Vyemm',
-    'Dain','Yelinak','Tormax','Statue','Avatar of War','Tunare','Zlandicar']);
+    'Dain','Yelinak','Tormax','Statue','Avatar of War','Tunare','Takish','Zlandicar']);
   put(60,['Klandicar','Sontalak','Phara Dar','Druushk','Nexona','Hoshkar','Silverwing','Xygoz'],{noExc:true});
   // 58: ToV practice / progression + Halls of Testing (incl. minis), Velious raid bosses, Ring War, Sleeper's Tomb, Kunark
   put(58,['Essedera','Lepethida',"Magi P'Tasa",'Casalen','Grozzmel','Krigara','Midayor','Tavekalem','Ymmeln',
@@ -14960,6 +14983,110 @@ function renderKeysPanel(){
     '<div style="font-size:.74rem;color:var(--text-muted);margin-bottom:.6rem">From your inventory exports (raiders only). Hover a cell for details and what’s missing. <b>Sky corpse</b>: any death in the Plane of Sky — corpses decay after 7 days. Sky keys vanish when you leave the zone, so the app only trusts keys it has seen: type <code>/outputfile inventory</code> in Sky before you die, or with your corpse open.</div>'+
     '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr style="border-bottom:1px solid var(--border)"><th></th>'+
     th('Old Sebilis')+th("Veeshan's Peak")+th("Sleeper's Tomb")+th('Charasis')+th('Cobalt Scar')+th('Sky corpse')+'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+/* ═══ Flowers of Functionality (owner, 2026-10-05) ═══════════════════════════════════════════════════════
+   Deck of Spontaneous Generation Quest, Plane of Mischief (lvl 46, all classes). Four PoM cards combined in the deck
+   make a flower: HEAD AC10, LORE NO DROP, a +50 resist self-buff (36 min) clickable from any slot. Cards are LORE but
+   not NO DROP (tradeable). Tiers Throne > Crown > Knight > Squire; a mob drops its tier and below. P99 wiki. */
+const FLOWER_DECK='Deck of Spontaneous Generation';
+const FLOWER_COLOURS=['Black','White','Red','Blue'], FLOWER_TIERS=['Throne','Crown','Knight','Squire'];
+const FLOWERS=[
+  {c:'Black',resist:'Disease',stacks:false,dot:'#2a2a2a',note:"Doesn't stack with Resist Disease or Talisman of Jasinth (5 more than Jasinth)",cards:['A Black Squire','A White Squire','A Red Squire','A Blue Squire']},
+  {c:'Green',resist:'Poison', stacks:true, dot:'#3a7a3a',note:'Stacks with Resist Poison, DMF and Talisman of Shadoo',cards:['A Black Knight','A White Knight','A Red Knight','A Blue Knight']},
+  {c:'White',resist:'Cold',   stacks:true, dot:'#d8d4ca',note:'Stacks with Circle of Summer and Resist Cold (not the Frozen Turban)',cards:['A Black Crown','A White Crown','A Red Crown','A Blue Crown']},
+  {c:'Red',  resist:'Fire',   stacks:false,dot:'#a03030',note:"Doesn't stack with Resist Fire or Circle of Winter (5 more than Circle of Winter)",cards:['A White Throne','A White Crown','A White Knight','A White Squire']},
+  {c:'Blue', resist:'Magic',  stacks:false,dot:'#2f5f9f',note:"Doesn't stack with Resist Magic or Group Resist Magic (5 less than GRM)",cards:['A Black Throne','A White Throne','A Red Throne','A Blue Throne']},
+];
+const FLOWER_DROPS={
+  Squire:'forest mushrooms, lost gnomes, Geb, A Ratfink',
+  Knight:'the four forest halflings, maze rats, most level 45+ mobs',
+  Crown:'the A3 set in the Alice area, Fenj, EightySix, My Right Hand, hedge-maze flowers, Chuckles the Great, the forest Treasure Chest',
+  Throne:'the A4 Alice set (TwentyTwo, Brenn, Grenn, Glonk, Grink, Stomples), the Puppet Theater puppets, both Lithiniaths, A False Treasure Chest, A Dastardly Rascal',
+};
+// Every loaded inventory, bankers included (cards are tradeable): [{char,count,bank}] and "(1 - Mixelboom) (2 - Mixelplex)"
+function flowerHold(item){
+  return itemHoldings(item).holders.map(h=>({char:h.char,count:h.count,bank:!!h.wheres.Bank&&!h.wheres.Bag&&!h.wheres.Equipped}));
+}
+function flowerWho(hs){
+  return hs.map(h=>'<span'+(h.bank?' title="in the bank"':'')+'>('+h.count+' - '+esc(h.char)+(h.bank?' \u00b7 bank':'')+')</span>').join(' ');
+}
+const flowerWiki=n=>'https://wiki.project1999.com/'+encodeURIComponent(n.replace(/ /g,'_'));
+// PigParse WTS price for a card, same pick as applyPlatToItemDB: 60-day avg, else 90 / 30 / all-time
+function flowerPigMap(){
+  const m={};
+  for(const r of platData){ if(r.t!==0||!r.n) continue; const k=r.n.toLowerCase();
+    const pp=r.a60>0?r.a60:r.a90>0?r.a90:r.a30>0?r.a30:r.ay>0?r.ay:0; if(pp>0) m[k]={pp,r}; }
+  return m;
+}
+const flowerPP=pp=>pp>=1000?(pp>=10000?Math.round(pp/1000):Math.round(pp/100)/10)+'k':String(Math.round(pp));
+function renderFlowersPanel(){
+  const panel=document.getElementById('flowersPanel');if(!panel)return;
+  if(!Object.keys(chars).length){panel.innerHTML='<div class="empty-state">No characters loaded.</div>';return;}
+  const link=(n,label,col)=>'<a href="'+flowerWiki(n)+'" target="_blank" rel="noopener" style="color:'+(col||'var(--text)')+';text-decoration:none;border-bottom:1px dotted var(--gold)">'+esc(label||n)+'</a>';
+  const tierOf=c=>FLOWER_TIERS.find(t=>c.endsWith(' '+t));
+  const deck=flowerHold(FLOWER_DECK);
+  const cards=FLOWERS.map(f=>{
+    const fn=f.c+' Flower of Functionality', own=flowerHold(fn);
+    const req=f.cards.map(c=>({c,h:flowerHold(c)}));
+    const got=req.filter(r=>r.h.length).length;
+    // a character holding all four can combine now (needs the deck too)
+    const ready=Object.keys(chars).filter(n=>f.cards.every(c=>charHasItem(n,c)));
+    const reqRows=req.map(r=>{
+      const n=r.h.reduce((a,h)=>a+h.count,0), t=tierOf(r.c), shared=FLOWERS.filter(g=>g!==f&&g.cards.includes(r.c)).map(g=>g.c);
+      const tip=r.c+'\n'+t+'s drop from '+FLOWER_DROPS[t]+'\nA mob drops its own tier and every tier below it.'+(shared.length?'\nAlso needed for the '+shared.join(' + ')+' flower.':'');
+      return '<tr style="border-top:1px solid rgba(74,58,26,.2)" title="'+keysAttr(tip)+'">'
+        +'<td style="padding:.5rem .5rem;width:1.2rem;text-align:center;font-weight:700" class="'+(n?'ss-check-green':'ss-check-red')+'">'+(n?'\u2714':'\u2718')+'</td>'
+        +'<td style="padding:.5rem .3rem;white-space:nowrap">'+link(r.c,r.c.replace(/^A /,''))+(shared.length?' <span style="font-size:.78rem;color:var(--text-muted)">\u00b7 '+shared.join(', ')+' too</span>':'')+'</td>'
+        +'<td style="padding:.5rem .5rem;text-align:right;font-weight:700;white-space:nowrap;color:'+(n?'#2f6f2f':'var(--text-muted)')+'">'+n+'</td>'
+        +'<td style="padding:.5rem .5rem;font-size:.9rem;color:var(--text-muted)">'+(r.h.length?flowerWho(r.h):'\u2014')+'</td></tr>';
+    }).join('');
+    const status=ready.length
+      ?'<b style="color:#2f6f2f">\u2714 '+ready.map(esc).join(', ')+' can combine now</b>'+(ready.some(n=>!charHasItem(n,FLOWER_DECK))?' <span style="color:#a07000">(needs the deck)</span>':'')
+      :got===4?'<span style="color:#a07000">All 4 on the account \u2014 trade them to one character to combine</span>'
+      :'<span style="color:var(--text-muted)">'+(4-got)+' card'+(4-got===1?'':'s')+' still needed</span>';
+    return '<div style="border:1px solid var(--border);border-radius:5px;background:var(--surface);overflow:hidden;display:flex;flex-direction:column">'
+      +'<div style="padding:.55rem .7rem .45rem;border-bottom:1px solid var(--border)">'
+        +'<div style="display:flex;align-items:center;gap:.45rem;justify-content:space-between">'
+          +'<div style="display:flex;align-items:center;gap:.45rem;min-width:0"><span style="width:.9rem;height:.9rem;border-radius:50%;background:'+f.dot+';border:1px solid var(--border);flex:none"></span>'
+          +'<span style="font-family:\'Cinzel\',serif;font-size:1rem;letter-spacing:.04em">'+link(fn,fn,'var(--gold-light)')+'</span></div>'
+          +'<span style="font-family:\'Cinzel\',serif;font-size:.86rem;color:'+(got===4?'#2f6f2f':'var(--text-muted)')+';white-space:nowrap">'+got+'/4</span>'
+        +'</div>'
+        +'<div class="ss-sub" style="margin-top:.25rem;font-size:.86rem">+50 '+f.resist+' \u00b7 '+(f.stacks?'<span style="color:#3a7a3a">stacks</span>':'no stack')+' \u2014 '+esc(f.note)+'</div>'
+      +'</div>'
+      +'<table style="border-collapse:collapse;width:100%;font-size:1rem"><thead><tr>'
+        +'<th></th><th style="padding:.3rem .3rem;text-align:left;font-family:\'Cinzel\',serif;font-size:.74rem;letter-spacing:.06em;color:var(--text-muted)">REQUIRES</th>'
+        +'<th style="padding:.4rem .5rem;text-align:right;font-family:\'Cinzel\',serif;font-size:.74rem;letter-spacing:.06em;color:var(--text-muted)">HAVE</th>'
+        +'<th style="padding:.4rem .5rem;text-align:left;font-family:\'Cinzel\',serif;font-size:.74rem;letter-spacing:.06em;color:var(--text-muted)">WHO</th></tr></thead>'
+      +'<tbody>'+reqRows+'</tbody></table>'
+      +'<div style="margin-top:auto;padding:.45rem .7rem;border-top:1px solid var(--border);font-size:.9rem;background:rgba(160,120,50,.05)">'
+        +status+'<div style="margin-top:.2rem;color:var(--text-muted)">Have the flower: '+(own.length?flowerWho(own):'nobody yet')+'</div></div>'
+      +'</div>';
+  }).join('');
+  panel.innerHTML='<div class="rc-title" style="font-family:\'Cinzel\',serif;letter-spacing:.06em;margin-bottom:.3rem">FLOWERS OF FUNCTIONALITY</div>'
+    +'<div style="font-size:.9rem;color:var(--text-muted);margin-bottom:.4rem">'+link('Deck of Spontaneous Generation Quest','Deck of Spontaneous Generation Quest','var(--gold-light)')+' (Plane of Mischief, lvl 46): four cards in the deck make a flower \u2014 a HEAD item (AC 10, NO DROP) with a +50 resist clicky (36 min) that works from inventory, so carry all five. Counts are across every loaded inventory, bankers included (cards are LORE but tradeable: one of each per character). Hover a card for where it drops.</div>'
+    +'<div style="font-size:.92rem;margin-bottom:.8rem"><b>Deck:</b> '+(deck.length?flowerWho(deck):'<span style="color:var(--text-muted)">nobody yet \u2014 kill Dinner (Dining Room) for the King Cod Card, or fish the moat for the four cod cards, then hand it to Ferjeneror (hedge maze)</span>')+'</div>'
+    +'<div class="flw-grid">'+cards+flowerPriceBox()+'</div>';
+}
+function flowerPriceBox(){
+  const hd='font-family:\'Cinzel\',serif;font-size:.74rem;letter-spacing:.06em;color:var(--text-muted)';
+  const wrap=inner=>'<div style="border:1px solid var(--border);border-radius:5px;background:var(--surface);overflow:hidden;display:flex;flex-direction:column">'
+    +'<div style="padding:.55rem .7rem .45rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:baseline;gap:.5rem">'
+    +'<span style="font-family:\'Cinzel\',serif;font-size:1rem;letter-spacing:.04em;color:var(--gold-light)">Card Prices</span>'
+    +'<span style="font-size:.78rem;color:var(--text-muted)">PigParse \u00b7 WTS avg</span></div>'+inner+'</div>';
+  if(!platData.length){ if(typeof fetchPlatData==='function'&&!platLoading) fetchPlatData();
+    return wrap('<div style="padding:.6rem .7rem;font-size:.9rem;color:var(--text-muted)">Loading PigParse prices\u2026</div>'); }
+  const m=flowerPigMap(), get=c=>m[c.toLowerCase()];
+  const tip=(c,p)=>{ if(!p) return c+'\nNo WTS price on PigParse'; const r=p.r, f=v=>v>0?Math.round(v).toLocaleString()+'pp':'\u2014';
+    return c+'\nWTS avg \u2014 30d '+f(r.a30)+' \u00b7 60d '+f(r.a60)+' \u00b7 90d '+f(r.a90)+' \u00b7 all-time '+f(r.ay)
+      +'\nSeen '+(r.t30||0)+' times in 30 days, '+(r.ty||0)+' all-time'+(r.l?'\nLast seen '+new Date(r.l).toLocaleDateString():''); };
+  const rows=FLOWER_TIERS.map(t=>'<tr style="border-top:1px solid rgba(74,58,26,.2)"><td style="padding:.45rem .7rem;'+hd+'">'+t.toUpperCase()+'</td>'
+    +FLOWER_COLOURS.map(c=>{ const card='A '+c+' '+t, p=get(card);
+      return '<td style="padding:.45rem .5rem;text-align:right;font-size:.98rem;white-space:nowrap;color:'+(p?'var(--text)':'var(--text-muted)')+'" title="'+keysAttr(tip(card,p))+'">'+(p?flowerPP(p.pp):'\u2014')+'</td>'; }).join('')+'</tr>').join('');
+  const cost=FLOWERS.map(f=>{ const ps=f.cards.map(get), sum=ps.reduce((a,p)=>a+(p?p.pp:0),0), miss=ps.filter(p=>!p).length;
+    return '<span style="white-space:nowrap" title="'+keysAttr(f.c+' Flower \u2014 '+f.cards.map((c,i)=>c.replace(/^A /,'')+' '+(ps[i]?Math.round(ps[i].pp).toLocaleString()+'pp':'no price')).join(', '))+'"><span style="display:inline-block;width:.5rem;height:.5rem;border-radius:50%;background:'+f.dot+';border:1px solid var(--border);margin-right:.25rem"></span>'+(sum?flowerPP(sum)+(miss?'+':''):'\u2014')+'</span>'; }).join(' \u00a0 ');
+  return wrap('<table style="border-collapse:collapse;width:100%"><thead><tr><th></th>'
+    +FLOWER_COLOURS.map(c=>'<th style="padding:.4rem .5rem;text-align:right;'+hd+'">'+c.toUpperCase()+'</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div style="margin-top:auto;padding:.45rem .7rem;border-top:1px solid var(--border);font-size:.9rem;background:rgba(160,120,50,.05)"><span style="color:var(--text-muted)">4-card cost:</span> '+cost+'</div>');
 }
 // Countdown banner: a raider's Sky corpse with keys (or unverified keys) inside its last 24 h.
 function skyWarnHidden(){try{return new Set(JSON.parse(localStorage.getItem('mp_skyWarnHide')||'[]'));}catch(e){return new Set();}}

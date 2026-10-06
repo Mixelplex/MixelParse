@@ -1,4 +1,10 @@
-## 1.7.6
+## 1.7.7
+
+- **🌼 Flowers** — new Flowers tab in the top bar for the five Flowers of Functionality (Deck of Spontaneous Generation, Plane of Mischief): +50 resist clickies that work from inventory. One card per flower: the four cards it needs, how many your characters hold of each and who ("1 - Mixelboom"), who can combine now and who already has the flower. Card Prices shows PigParse prices for all 16 cards and what each flower costs in cards. Hover a card for where it drops.
+- **⚖ Auctions on / off** — a checkbox under ⚖ Auctions in the header. Unticked ("Auction disabled") switches auctions off completely: no auction window, no pop-up, no outbid or Grats toasts, and the ⚖ Auctions button greys out.
+- **Fix: Guardian of Takish** level requirement is now 60, the same as Tunare (was 55).
+
+Everything from 1.7.6 and earlier is included:
 
 - **Raid Parking: new Castle level requirements** — Raid Parking now follows the Castle Alliance level policy update; a character only counts as parked if it meets the new level.
 
@@ -32,8 +38,6 @@
 - **Auto-Detect level check** — a tick shows "⚠ under level" when the character you were on was below Castle's floor for that boss. A note only; it never changes the tick.
 - **Auto-Detect: No kill, no credit** — right-click a tick for an attempt that wiped with no failtick before a round 2. Nothing is recorded, the round-2 kill counts as the first (not "#2"), and Credit Check stops flagging it.
 - **Fix: Your DKP in the header** now matches the Credit Check and updates whenever the Credit Check syncs.
-
-Everything from 1.7.4 and earlier is included:
 
 - **⚖ Live auction window** — pops up on its own when an officer opens an auction in /auction, without taking focus from EQ. One card per item: the clock, the item's DKP History prices, every bid with the bidder's current DKP and RA (⚠ red when they bid more than they have), and a "You've been outbid" alert. It only reads /auction; it never bids for you. ⚖ Auctions in the header opens it any time.
 - **⚔ Your DKP in the header** — your ODKP balance next to Est. Market Value, with when ODKP last updated it. Hover for raid attendance; click for the Guild DKP list.
