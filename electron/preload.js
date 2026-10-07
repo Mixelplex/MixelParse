@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   closeAuction:       ()        => ipcRenderer.invoke('auction:close'),
   minimizeAuction:    ()        => ipcRenderer.invoke('auction:minimize'),
   pushAuctionState:   (state)   => ipcRenderer.send('auction:push-state', state),
+  resizeAuctionWidth: (w)       => ipcRenderer.send('auction:resize-width', w),   // more columns of tiles
   onAuctionState:     (cb)      => ipcRenderer.on('auction-state',   (_, d) => cb(d)),
   sendAuctionCommand: (cmd)     => ipcRenderer.send('auction:command', cmd),
   onAuctionCommand:   (cb)      => ipcRenderer.on('auction-command', (_, d) => cb(d)),

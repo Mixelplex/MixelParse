@@ -1,10 +1,13 @@
-## 1.7.11
+## 1.7.12
+
+- **⚖ Auction tiles** — auctions show as tiles, three to a column. When more open, the window grows another column to the right (up to four) and shrinks back as they close. Size the window once and every column uses that width.
+- **✕ Ignore an auction** — right-click an auction → Ignore this auction to hide it and stop its outbid and Grats notices. The footer's "ignored · show" brings them back (right-click → Un-ignore).
+
+Everything from 1.7.11 and earlier is included:
 
 - **⚙ Settings** — a Settings button in the header gathers your options in one place: corpse tracking (all / Sky only / off), auctions, the Watch List style, which pop-up notices show, text size, Auto-Detect mode, map auto-timers, characters (character / banker / hidden), the tab MixelParse opens on, what closing the window does, archiving large EQ logs, and Start with Windows. Item Database, UI Copy Tool and Gear Planner Reports moved in there too.
 - **📈 Leveling path: real XP** — leveling times now come from the XP each kill is worth (mob levels from the P99 wiki) instead of counting kills, calibrated on the guild's finished levels. Zones also show a measured XP modifier next to the wiki's guess.
 - **Fix:** a setting changed just before MixelParse was closed hard (e.g. Auction enabled) could be lost. Settings now save to disk right away.
-
-Everything from 1.7.10 and earlier is included:
 
 - **📖 Leveling path vs. the wiki guide** — the Leveling tab's new Class Guide puts the P99 wiki hunting guide next to the spots actually measured for your class, level band by level band (✓ where they agree). The wiki guide table also gets a Measured column.
 - **Fix:** the Leveling tab uses the level set in Character Stats.

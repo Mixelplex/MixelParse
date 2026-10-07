@@ -676,6 +676,15 @@ ipcMain.handle('auction:pop', () => {   // a new auction opened — show without
 ipcMain.handle('auction:close', () => { if (auctionWindow && !auctionWindow.isDestroyed()) auctionWindow.close(); });
 ipcMain.handle('auction:minimize', () => { if (auctionWindow && !auctionWindow.isDestroyed()) auctionWindow.minimize(); });
 ipcMain.on('auction:push-state', (event, state) => { if (auctionWindow && !auctionWindow.isDestroyed()) auctionWindow.webContents.send('auction-state', state); });
+// the auction window asks for room for more columns of tiles (2026-10-07) — keep its left edge, stay on its screen
+ipcMain.on('auction:resize-width', (event, w) => {
+  if (!auctionWindow || auctionWindow.isDestroyed() || auctionWindow.isMinimized() || auctionWindow.isMaximized()) return;
+  const { screen } = require('electron');
+  const b = auctionWindow.getBounds(), area = screen.getDisplayMatching(b).workArea;
+  const width = Math.max(320, Math.min(Math.round(+w || b.width), area.width));
+  const x = Math.max(area.x, Math.min(b.x, area.x + area.width - width));
+  auctionWindow.setBounds({ x, y: b.y, width, height: b.height });
+});
 ipcMain.on('auction:command', (event, cmd) => {
   if (cmd && cmd.type === 'wiki' && typeof cmd.item === 'string') { shell.openExternal('https://wiki.project1999.com/' + encodeURIComponent(cmd.item.trim().replace(/ /g, '_'))); return; }
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('auction-command', cmd);

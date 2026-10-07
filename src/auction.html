@@ -98,6 +98,17 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .cl-win{white-space:nowrap}
 .cl-win b{color:var(--gold2)}
 .cl-none{color:var(--muted);font-style:italic;white-space:nowrap}
+/* tiles: 3 per column, then a new column to the right (the window widens to fit) */
+.tiles{column-count:var(--cols,1);column-gap:.7rem}
+.tiles .card{break-inside:avoid;-webkit-column-break-inside:avoid;display:block}
+.card.ign{opacity:.45}
+.menu{position:fixed;z-index:50;min-width:13rem;background:var(--card2);border:1px solid var(--golddk);border-radius:10px;padding:.3rem;box-shadow:0 10px 30px rgba(0,0,0,.5);display:none}
+.menu div{padding:.45rem .7rem;border-radius:7px;font-size:.88rem;cursor:pointer;color:var(--text)}
+.menu div:hover{background:rgba(224,181,82,.14)}
+.menu .mh{font-size:.68rem;letter-spacing:.08em;color:var(--muted);cursor:default;padding:.2rem .7rem .3rem}
+.menu .mh:hover{background:none}
+.foot a{color:var(--gold);cursor:pointer;text-decoration:none}
+.foot a:hover{text-decoration:underline}
 .foot{font-size:.72rem;color:var(--muted);padding:.4rem .8rem;background:var(--bg2);border-top:1px solid var(--line);flex-shrink:0;display:flex;justify-content:space-between;gap:.5rem}
 </style>
 </head>
@@ -113,8 +124,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     <button class="tb-btn tb-x nd" onclick="window.MixelParseApp&&window.MixelParseApp.closeAuction&&window.MixelParseApp.closeAuction()" title="Close">&#215;</button>
   </div>
   <div class="body" id="body"></div>
-  <div class="foot"><span>Reads /auction only — it never bids for you.</span><span id="sync"></span></div>
+  <div class="foot"><span>Reads /auction only — it never bids for you. <span id="ign"></span></span><span id="sync"></span></div>
 </div>
+<div class="menu" id="menu"></div>
 <script>
 let S = { auctions: [], autoPop: true };
 const expanded = new Set();
@@ -128,6 +140,41 @@ document.documentElement.style.setProperty('--fs', fs);
 function zoom(d){ fs = Math.min(28, Math.max(13, fs + d)); document.documentElement.style.setProperty('--fs', fs); lsSet('auc_fs2', fs); }
 function toggleClosed(){ showClosed = !showClosed; lsSet('auc_closed', showClosed ? '1' : '0'); render(); }
 function toggle(id){ expanded.has(id) ? expanded.delete(id) : expanded.add(id); render(); }
+// right-click → Ignore: hidden here, and the main window stops outbid / grats notices for it (kept on this PC)
+let ignored = new Set((() => { try { return JSON.parse(lsGet('auc_ignored', '[]')); } catch (e) { return []; } })());
+let showIgnored = false;
+function setIgnored(id, on){ on ? ignored.add(id) : ignored.delete(id); lsSet('auc_ignored', JSON.stringify([...ignored].slice(-200))); cmd({ type: 'ignore', id, on }); hideMenu(); render(); }
+function toggleShowIgnored(){ showIgnored = !showIgnored; render(); }
+function hideMenu(){ document.getElementById('menu').style.display = 'none'; }
+function cardMenu(ev, id){
+  ev.preventDefault();
+  const a = (S.auctions || []).find(x => x.id === id); if (!a) return false;
+  const m = document.getElementById('menu'), ig = ignored.has(id);
+  m.innerHTML = '<div class="mh">' + esc(a.item.toUpperCase()) + '</div>'
+    + '<div onclick="setIgnored(\'' + id + '\',' + (!ig) + ')">' + (ig ? '↶ Un-ignore' : '✕ Ignore this auction') + '</div>';
+  m.style.display = 'block';
+  m.style.left = Math.min(ev.clientX, innerWidth - m.offsetWidth - 6) + 'px';
+  m.style.top = Math.min(ev.clientY, innerHeight - m.offsetHeight - 6) + 'px';
+  return false;
+}
+document.addEventListener('mousedown', e => { if (!e.target.closest('#menu')) hideMenu(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideMenu(); });
+// columns: 3 tiles per column, up to 4 columns; the one-column width is whatever the user last sized it to
+const PER_COL = 3, MAX_COLS = 4;
+let cols = 0, ourResize = 0;
+let colW = +lsGet('auc_colw', 0) || 0;
+window.addEventListener('resize', () => {
+  if (performance.now() < ourResize) return;             // our own widening — not a user choice (real time, not the auction clock)
+  if (cols >= 1) { colW = Math.round(innerWidth / cols); lsSet('auc_colw', colW); }
+});
+function fitColumns(n){
+  const want = Math.max(1, Math.min(MAX_COLS, Math.ceil(n / PER_COL)));
+  document.documentElement.style.setProperty('--cols', want);
+  if (want === cols) return;
+  if (!colW) colW = Math.round(innerWidth / Math.max(1, cols || 1));
+  cols = want; ourResize = performance.now() + 800;
+  if (window.MixelParseApp && window.MixelParseApp.resizeAuctionWidth) window.MixelParseApp.resizeAuctionWidth(colW * want);
+}
 
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function cmd(c){ if (window.MixelParseApp && window.MixelParseApp.sendAuctionCommand) window.MixelParseApp.sendAuctionCommand(c); }
@@ -168,14 +215,16 @@ function card(a, now){
     : '<span class="chip ' + (late ? 'late' : 'open') + '" title="How long it\'s been open — it closes when the officer grats it">⏱ <span class="tm" data-o="' + a.open + '"></span></span>';
   const rows = bidRows(a), top = a.top, iWon = sold && a.winners.some(w => w.mine);
   const cls = sold ? (iWon ? ' won' : ' sold') : a.outbid ? ' out' : a.leading ? ' lead' : late ? ' late' : '';
-  if (sold) return '<div class="card' + cls + '">'
+  const ctx = ' oncontextmenu="return cardMenu(event,\'' + a.id + '\')"' + (ignored.has(a.id) ? ' title="Ignored — right-click to un-ignore"' : '');
+  const ign = ignored.has(a.id) ? ' ign' : '';
+  if (sold) return '<div class="card' + cls + ign + '"' + ctx + '>'
     + '<div class="c-hdr"><span class="c-item" onclick="' + wiki(a.item) + '" title="Open on the P99 wiki">' + esc(a.item) + '</span>' + st + '</div>'
     + '<div class="grats">' + (iWon ? '🎉 Grats — you won! ' : '✓ Grats ') + winText(a.winners, true) + '</div></div>';
   const rest = top ? rows.filter(b => !(b.n === top.n && String(b.who).toLowerCase() === String(top.who).toLowerCase() && String(b.toon || '').toLowerCase() === String(top.toon || '').toLowerCase())) : rows;
   let shown = expanded.has(a.id) ? rest : rest.slice(0, SHOW);
   if (!expanded.has(a.id)) { const me = rest.find(b => b.mine); if (me && !shown.includes(me)) shown = shown.concat(me); }
   const hidden = rest.length - shown.length;
-  return '<div class="card' + cls + '">'
+  return '<div class="card' + cls + ign + '"' + ctx + '>'
     + '<div class="c-hdr"><span class="c-item" onclick="' + wiki(a.item) + '" title="Open on the P99 wiki' + (a.by ? ' · opened by ' + esc(a.by) : '') + '">' + esc(a.item) + '</span>' + st + '</div>'
     + '<div class="c-price">' + priceChips(a.stats) + '</div>'
     + (a.outbid ? '<div class="banner">⚠ You\'ve been outbid — ' + top.n + ' by ' + esc(top.toon || top.who) + '</div>' : a.leading ? '<div class="banner lead">✓ You\'re the high bid</div>' : '')
@@ -195,7 +244,10 @@ function render(){
   const now = Date.now(), list = S.auctions || [];
   // a grats stays up as a "sold" card for a minute, then folds into Closed
   const justSold = a => a.gratsAt && now - a.gratsAt < 60e3;
-  const open = list.filter(a => (!a.closed && now < a.idleAt) || justSold(a)), done = list.filter(a => !open.includes(a));
+  const live = list.filter(a => (!a.closed && now < a.idleAt) || justSold(a)), done = list.filter(a => !live.includes(a));
+  const nIgn = live.filter(a => ignored.has(a.id)).length;
+  const open = showIgnored ? live : live.filter(a => !ignored.has(a.id));
+  document.getElementById('ign').innerHTML = nIgn ? '· <a onclick="toggleShowIgnored()">' + nIgn + ' ignored · ' + (showIgnored ? 'hide' : 'show') + '</a>' : '';
   const c = document.getElementById('count');
   const nOpen = open.filter(a => !justSold(a)).length;
   c.textContent = nOpen ? nOpen + ' open' : 'none open'; c.classList.toggle('none', !nOpen);
@@ -205,10 +257,11 @@ function render(){
   // auctions you're in first (outbid, then leading), then newest opened — order doesn't jump as bids arrive
   const order = open.slice().sort((x, y) => (y.outbid ? 2 : y.leading ? 1 : 0) - (x.outbid ? 2 : x.leading ? 1 : 0) || (y.open || 0) - (x.open || 0));
   const html = !list.length ? '<div class="empty"><span class="big">⚖</span>No auctions right now.<br>This window opens when an officer starts one in <b>/auction</b>.</div>'
-    : (order.length ? order.map(a => card(a, now)).join('') : '<div class="empty" style="padding:1.6rem 1rem">Nothing open right now.</div>')
+    : (order.length ? '<div class="tiles">' + order.map(a => card(a, now)).join('') + '</div>' : '<div class="empty" style="padding:1.6rem 1rem">Nothing open right now.</div>')
     + (done.length ? '<div class="closed-h" onclick="toggleClosed()"><span>' + (showClosed ? '▾' : '▸') + ' CLOSED · ' + done.length + '</span><span class="ln"></span></div>'
       + (showClosed ? done.slice().sort((x, y) => (y.last || 0) - (x.last || 0)).map(closedRow).join('') : '') : '');
   // rebuild only when something changed — a rebuild every second ate clicks (item → wiki, "+ more", Closed)
+  fitColumns(order.length);
   if (html !== lastHtml) { body.innerHTML = html; lastHtml = html; body.scrollTop = y; }
   for (const el of body.querySelectorAll('.tm')) el.textContent = mmss(now - +el.dataset.o);
 }
