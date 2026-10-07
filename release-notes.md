@@ -1,10 +1,14 @@
-## 1.7.7
+## 1.7.8
+
+- **💀 Corpse tracker** — every death of your characters shows in a strip above the top bar: Zone › who was slain by what › when, how long until the corpse decays (red in the last 24 hours) and the rez window while it lasts. Right-click a line → Corpse looted (or click ✓) once you have it back; it also clears when you /corpse in that zone and have none there. Sky corpses still show their keys.
+- **Fix: Raid Parking only counts your characters** — Castle bots whose logs are on your PC no longer show up as "(? ?)" names. Parking uses your character tabs plus your pinned mules.
+- **Fix: Raid Parking level checks** — "Can port here" and "Bound here" list only characters who meet the level for a target at that location.
+
+Everything from 1.7.7 and earlier is included:
 
 - **🌼 Flowers** — new Flowers tab in the top bar for the five Flowers of Functionality (Deck of Spontaneous Generation, Plane of Mischief): +50 resist clickies that work from inventory. One card per flower: the four cards it needs, how many your characters hold of each and who ("1 - Mixelboom"), who can combine now and who already has the flower. Card Prices shows PigParse prices for all 16 cards and what each flower costs in cards. Hover a card for where it drops.
 - **⚖ Auctions on / off** — a checkbox under ⚖ Auctions in the header. Unticked ("Auction disabled") switches auctions off completely: no auction window, no pop-up, no outbid or Grats toasts, and the ⚖ Auctions button greys out.
 - **Fix: Guardian of Takish** level requirement is now 60, the same as Tunare (was 55).
-
-Everything from 1.7.6 and earlier is included:
 
 - **Raid Parking: new Castle level requirements** — Raid Parking now follows the Castle Alliance level policy update; a character only counts as parked if it meets the new level.
 

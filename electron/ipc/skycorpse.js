@@ -1,5 +1,6 @@
 'use strict';
-// ipc/skycorpse.js — Plane of Sky corpses and the keys on them.
+// ipc/skycorpse.js — every death (zone, slain by, time) and, for Plane of Sky corpses, the keys on them.
+// (owner, 2026-10-06) All deaths are kept for the corpse strip; corpses without a zone are older Sky-only records.
 //
 // Sky keys vanish when you leave the zone, so players leave them on a corpse in Sky. Routines
 // differ (die to the Key Master, duel a friend to skip the exp loss, leave early without dying),
@@ -62,10 +63,10 @@ function snapshot() {
 }
 function emit() { save(); _broadcast(snapshot()); }
 
-function addCorpse(name, t, by, exp) {
+function addCorpse(name, t, by, exp, zone) {
   const c = charOf(name);
   if (c.corpses.some(x => x.t === t)) return false;            // replay + live overlap
-  c.corpses.push({ t, by, keys: exp ? exp.keys : null, keysSrc: exp ? 'export' : null, keysAt: exp ? exp.t : null });
+  c.corpses.push({ t, by, zone: zone || null, keys: exp ? exp.keys : null, keysSrc: exp ? 'export' : null, keysAt: exp ? exp.t : null });
   c.corpses.sort((a, b) => a.t - b.t);
   return true;
 }
@@ -79,15 +80,15 @@ function line(raw, name, ts) {
     r.zone = m[1]; r.enteredAt = ts; r.visitExport = null;       // a new visit — keys from an earlier one are gone
     return false;
   }
-  if (r.zone !== SKY_ZONE) return false;
   if ((m = /^You have been slain by (.+?)!$/.exec(s)) || (m = /^(You died)\.$/.exec(s))) {
-    const exp = r.visitExport && r.visitExport.t >= r.enteredAt && r.visitExport.t <= ts + 5e3 ? r.visitExport : null;
-    r.visitExport = null;
-    return addCorpse(name, ts, m[1] === 'You died' ? '' : m[1], exp);
+    const sky = r.zone === SKY_ZONE;
+    const exp = sky && r.visitExport && r.visitExport.t >= r.enteredAt && r.visitExport.t <= ts + 5e3 ? r.visitExport : null;
+    if (sky) r.visitExport = null;
+    return addCorpse(name, ts, m[1] === 'You died' ? '' : m[1], exp, r.zone);
   }
-  if (/^You don't have any corpses in this zone\.$/.test(s)) {
+  if (r.zone && /^You don't have any corpses in this zone\.$/.test(s)) {
     const c = charOf(name), n = c.corpses.length;
-    c.corpses = c.corpses.filter(x => x.t > ts);
+    c.corpses = c.corpses.filter(x => x.t > ts || (x.zone || SKY_ZONE) !== r.zone);
     return c.corpses.length !== n;
   }
   return false;
@@ -107,7 +108,7 @@ function corpseInventory(filename, content, mtimeMs) {
   const name = Object.keys(_state.chars).find(n => n.toLowerCase() === m[1].toLowerCase()) || m[1];
   const c = _state.chars[name]; if (!c || !c.corpses.length) return;
   // the newest Sky corpse that died before this export and hasn't decayed
-  const target = c.corpses.filter(x => x.t <= mtimeMs && mtimeMs - x.t < DECAY_MS).pop();
+  const target = c.corpses.filter(x => (x.zone || SKY_ZONE) === SKY_ZONE && x.t <= mtimeMs && mtimeMs - x.t < DECAY_MS).pop();
   if (!target || (target.keysSrc === 'corpse' && target.keysAt >= mtimeMs)) return;
   target.keys = keysIn(content); target.keysSrc = 'corpse'; target.keysAt = mtimeMs;
   _log(`[SKY] ${name}: corpse export — ${target.keys.length} key(s) on the Sky corpse`);
@@ -144,7 +145,7 @@ async function backfill(logDir, eqDir) {
     // keep the live zone if the live tail already moved past the replay
     _rt[name] = saveRt && saveRt.enteredAt > r.enteredAt ? saveRt : r;
   }
-  if (changed) _log('[SKY] backfill: Sky corpses rebuilt from logs');
+  if (changed) _log('[SKY] backfill: corpses rebuilt from logs');
   emit();
 }
 
