@@ -11,7 +11,18 @@
 <meta name="apple-mobile-web-app-title" content="MixelParse">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// Desktop: write localStorage to disk shortly after every change, so settings survive a killed app (2026-10-07)
+(function(){ try{
+  if(!(window.MixelParseApp&&window.MixelParseApp.flushStorage)) return;
+  const set=Storage.prototype.setItem, del=Storage.prototype.removeItem; let t=null;
+  const soon=()=>{ clearTimeout(t); t=setTimeout(()=>{ try{ window.MixelParseApp.flushStorage(); }catch(e){} },400); };
+  Storage.prototype.setItem=function(k,v){ set.call(this,k,v); soon(); };
+  Storage.prototype.removeItem=function(k){ del.call(this,k); soon(); };
+}catch(e){} })();
+</script>
 <script src="item-weights.js"></script>
+<script src="mob-levels.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;1,300&display=swap');
   :root{--bg:#f5f0e8;--surface:#ede6d6;--surface2:#e4dbc8;--border:#c8b890;--border-glow:#a08050;--gold:#7a5010;--gold-light:#5a3a08;--gold-dim:#a07030;--text:#1a1008;--text-dim:#4a3a1a;--text-muted:#8a7050}
@@ -882,9 +893,11 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
         <button class="auth-signout" id="signOutBtn">Sign out</button>
       </div>
       <div class="header-util-btns">
-        <button class="btn primary" id="itemDbBtn" style="font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.06em">&#128230; Item Database</button>
-        <button class="btn" id="uiCopyBtn" style="font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.06em">&#128196; UI Copy Tool</button>
-        <button class="btn" id="gearReportsBtn" style="font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.06em">&#128202; Gear Planner Reports</button>
+        <!-- Item Database / UI Copy Tool live in Settings now (owner, 2026-10-07); the hidden buttons keep their handlers -->
+        <button class="btn primary" id="itemDbBtn" style="display:none">&#128230; Item Database</button>
+        <button class="btn" id="uiCopyBtn" style="display:none">&#128196; UI Copy Tool</button>
+        <button class="btn primary" id="settingsBtn" onclick="switchTopView('settings')" style="font-family:'Cinzel',serif;font-size:.8rem;letter-spacing:.06em;font-weight:700">&#9881; Settings</button>
+        <button class="btn" id="gearReportsBtn" style="display:none">&#128202; Gear Planner Reports</button>
       </div>
     </div>
   </div>
@@ -969,6 +982,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
   <div class="top-nav-item" data-view="flowers">Flowers</div>
   <div class="top-nav-item" data-view="farm">Farm Targets</div>
   <div class="top-nav-item" data-view="bankers">Bankers</div>
+  <div class="top-nav-item" data-view="settings" style="display:none">Settings</div>
   <div id="syncIndicator" title="Click to save now" onclick="forceSaveNow()" style="margin-left:auto;cursor:pointer;font-size:.65rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:4px;transition:background .15s">
     <span id="syncDot" style="width:7px;height:7px;border-radius:50%;background:#888;display:inline-block;transition:background .3s"></span>
     <span id="syncLabel">saved</span>
@@ -1015,6 +1029,10 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
 
 <div id="flowersView" style="display:none">
   <div class="rc-panel" id="flowersPanel"></div>
+</div>
+
+<div id="settingsView" style="display:none">
+  <div class="rc-panel" id="settingsPanel"></div>
 </div>
 
 <div id="gearReportsView" style="display:none">
@@ -2945,6 +2963,8 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     const isParking=activeTopView==='parking';
     const isKeys=activeTopView==='keys';
     const isFlowers=activeTopView==='flowers';
+    const isSettings=activeTopView==='settings';
+    try{localStorage.setItem('mp_last_view',activeTopView);}catch(e){}
     const isTimers=activeTopView==='timers';
     const isGearReports=activeTopView==='gearreports';
     const isBankers=activeTopView==='bankers';
@@ -2963,6 +2983,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     document.getElementById('parkingView').style.display=isParking?'block':'none';
     document.getElementById('keysView').style.display=isKeys?'block':'none';
     document.getElementById('flowersView').style.display=isFlowers?'block':'none';
+    document.getElementById('settingsView').style.display=isSettings?'block':'none';
     document.getElementById('timersView').style.display=isTimers?'block':'none';
     document.getElementById('gearReportsView').style.display=isGearReports?'block':'none';
     document.getElementById('bankersView').style.display=isBankers?'block':'none';
@@ -2973,6 +2994,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     else if(isParking){renderParkingPanel();}
     else if(isKeys){renderKeysPanel();}
     else if(isFlowers){renderFlowersPanel();}
+    else if(isSettings){renderSettingsPanel();}
     else if(isTimers){renderTimersPanel();}
     else if(isGearReports){renderGearReportsPanel();}
     else if(isBankers){setBankersSub(bankersSub);}
@@ -5216,6 +5238,7 @@ document.getElementById('gearReportsBtn').addEventListener('click',()=>{
   document.getElementById('platView').style.display='none';
   document.getElementById('killsView').style.display='none';
   document.getElementById('bankersView').style.display='none';
+  ['farmView','parkingView','keysView','timersView','flowersView','settingsView'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   document.getElementById('gearReportsView').style.display='block';
   renderGearReportsPanel();
 });
@@ -5342,6 +5365,10 @@ const HELP_CONTENT={
     'Charm anything and /pet attack Quillmane \u2014 if the pet answers, the app alarms: QUILLMANE IS UP.',
     'Killing Quillmane (yours or a snipe in visual range) collapses the window to an exact 78s. Use Mark cycle kill when the log couldn\u2019t see the death.',
   ]},
+  settings:{title:'Settings',sub:'Your MixelParse options',tips:[
+    'Everything here is saved on this PC and takes effect right away.',
+    'The same options still work where they were before (the Auction checkbox in the header, the Watch List \u2699, the map\u2019s Auto toggle).',
+  ]},
   flowers:{title:'Flowers',sub:'Flowers of Functionality',tips:[
     'The five Flowers of Functionality from the Deck of Spontaneous Generation quest (Plane of Mischief) \u2014 each a +50 resist clicky that works from inventory.',
     'One card per flower: the four cards it needs, how many your characters hold of each and who \u2014 (1 - Mixelboom), bankers included.',
@@ -5466,13 +5493,14 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.10',
+  version:'1.7.11',
   date:'October 2026',
   features:[
-    ['&#128214; Leveling path vs. the wiki guide','The Leveling tab&rsquo;s new <b>Class Guide</b> puts the P99 wiki hunting guide next to the spots actually measured for your class, level band by level band (&#10003; where they agree). The wiki guide table also gets a <b>Measured</b> column.'],
+    ['&#9881; Settings','A <b>Settings</b> button in the header gathers your options in one place: corpse tracking (all / Sky only / off), auctions, the Watch List style, which pop-up notices show, text size, Auto-Detect mode, map auto-timers, characters (character / banker / hidden), the tab MixelParse opens on, what closing the window does, archiving large EQ logs, and Start with Windows. Item Database, UI Copy Tool and Gear Planner Reports moved in there too.'],
+    ['&#128200; Leveling path: real XP','Leveling times now come from the XP each kill is worth (mob levels from the P99 wiki) instead of counting kills, calibrated on the guild&rsquo;s finished levels. Zones also show a <b>measured XP</b> modifier next to the wiki&rsquo;s guess.'],
   ],
   fixes:[
-    ['Leveling level','The Leveling tab uses the level set in Character Stats.'],
+    ['Settings that wouldn&rsquo;t stick','A setting changed just before MixelParse was closed hard (e.g. Auction enabled) could be lost. Settings now save to disk right away.'],
   ],
 };
 function showWhatsNew(){
@@ -5769,6 +5797,7 @@ async function onSignedIn(user){
   recordLoginActivity(user); // fire-and-forget — never blocks sign-in
   const _loadOk=await loadFromSupabase();
   supabaseLoaded=(_loadOk!==false);
+  try{ const _sv=stgStartView(); if(_sv&&_sv!=='characters') setTimeout(()=>switchTopView(_sv),50); }catch(e){}
   if(!supabaseLoaded)console.error('[Auth] character load failed — saveToSupabase is locked for this session');
   // Re-request watcher state now that Supabase is loaded — gets fresh inventory + faction snapshots
   // Small delay to ensure Supabase render has completed first
@@ -7783,6 +7812,7 @@ window.applyDBToChar    = applyDBToChar;
   }
 
   function showWatcherToast(msg){
+    if(typeof toastAllowed==='function'&&!toastAllowed(msg)) return;   // Settings → Pop-up notices
     let toast = document.getElementById('watcher-toast');
     if(!toast){
       toast = document.createElement('div');
@@ -10088,7 +10118,27 @@ const LVLD_STYLE={Warrior:'melee',Rogue:'melee',Monk:'monk',Paladin:'melee','Sha
 const LVLD_STYLE_NAME={melee:'melee',monk:'feign-death pulling',charm:'charm',pet:'pet',kite:'caster',priest:'priest'};
 // raid zones are never a leveling recommendation (owner, 2026-10-07) — Sky is 'Plane of Air' in the log
 const LVLD_RAID_ZONES=new Set(['Plane of Hate','Plane of Fear','Plane of Sky','Plane of Air','Plane of Growth']);
-const LVLD_SCAN_V=2;   // 2: quest turn-ins split from kills — older scans are redone
+const LVLD_SCAN_V=3;   // 2: quest turn-ins split from kills · 3: per-mob counts for the mob-level XP estimate — older scans are redone
+// XP per kill ≈ LVLD_XP_K × (mob level)², group kills × LVLD_XP_GROUP (P99 wiki NPC levels, mob-levels.js).
+// Calibrated 2026-10-07 on 123 finished levels from the owner's logs: typical error per level ±51% (counting kills: ±79%).
+// Con colour made no difference once kept monotonic; level² beat 1.5 / 1.75 / 2.5.
+const LVLD_XP_K=90.16, LVLD_XP_GROUP=0.3;
+let _lvldMobIdx=null;
+function lvldMobLevel(mob,zone){
+  const M=window.MOB_LEVELS; if(!M||!mob) return null;
+  const list=M.m[String(mob).toLowerCase()]; if(!list||!list.length) return null;
+  if(!_lvldMobIdx) _lvldMobIdx=M.z.map(z=>z?lvldZoneKey(z):'');
+  const zk=lvldZoneKey(zone), here=list.filter(e=>_lvldMobIdx[e[0]]===zk), use=here.length?here:list;
+  return use.reduce((a,e)=>a+(e[1]+e[2])/2,0)/use.length;
+}
+// fills r.xp_est (estimated XP earned in this row) and r.xp_known (kills whose mob level is known), drops r.mk
+function lvldEstimateRow(r){
+  const mk=r.mk||{}; let base=0, known=0;
+  for(const [mob,[s,g]] of Object.entries(mk)){ const ml=lvldMobLevel(mob,r.zone); if(ml==null) continue; base+=ml*ml*(s+g*LVLD_XP_GROUP); known+=s+g; }
+  const total=(r.xp_solo||0)+(r.xp_group||0);
+  r.xp_known=known; r.xp_est=known?Math.round(LVLD_XP_K*base*total/known):0;
+  delete r.mk; return r;
+}
 function lvldMult(cls,race){ return (LVLD_CLASS[cls]||1)*(LVLD_RACE[race]||1); }
 function lvldHell(L){ if(L<30)return 1; if(L<35)return 1.1; if(L<40)return 1.2; if(L<45)return 1.3; if(L<=50)return 1.4; return {51:1.5,52:1.6,53:1.7,54:1.9,55:2.1,56:2.3,57:2.5,58:2.7,59:3.0}[L]||3.1; }
 function lvldTotal(L){ return L<=0?0:Math.pow(L,3)*1000*lvldHell(L); }
@@ -10117,6 +10167,7 @@ window.lvldClsOnly=function(){ lvldF.cls=!lvldF.cls; lvldRefresh(); };
 function lvldOnMsg(msg){
   if(msg.type==='levelScanProgress'){ lvldScanState='Scanning '+msg.charName+' ('+msg.idx+'/'+msg.total+')…'; lvldRefresh(); return; }
   if(msg.error){ lvldScanState='Scan failed: '+msg.error; lvldRefresh(); return; }
+  for(const r of Object.values(msg.results||{})) (r.rows||[]).forEach(lvldEstimateRow);
   lvldMine={chars:msg.results||{},at:msg.scannedAt||Date.now(),v:LVLD_SCAN_V}; lvldSaveMine();
   lvldScanState=''; lvldGuild.at=0; lvldRefresh(); lvldUpload();
 }
@@ -10126,11 +10177,16 @@ async function lvldUpload(){
   const rows=[];
   for(const n of names){ const r=lvldMine.chars[n], m=charMeta[n]||{};
     for(const x of r.rows||[]){ const lv=(r.levels||{})[x.level]||{};
-      rows.push({char_name:n,class:m.class||null,race:m.race||null,level:x.level,zone:x.zone,hunt_ms:x.hunt_ms,played_ms:x.played_ms,xp_solo:x.xp_solo,xp_group:x.xp_group,deaths:x.deaths,xp_quest:x.xp_quest||0,
+      rows.push({char_name:n,class:m.class||null,race:m.race||null,level:x.level,zone:x.zone,hunt_ms:x.hunt_ms,played_ms:x.played_ms,xp_solo:x.xp_solo,xp_group:x.xp_group,deaths:x.deaths,xp_quest:x.xp_quest||0,xp_est:x.xp_est||0,xp_known:x.xp_known||0,
         level_xp_total:lv.xp||0,level_quest:lv.quest||0,level_done:!!lv.done,mobs:x.mobs||{},first_at:x.first_at?new Date(x.first_at).toISOString():null,last_at:x.last_at?new Date(x.last_at).toISOString():null}); } }
   try{
     const del=await sb.from('leveling_data').delete().eq('user_id',currentUser.id).in('char_name',names); if(del.error) throw del.error;
-    for(let i=0;i<rows.length;i+=500){ const {error}=await sb.from('leveling_data').insert(rows.slice(i,i+500)); if(error) throw error; }
+    // a table without the 1.7.11 columns (xp_est / xp_known) still takes the rest
+    let strip=false;
+    for(let i=0;i<rows.length;i+=500){ const part=rows.slice(i,i+500).map(r=>{ if(!strip) return r; const o=Object.assign({},r); delete o.xp_est; delete o.xp_known; return o; });
+      let {error}=await sb.from('leveling_data').insert(part);
+      if(error&&!strip&&/xp_est|xp_known/i.test(error.message||'')){ strip=true; i-=500; continue; }
+      if(error) throw error; }
     lvldMine.uploaded=Date.now(); lvldMine.uploadErr=null;
   }catch(e){ lvldMine.uploadErr=(e&&e.message)||String(e); console.warn('[LVL] upload failed',e); }
   lvldSaveMine(); lvldGuild.at=0; lvldRefresh();
@@ -10143,7 +10199,8 @@ async function lvldLoadGuild(L){
   try{
     const out=[];
     for(let i=0;i<20000;i+=1000){
-      const {data,error}=await sb.from('leveling_data').select('user_id,char_name,class,race,level,zone,hunt_ms,played_ms,xp_solo,xp_group,xp_quest,deaths,level_xp_total,level_quest,level_done,mobs').gte('level',lo).lte('level',hi).order('id').range(i,i+999);
+      let {data,error}=await sb.from('leveling_data').select('user_id,char_name,class,race,level,zone,hunt_ms,played_ms,xp_solo,xp_group,xp_quest,xp_est,xp_known,deaths,level_xp_total,level_quest,level_done,mobs').gte('level',lo).lte('level',hi).order('id').range(i,i+999);
+      if(error&&/xp_est|xp_known/i.test(error.message||'')) ({data,error}=await sb.from('leveling_data').select('user_id,char_name,class,race,level,zone,hunt_ms,played_ms,xp_solo,xp_group,xp_quest,deaths,level_xp_total,level_quest,level_done,mobs').gte('level',lo).lte('level',hi).order('id').range(i,i+999));
       if(error) throw error; out.push(...(data||[])); if(!data||data.length<1000) break;
     }
     lvldGuild={rows:out,at:Date.now(),band,err:null,loading:false};
@@ -10160,19 +10217,69 @@ function lvldRows(){
   return up?lvldGuild.rows:lvldGuild.rows.filter(r=>r.user_id!==uid).concat(local);
 }
 // one sample = one character's time in one zone for one finished level
+// every level the guild has shared (lvldAll) + this PC's scan for anything not uploaded yet
+function lvldRowsAll(){
+  const uid=typeof currentUser!=='undefined'&&currentUser?currentUser.id:'me';
+  const local=[]; if(lvldMine.v===LVLD_SCAN_V) for(const [n,r] of Object.entries(lvldMine.chars||{})){ const m=charMeta[n]||{};
+    for(const x of r.rows||[]){ const lv=(r.levels||{})[x.level]||{}; local.push(Object.assign({},x,{user_id:uid,char_name:n,class:m.class||null,race:m.race||null,level_xp_total:lv.xp||0,level_quest:lv.quest||0,level_done:!!lv.done})); } }
+  if(!lvldAll.at||lvldAll.err) return local;
+  const up=lvldMine.uploaded&&lvldMine.uploaded>=lvldMine.at;
+  return up?lvldAll.rows:lvldAll.rows.filter(r=>r.user_id!==uid).concat(local);
+}
+/* Guild calibration. For every finished level (any member) where most kills have a known mob level and turn-ins
+   are small: XP the level needed (exact) vs. the model's XP from its kills, zone by zone. Fit
+     needed ≈ c × Σ_zone f_zone × modelXP_zone
+   c = guild-wide correction, f = measured zone XP modifier (shrunk toward 1 for zones with little data). */
+let _lvldCal={key:'',c:1,f:{},nz:{},n:0,chars:0,err:null};
+function lvldCalibration(){
+  const key=(lvldAll.at||0)+'|'+(lvldMine.at||0)+'|'+lvldMine.v;
+  if(_lvldCal.key===key) return _lvldCal;
+  const by={};
+  for(const r of lvldRowsAll()){ if(!r.level_done||r.level>=60) continue; (by[(r.user_id||'')+'|'+r.char_name+'|'+r.level]=by[(r.user_id||'')+'|'+r.char_name+'|'+r.level]||[]).push(r); }
+  const lv=[], who=new Set();
+  for(const [k,rs] of Object.entries(by)){
+    const kills=rs.reduce((a,r)=>a+(r.xp_solo||0)+(r.xp_group||0),0), known=rs.reduce((a,r)=>a+(r.xp_known||0),0), r0=rs[0];
+    if(kills<10||known<0.6*kills||(r0.level_quest||0)>0.1*(r0.level_xp_total||kills)) continue;
+    if(rs.some(r=>LVLD_RAID_ZONES.has(r.zone)&&(r.xp_solo+r.xp_group)>0)) continue;
+    const z={}; for(const r of rs){ if(!r.xp_est) continue; const zk=lvldZoneKey(r.zone); z[zk]=(z[zk]||0)+r.xp_est; }
+    if(!Object.keys(z).length) continue;
+    lv.push({need:lvldNeed(r0.level)*lvldMult(r0.class,r0.race),z}); who.add(k.slice(0,k.lastIndexOf('|')));
+  }
+  const out={key,c:1,f:{},nz:{},n:lv.length,chars:who.size,err:null};
+  if(lv.length>=10){
+    const f={}, nz={}; for(const l of lv) for(const z in l.z){ f[z]=1; nz[z]=(nz[z]||0)+1; }
+    let c=1;
+    const pred=l=>Object.entries(l.z).reduce((a,[z,b])=>a+f[z]*b,0);
+    for(let it=0;it<60;it++){
+      const lr=lv.map(l=>Math.log(l.need/pred(l))); c=Math.exp(lr.reduce((a,b)=>a+b,0)/lr.length);
+      const num={},den={};
+      for(const l of lv){ const p=c*pred(l); for(const [z,b] of Object.entries(l.z)){ const w=b*f[z]/(p/c); num[z]=(num[z]||0)+w*Math.log(l.need/p); den[z]=(den[z]||0)+w; } }
+      for(const z in f) f[z]=Math.exp(Math.log(f[z])+0.5*(num[z]||0)/((den[z]||0)+2));
+    }
+    const res=lv.map(l=>Math.log(l.need/(c*pred(l)))), mu=res.reduce((a,b)=>a+b,0)/res.length;
+    Object.assign(out,{c,f,nz,err:Math.exp(Math.sqrt(res.reduce((a,b)=>a+(b-mu)*(b-mu),0)/res.length))-1});
+  }
+  _lvldCal=out; return out;
+}
 function lvldSamples(rows,myCls,opt){
-  opt=opt||lvldF; const out=[];
+  opt=opt||lvldF; const out=[], cal=lvldCalibration();
   for(const r of rows){
     const xs=r.xp_solo||0, xg=r.xp_group||0, n=xs+xg;
-    if(!r.level_done||!r.level_xp_total||!n||r.hunt_ms<10*60e3||r.level>=60) continue;
+    if(!n||r.hunt_ms<10*60e3||r.level>=60) continue;
     if(LVLD_RAID_ZONES.has(r.zone)) continue;                   // raid targets, not leveling spots
-    if((r.level_quest||0)>0.1*r.level_xp_total) continue;      // a level carried by turn-ins — its kill pace can't be measured
-    const share=Math.min(1,n/r.level_xp_total); if(share<0.15) continue;
+    // mob-level XP: needs most kills to have a known mob level — works for partial levels and levels with turn-ins
+    const mobXp=r.xp_est>0&&r.xp_known>=0.6*n&&n>=10;
+    let share=0;
+    if(!mobXp){
+      if(!r.level_done||!r.level_xp_total) continue;
+      if((r.level_quest||0)>0.1*r.level_xp_total) continue;    // a level carried by turn-ins — its kill pace can't be measured
+      share=Math.min(1,n/r.level_xp_total); if(share<0.15) continue;
+    }
     if(!opt.anyStyle&&xs>=0.6*n&&myCls&&LVLD_STYLE[myCls]&&LVLD_STYLE[r.class]!==LVLD_STYLE[myCls]) continue;   // solo: same play style only
     if(opt.mode==='solo'&&xs<0.6*n) continue;
     if(opt.mode==='group'&&xg<0.6*n) continue;
     if(opt.cls&&myCls&&r.class!==myCls) continue;
-    out.push({r,share,xp:lvldNeed(r.level)*lvldMult(r.class,r.race)*share,h:r.hunt_ms/3.6e6});
+    out.push({r,share,mob:mobXp,xp:mobXp?r.xp_est*cal.c*(cal.f[lvldZoneKey(r.zone)]||1):lvldNeed(r.level)*lvldMult(r.class,r.race)*share,h:r.hunt_ms/3.6e6});
   }
   return out;
 }
@@ -10181,7 +10288,7 @@ function lvldZones(samples,L,multT){
   const z={};
   for(const sm of samples){ if(Math.abs(sm.r.level-L)>3) continue;
     const k=sm.r.zone, a=z[k]||(z[k]={zone:k,xp:0,h:0,xs:0,xg:0,d:0,pl:0,n:0,chars:new Set(),cls:new Set(),mobs:{}});
-    a.xp+=sm.xp*Math.pow(L/sm.r.level,2); a.h+=sm.h; a.xs+=sm.r.xp_solo||0; a.xg+=sm.r.xp_group||0; a.d+=sm.r.deaths||0; a.pl+=(sm.r.played_ms||0)/3.6e6; a.n++;
+    a.xp+=sm.xp*(sm.mob?1:Math.pow(L/sm.r.level,2)); a.h+=sm.h; a.xs+=sm.r.xp_solo||0; a.xg+=sm.r.xp_group||0; a.d+=sm.r.deaths||0; a.pl+=(sm.r.played_ms||0)/3.6e6; a.n++;
     a.chars.add((sm.r.user_id||'')+'|'+sm.r.char_name); if(sm.r.class) a.cls.add(sm.r.class);
     for(const [mb,c] of Object.entries(sm.r.mobs||{})) a.mobs[mb]=(a.mobs[mb]||0)+c;
   }
@@ -10240,7 +10347,7 @@ function lvldZoneKey(name){
 function lvldMeasure(samples,key,lo,hi,Lt,mult){
   let xp=0,h=0,n=0; const chars=new Set(),cls=new Set();
   for(const sm of samples){ if(sm.r.level<lo||sm.r.level>hi||lvldZoneKey(sm.r.zone)!==key) continue;
-    xp+=sm.xp*Math.pow(Lt/sm.r.level,2); h+=sm.h; n++; chars.add((sm.r.user_id||'')+'|'+sm.r.char_name); if(sm.r.class) cls.add(sm.r.class); }
+    xp+=sm.xp*(sm.mob?1:Math.pow(Lt/sm.r.level,2)); h+=sm.h; n++; chars.add((sm.r.user_id||'')+'|'+sm.r.char_name); if(sm.r.class) cls.add(sm.r.class); }
   return h?{min:lvldNeed(Lt)*mult/(xp/h)*60,n,h,chars:chars.size,cls:[...cls]}:null;
 }
 // every level — only loaded when the class guide is opened
@@ -10251,7 +10358,8 @@ async function lvldLoadAll(){
   lvldAll.loading=true;
   try{ const out=[];
     for(let i=0;i<100000;i+=1000){
-      const {data,error}=await sb.from('leveling_data').select('user_id,char_name,class,race,level,zone,hunt_ms,xp_solo,xp_group,deaths,level_xp_total,level_quest,level_done').eq('level_done',true).order('id').range(i,i+999);
+      let {data,error}=await sb.from('leveling_data').select('user_id,char_name,class,race,level,zone,hunt_ms,xp_solo,xp_group,xp_est,xp_known,deaths,level_xp_total,level_quest,level_done').order('id').range(i,i+999);
+      if(error&&/xp_est|xp_known/i.test(error.message||'')) ({data,error}=await sb.from('leveling_data').select('user_id,char_name,class,race,level,zone,hunt_ms,xp_solo,xp_group,deaths,level_xp_total,level_quest,level_done').order('id').range(i,i+999));
       if(error) throw error; out.push(...(data||[])); if(!data||data.length<1000) break; }
     lvldAll={rows:out,at:Date.now(),err:null,loading:false};
   }catch(e){ lvldAll={rows:[],at:Date.now(),err:(e&&e.message)||String(e),loading:false}; }
@@ -10267,12 +10375,7 @@ function lvldClassGuide(name,cls,race,L){
   const sum='<summary style="cursor:pointer;font-family:\'Cinzel\',serif;font-size:.82rem;letter-spacing:.06em;color:var(--gold-light)">CLASS GUIDE — '+esc(label.toUpperCase())+' · THE WIKI GUIDE VS. MEASURED DATA</summary>';
   if(!open) return card('<details ontoggle="lvldCgToggle(this.open)">'+sum+'</details>');
   if(!cls) return card('<details open ontoggle="lvldCgToggle(this.open)">'+sum+'<div style="font-size:.85rem;margin-top:.4rem">Set this character&rsquo;s class in Character Stats.</div></details>');
-  // rows: every level from the guild table (when loaded) + this PC's scan
-  const uid=typeof currentUser!=='undefined'&&currentUser?currentUser.id:'me';
-  const local=[]; if(lvldMine.v===LVLD_SCAN_V) for(const [n,r] of Object.entries(lvldMine.chars||{})){ const m=charMeta[n]||{};
-    for(const x of r.rows||[]){ const lv=(r.levels||{})[x.level]||{}; local.push(Object.assign({},x,{user_id:uid,char_name:n,class:m.class||null,race:m.race||null,level_xp_total:lv.xp||0,level_quest:lv.quest||0,level_done:!!lv.done})); } }
-  const up=lvldMine.uploaded&&lvldMine.uploaded>=lvldMine.at;
-  const rows=lvldAll.at&&!lvldAll.err?(up?lvldAll.rows:lvldAll.rows.filter(r=>r.user_id!==uid).concat(local)):local;
+  const rows=lvldRowsAll();
   const mult=lvldMult(cls,race), exact=!!lvldF.cgExact;
   const smClass=lvldSamples(rows,cls,{mode:'all',cls:true}), smStyle=lvldSamples(rows,cls,{mode:'all',cls:false});
   const tags=lvldGuideFor(cls), th='style="padding:.35rem .5rem;text-align:left;font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.05em;color:var(--text-muted);white-space:nowrap"';
@@ -10309,6 +10412,7 @@ function lvldSection(meta,myLvl){
   // Character Stats wins (owner, 2026-10-07: set a lower level there to preview the path); the log's last ding is only a fallback
   const L=myLvl||(mine&&mine.current)||null;
   if(L) lvldLoadGuild(Math.min(L,59));
+  lvldLoadAll();
   const desktop=!!(window.MixelParseApp&&window.MixelParseApp.watcherCommand);
   const ago=lvldMine.at?lvldFmt((Date.now()-lvldMine.at)/60e3)+' ago':'never';
   const share=lvldGuild.err?'<span style="color:#a06020" title="'+keysAttr(lvldGuild.err)+'">⚠ guild data unavailable — ask the app owner to create the leveling_data table</span>'
@@ -10362,7 +10466,7 @@ function lvldSection(meta,myLvl){
     zs.forEach((a,i)=>{ const n=a.xs+a.xg, solo=Math.round(a.xs/Math.max(1,n)*100), mobs=Object.entries(a.mobs).sort((x,y)=>y[1]-x[1]).slice(0,3).map(m=>esc(m[0])).join(', ');
       const from=a.chars.size+' char'+(a.chars.size===1?'':'s')+' · '+a.n+' level'+(a.n===1?'':'s')+(a.cls.size?'<div style="font-size:.74rem;color:var(--text-muted)">'+[...a.cls].map(esc).join(', ')+'</div>':'');
       t+='<tr style="border-bottom:1px solid rgba(74,58,26,.2);'+(a.sure?'':'opacity:.6')+(i===0&&a.sure?'background:rgba(184,137,43,.08)':'')+'" title="'+keysAttr(a.sure?'':'Little data — under 45 minutes of hunting from one level')+'">'+
-        '<td style="padding:.4rem .5rem"><b>'+esc(a.zone)+'</b>'+(lvldZem(a.zone)?' <span style="font-size:.74rem;color:var(--text-muted)">ZEM '+lvldZem(a.zone)+'</span>':'')+(LEVELING_SPOTS.some(sp=>{const rg=_lvlSpotRange(sp,'both');return rg&&rg[0]<=L&&rg[1]>=L&&lvldZoneKey(sp.z)===lvldZoneKey(a.zone);})?' <span style="font-size:.72rem;color:#2f6f2f" title="The wiki Per-Level Hunting Guide lists this zone for level '+L+'">📖 in guide</span>':' <span style="font-size:.72rem;color:var(--text-muted)" title="Not in the wiki guide for level '+L+' — found in players\u2019 logs">not in guide</span>')+'</td>'+
+        '<td style="padding:.4rem .5rem"><b>'+esc(a.zone)+'</b>'+(lvldZem(a.zone)?' <span style="font-size:.74rem;color:var(--text-muted)" title="The wiki&rsquo;s zone XP modifier — a guess; P99 doesn&rsquo;t publish them">wiki ZEM '+lvldZem(a.zone)+'</span>':'')+(function(){ const cal=lvldCalibration(), zk=lvldZoneKey(a.zone), fz=cal.f[zk], n=cal.nz[zk]||0; return fz&&n>=3?' <span style="font-size:.74rem;color:'+(fz>=1.1?'#2f6f2f':fz<=0.9?'#a03030':'var(--text-muted)')+'" title="'+keysAttr('Measured from '+n+' finished levels in the guild: this zone gives '+Math.round(fz*100)+'% of the XP the mob levels alone predict')+'">measured XP '+Math.round(fz*100)+'%</span>':''; })()+(LEVELING_SPOTS.some(sp=>{const rg=_lvlSpotRange(sp,'both');return rg&&rg[0]<=L&&rg[1]>=L&&lvldZoneKey(sp.z)===lvldZoneKey(a.zone);})?' <span style="font-size:.72rem;color:#2f6f2f" title="The wiki Per-Level Hunting Guide lists this zone for level '+L+'">📖 in guide</span>':' <span style="font-size:.72rem;color:var(--text-muted)" title="Not in the wiki guide for level '+L+' — found in players\u2019 logs">not in guide</span>')+'</td>'+
         '<td style="padding:.4rem .5rem;white-space:nowrap;font-weight:600">'+lvldFmt(a.min)+'</td>'+
         '<td style="padding:.4rem .5rem;white-space:nowrap">'+(solo>=60?'Solo':solo<=40?'Group':'Mixed')+' <span style="font-size:.74rem;color:var(--text-muted)">'+solo+'% solo</span></td>'+
         '<td style="padding:.4rem .5rem">'+Math.round(n/a.h)+'</td>'+
@@ -10372,7 +10476,7 @@ function lvldSection(meta,myLvl){
     t+='</tbody></table>';
     html+=card('<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.3rem;margin-bottom:.3rem">'+h3('WHERE PEOPLE LEVEL AROUND '+L).replace('margin-bottom:.45rem','margin-bottom:0')+
       '<div>'+chip('All',lvldF.mode==='all',"lvldMode('all')")+chip('Solo',lvldF.mode==='solo',"lvldMode('solo')")+chip('Group',lvldF.mode==='group',"lvldMode('group')")+(cls?chip(esc(cls)+'s only',lvldF.cls,'lvldClsOnly()'):'')+'</div></div>'+
-      '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.35rem">Levels '+Math.max(1,L-3)+'–'+Math.min(59,L+3)+', time per level estimated for <b>'+esc(name)+'</b> at level '+L+'. '+(LVLD_STYLE[cls]?'Solo spots only count characters that solo like a '+esc(cls)+' ('+LVLD_STYLE_NAME[LVLD_STYLE[cls]]+'); group spots count every class. ':'')+'Raid zones (Plane of Hate, Fear, Sky, Growth) and levels carried by quest turn-ins are left out. Faded rows have little data.</div>'+
+      '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.35rem">Levels '+Math.max(1,L-3)+'–'+Math.min(59,L+3)+', time per level estimated for <b>'+esc(name)+'</b> at level '+L+'. '+(LVLD_STYLE[cls]?'Solo spots only count characters that solo like a '+esc(cls)+' ('+LVLD_STYLE_NAME[LVLD_STYLE[cls]]+'); group spots count every class. ':'')+'Raid zones (Plane of Hate, Fear, Sky, Growth) and levels carried by quest turn-ins are left out. Faded rows have little data.'+(function(){ const cal=lvldCalibration(); return cal.n>=10?' <span title="'+keysAttr('XP per kill comes from the mob’s level (P99 wiki). The guild’s finished levels correct it overall and per zone; typical error per level ±'+Math.round(cal.err*100)+'%. It improves as more levels are shared.')+'">XP calibrated on <b>'+cal.n+'</b> finished levels from '+cal.chars+' characters.</span>':''; })()+'</div>'+
       '<div style="overflow-x:auto">'+t+'</div>');
     // next levels
     let nl='<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr style="border-bottom:1px solid var(--border)"><th '+th+'>LEVEL</th><th '+th+'>XP NEEDED</th><th '+th+'>BEST MEASURED SPOT</th><th '+th+'>EST. TIME</th></tr></thead><tbody>';
@@ -15422,9 +15526,142 @@ function flowerPriceBox(){
     +FLOWER_COLOURS.map(c=>'<th style="padding:.4rem .5rem;text-align:right;'+hd+'">'+c.toUpperCase()+'</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody></table>'
     +'<div style="margin-top:auto;padding:.45rem .7rem;border-top:1px solid var(--border);font-size:.9rem;background:rgba(160,120,50,.05)"><span style="color:var(--text-muted)">4-card cost:</span> '+cost+'</div>');
 }
+/* ═══ Settings (owner, 2026-10-07) ═══════════════════════════════════════════════════════════════════════════
+   One place for the per-PC options. Each control calls the same setter the feature already uses, so the
+   header Auction checkbox, the Watch List ⚙ and the map's Auto toggle stay in step. */
+const stgDesktop=()=>!!(window.MixelParseApp&&window.MixelParseApp.watcherCommand);
+function stgLs(k,d){ try{ const v=localStorage.getItem(k); return v==null?d:v; }catch(e){ return d; } }
+function stgSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+let _stgLogin=null, _stgCfg=null, _stgVer=null, _stgClose=null;
+// Pop-up notices, by the icon each notice starts with. Errors (❌ ⚠ ✗) always show.
+const TOAST_KINDS=[
+  ['auc','Auctions','Outbid and “Grats — you won”',/^⚖/],
+  ['raid','Raid ticks &amp; Auto-Detect','Ticks added to the Raid Kill Tracker, Auto-Detect adds and failticks',/^(⚔|💀|⏱ .*(×|New session))/],
+  ['map','Map timers &amp; pins','Spawn timers, charm marks, pins',/^(⏱|🌀|📍|🗑|Pin\b)/],
+  ['other','Everything else','Imports, scans, saves and other confirmations',null],
+];
+function toastOff(){ try{ return new Set(JSON.parse(localStorage.getItem('mp_toast_off')||'[]')); }catch(e){ return new Set(); } }
+function toastAllowed(msg){
+  const m=String(msg||''); if(/^(❌|⚠|✗)/.test(m)) return true;
+  const off=toastOff(); if(!off.size) return true;
+  const k=(TOAST_KINDS.find(t=>t[3]&&t[3].test(m))||['other'])[0];
+  return !off.has(k);
+}
+// Startup tab ('last' = where you left off)
+const STG_VIEWS=[['last','Where I left off'],['characters','Characters'],['dkp','DKP History'],['plat','Plat Prices'],['kills','Raid Kill Tracker'],['parking','Raid Parking'],['timers','Spawn Timers'],['keys','Keys'],['flowers','Flowers'],['farm','Farm Targets'],['bankers','Bankers']];
+function stgStartView(){ const v=stgLs('mp_start_view','characters'); if(v!=='last') return v; const l=stgLs('mp_last_view','characters'); return l==='settings'?'characters':l; }
+async function stgRotateLogs(){
+  if(!(window.MixelParseApp&&window.MixelParseApp.rotateLogs)) return;
+  if(!confirm('Archive large EQ logs now?\n\nEvery eqlog_*.txt over 50 MB is renamed to eqlog_<char>.<YYYY-MM>.old in the same folder. Nothing is deleted, and MixelParse still reads the archived files. A log EQ has open is skipped — log that character out first.')) return;
+  try{ const r=await window.MixelParseApp.rotateLogs({minMB:50});
+    const lines=[...r.rotated.map(x=>'✅ '+x.file+' ('+x.mb+' MB) → '+x.to),...r.errors.map(x=>'⚠ '+x)];
+    alert('Archived '+r.rotated.length+' log'+(r.rotated.length===1?'':'s')+'.'+(lines.length?'\n\n'+lines.join('\n'):'\n\nNo logs over 50 MB.'));
+  }catch(e){ alert('Archiving failed: '+((e&&e.message)||e)); }
+}
+// one character's role: 'char' | 'banker' | 'excluded'
+function stgCharRole(n){ return isExcludedChar(n)?'excluded':isBanker(n)?'banker':'char'; }
+window.stgSetRole=function(n,role){
+  const lc=String(n).toLowerCase();
+  const wasB=isBanker(n), wasX=isExcludedChar(n);
+  excludedChars=excludedChars.filter(b=>String(b).toLowerCase()!==lc);
+  if(role==='excluded') excludedChars.push(n);
+  if(role==='banker'){ if(!wasB) bankerRegistry.push(n); }
+  else if(role==='char'){ bankerRegistry=bankerRegistry.filter(b=>b.toLowerCase()!==lc); }
+  if(wasB!==isBanker(n)) saveBankerRegistryToSupabase();
+  if(wasX!==isExcludedChar(n)) saveExcludedCharsToSupabase();
+  if(typeof refresh==='function') refresh();
+  renderSettingsPanel();
+};
+window.stgDo=function(what,v){
+  if(what==='corpse'){ stgSet('mp_corpse_mode',v); if(typeof skyRenderWarn==='function') skyRenderWarn(); }
+  else if(what==='corpseunhide'){ stgSet('mp_skyWarnHide','[]'); if(typeof skyRenderWarn==='function') skyRenderWarn(); if(typeof showWatcherToast==='function') showWatcherToast('Cleared corpses are back on the strip'); }
+  else if(what==='auc'){ aucSetEnabled(v==='on'); }
+  else if(what==='aucpop'){ aucAutoPop=v==='on'; stgSet('mp_auc_autopop',aucAutoPop?'1':'0'); aucPush(); }
+  else if(what==='wl'){ wlSetCountStyle(v); document.querySelectorAll('input[name="wlCountStyle"]').forEach(r=>{r.checked=r.value===v;}); }
+  else if(what==='rkd'){ rkdSetMode(v); }
+  else if(what==='timers'){ _autoTimersEnabled=v==='on'; stgSet('mp_auto_timers',_autoTimersEnabled?'1':'0'); if(typeof sessionPushState==='function') sessionPushState(); }
+  else if(what==='zoom'){ stgSet('mp_zoom',v); if(window.MixelParseApp&&window.MixelParseApp.setZoom) window.MixelParseApp.setZoom(+v); }
+  else if(what==='login'){ if(window.MixelParseApp&&window.MixelParseApp.setLoginItem) window.MixelParseApp.setLoginItem(v==='on').then(x=>{_stgLogin=x;renderSettingsPanel();}); return; }
+  else if(what==='tips'){ resetAllHelp(); if(typeof showWatcherToast==='function') showWatcherToast('Help tips will show again'); }
+  else if(what==='whatsnew'){ showWhatsNew(); return; }
+  else if(what==='toast'){ const off=toastOff(); off.has(v)?off.delete(v):off.add(v); stgSet('mp_toast_off',JSON.stringify([...off])); }
+  else if(what==='start'){ stgSet('mp_start_view',v); }
+  else if(what==='close'){ if(window.MixelParseApp&&window.MixelParseApp.setCloseAction) window.MixelParseApp.setCloseAction(v).then(x=>{_stgClose=x;renderSettingsPanel();}); return; }
+  else if(what==='rotate'){ stgRotateLogs(); return; }
+  else if(what==='update'){ if(window.MixelParseApp&&window.MixelParseApp.checkUpdates){ window.MixelParseApp.checkUpdates(); if(typeof showWatcherToast==='function') showWatcherToast('Checking for updates…'); } return; }
+  renderSettingsPanel();
+};
+function renderSettingsPanel(){
+  const panel=document.getElementById('settingsPanel'); if(!panel) return;
+  const desk=stgDesktop();
+  if(desk&&_stgLogin===null&&window.MixelParseApp.getLoginItem){ _stgLogin=false; window.MixelParseApp.getLoginItem().then(x=>{_stgLogin=!!x;renderSettingsPanel();}).catch(()=>{}); }
+  if(desk&&!_stgCfg&&window.MixelParseApp.getConfig){ _stgCfg={}; window.MixelParseApp.getConfig().then(c=>{_stgCfg=c||{};renderSettingsPanel();}).catch(()=>{}); }
+  if(desk&&_stgClose===null&&window.MixelParseApp.getCloseAction){ _stgClose='tray'; window.MixelParseApp.getCloseAction().then(x=>{_stgClose=x;renderSettingsPanel();}).catch(()=>{}); }
+  if(desk&&!_stgVer&&window.MixelParseApp.getVersion){ _stgVer='…'; window.MixelParseApp.getVersion().then(v=>{_stgVer=v;renderSettingsPanel();}).catch(()=>{}); }
+  // a row of choices: [value,label,hint]
+  const pick=(what,cur,opts)=>'<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.45rem">'+opts.map(([v,lbl,hint])=>{ const on=String(cur)===String(v);
+    return '<button onclick="stgDo(\''+what+'\',\''+v+'\')" title="'+keysAttr(hint||'')+'" style="font-size:.9rem;padding:.3rem .75rem;border-radius:4px;cursor:pointer;border:1px solid '+(on?'var(--gold)':'var(--border)')+';background:'+(on?'rgba(184,137,43,.16)':'var(--surface)')+';color:var(--text);font-weight:'+(on?'700':'400')+'">'+(on?'● ':'○ ')+lbl+'</button>'; }).join('')+'</div>';
+  const item=(title,desc,ctrl)=>'<div style="padding:.65rem 0;border-top:1px solid rgba(74,58,26,.2)"><div style="font-size:.98rem;font-weight:600">'+title+'</div>'+(desc?'<div style="font-size:.84rem;color:var(--text-muted);margin-top:.1rem">'+desc+'</div>':'')+ctrl+'</div>';
+  const card=(head,inner)=>'<div style="border:1px solid var(--border);border-radius:5px;background:var(--surface);padding:.7rem .9rem .3rem;break-inside:avoid;margin-bottom:1rem"><div style="font-family:\'Cinzel\',serif;font-size:.9rem;letter-spacing:.06em;color:var(--gold-light);margin-bottom:.15rem">'+head+'</div>'+inner+'</div>';
+  const btn=(what,lbl,hint)=>'<button class="btn" onclick="stgDo(\''+what+'\')" title="'+keysAttr(hint||'')+'" style="font-size:.88rem;padding:.3rem .75rem;margin:.45rem .4rem 0 0">'+lbl+'</button>';
+  const deskOnly='<span style="font-size:.8rem;color:var(--text-muted)">(desktop app only)</span>';
+  const cm=corpseMode(), wl=wlCountStyle(), z=stgLs('mp_zoom','1');
+  let h='<div class="rc-title" style="font-family:\'Cinzel\',serif;letter-spacing:.06em;margin-bottom:.3rem">SETTINGS</div>'+
+    '<div style="font-size:.86rem;color:var(--text-muted);margin-bottom:.9rem">Saved on this PC and applied right away.</div>'+
+    '<div style="columns:2 460px;column-gap:1rem">';
+  h+=card('TOOLS',
+    item('Item Database','Load, review and clear the item stats MixelParse uses for gear scoring.','<button class="btn primary" onclick="document.getElementById(\'itemDbBtn\').click()" style="font-size:.88rem;padding:.3rem .75rem;margin-top:.45rem">&#128230; Open Item Database</button>')+
+    item('UI Copy Tool','Copy one character&rsquo;s EverQuest UI layout to another.','<button class="btn" onclick="document.getElementById(\'uiCopyBtn\').click()" style="font-size:.88rem;padding:.3rem .75rem;margin-top:.45rem">&#128196; Open UI Copy Tool</button>')+
+    item('Gear Planner Reports','Your saved gear plans across characters.','<button class="btn" onclick="document.getElementById(\'gearReportsBtn\').click()" style="font-size:.88rem;padding:.3rem .75rem;margin-top:.45rem">&#128202; Open Gear Planner Reports</button>'));
+  h+=card('CORPSE TRACKING',
+    item('Corpse strip','The strip above the top bar listing your characters&rsquo; corpses (zone › death › time, decay countdown).',
+      pick('corpse',cm,[['all','All corpses','Every death of your characters'],['sky','Only Sky corpses','Plane of Sky deaths only — the ones holding keys'],['off','Off','Hide the strip']]))+
+    item('Cleared corpses','Corpses you marked looted stay hidden.',btn('corpseunhide','Show cleared corpses again','Bring back corpses you cleared with ✓ / Corpse looted')));
+  h+=card('AUCTIONS',
+    item('Live auctions','Reads /auction during raids. Off = no auction window, no pop-up, no outbid or Grats toasts.',pick('auc',aucEnabled?'on':'off',[['on','Enabled'],['off','Disabled']]))+
+    (aucEnabled?item('Pop-up window','Open the auction window (without taking focus from EQ) when an officer starts an auction.',pick('aucpop',aucAutoPop?'on':'off',[['on','Pop up'],['off','Stay closed']])):''));
+  h+=card('WATCH LIST',
+    item('When you have more than one','How the Watch List shows an item you carry several of.',
+      pick('wl',wl,[['sup','✔<sup>3</sup>','Small number after the check'],['paren','✔ (3)','Number in brackets'],['none','✔ only','No number']])));
+  const off=toastOff();
+  h+=card('POP-UP NOTICES',
+    item('Show these notices','The small notices in the bottom-right corner. Error notices always show.',
+      '<div style="display:flex;flex-direction:column;gap:.35rem;margin-top:.45rem">'+TOAST_KINDS.map(([k,lbl,hint])=>'<label style="display:flex;align-items:center;gap:.5rem;font-size:.92rem;cursor:pointer" title="'+keysAttr(hint)+'"><input type="checkbox" '+(off.has(k)?'':'checked')+' onchange="stgDo(\'toast\',\''+k+'\')" style="width:1rem;height:1rem;cursor:pointer;accent-color:#8a7a4a">'+lbl+' <span style="font-size:.8rem;color:var(--text-muted)">— '+hint+'</span></label>').join('')+'</div>'));
+  h+=card('DISPLAY',
+    (desk?item('Text size','Scales the whole MixelParse window.',pick('zoom',z,[['0.9','90%'],['1','100%'],['1.1','110%'],['1.25','125%'],['1.5','150%']])):'')+
+    item('Help tips','The short tip cards that pop up the first time you open a tab.',btn('tips','Show help tips again')+btn('whatsnew','What&rsquo;s New')));
+  h+=card('RAIDS',
+    item('Auto-Detect','How raid ticks found in your logs are handled.',
+      pick('rkd',rkdMode(),[['watch','Watch','Lists what it finds; never adds anything'],['active','Active','Adds strong matches to the Raid Kill Tracker, asks about the rest']]))+
+    item('Map: spawn timers from kills','Start a spawn timer on the map automatically when a tracked mob dies.',pick('timers',_autoTimersEnabled?'on':'off',[['on','On'],['off','Off — map clicks and /note only']])));
+  const all=Object.keys(chars||{}).sort((a,b)=>a.localeCompare(b));
+  h+=card('CHARACTERS',
+    item('Character, banker or hidden','<b>Banker</b>: inventory only (Bankers tab, no character tab). <b>Hidden</b>: left out everywhere; its data is kept. Saved to your account.',
+      all.length?'<div style="margin-top:.45rem;max-height:340px;overflow-y:auto">'+all.map(n=>{ const r=stgCharRole(n), nE=encodeURIComponent(n);
+        const b=(v,lbl)=>'<button onclick="stgSetRole(decodeURIComponent(\''+nE+'\'),\''+v+'\')" style="font-size:.8rem;padding:.12rem .5rem;border-radius:3px;cursor:pointer;border:1px solid '+(r===v?'var(--gold)':'var(--border)')+';background:'+(r===v?'rgba(184,137,43,.16)':'transparent')+';color:var(--text);font-weight:'+(r===v?'700':'400')+'">'+lbl+'</button>';
+        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.25rem 0;border-bottom:1px solid rgba(74,58,26,.12)"><span style="font-size:.92rem'+(r==='excluded'?';color:var(--text-muted);text-decoration:line-through':'')+'">'+esc(n)+'</span><span style="display:flex;gap:.25rem">'+b('char','Character')+b('banker','Banker')+b('excluded','Hidden')+'</span></div>'; }).join('')+'</div>'
+      :'<div style="font-size:.85rem;color:var(--text-muted);margin-top:.35rem">No characters loaded yet.</div>'));
+  h+=card('APP',
+    item('Open on','The tab MixelParse shows when it starts.',
+      '<select onchange="stgDo(\'start\',this.value)" style="margin-top:.45rem;font-size:.9rem;padding:.25rem .4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)">'+STG_VIEWS.map(([v,l])=>'<option value="'+v+'"'+(stgLs('mp_start_view','characters')===v?' selected':'')+'>'+l+'</option>').join('')+'</select>')+
+    (desk?item('Closing the window','What the window&rsquo;s ✕ does.',pick('close',_stgClose||'tray',[['tray','Minimize to tray','MixelParse keeps watching your logs in the background (tray icon → Quit to exit)'],['quit','Quit MixelParse','Closes the app completely']])):'')+
+    (desk?item('EQ log files','Logs over 250 MB are archived on their own when idle. Archive any log over 50 MB now — renamed, never deleted.',btn('rotate','Archive large logs now')):'')+
+    (desk?item('Start with Windows','Open MixelParse when you sign in to Windows.',pick('login',_stgLogin?'on':'off',[['on','On'],['off','Off']])):''));
+  h+=card('ABOUT',
+    item('Version','MixelParse '+esc(_stgVer&&_stgVer!=='…'?_stgVer:WHATS_NEW.version)+(desk?' · updates install on their own':''),desk?btn('update','Check for updates'):'')+
+    (desk&&_stgCfg?item('EverQuest folders','Where MixelParse reads logs and inventory exports.',
+      '<div style="font-size:.84rem;margin-top:.35rem;line-height:1.6"><b>EverQuest:</b> '+esc(_stgCfg.eqDir||'—')+'<br><b>Logs:</b> '+esc(_stgCfg.logDir||'—')+'</div>'):''));
+  h+='</div>';
+  panel.innerHTML=h;
+}
+// apply the saved text size at start (desktop)
+try{ const _z=+localStorage.getItem('mp_zoom'); if(_z&&_z!==1&&window.MixelParseApp&&window.MixelParseApp.setZoom) window.MixelParseApp.setZoom(_z); }catch(e){}
+
 // Corpse strip (owner, 2026-10-06): every death of your characters — Zone › Death › Time — until cleared (✓),
 // "You don't have any corpses in this zone." there, or decay (7 days). Sky corpses keep their key info.
 function skyWarnHidden(){try{return new Set(JSON.parse(localStorage.getItem('mp_skyWarnHide')||'[]'));}catch(e){return new Set();}}
+// Settings → Corpse tracking: 'all' (default) | 'sky' (Plane of Sky corpses only) | 'off'
+function corpseMode(){ try{ const v=localStorage.getItem('mp_corpse_mode'); return v==='sky'||v==='off'?v:'all'; }catch(e){ return 'all'; } }
 // right-click a corpse line: "Corpse looted" clears it (same as ✓)
 window.corpseMenu=function(ev,k){
   ev.preventDefault();
@@ -15449,9 +15686,10 @@ window.skyWarnHide=function(k){const s=skyWarnHidden();s.add(k);try{localStorage
 function skyRenderWarn(){
   const wrap=document.getElementById('skyCorpseWarn');if(!wrap)return;
   if(!skyCorpseState){wrap.innerHTML='';return;}
+  const cmode=corpseMode(); if(cmode==='off'){wrap.innerHTML='';return;}
   const now=Date.now(),hidden=skyWarnHidden(),lines=[],decay=skyCorpseState.decayMs||7*864e5,rezMs=skyCorpseState.rezMs||3*3600e3;
   for(const n of charNames()){                                   // your tabs only — never bots whose logs are on this PC
-    for(const c of allCorpsesFor(n)){
+    for(const c of (cmode==='sky'?skyCorpsesFor(n):allCorpsesFor(n))){
       const k=n+'|'+c.t, left=c.t+decay-now;
       if(left<=0||hidden.has(k))continue;
       lines.push({n,c,k,left});
