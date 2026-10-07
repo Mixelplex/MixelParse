@@ -1,8 +1,11 @@
-## 1.7.9
+## 1.7.10
+
+- **📖 Leveling path vs. the wiki guide** — the Leveling tab's new Class Guide puts the P99 wiki hunting guide next to the spots actually measured for your class, level band by level band (✓ where they agree). The wiki guide table also gets a Measured column.
+- **Fix:** the Leveling tab uses the level set in Character Stats.
+
+Everything from 1.7.9 and earlier is included:
 
 - **📈 New: Leveling path** — the Leveling tab now shows where people actually level around your level and how long it takes, built from MixelParse users' logs.
-
-Everything from 1.7.8 and earlier is included:
 
 - **💀 Corpse tracker** — every death of your characters shows in a strip above the top bar: Zone › who was slain by what › when, how long until the corpse decays (red in the last 24 hours) and the rez window while it lasts. Right-click a line → Corpse looted (or click ✓) once you have it back; it also clears when you /corpse in that zone and have none there. Sky corpses still show their keys.
 - **Fix: Raid Parking only counts your characters** — Castle bots whose logs are on your PC no longer show up as "(? ?)" names. Parking uses your character tabs plus your pinned mules.
