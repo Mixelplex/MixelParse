@@ -5466,12 +5466,14 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.9',
+  version:'1.7.10',
   date:'October 2026',
   features:[
-    ['&#128200; New: Leveling path','The Leveling tab now shows where people actually level around your level and how long it takes, built from MixelParse users&rsquo; logs.'],
+    ['&#128214; Leveling path vs. the wiki guide','The Leveling tab&rsquo;s new <b>Class Guide</b> puts the P99 wiki hunting guide next to the spots actually measured for your class, level band by level band (&#10003; where they agree). The wiki guide table also gets a <b>Measured</b> column.'],
   ],
-  fixes:[],
+  fixes:[
+    ['Leveling level','The Leveling tab uses the level set in Character Stats.'],
+  ],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -10044,7 +10046,8 @@ function renderLevelingPanel(){
   const bar='<div style="margin-bottom:.4rem"><span style="font-size:.68rem;color:var(--text-muted)">Class:</span> '+clsChips+'</div>'+
     '<div style="margin-bottom:.4rem"><span style="font-size:.68rem;color:var(--text-muted)">Mode:</span> '+modeChips+' &nbsp;&nbsp; <span style="font-size:.68rem;color:var(--text-muted)">Sort:</span> '+sortChips+' '+chip('Reset',false,'lvlReset()')+'</div>'+
     '<div style="margin-bottom:.5rem"><input type="text" value="'+esc(f.q)+'" oninput="lvlSearch(this.value)" placeholder="Search zone / mob / notes..." style="font-size:.75rem;padding:.2rem .4rem;width:260px;border:1px solid var(--border2,#d8d5c8);border-radius:3px;background:transparent;color:var(--text-secondary)"></div>';
-  let tbl='<table style="width:100%;border-collapse:collapse;font-size:.74rem"><thead><tr style="text-align:left;color:var(--text-muted);border-bottom:1px solid var(--border2)"><th style="padding:.2rem .3rem">Solo</th><th>Group</th><th>Zone</th><th>Where / What</th><th>XP</th><th>Good for</th><th>Notes</th></tr></thead><tbody>';
+  let tbl='<table style="width:100%;border-collapse:collapse;font-size:.74rem"><thead><tr style="text-align:left;color:var(--text-muted);border-bottom:1px solid var(--border2)"><th style="padding:.2rem .3rem">Solo</th><th>Group</th><th>Zone</th><th>Where / What</th><th>XP</th><th title="Measured from players\u2019 logs: time per level for this character at that spot\u2019s levels">Measured</th><th>Good for</th><th>Notes</th></tr></thead><tbody>';
+  const _lvSm=(typeof lvldRows==='function'&&myCls!==undefined)?lvldSamples(lvldRows(),meta.class||'',{mode:'all',cls:false}):[], _lvMult=lvldMult(meta.class||'',meta.race||'');
   if(!rows.length)tbl+='<tr><td colspan="8" style="padding:.5rem;color:var(--text-muted)">No spots match these filters.</td></tr>';
   rows.forEach(function(sp){
     const mine=myCls&&sp.t.indexOf(myCls)>=0;
@@ -10056,6 +10059,9 @@ function renderLevelingPanel(){
       '<td style="white-space:nowrap">'+esc(sp.z)+(near?' <span title="near your level" style="color:var(--gold,#b8892b)">&#9670;</span>':'')+'</td>'+
       '<td>'+esc(sp.w)+(sp.m?' - <span style="color:var(--text-muted)">'+esc(sp.m)+'</span>':'')+'</td>'+
       '<td style="white-space:nowrap">'+(sp.zem?sp.zem+'%':'?')+'</td>'+
+      (function(){ const rg=_lvlSpotRange(sp,'both'); if(!rg) return '<td></td>'; const Lt=Math.max(rg[0],Math.min(rg[1],myLvl||Math.round((rg[0]+rg[1])/2)));
+        const m=lvldMeasure(_lvSm,lvldZoneKey(sp.z),rg[0],rg[1],Lt,_lvMult);
+        return '<td style="white-space:nowrap" title="'+(m?keysAttr('Measured at levels '+rg[0]+'-'+rg[1]+': '+m.chars+' character'+(m.chars===1?'':'s')+', '+m.n+' level'+(m.n===1?'':'s')+(m.cls.length?' ('+m.cls.join(', ')+')':'')+' — time per level for this character at level '+Lt):'No measured levels here yet')+'">'+(m?'<b>'+lvldFmt(m.min)+'</b><span style="color:var(--text-muted)">/lvl · '+m.chars+'</span>':'<span style="color:var(--text-muted)">—</span>')+'</td>'; })()+
       '<td style="white-space:nowrap">'+tags+'</td>'+
       '<td style="color:var(--text-muted)">'+esc(sp.n)+'</td></tr>';
   });
@@ -10154,18 +10160,18 @@ function lvldRows(){
   return up?lvldGuild.rows:lvldGuild.rows.filter(r=>r.user_id!==uid).concat(local);
 }
 // one sample = one character's time in one zone for one finished level
-function lvldSamples(rows,myCls){
-  const out=[];
+function lvldSamples(rows,myCls,opt){
+  opt=opt||lvldF; const out=[];
   for(const r of rows){
     const xs=r.xp_solo||0, xg=r.xp_group||0, n=xs+xg;
     if(!r.level_done||!r.level_xp_total||!n||r.hunt_ms<10*60e3||r.level>=60) continue;
     if(LVLD_RAID_ZONES.has(r.zone)) continue;                   // raid targets, not leveling spots
     if((r.level_quest||0)>0.1*r.level_xp_total) continue;      // a level carried by turn-ins — its kill pace can't be measured
     const share=Math.min(1,n/r.level_xp_total); if(share<0.15) continue;
-    if(xs>=0.6*n&&myCls&&LVLD_STYLE[myCls]&&LVLD_STYLE[r.class]!==LVLD_STYLE[myCls]) continue;   // solo: same play style only
-    if(lvldF.mode==='solo'&&xs<0.6*n) continue;
-    if(lvldF.mode==='group'&&xg<0.6*n) continue;
-    if(lvldF.cls&&myCls&&r.class!==myCls) continue;
+    if(!opt.anyStyle&&xs>=0.6*n&&myCls&&LVLD_STYLE[myCls]&&LVLD_STYLE[r.class]!==LVLD_STYLE[myCls]) continue;   // solo: same play style only
+    if(opt.mode==='solo'&&xs<0.6*n) continue;
+    if(opt.mode==='group'&&xg<0.6*n) continue;
+    if(opt.cls&&myCls&&r.class!==myCls) continue;
     out.push({r,share,xp:lvldNeed(r.level)*lvldMult(r.class,r.race)*share,h:r.hunt_ms/3.6e6});
   }
   return out;
@@ -10182,7 +10188,7 @@ function lvldZones(samples,L,multT){
   return Object.values(z).map(a=>Object.assign(a,{min:lvldNeed(L)*multT/(a.xp/a.h)*60,sure:a.h>=0.75||a.n>=2}))
     .sort((x,y)=>(y.sure-x.sure)||(x.min-y.min));
 }
-function lvldZem(zone){ const sp=LEVELING_SPOTS.find(p=>p.z===zone); return sp&&sp.zem?sp.zem+'%':''; }
+function lvldZem(zone){ const k=lvldZoneKey(zone), sp=LEVELING_SPOTS.find(p=>lvldZoneKey(p.z)===k&&p.zem); return sp?sp.zem+'%':''; }
 // hunting minutes per finished level for one character (this PC's scan, else the guild table)
 function lvldHistory(name){
   const r=(lvldMine.chars||{})[name]; const uid=typeof currentUser!=='undefined'&&currentUser?currentUser.id:null;
@@ -10216,11 +10222,92 @@ function lvldChart(hist,myLvl){
   return '<div style="position:relative;margin-left:2.8rem;height:'+H+'px;border-bottom:1px solid var(--border)">'+grid+'<div style="position:absolute;inset:0;display:flex;gap:2px;align-items:flex-end">'+bars+'</div></div>'+
     '<div style="display:flex;justify-content:space-between;margin-left:2.8rem;font-size:.72rem;color:var(--text-muted);margin-top:.15rem"><span>L'+lo+'</span><span>L'+hi+'</span></div>';
 }
+// One key for a zone whether it comes from the log ("Castle Mistmoore", "The Wakening Lands", "Guk") or from the wiki
+// guide ("Mistmoore", "Wakening Lands", "Upper Guk"): the app's zone short name where it knows one, else the bare name.
+const LVLD_ZONE_ALIAS={upperguk:'guktop',guk:'guktop',lowerguk:'gukbottom',ruinsofoldguk:'gukbottom',westernkarana:'qey2hh1',westkarana:'qey2hh1',westernplainsofkarana:'qey2hh1',
+  southkarana:'southkarana',southernkarana:'southkarana',southernplainsofkarana:'southkarana',eastkarana:'eastkarana',easternplainsofkarana:'eastkarana',northkarana:'northkarana',northernplainsofkarana:'northkarana',
+  kerraisland:'kerraridge',kerraisle:'kerraridge',permafrost:'permafrost',permafrostcaverns:'permafrost',warslikswoods:'warslikswood',warslikswood:'warslikswood',mistmoore:'mistmoore',castlemistmoore:'mistmoore',
+  wakeninglands:'wakening',wakeningland:'wakening',sebilis:'sebilis',oldsebilis:'sebilis',easternwastes:'eastwastes',easternwastelands:'eastwastes',kithicorforest:'kithicor',kithicorwoods:'kithicor',
+  nektulosforest:'nektulos',cityofmist:'citymist',cazicthule:'cazicthule',losttempleofcazicthule:'cazicthule',solusekseye:'soldunga',nagafenslair:'soldungb',dreadlands:'dreadlands',sirensgrotto:'sirens'};
+const _lvldZn=s=>String(s||'').toLowerCase().replace(/^the /,'').replace(/[^a-z0-9]/g,'');
+let _lvldZoneIdx=null;
+function lvldZoneKey(name){
+  const n=_lvldZn(name); if(LVLD_ZONE_ALIAS[n]) return LVLD_ZONE_ALIAS[n];
+  if(!_lvldZoneIdx){ _lvldZoneIdx={}; for(const [k,v] of Object.entries(typeof ZONE_SHORTNAME_MAP!=='undefined'?ZONE_SHORTNAME_MAP:{})) _lvldZoneIdx[_lvldZn(k)]=v; }
+  return _lvldZoneIdx[n]||n;
+}
+// measured pace at one zone for levels lo..hi, estimated for this character at level Lt
+function lvldMeasure(samples,key,lo,hi,Lt,mult){
+  let xp=0,h=0,n=0; const chars=new Set(),cls=new Set();
+  for(const sm of samples){ if(sm.r.level<lo||sm.r.level>hi||lvldZoneKey(sm.r.zone)!==key) continue;
+    xp+=sm.xp*Math.pow(Lt/sm.r.level,2); h+=sm.h; n++; chars.add((sm.r.user_id||'')+'|'+sm.r.char_name); if(sm.r.class) cls.add(sm.r.class); }
+  return h?{min:lvldNeed(Lt)*mult/(xp/h)*60,n,h,chars:chars.size,cls:[...cls]}:null;
+}
+// every level — only loaded when the class guide is opened
+let lvldAll={rows:[],at:0,err:null,loading:false};
+async function lvldLoadAll(){
+  if(lvldAll.loading||(lvldAll.at&&Date.now()-lvldAll.at<30*60e3)) return;
+  if(typeof currentUser==='undefined'||!currentUser||typeof sb==='undefined') return;
+  lvldAll.loading=true;
+  try{ const out=[];
+    for(let i=0;i<100000;i+=1000){
+      const {data,error}=await sb.from('leveling_data').select('user_id,char_name,class,race,level,zone,hunt_ms,xp_solo,xp_group,deaths,level_xp_total,level_quest,level_done').eq('level_done',true).order('id').range(i,i+999);
+      if(error) throw error; out.push(...(data||[])); if(!data||data.length<1000) break; }
+    lvldAll={rows:out,at:Date.now(),err:null,loading:false};
+  }catch(e){ lvldAll={rows:[],at:Date.now(),err:(e&&e.message)||String(e),loading:false}; }
+  lvldRefresh();
+}
+window.lvldCgToggle=function(open){ lvldF.cgOpen=open; if(open) lvldLoadAll(); lvldRefresh(); };
+window.lvldCgExact=function(){ lvldF.cgExact=!lvldF.cgExact; lvldRefresh(); };
+// guide classes that cover a character: its class code, ALL, and "melee" for melee classes
+function lvldGuideFor(cls){ const ab=LVL_CLASS_FULL[cls]||''; const t=new Set(['ALL']); if(ab) t.add(ab); if(LVLD_STYLE[cls]==='melee'||LVLD_STYLE[cls]==='monk') t.add('melee'); return t; }
+function lvldClassGuide(name,cls,race,L){
+  const card=inner=>'<div style="border:1px solid var(--border);border-radius:5px;background:var(--surface);padding:.65rem .8rem;margin-top:.7rem">'+inner+'</div>';
+  const open=!!lvldF.cgOpen, label=cls||'this class';
+  const sum='<summary style="cursor:pointer;font-family:\'Cinzel\',serif;font-size:.82rem;letter-spacing:.06em;color:var(--gold-light)">CLASS GUIDE — '+esc(label.toUpperCase())+' · THE WIKI GUIDE VS. MEASURED DATA</summary>';
+  if(!open) return card('<details ontoggle="lvldCgToggle(this.open)">'+sum+'</details>');
+  if(!cls) return card('<details open ontoggle="lvldCgToggle(this.open)">'+sum+'<div style="font-size:.85rem;margin-top:.4rem">Set this character&rsquo;s class in Character Stats.</div></details>');
+  // rows: every level from the guild table (when loaded) + this PC's scan
+  const uid=typeof currentUser!=='undefined'&&currentUser?currentUser.id:'me';
+  const local=[]; if(lvldMine.v===LVLD_SCAN_V) for(const [n,r] of Object.entries(lvldMine.chars||{})){ const m=charMeta[n]||{};
+    for(const x of r.rows||[]){ const lv=(r.levels||{})[x.level]||{}; local.push(Object.assign({},x,{user_id:uid,char_name:n,class:m.class||null,race:m.race||null,level_xp_total:lv.xp||0,level_quest:lv.quest||0,level_done:!!lv.done})); } }
+  const up=lvldMine.uploaded&&lvldMine.uploaded>=lvldMine.at;
+  const rows=lvldAll.at&&!lvldAll.err?(up?lvldAll.rows:lvldAll.rows.filter(r=>r.user_id!==uid).concat(local)):local;
+  const mult=lvldMult(cls,race), exact=!!lvldF.cgExact;
+  const smClass=lvldSamples(rows,cls,{mode:'all',cls:true}), smStyle=lvldSamples(rows,cls,{mode:'all',cls:false});
+  const tags=lvldGuideFor(cls), th='style="padding:.35rem .5rem;text-align:left;font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.05em;color:var(--text-muted);white-space:nowrap"';
+  let t='<table style="width:100%;border-collapse:collapse;font-size:.86rem"><thead><tr style="border-bottom:1px solid var(--border)"><th '+th+'>LEVELS</th><th '+th+'>WIKI GUIDE PICKS FOR '+esc(label.toUpperCase())+'</th><th '+th+'>MEASURED — FASTEST FOR '+esc(label.toUpperCase())+'</th></tr></thead><tbody>';
+  for(let lo=1;lo<=56;lo+=5){ const hi=Math.min(59,lo+4), Lt=Math.round((lo+hi)/2), here=L&&L>=lo&&L<=hi;
+    // wiki: spots tagged for this class (or ALL / melee) whose range overlaps the band
+    const wiki=new Map();
+    for(const sp of LEVELING_SPOTS){ const rg=_lvlSpotRange(sp,'both'); if(!rg||rg[1]<lo||rg[0]>hi) continue;
+      if(sp.t.length&&!sp.t.some(x=>tags.has(x))) continue;
+      const k=lvldZoneKey(sp.z); if(!wiki.has(k)) wiki.set(k,{zone:sp.z,tagged:sp.t.some(x=>x!=='ALL'&&tags.has(x))}); }
+    // data: this class's own levels; too few → similar classes (solo) + everyone (group)
+    let sm=smClass.filter(x=>x.r.level>=lo&&x.r.level<=hi), src='class';
+    if(!exact&&new Set(sm.map(x=>x.r.user_id+'|'+x.r.char_name)).size<2){ sm=smStyle.filter(x=>x.r.level>=lo&&x.r.level<=hi); src='similar'; }
+    const keys=[...new Set(sm.map(x=>lvldZoneKey(x.r.zone)))];
+    const meas=keys.map(k=>{ const m=lvldMeasure(sm,k,lo,hi,Lt,mult); return m&&{key:k,zone:(sm.find(x=>lvldZoneKey(x.r.zone)===k)||{}).r.zone,...m}; })
+      .filter(m=>m&&(m.h>=0.75||m.n>=2)).sort((a,b)=>a.min-b.min).slice(0,3);
+    const wikiHtml=wiki.size?[...wiki.values()].map(w=>{ const hit=meas.some(m=>m.key===lvldZoneKey(w.zone)); return '<span style="white-space:nowrap'+(hit?';font-weight:700;color:#2f6f2f':'')+'" title="'+keysAttr(hit?'Also among the fastest measured spots':(w.tagged?'Tagged for this class in the wiki guide':'Wiki guide spot for all classes'))+'">'+(hit?'✓ ':'')+esc(w.zone)+'</span>'; }).join(', '):'<span style="color:var(--text-muted)">—</span>';
+    const measHtml=meas.length?meas.map(m=>{ const inWiki=wiki.has(m.key); return '<span style="white-space:nowrap" title="'+keysAttr(m.chars+' character'+(m.chars===1?'':'s')+' · '+m.n+' level'+(m.n===1?'':'s')+' · '+lvldFmt(m.h*60)+' hunting'+(m.cls.length?'\n'+m.cls.join(', '):''))+'"><b'+(inWiki?' style="color:#2f6f2f"':'')+'>'+(inWiki?'✓ ':'')+esc(m.zone)+'</b> '+lvldFmt(m.min)+'/lvl <span style="font-size:.74rem;color:var(--text-muted)">'+m.chars+' char'+(m.chars===1?'':'s')+(inWiki?'':' · not in guide')+'</span></span>'; }).join('<br>')
+      +(src==='similar'?'<div style="font-size:.72rem;color:#a06020">from similar classes — not enough '+esc(cls)+' data yet</div>':'')
+      :'<span style="color:var(--text-muted)">no data yet</span>';
+    t+='<tr style="border-bottom:1px solid rgba(74,58,26,.2);vertical-align:top'+(here?';background:rgba(184,137,43,.08)':'')+'"><td style="padding:.45rem .5rem;white-space:nowrap;font-weight:'+(here?'700':'400')+'">'+lo+'–'+hi+(here?' ◆':'')+'</td><td style="padding:.45rem .5rem">'+wikiHtml+'</td><td style="padding:.45rem .5rem">'+measHtml+'</td></tr>';
+  }
+  t+='</tbody></table>';
+  const chip='<button onclick="lvldCgExact()" style="font-size:.76rem;padding:.12rem .5rem;border-radius:3px;cursor:pointer;border:1px solid '+(exact?'var(--gold)':'var(--border)')+';background:'+(exact?'rgba(184,137,43,.14)':'transparent')+';color:var(--text)">'+esc(cls)+' data only</button>';
+  const status=lvldAll.loading?'Loading every level from the guild…':lvldAll.err?'⚠ guild data unavailable — showing this PC only':'';
+  return card('<details open ontoggle="lvldCgToggle(this.open)">'+sum+
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;flex-wrap:wrap;margin:.45rem 0 .35rem"><div style="font-size:.78rem;color:var(--text-muted)">Left: what the P99 wiki&rsquo;s Per-Level Hunting Guide suggests for '+esc(cls)+'s. Right: the fastest spots actually measured for '+esc(cls)+'s, time per level estimated for <b>'+esc(name)+'</b>. <span style="color:#2f6f2f;font-weight:700">✓ green</span> = both agree. '+(status?'<b>'+esc(status)+'</b>':'')+'</div>'+chip+'</div>'+
+    '<div style="overflow-x:auto">'+t+'</div></details>');
+}
 function lvldSection(meta,myLvl){
   const name=(typeof activeTab!=='undefined'&&activeTab&&activeTab!=='__all__')?activeTab:null;
   if(!name) return '';
   const cls=meta.class||'', race=meta.race||'', mine=(lvldMine.chars||{})[name];
-  const L=Math.max(myLvl||0,(mine&&mine.current)||0)||null;
+  // Character Stats wins (owner, 2026-10-07: set a lower level there to preview the path); the log's last ding is only a fallback
+  const L=myLvl||(mine&&mine.current)||null;
   if(L) lvldLoadGuild(Math.min(L,59));
   const desktop=!!(window.MixelParseApp&&window.MixelParseApp.watcherCommand);
   const ago=lvldMine.at?lvldFmt((Date.now()-lvldMine.at)/60e3)+' ago':'never';
@@ -10275,7 +10362,7 @@ function lvldSection(meta,myLvl){
     zs.forEach((a,i)=>{ const n=a.xs+a.xg, solo=Math.round(a.xs/Math.max(1,n)*100), mobs=Object.entries(a.mobs).sort((x,y)=>y[1]-x[1]).slice(0,3).map(m=>esc(m[0])).join(', ');
       const from=a.chars.size+' char'+(a.chars.size===1?'':'s')+' · '+a.n+' level'+(a.n===1?'':'s')+(a.cls.size?'<div style="font-size:.74rem;color:var(--text-muted)">'+[...a.cls].map(esc).join(', ')+'</div>':'');
       t+='<tr style="border-bottom:1px solid rgba(74,58,26,.2);'+(a.sure?'':'opacity:.6')+(i===0&&a.sure?'background:rgba(184,137,43,.08)':'')+'" title="'+keysAttr(a.sure?'':'Little data — under 45 minutes of hunting from one level')+'">'+
-        '<td style="padding:.4rem .5rem"><b>'+esc(a.zone)+'</b>'+(lvldZem(a.zone)?' <span style="font-size:.74rem;color:var(--text-muted)">ZEM '+lvldZem(a.zone)+'</span>':'')+'</td>'+
+        '<td style="padding:.4rem .5rem"><b>'+esc(a.zone)+'</b>'+(lvldZem(a.zone)?' <span style="font-size:.74rem;color:var(--text-muted)">ZEM '+lvldZem(a.zone)+'</span>':'')+(LEVELING_SPOTS.some(sp=>{const rg=_lvlSpotRange(sp,'both');return rg&&rg[0]<=L&&rg[1]>=L&&lvldZoneKey(sp.z)===lvldZoneKey(a.zone);})?' <span style="font-size:.72rem;color:#2f6f2f" title="The wiki Per-Level Hunting Guide lists this zone for level '+L+'">📖 in guide</span>':' <span style="font-size:.72rem;color:var(--text-muted)" title="Not in the wiki guide for level '+L+' — found in players\u2019 logs">not in guide</span>')+'</td>'+
         '<td style="padding:.4rem .5rem;white-space:nowrap;font-weight:600">'+lvldFmt(a.min)+'</td>'+
         '<td style="padding:.4rem .5rem;white-space:nowrap">'+(solo>=60?'Solo':solo<=40?'Group':'Mixed')+' <span style="font-size:.74rem;color:var(--text-muted)">'+solo+'% solo</span></td>'+
         '<td style="padding:.4rem .5rem">'+Math.round(n/a.h)+'</td>'+
@@ -10298,6 +10385,7 @@ function lvldSection(meta,myLvl){
     html+=card(h3('NEXT LEVELS FOR '+esc(name.toUpperCase()))+'<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.35rem">XP needed is relative to this level (hell levels need much more).</div><div style="overflow-x:auto">'+nl+'</div>');
   }
   const hist=lvldHistory(name);
+  html+=lvldClassGuide(name,cls,race,L);
   html+=card(h3(esc(name.toUpperCase())+'&rsquo;S LEVELS — HUNTING TIME PER LEVEL')+(hist.length?'<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.5rem">Hover a bar for the zones, kills and deaths of that level.</div>':'')+lvldChart(hist,L));
   return html+'</div>';
 }
