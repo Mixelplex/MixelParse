@@ -31,6 +31,9 @@ create table if not exists public.leveling_data (
 -- safe to re-run: adds the turn-in columns to a table made from the first version of this script
 alter table public.leveling_data add column if not exists xp_quest    int not null default 0;
 alter table public.leveling_data add column if not exists level_quest int not null default 0;
+-- 1.7.11: XP estimated from the P99 wiki's mob levels (mob level² per kill, group kills × 0.3)
+alter table public.leveling_data add column if not exists xp_est      double precision not null default 0;
+alter table public.leveling_data add column if not exists xp_known    int not null default 0;
 
 create index if not exists leveling_data_level_idx on public.leveling_data (level);
 

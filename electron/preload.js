@@ -99,6 +99,12 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
 
   // ── Auto-updater ───────────────────────────────────────────────────────────
   getVersion:    ()         => ipcRenderer.invoke('app:get-version'),
+  setZoom:       (f)        => ipcRenderer.invoke('app:set-zoom', f),       // Settings → Text size
+  getLoginItem:  ()         => ipcRenderer.invoke('app:get-login'),         // Settings → Start with Windows
+  setLoginItem:  (on)       => ipcRenderer.invoke('app:set-login', on),
+  flushStorage:  ()         => ipcRenderer.invoke('app:flush-storage'),  // write localStorage to disk now
+  getCloseAction:()         => ipcRenderer.invoke('app:get-close'),         // Settings → Closing the window
+  setCloseAction:(v)        => ipcRenderer.invoke('app:set-close', v),
   checkUpdates:  ()         => ipcRenderer.invoke('updater:check'),
   installUpdate: ()         => ipcRenderer.invoke('updater:install'),
   onUpdaterEvent: (cb)     => {

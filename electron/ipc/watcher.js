@@ -1930,7 +1930,7 @@ async function scanLeveling(charFilter) {
       const name = wanted.get(k); files.sort((a, b) => a.mt - b.mt);
       const st = { level: null, byGain: false, zone: null, lastTs: 0, maxTs: 0, lastXpTs: 0, lastXpZone: null, slain: null };
       const agg = {}, levels = {};
-      const A = (L, z) => { const key = L + '|' + z; return agg[key] || (agg[key] = { level: L, zone: z, hunt_ms: 0, played_ms: 0, xp_solo: 0, xp_group: 0, xp_quest: 0, deaths: 0, mobs: {}, first: 0, last: 0 }); };
+      const A = (L, z) => { const key = L + '|' + z; return agg[key] || (agg[key] = { level: L, zone: z, hunt_ms: 0, played_ms: 0, xp_solo: 0, xp_group: 0, xp_quest: 0, deaths: 0, mobs: {}, mk: {}, first: 0, last: 0 }); };
       const LV = L => levels[L] || (levels[L] = { done: false, xp: 0, quest: 0, start: 0, end: 0 });
       for (const { fp } of files) {
         broadcast({ type: 'levelScanProgress', charName: name, idx: done + 1, total: byChar.size });
@@ -1961,7 +1961,10 @@ async function scanLeveling(charFilter) {
               if (m[1]) a.xp_group++; else a.xp_solo++;
               a.hunt_ms += st.lastXpTs && st.lastXpZone === z && ts - st.lastXpTs <= 10 * 60e3 ? ts - st.lastXpTs : 60e3;
               st.lastXpTs = ts; st.lastXpZone = z;
-              if (slain && slain.mob && !/^you$/i.test(slain.mob)) a.mobs[slain.mob] = (a.mobs[slain.mob] || 0) + 1;
+              if (slain && slain.mob && !/^you$/i.test(slain.mob)) {
+                a.mobs[slain.mob] = (a.mobs[slain.mob] || 0) + 1;
+                const e = a.mk[slain.mob] || (a.mk[slain.mob] = [0, 0]); e[m[1] ? 1 : 0]++;   // [solo, group] — XP estimate from the mob's level
+              }
               st.slain = null;
               if (!a.first) a.first = ts; a.last = ts;
               LV(st.level).xp++;
@@ -1982,7 +1985,7 @@ async function scanLeveling(charFilter) {
       done++;
       const rows = Object.values(agg).filter(a => a.xp_solo + a.xp_group + a.xp_quest > 0 || a.played_ms >= 5 * 60e3).map(a => ({
         level: a.level, zone: a.zone, hunt_ms: Math.round(a.hunt_ms), played_ms: Math.round(a.played_ms), xp_solo: a.xp_solo, xp_group: a.xp_group, xp_quest: a.xp_quest,
-        deaths: a.deaths, mobs: Object.fromEntries(Object.entries(a.mobs).sort((x, y) => y[1] - x[1]).slice(0, 8)),
+        deaths: a.deaths, mobs: Object.fromEntries(Object.entries(a.mobs).sort((x, y) => y[1] - x[1]).slice(0, 8)), mk: a.mk,
         first_at: a.first || null, last_at: a.last || null }));
       results[name] = { rows, levels, current: st.level };
       log(`[LVLSCAN] ${name}: ${rows.length} level/zone row(s), ${Object.values(levels).filter(l => l.done).length} full level(s)`);

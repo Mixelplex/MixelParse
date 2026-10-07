@@ -148,6 +148,8 @@ function createMainWindow() {
 
   mainWindow.on('close', (e) => {
     if (!app.isQuitting) {
+      // Settings → Closing the window (2026-10-07): 'quit' closes MixelParse, anything else hides it to the tray
+      if (config && config.closeAction === 'quit') { app.isQuitting = true; app.quit(); return; }
       e.preventDefault();
       mainWindow.hide();
     }
@@ -988,6 +990,14 @@ ipcMain.handle('updater:install', () => {
 });
 
 ipcMain.handle('app:get-version', () => app.getVersion());
+// Settings tab (2026-10-07): text size of the main window, start with Windows
+ipcMain.handle('app:set-zoom', (e, f) => { const z = Math.max(0.7, Math.min(2, +f || 1)); e.sender.setZoomFactor(z); return z; });
+ipcMain.handle('app:get-login', () => !!app.getLoginItemSettings().openAtLogin);
+// localStorage lives in memory until Chromium flushes it; a killed app loses recent settings without this
+ipcMain.handle('app:flush-storage', (e) => { try { e.sender.session.flushStorageData(); } catch (err) {} return true; });
+ipcMain.handle('app:get-close', () => (config && config.closeAction === 'quit') ? 'quit' : 'tray');
+ipcMain.handle('app:set-close', (e, v) => { const next = Object.assign({}, config || {}, { closeAction: v === 'quit' ? 'quit' : 'tray' }); saveConfig(next); return next.closeAction; });
+ipcMain.handle('app:set-login', (e, on) => { app.setLoginItemSettings({ openAtLogin: !!on }); return !!app.getLoginItemSettings().openAtLogin; });
 
 // ─── Auto-updater events ──────────────────────────────────────────────────────
 autoUpdater.on('update-available', (info) => {
