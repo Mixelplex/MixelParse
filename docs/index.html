@@ -5493,15 +5493,13 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.11',
+  version:'1.7.12',
   date:'October 2026',
   features:[
-    ['&#9881; Settings','A <b>Settings</b> button in the header gathers your options in one place: corpse tracking (all / Sky only / off), auctions, the Watch List style, which pop-up notices show, text size, Auto-Detect mode, map auto-timers, characters (character / banker / hidden), the tab MixelParse opens on, what closing the window does, archiving large EQ logs, and Start with Windows. Item Database, UI Copy Tool and Gear Planner Reports moved in there too.'],
-    ['&#128200; Leveling path: real XP','Leveling times now come from the XP each kill is worth (mob levels from the P99 wiki) instead of counting kills, calibrated on the guild&rsquo;s finished levels. Zones also show a <b>measured XP</b> modifier next to the wiki&rsquo;s guess.'],
+    ['&#9878; Auction tiles','Auctions show as tiles, three to a column. When more open, the window grows another column to the right (up to four) and shrinks back as they close. Size the window once and every column uses that width.'],
+    ['&#10005; Ignore an auction','Right-click an auction &rarr; <b>Ignore this auction</b> to hide it and stop its outbid and Grats notices. The footer&rsquo;s &ldquo;ignored &middot; show&rdquo; brings them back (right-click &rarr; Un-ignore).'],
   ],
-  fixes:[
-    ['Settings that wouldn&rsquo;t stick','A setting changed just before MixelParse was closed hard (e.g. Auction enabled) could be lost. Settings now save to disk right away.'],
-  ],
+  fixes:[],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -9190,7 +9188,7 @@ function aucOnLine(msg){
         const w={who:g[1],n:g[3]!=null?+g[3]:null,ts:msg.ts};
         if(!(A.winners||(A.winners=[])).some(x=>x.who===w.who&&x.n===w.n)){
           A.winners.push(w);
-          if(aucMine().has(String(w.who).toLowerCase())&&now-msg.ts<60e3&&typeof showWatcherToast==='function') showWatcherToast('⚖ Grats! You won '+A.item+(w.n!=null?' for '+w.n+' DKP':''));
+          if(!aucIgnored.has(A.id)&&aucMine().has(String(w.who).toLowerCase())&&now-msg.ts<60e3&&typeof showWatcherToast==='function') showWatcherToast('⚖ Grats! You won '+A.item+(w.n!=null?' for '+w.n+' DKP':''));
         }
         if(!A.gratsAt) A.gratsAt=msg.ts;
         A.last=Math.max(A.last,msg.ts);
@@ -9207,7 +9205,10 @@ function aucOnLine(msg){
 function aucMine(){ return new Set((typeof charNames==='function'?charNames():[]).map(n=>String(n).toLowerCase())); }
 function aucTop(A){ return A.bids.length?A.bids.reduce((m,b)=>b.n>m.n||(b.n===m.n&&b.ts<m.ts)?b:m):null; }
 function aucIsMine(b,mine){ return mine.has(String(b.who).toLowerCase())||(b.toon&&mine.has(String(b.toon).toLowerCase())); }
+// auctions ignored in the auction window (right-click → Ignore) — no outbid / grats notices for them
+const aucIgnored=new Set();
 function aucOutbidCheck(A,now){
+  if(aucIgnored.has(A.id)) return;
   const mine=aucMine(), top=aucTop(A); if(!top) return;
   const mineTop=aucIsMine(top,mine);
   if(A.wasMineTop&&!mineTop&&now-top.ts<60e3&&typeof showWatcherToast==='function') showWatcherToast('⚖ Outbid on '+A.item+' — '+top.n+' by '+(top.toon||top.who));
@@ -9237,6 +9238,7 @@ if(window.MixelParseApp){
   if(window.MixelParseApp.onAuctionWindowReady) window.MixelParseApp.onAuctionWindowReady(()=>aucPush());
   if(window.MixelParseApp.onAuctionCommand) window.MixelParseApp.onAuctionCommand(c=>{
     if(c&&c.type==='autoPop'){ aucAutoPop=!!c.on; try{localStorage.setItem('mp_auc_autopop',aucAutoPop?'1':'0');}catch(e){} aucPush(); }
+    if(c&&c.type==='ignore'&&c.id){ c.on?aucIgnored.add(c.id):aucIgnored.delete(c.id); }
   });
 }
 setInterval(()=>{ if(aucList.length) aucPush(); },15000);   // closes idle auctions / refreshes balances
