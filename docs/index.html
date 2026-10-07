@@ -5466,14 +5466,14 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.7',
+  version:'1.7.8',
   date:'October 2026',
   features:[
-    ['&#127804; Flowers','New <b>Flowers</b> tab in the top bar for the five Flowers of Functionality (Deck of Spontaneous Generation, Plane of Mischief) &mdash; +50 resist clickies that work from inventory. One card per flower: the four cards it needs, how many your characters hold of each and who (<b>1 - Mixelboom</b>), who can combine now and who already has the flower. <b>Card Prices</b> shows PigParse prices for all 16 cards and what each flower costs in cards. Hover a card for where it drops.'],
-    ['&#9878; Auctions on / off','A checkbox under &#9878; Auctions in the header. Unticked (&ldquo;Auction disabled&rdquo;) switches auctions off completely: no auction window, no pop-up, no outbid or Grats toasts, and the &#9878; Auctions button greys out. Tick it to turn them back on.'],
+    ['&#128128; Corpse tracker','Every death of your characters shows in a strip above the top bar &mdash; <b>Zone &rsaquo; who was slain by what &rsaquo; when</b>, how long until the corpse decays (red in the last 24 hours) and the rez window while it lasts. Right-click a line and pick <b>Corpse looted</b> (or click &#10003;) once you have it back; it also clears when you /corpse in that zone and have none there. Sky corpses still show their keys. The strip disappears when you have no corpses.'],
   ],
   fixes:[
-    ['Guardian of Takish','Level requirement is now 60, the same as Tunare (was 55).'],
+    ['Raid Parking: only your characters','Castle bots whose logs are on your PC no longer fill Raid Parking with &ldquo;(? ?)&rdquo; names. Parking counts the characters you have tabs for plus your pinned mules.'],
+    ['Raid Parking: level checks','&ldquo;Can port here&rdquo; and &ldquo;Bound here&rdquo; list only characters who meet the level for a target at that location (a level 35 cleric carrying a Lizard Blood Potion is no longer listed for Fear).'],
   ],
 };
 function showWhatsNew(){
@@ -7927,7 +7927,7 @@ window.applyDBToChar    = applyDBToChar;
         }
         if(msg.type === 'bindUpdate'){
           if(msg.charName && msg.zone){
-            knownWatcherChars.add(msg.charName);
+            // no knownWatcherChars.add: the bind look-back reads every log on the PC, bots included
             setCharBind(msg.charName, msg.zone, msg.src||'watcher', msg.timestamp||Date.now());
           }
         }
@@ -14623,9 +14623,8 @@ function parkRoster(){
     const mu=raidMules[k]||{};
     put(mu.name||k, mu.lvl||null, (mu.cls||'').toUpperCase()||null, (charZones[mu.name||k]||{}).zone||null, 'mule', mpBindZone(mu.name||k));
   });
-  (knownWatcherChars||new Set()).forEach(n=>{
-    put(n, null, null, (charZones[n]||{}).zone||null, 'watcher', mpBindZone(n));
-  });
+  // Only your character tabs and pinned mules (owner, 2026-10-06): characters the watcher merely has a log
+  // for (Castle bots played on this PC) are not yours to park — pin a mule to add one without a tab.
   return out;
 }
 
@@ -14949,11 +14948,13 @@ function keysStCell(name){
   if(tal)return keysCell(true,'<span style="color:#8a6d3b">Talisman ✓</span>',tal+" → hand it to Jaled Dar's shade (Dragon Necropolis, +1590, -120) for the Sleeper's Key. Stun trap in front of him; level 55+.");
   return keysCell(false,'—',"No Sleeper's Key — needs one dragon Talisman (Sontalak / Lendiniara / Klandicar / Yelinak / Zlandicar), turned in to Jaled Dar's shade in Dragon Necropolis");
 }
-function skyCorpsesFor(name){
+function allCorpsesFor(name){
   if(!skyCorpseState||!skyCorpseState.chars)return [];
   const k=Object.keys(skyCorpseState.chars).find(n=>n.toLowerCase()===String(name).toLowerCase());
   return k?(skyCorpseState.chars[k].corpses||[]):[];
 }
+// Sky corpses (zone "Plane of Air"; older records have no zone and were Sky-only)
+function skyCorpsesFor(name){ return allCorpsesFor(name).filter(c=>!c.zone||c.zone==='Plane of Air'); }
 function skyCorpseLabel(c,now){
   const decay=(skyCorpseState.decayMs||7*864e5),left=c.t+decay-now,rez=(skyCorpseState.rezMs||3*3600e3)-(now-c.t);
   const when=new Date(c.t).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
@@ -15088,27 +15089,55 @@ function flowerPriceBox(){
     +FLOWER_COLOURS.map(c=>'<th style="padding:.4rem .5rem;text-align:right;'+hd+'">'+c.toUpperCase()+'</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody></table>'
     +'<div style="margin-top:auto;padding:.45rem .7rem;border-top:1px solid var(--border);font-size:.9rem;background:rgba(160,120,50,.05)"><span style="color:var(--text-muted)">4-card cost:</span> '+cost+'</div>');
 }
-// Countdown banner: a raider's Sky corpse with keys (or unverified keys) inside its last 24 h.
+// Corpse strip (owner, 2026-10-06): every death of your characters — Zone › Death › Time — until cleared (✓),
+// "You don't have any corpses in this zone." there, or decay (7 days). Sky corpses keep their key info.
 function skyWarnHidden(){try{return new Set(JSON.parse(localStorage.getItem('mp_skyWarnHide')||'[]'));}catch(e){return new Set();}}
-window.skyWarnHide=function(k){const s=skyWarnHidden();s.add(k);try{localStorage.setItem('mp_skyWarnHide',JSON.stringify([...s].slice(-50)));}catch(e){}skyRenderWarn();};
+// right-click a corpse line: "Corpse looted" clears it (same as ✓)
+window.corpseMenu=function(ev,k){
+  ev.preventDefault();
+  let m=document.getElementById('corpseMenu');
+  if(!m){
+    m=document.createElement('div');m.id='corpseMenu';
+    m.style.cssText='position:fixed;z-index:9999;display:none;min-width:190px;background:var(--surface2);border:1px solid var(--gold);border-radius:6px;padding:4px 0;box-shadow:0 8px 26px rgba(0,0,0,.4);font-family:\'Crimson Pro\',serif;font-size:.9rem;color:var(--text)';
+    document.body.appendChild(m);
+    document.addEventListener('mousedown',e=>{const x=document.getElementById('corpseMenu');if(x&&x.style.display!=='none'&&!x.contains(e.target))x.style.display='none';});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'){const x=document.getElementById('corpseMenu');if(x)x.style.display='none';}});
+  }
+  const kE=encodeURIComponent(k), who=String(k).split('|')[0];
+  m.innerHTML='<div style="padding:.2rem .8rem;font-size:.66rem;color:var(--text-muted);letter-spacing:.06em">'+esc(who.toUpperCase())+'&rsquo;S CORPSE</div>'
+    +'<div onclick="document.getElementById(\'corpseMenu\').style.display=\'none\';skyWarnHide(decodeURIComponent(\''+kE+'\'))" onmouseover="this.style.background=\'rgba(201,168,76,.15)\'" onmouseout="this.style.background=\'\'" style="padding:.35rem .8rem;cursor:pointer">✓ Corpse looted</div>';
+  m.style.display='block';
+  const w=m.offsetWidth,h=m.offsetHeight;
+  m.style.left=Math.max(6,Math.min(ev.clientX,window.innerWidth-w-8))+'px';
+  m.style.top=Math.max(6,Math.min(ev.clientY,window.innerHeight-h-8))+'px';
+  return false;
+};
+window.skyWarnHide=function(k){const s=skyWarnHidden();s.add(k);try{localStorage.setItem('mp_skyWarnHide',JSON.stringify([...s].slice(-200)));}catch(e){}skyRenderWarn();};
 function skyRenderWarn(){
   const wrap=document.getElementById('skyCorpseWarn');if(!wrap)return;
   if(!skyCorpseState){wrap.innerHTML='';return;}
-  const now=Date.now(),hidden=skyWarnHidden(),lines=[];
-  for(const n of charNames()){
-    for(const c of skyCorpsesFor(n)){
-      if(c.keys&&!c.keys.length)continue;                       // verified empty — nothing to lose
-      const x=skyCorpseLabel(c,now),k=n+'|'+c.t;
-      if(x.left<=0||x.left>SKY_WARN_MS||hidden.has(k))continue;
-      lines.push({n,c,x,k});
+  const now=Date.now(),hidden=skyWarnHidden(),lines=[],decay=skyCorpseState.decayMs||7*864e5,rezMs=skyCorpseState.rezMs||3*3600e3;
+  for(const n of charNames()){                                   // your tabs only — never bots whose logs are on this PC
+    for(const c of allCorpsesFor(n)){
+      const k=n+'|'+c.t, left=c.t+decay-now;
+      if(left<=0||hidden.has(k))continue;
+      lines.push({n,c,k,left});
     }
   }
   if(!lines.length){wrap.innerHTML='';return;}
-  lines.sort((a,b)=>a.x.left-b.x.left);
-  wrap.innerHTML=lines.map(({n,c,x,k})=>'<div style="display:flex;align-items:center;gap:.4rem;padding:.18rem .5rem;background:rgba(176,48,48,.10);border:1px solid #b03030;border-radius:4px;margin-bottom:.22rem;white-space:nowrap" title="'+keysAttr(x.tip)+'">'+
-    '<span style="font-size:.72rem;line-height:1">⏳</span>'+
-    '<span style="flex:1;min-width:0;font-size:.72rem;overflow:hidden;text-overflow:ellipsis"><b>'+esc(n)+'</b>’s Sky corpse decays in <b>'+btFmtDur(x.left)+'</b> — '+(c.keys==null?'<span style="color:#a06020">keys unverified</span>':esc(c.keys.join(', ')))+'</span>'+
-    '<button class="btn" style="font-size:.6rem;padding:.1rem .4rem;flex:0 0 auto" onclick="skyWarnHide(decodeURIComponent(\''+encodeURIComponent(k)+'\'))">Hide</button></div>').join('');
+  lines.sort((a,b)=>a.left-b.left);
+  wrap.innerHTML=lines.map(({n,c,k,left})=>{
+    const sky=!c.zone||c.zone==='Plane of Air', zone=sky?'Plane of Sky':c.zone, rez=rezMs-(now-c.t);
+    const when=new Date(c.t).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    const red=left<=SKY_WARN_MS, bd=red?'#b03030':'#a07000', bg=red?'rgba(176,48,48,.10)':'rgba(160,112,0,.08)';
+    const keys=sky?(c.keys==null?' · <span style="color:#a06020">keys unverified</span>':c.keys.length?' · 🗝 '+esc(c.keys.join(', ')):''):'';
+    const tip=n+' died in '+zone+(c.by?', slain by '+c.by:'')+' — '+when+'\nCorpse decays in '+btFmtDur(left)+(rez>0?'\nRez window: '+btFmtDur(rez)+' left':'')+'\nClears on its own when that character types /corpse in the zone and has none there, or click ✓.';
+    return '<div oncontextmenu="return corpseMenu(event,decodeURIComponent(\''+encodeURIComponent(k)+'\'))" style="display:flex;align-items:center;gap:.45rem;padding:.2rem .5rem;background:'+bg+';border:1px solid '+bd+';border-radius:4px;margin-bottom:.22rem;white-space:nowrap;cursor:context-menu" title="'+keysAttr(tip+'\nRight-click: Corpse looted')+'">'+
+      '<span style="font-size:.78rem;line-height:1">💀</span>'+
+      '<span style="flex:1;min-width:0;font-size:.76rem;overflow:hidden;text-overflow:ellipsis"><b>'+esc(zone)+'</b> <span style="color:var(--text-muted)">›</span> <b>'+esc(n)+'</b>'+(c.by?' slain by '+esc(c.by):' died')+' <span style="color:var(--text-muted)">›</span> '+esc(when)+
+        ' <span style="color:var(--text-muted)">· decays in </span><b style="color:'+(red?'#b03030':'inherit')+'">'+btFmtDur(left)+'</b>'+(rez>0?' <span style="color:var(--text-muted)">· rez '+btFmtDur(rez)+'</span>':'')+keys+'</span>'+
+      '<button class="btn" title="Corpse recovered — clear it" style="font-size:.66rem;padding:.1rem .45rem;flex:0 0 auto" onclick="skyWarnHide(decodeURIComponent(\''+encodeURIComponent(k)+'\'))">✓</button></div>';
+  }).join('');
 }
 setInterval(()=>{skyRenderWarn();if(typeof activeTopView!=='undefined'&&activeTopView==='keys')renderKeysPanel();},30e3);
 function btParseDur(s){ s=(s||'').trim(); let m=0; const d=s.match(/(\d+)\s*d/); if(d)m+=+d[1]*1440; const h=s.match(/(\d+)\s*h/); if(h)m+=+h[1]*60; const mm=s.match(/(\d+)\s*m(?!o)/); if(mm)m+=+mm[1]; return m; }
@@ -15548,7 +15577,9 @@ function renderParkingPanel(){
     const zset=s.loc.zones.map(parkNormZone);
     s.parked=Object.values(roster).filter(o=>o.zone && zset.indexOf(parkNormZone(o.zone))>=0);
     const _boundAll=Object.values(roster).filter(o=>o.bind && zset.indexOf(parkNormZone(o.bind))>=0);
-    s.bindParked=_boundAll.filter(o=>parkGateHow(o));
+    // level-eligible (class-adjusted) for at least one target here — an under-level toon isn't a parker
+    const _lvlOk=(o,t)=>o.lvl!=null&&o.cls!=null&&o.lvl>=parkEffReq(t,o.cls);
+    s.bindParked=_boundAll.filter(o=>parkGateHow(o)&&s.targets.some(t=>_lvlOk(o,t)));
     s.bindNoGate=_boundAll.filter(o=>!parkGateHow(o));
     s.rank=Math.max.apply(null, s.targets.map(t=>t.dkp));
     s.best=s.targets.reduce((m,t)=>t.dkp>m.dkp?t:m);
@@ -15557,7 +15588,7 @@ function renderParkingPanel(){
     // Yellow "soft" tier: every target is handled by a physically-parked OR bound toon,
     // but the section isn't fully green (bind-only coverage).
     s.softCovered=!s.allCovered && s.targets.every(t=>{const st=parkTargetStatus(t,roster).status;return st==='covered'||st==='bindparked'||st==='portparked';});
-    s.portParked=[...new Map(s.targets.flatMap(t=>parkPortHolders(t,roster).map(o=>[o.name.toLowerCase(),{o,item:t.port}]))).values()];
+    s.portParked=[...new Map(s.targets.flatMap(t=>parkPortHolders(t,roster).filter(o=>_lvlOk(o,t)).map(o=>[o.name.toLowerCase(),{o,item:t.port}]))).values()];
   });
   // Sort: fully-covered (green) sections on top, then a divider, then the rest.
   // Within each group: tier desc, parked breaks ties, then title.
