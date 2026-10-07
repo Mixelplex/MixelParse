@@ -5466,15 +5466,12 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.8',
+  version:'1.7.9',
   date:'October 2026',
   features:[
-    ['&#128128; Corpse tracker','Every death of your characters shows in a strip above the top bar &mdash; <b>Zone &rsaquo; who was slain by what &rsaquo; when</b>, how long until the corpse decays (red in the last 24 hours) and the rez window while it lasts. Right-click a line and pick <b>Corpse looted</b> (or click &#10003;) once you have it back; it also clears when you /corpse in that zone and have none there. Sky corpses still show their keys. The strip disappears when you have no corpses.'],
+    ['&#128200; New: Leveling path','The Leveling tab now shows where people actually level around your level and how long it takes, built from MixelParse users&rsquo; logs.'],
   ],
-  fixes:[
-    ['Raid Parking: only your characters','Castle bots whose logs are on your PC no longer fill Raid Parking with &ldquo;(? ?)&rdquo; names. Parking counts the characters you have tabs for plus your pinned mules.'],
-    ['Raid Parking: level checks','&ldquo;Can port here&rdquo; and &ldquo;Bound here&rdquo; list only characters who meet the level for a target at that location (a level 35 cleric carrying a Lizard Blood Potion is no longer listed for Fear).'],
-  ],
+  fixes:[],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -7960,6 +7957,7 @@ window.applyDBToChar    = applyDBToChar;
         if(msg.type==='raidLogin') rkdOnLogin(msg);
         if(msg.type==='raidScanProgress'||msg.type==='raidScanResult') rkdHandleScanMsg(msg);
         if(msg.type==='killScanProgress'||msg.type==='killScanResult') handleKillScanMsg(msg);
+        if(msg.type==='levelScanProgress'||msg.type==='levelScanResult') lvldOnMsg(msg);
         if(msg.type==='sessScanProgress'||msg.type==='sessScanResult') handleSessScanMsg(msg);
         if(msg.type==='logRotated') showWatcherToast('🧹 Auto-rotated '+msg.file+' ('+msg.mb+' MB) → '+msg.to);
         if(msg.type==='qmUp') qmHuntOnQmUp(msg);
@@ -10062,8 +10060,255 @@ function renderLevelingPanel(){
       '<td style="color:var(--text-muted)">'+esc(sp.n)+'</td></tr>';
   });
   tbl+='</tbody></table>';
-  panel.innerHTML=head+ctx+bar+tbl;
+  panel.innerHTML=lvldSection(meta,myLvl)+head+ctx+bar+tbl;
 }
+
+
+/* ═══ Leveling data (owner, 2026-10-06) ═══════════════════════════════════════════════════════════════════════
+   Every MixelParse desktop app scans its own characters' logs (watcher scanLeveling) and uploads one row per
+   (character, level, zone) to the shared leveling_data table: hunting time (XP gaps ≤ 10 min), played time,
+   solo / group XP messages, deaths, top mobs. P99 never logs XP amounts, so a zone's share of a level is its share
+   of that level's XP messages. Speeds are compared as real XP per hunting hour:
+     XP earned = XP needed for that level (L³·1000·hell mod) × the character's race/class multiplier × share,
+   then turned into an estimate for the viewed character: its XP needed × its multiplier ÷ that rate, with the rate
+   scaled by (target level ÷ sample level)² for samples within 3 levels. Race / class modifiers: P99 wiki
+   "Experience" — Green dropped class penalties 8/10/2021, bonuses stay (Rogue +9%, Warrior +10%). */
+const LVLD_RACE={Troll:1.2,Iksar:1.2,Ogre:1.15,Barbarian:1.05,Halfling:0.95};
+const LVLD_CLASS={Rogue:0.91,Warrior:0.9};
+// how a class solos — solo data only compares like with like (a rogue isn't shown an enchanter's charm farm);
+// group XP doesn't depend much on class, so group data counts from everyone
+const LVLD_STYLE={Warrior:'melee',Rogue:'melee',Monk:'monk',Paladin:'melee','Shadow Knight':'melee',Ranger:'melee',
+  Enchanter:'charm',Bard:'charm',Necromancer:'pet',Magician:'pet',Druid:'kite',Wizard:'kite',Cleric:'priest',Shaman:'priest'};
+const LVLD_STYLE_NAME={melee:'melee',monk:'feign-death pulling',charm:'charm',pet:'pet',kite:'caster',priest:'priest'};
+// raid zones are never a leveling recommendation (owner, 2026-10-07) — Sky is 'Plane of Air' in the log
+const LVLD_RAID_ZONES=new Set(['Plane of Hate','Plane of Fear','Plane of Sky','Plane of Air','Plane of Growth']);
+const LVLD_SCAN_V=2;   // 2: quest turn-ins split from kills — older scans are redone
+function lvldMult(cls,race){ return (LVLD_CLASS[cls]||1)*(LVLD_RACE[race]||1); }
+function lvldHell(L){ if(L<30)return 1; if(L<35)return 1.1; if(L<40)return 1.2; if(L<45)return 1.3; if(L<=50)return 1.4; return {51:1.5,52:1.6,53:1.7,54:1.9,55:2.1,56:2.3,57:2.5,58:2.7,59:3.0}[L]||3.1; }
+function lvldTotal(L){ return L<=0?0:Math.pow(L,3)*1000*lvldHell(L); }
+function lvldNeed(L){ return lvldTotal(L)-lvldTotal(L-1); }          // base XP to finish level L
+function lvldFmt(min){ if(min==null||!isFinite(min))return '—'; min=Math.round(min); if(min<60)return min+'m'; const h=Math.floor(min/60),m=min%60; return h+'h'+(m?' '+m+'m':''); }
+let lvldMine=(function(){try{return JSON.parse(localStorage.getItem('mp_lvl_scan')||'null')||{chars:{},at:0};}catch(e){return {chars:{},at:0};}})();
+let lvldScanState='', lvldGuild={rows:[],at:0,band:'',err:null,loading:false}, lvldF={mode:'all',cls:false};
+// how far into the current level each character is, typed by the player (per viewer, this PC);
+// kept with the level it was typed at, so it lapses on a ding
+function lvldXpGet(name,L){ try{ const o=JSON.parse(localStorage.getItem('mp_lvl_xp')||'{}')[name]; return o&&o.L===L?o.pct:0; }catch(e){ return 0; } }
+window.lvldXpSet=function(name,L,v){
+  let pct=Math.max(0,Math.min(99.9,parseFloat(String(v).replace(',','.'))||0));
+  try{ const o=JSON.parse(localStorage.getItem('mp_lvl_xp')||'{}'); if(pct) o[name]={L,pct}; else delete o[name]; localStorage.setItem('mp_lvl_xp',JSON.stringify(o)); }catch(e){}
+  lvldRefresh();
+};
+function lvldSaveMine(){ try{localStorage.setItem('mp_lvl_scan',JSON.stringify(lvldMine));}catch(e){} }
+function lvldRefresh(){ if(typeof activeSub!=='undefined'&&activeSub==='leveling'&&typeof renderLevelingPanel==='function') renderLevelingPanel(); }
+window.lvldScan=function(auto){
+  if(!(window.MixelParseApp&&window.MixelParseApp.watcherCommand)){ if(!auto&&typeof showWatcherToast==='function') showWatcherToast('❌ Log scanning needs the MixelParse desktop app'); return; }
+  const roster=charNames(); if(!roster.length) return;
+  lvldScanState='Scanning your logs…'; lvldRefresh();
+  window.MixelParseApp.watcherCommand('scanLeveling',{chars:roster});
+};
+window.lvldMode=function(m){ lvldF.mode=m; lvldRefresh(); };
+window.lvldClsOnly=function(){ lvldF.cls=!lvldF.cls; lvldRefresh(); };
+function lvldOnMsg(msg){
+  if(msg.type==='levelScanProgress'){ lvldScanState='Scanning '+msg.charName+' ('+msg.idx+'/'+msg.total+')…'; lvldRefresh(); return; }
+  if(msg.error){ lvldScanState='Scan failed: '+msg.error; lvldRefresh(); return; }
+  lvldMine={chars:msg.results||{},at:msg.scannedAt||Date.now(),v:LVLD_SCAN_V}; lvldSaveMine();
+  lvldScanState=''; lvldGuild.at=0; lvldRefresh(); lvldUpload();
+}
+async function lvldUpload(){
+  if(typeof currentUser==='undefined'||!currentUser||typeof sb==='undefined') return;
+  const names=Object.keys(lvldMine.chars||{}); if(!names.length) return;
+  const rows=[];
+  for(const n of names){ const r=lvldMine.chars[n], m=charMeta[n]||{};
+    for(const x of r.rows||[]){ const lv=(r.levels||{})[x.level]||{};
+      rows.push({char_name:n,class:m.class||null,race:m.race||null,level:x.level,zone:x.zone,hunt_ms:x.hunt_ms,played_ms:x.played_ms,xp_solo:x.xp_solo,xp_group:x.xp_group,deaths:x.deaths,xp_quest:x.xp_quest||0,
+        level_xp_total:lv.xp||0,level_quest:lv.quest||0,level_done:!!lv.done,mobs:x.mobs||{},first_at:x.first_at?new Date(x.first_at).toISOString():null,last_at:x.last_at?new Date(x.last_at).toISOString():null}); } }
+  try{
+    const del=await sb.from('leveling_data').delete().eq('user_id',currentUser.id).in('char_name',names); if(del.error) throw del.error;
+    for(let i=0;i<rows.length;i+=500){ const {error}=await sb.from('leveling_data').insert(rows.slice(i,i+500)); if(error) throw error; }
+    lvldMine.uploaded=Date.now(); lvldMine.uploadErr=null;
+  }catch(e){ lvldMine.uploadErr=(e&&e.message)||String(e); console.warn('[LVL] upload failed',e); }
+  lvldSaveMine(); lvldGuild.at=0; lvldRefresh();
+}
+async function lvldLoadGuild(L){
+  const lo=Math.max(1,L-4), hi=Math.min(59,L+8), band=lo+'-'+hi;
+  if(lvldGuild.loading||(lvldGuild.band===band&&Date.now()-lvldGuild.at<10*60e3)) return;
+  if(typeof currentUser==='undefined'||!currentUser||typeof sb==='undefined') return;
+  lvldGuild.loading=true;
+  try{
+    const out=[];
+    for(let i=0;i<20000;i+=1000){
+      const {data,error}=await sb.from('leveling_data').select('user_id,char_name,class,race,level,zone,hunt_ms,played_ms,xp_solo,xp_group,xp_quest,deaths,level_xp_total,level_quest,level_done,mobs').gte('level',lo).lte('level',hi).order('id').range(i,i+999);
+      if(error) throw error; out.push(...(data||[])); if(!data||data.length<1000) break;
+    }
+    lvldGuild={rows:out,at:Date.now(),band,err:null,loading:false};
+  }catch(e){ lvldGuild={rows:[],at:Date.now(),band,err:(e&&e.message)||String(e),loading:false}; }
+  lvldRefresh();
+}
+// rows to use: the guild table (when it loaded) + this PC's scan for anything not uploaded yet
+function lvldRows(){
+  const uid=typeof currentUser!=='undefined'&&currentUser?currentUser.id:'me';
+  const local=[]; if(lvldMine.v===LVLD_SCAN_V) for(const [n,r] of Object.entries(lvldMine.chars||{})){ const m=charMeta[n]||{};
+    for(const x of r.rows||[]){ const lv=(r.levels||{})[x.level]||{}; local.push(Object.assign({},x,{user_id:uid,char_name:n,class:m.class||null,race:m.race||null,level_xp_total:lv.xp||0,level_quest:lv.quest||0,level_done:!!lv.done})); } }
+  if(lvldGuild.err||!lvldGuild.at) return local;
+  const up=lvldMine.uploaded&&lvldMine.uploaded>=lvldMine.at;
+  return up?lvldGuild.rows:lvldGuild.rows.filter(r=>r.user_id!==uid).concat(local);
+}
+// one sample = one character's time in one zone for one finished level
+function lvldSamples(rows,myCls){
+  const out=[];
+  for(const r of rows){
+    const xs=r.xp_solo||0, xg=r.xp_group||0, n=xs+xg;
+    if(!r.level_done||!r.level_xp_total||!n||r.hunt_ms<10*60e3||r.level>=60) continue;
+    if(LVLD_RAID_ZONES.has(r.zone)) continue;                   // raid targets, not leveling spots
+    if((r.level_quest||0)>0.1*r.level_xp_total) continue;      // a level carried by turn-ins — its kill pace can't be measured
+    const share=Math.min(1,n/r.level_xp_total); if(share<0.15) continue;
+    if(xs>=0.6*n&&myCls&&LVLD_STYLE[myCls]&&LVLD_STYLE[r.class]!==LVLD_STYLE[myCls]) continue;   // solo: same play style only
+    if(lvldF.mode==='solo'&&xs<0.6*n) continue;
+    if(lvldF.mode==='group'&&xg<0.6*n) continue;
+    if(lvldF.cls&&myCls&&r.class!==myCls) continue;
+    out.push({r,share,xp:lvldNeed(r.level)*lvldMult(r.class,r.race)*share,h:r.hunt_ms/3.6e6});
+  }
+  return out;
+}
+// zones for a target level: estimated hunting minutes per level for this character, best first
+function lvldZones(samples,L,multT){
+  const z={};
+  for(const sm of samples){ if(Math.abs(sm.r.level-L)>3) continue;
+    const k=sm.r.zone, a=z[k]||(z[k]={zone:k,xp:0,h:0,xs:0,xg:0,d:0,pl:0,n:0,chars:new Set(),cls:new Set(),mobs:{}});
+    a.xp+=sm.xp*Math.pow(L/sm.r.level,2); a.h+=sm.h; a.xs+=sm.r.xp_solo||0; a.xg+=sm.r.xp_group||0; a.d+=sm.r.deaths||0; a.pl+=(sm.r.played_ms||0)/3.6e6; a.n++;
+    a.chars.add((sm.r.user_id||'')+'|'+sm.r.char_name); if(sm.r.class) a.cls.add(sm.r.class);
+    for(const [mb,c] of Object.entries(sm.r.mobs||{})) a.mobs[mb]=(a.mobs[mb]||0)+c;
+  }
+  return Object.values(z).map(a=>Object.assign(a,{min:lvldNeed(L)*multT/(a.xp/a.h)*60,sure:a.h>=0.75||a.n>=2}))
+    .sort((x,y)=>(y.sure-x.sure)||(x.min-y.min));
+}
+function lvldZem(zone){ const sp=LEVELING_SPOTS.find(p=>p.z===zone); return sp&&sp.zem?sp.zem+'%':''; }
+// hunting minutes per finished level for one character (this PC's scan, else the guild table)
+function lvldHistory(name){
+  const r=(lvldMine.chars||{})[name]; const uid=typeof currentUser!=='undefined'&&currentUser?currentUser.id:null;
+  const rows=r?r.rows.map(x=>Object.assign({},x,{level_done:!!((r.levels||{})[x.level]||{}).done})):lvldGuild.rows.filter(x=>x.user_id===uid&&x.char_name===name);
+  const by={};
+  for(const x of rows){ if(!x.level_done) continue; const b=by[x.level]||(by[x.level]={level:x.level,hunt:0,played:0,xs:0,xg:0,d:0,zones:{}});
+    b.hunt+=x.hunt_ms; b.played+=x.played_ms; b.xs+=x.xp_solo; b.xg+=x.xp_group; b.d+=x.deaths; b.q=(b.q||0)+(x.xp_quest||0); if(x.xp_solo+x.xp_group) b.zones[x.zone]=(b.zones[x.zone]||0)+x.xp_solo+x.xp_group; }
+  return Object.values(by).sort((a,b)=>a.level-b.level);
+}
+window.lvldTip=function(el,ev){
+  let t=document.getElementById('lvldTipBox');
+  if(!t){ t=document.createElement('div'); t.id='lvldTipBox'; t.style.cssText='position:fixed;z-index:9999;pointer-events:none;background:var(--surface2);border:1px solid var(--gold);border-radius:5px;padding:.4rem .6rem;font-size:.82rem;line-height:1.45;box-shadow:0 6px 20px rgba(0,0,0,.3);max-width:320px;display:none'; document.body.appendChild(t); }
+  if(!el){ t.style.display='none'; return; }
+  t.innerHTML=decodeURIComponent(el.getAttribute('data-tip')||''); t.style.display='block';
+  const w=t.offsetWidth,h=t.offsetHeight; t.style.left=Math.min(ev.clientX+14,window.innerWidth-w-8)+'px'; t.style.top=Math.max(6,ev.clientY-h-10)+'px';
+};
+function lvldChart(hist,myLvl){
+  if(!hist.length) return '<div style="font-size:.85rem;color:var(--text-muted)">No finished levels in this character&rsquo;s logs yet.</div>';
+  const lo=hist[0].level, hi=Math.max(hist[hist.length-1].level,lo), by={}; hist.forEach(b=>by[b.level]=b);
+  const max=Math.max(...hist.map(b=>b.hunt))/60e3, top=max<=60?60:max<=120?120:Math.ceil(max/120)*120, H=130;
+  let bars='';
+  for(let L=lo;L<=hi;L++){ const b=by[L];
+    if(!b){ bars+='<div style="flex:1;min-width:6px"></div>'; continue; }
+    const m=b.hunt/60e3, zs=Object.entries(b.zones).sort((x,y)=>y[1]-x[1]), n=b.xs+b.xg;
+    const tip='<b>Level '+L+'</b>'+(lvldHell(L)-lvldHell(L-1)>=0.095?' <span style="color:#a03030">hell level</span>':'')+'<br>'+zs.slice(0,3).map(z=>esc(z[0])+' <span style="color:var(--text-muted)">'+Math.round(z[1]/n*100)+'%</span>').join('<br>')+
+      '<br>Hunting <b>'+lvldFmt(m)+'</b> · played '+lvldFmt(b.played/60e3)+'<br>'+n+' kills · '+(b.xg>b.xs?'mostly group':'mostly solo')+(b.d?' · '+b.d+' death'+(b.d>1?'s':''):'')+(b.q?'<br><span style="color:#a06020">'+b.q+' quest turn-in'+(b.q>1?'s':'')+' — not counted as kills</span>':'');
+    bars+='<div data-tip="'+encodeURIComponent(tip)+'" onmousemove="lvldTip(this,event)" onmouseleave="lvldTip(null)" style="flex:1;min-width:6px;height:100%;display:flex;align-items:flex-end;cursor:default">'+
+      '<div style="width:100%;height:'+Math.max(2,Math.round(m/top*H))+'px;background:var(--gold);border-radius:4px 4px 0 0;opacity:'+(L===myLvl-1?1:.78)+'"></div></div>';
+  }
+  const grid=[top,top/2].map(v=>'<div style="position:absolute;left:0;right:0;bottom:'+Math.round(v/top*H)+'px;border-top:1px dashed var(--border);font-size:.7rem;color:var(--text-muted)"><span style="position:absolute;left:-2.6rem;top:-.55rem;width:2.4rem;text-align:right">'+lvldFmt(v)+'</span></div>').join('');
+  return '<div style="position:relative;margin-left:2.8rem;height:'+H+'px;border-bottom:1px solid var(--border)">'+grid+'<div style="position:absolute;inset:0;display:flex;gap:2px;align-items:flex-end">'+bars+'</div></div>'+
+    '<div style="display:flex;justify-content:space-between;margin-left:2.8rem;font-size:.72rem;color:var(--text-muted);margin-top:.15rem"><span>L'+lo+'</span><span>L'+hi+'</span></div>';
+}
+function lvldSection(meta,myLvl){
+  const name=(typeof activeTab!=='undefined'&&activeTab&&activeTab!=='__all__')?activeTab:null;
+  if(!name) return '';
+  const cls=meta.class||'', race=meta.race||'', mine=(lvldMine.chars||{})[name];
+  const L=Math.max(myLvl||0,(mine&&mine.current)||0)||null;
+  if(L) lvldLoadGuild(Math.min(L,59));
+  const desktop=!!(window.MixelParseApp&&window.MixelParseApp.watcherCommand);
+  const ago=lvldMine.at?lvldFmt((Date.now()-lvldMine.at)/60e3)+' ago':'never';
+  const share=lvldGuild.err?'<span style="color:#a06020" title="'+keysAttr(lvldGuild.err)+'">⚠ guild data unavailable — ask the app owner to create the leveling_data table</span>'
+    :lvldMine.uploadErr?'<span style="color:#a06020" title="'+keysAttr(lvldMine.uploadErr)+'">⚠ not shared yet</span>'
+    :lvldMine.uploaded?'<span style="color:#2f6f2f">✓ shared with the guild</span>':'';
+  // owner, 2026-10-07: a plain green 'Logs recorded' once scanned and shared; details on hover; progress / warnings when they apply
+  const okRec=!lvldScanState&&lvldMine.at&&lvldMine.uploaded&&!lvldMine.uploadErr&&!lvldGuild.err;
+  const status=(lvldScanState?'<span style="color:var(--text-muted)">'+esc(lvldScanState)+'</span>'
+      :okRec?'<span style="color:#2f6f2f;font-weight:600" title="'+keysAttr('Scanned '+ago+' and shared with the guild')+'">✓ Logs recorded</span>'
+      :'<span style="color:var(--text-muted)">'+(lvldMine.at?'Logs scanned '+ago:'Logs not scanned yet')+'</span>'+(share?' · '+share:''))+
+    (desktop?' <button class="btn" style="font-size:.74rem;padding:.12rem .5rem;margin-left:.4rem" onclick="lvldScan()"'+(lvldScanState?' disabled':'')+'>⟳ Scan my logs</button>':'');
+  const mult=lvldMult(cls,race), bits=[];
+  if(LVLD_RACE[race]) bits.push(race+' '+(LVLD_RACE[race]>1?'−':'+')+Math.round(Math.abs(LVLD_RACE[race]-1)*100)+'%');
+  if(LVLD_CLASS[cls]) bits.push(cls+' +'+Math.round((1-LVLD_CLASS[cls])*100)+'%');
+  const card=(inner,mt)=>'<div style="border:1px solid var(--border);border-radius:5px;background:var(--surface);padding:.65rem .8rem;margin-top:'+(mt||'.7rem')+'">'+inner+'</div>';
+  const h3=t=>'<div style="font-family:\'Cinzel\',serif;font-size:.82rem;letter-spacing:.06em;color:var(--gold-light);margin-bottom:.45rem">'+t+'</div>';
+  const rows=lvldRows(), samples=lvldSamples(rows,cls);
+  const peopleAll=new Set(rows.map(r=>(r.user_id||'')+'|'+r.char_name)).size;
+  let html='<div style="margin-bottom:1rem">';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.4rem"><div style="font-size:1.05rem;font-weight:600;color:var(--text-secondary)">📈 Leveling data</div><div style="font-size:.8rem">'+status+'</div></div>';
+  html+='<div style="font-size:.8rem;color:var(--text-muted);margin:.15rem 0 0">Measured from '+peopleAll+' character'+(peopleAll===1?'':'s')+'&rsquo; logs'+(lvldGuild.at&&!lvldGuild.err?' across the guild':'')+'. Times are <b>hunting time</b> (time between kills; AFK, travel and raid waits don&rsquo;t count), adjusted for race / class XP modifiers.</div>';
+  if(!rows.length){
+    html+=card('<div style="font-size:.9rem">'+(desktop?'No leveling data yet — <b>⟳ Scan my logs</b> reads every character&rsquo;s logs (about 20 seconds) and shares the result with the guild.':'No leveling data yet. Scans run in the MixelParse desktop app.')+'</div>');
+    return html+'</div>';
+  }
+  // tiles
+  const tile=(lbl,val,sub)=>'<div style="flex:1;min-width:150px;border:1px solid var(--border);border-radius:5px;padding:.5rem .7rem;background:var(--surface)"><div style="font-size:.72rem;color:var(--text-muted);letter-spacing:.04em">'+lbl+'</div><div style="font-size:1.25rem;font-weight:600;margin-top:.1rem">'+val+'</div>'+(sub?'<div style="font-size:.74rem;color:var(--text-muted)">'+sub+'</div>':'')+'</div>';
+  let next='', to60=null, to60Gap=false;
+  if(L&&L<60){
+    const est=[]; for(let l=L;l<=59;l++){ const z=lvldZones(samples,l,mult).filter(a=>a.sure)[0]; est.push(z?z.min:null); }
+    to60=est.reduce((a,b)=>a+(b||0),0); to60Gap=est.some(v=>v==null);
+    const done=lvldXpGet(name,L)/100;
+    if(est[0]!=null){ est[0]*=1-done; }
+    to60=est.reduce((a,b)=>a+(b||0),0);
+    next=est[0];
+  }
+  html+='<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.6rem">'+
+    tile('XP MODIFIER',mult===1?'None':mult<1?'<span style="color:#2f6f2f">+'+Math.round((1-mult)*100)+'% bonus</span>':'<span style="color:#a03030">'+Math.round((mult-1)*100)+'% penalty</span>',mult===1?(race||cls?esc((race+' '+cls).trim())+' — no XP modifier':'Set race &amp; class in Character Stats'):'levels need '+Math.round(Math.abs(1-mult)*100)+'% '+(mult<1?'less':'more')+' XP · '+bits.join(' · '))+
+    (L&&L<60?tile('NEXT LEVEL ('+L+' → '+(L+1)+')',next!=null?'≈ '+lvldFmt(next):'—',
+      (next!=null?'hunting at the best measured spot':'no measured spot near level '+L)+
+      '<div style="margin-top:.35rem;display:flex;align-items:center;gap:.35rem;color:var(--text)">Current XP <input type="number" min="0" max="99.9" step="1" value="'+(lvldXpGet(name,L)||'')+'" placeholder="0" title="How far into level '+L+' this character is (the XP bar in game)" onchange="lvldXpSet(decodeURIComponent(\''+encodeURIComponent(name)+'\'),'+L+',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()" style="width:3.6rem;font-size:.85rem;padding:.1rem .3rem;border:1px solid var(--border);border-radius:3px;background:var(--surface);color:var(--text)">% into level '+L+'</div>'):tile('LEVEL','60','max level'))+
+    (L&&L<60?tile('TO LEVEL 60',to60?(to60Gap?'≥ ':'≈ ')+lvldFmt(to60):'—',to60Gap?'some levels have no data yet':'best measured spot each level'):'')+
+    '</div>';
+  // where people level near this level
+  if(L&&L<60){
+    const chip=(lbl,on,cb)=>'<button onclick="'+cb+'" style="font-size:.76rem;padding:.12rem .5rem;margin-left:.25rem;border-radius:3px;cursor:pointer;border:1px solid '+(on?'var(--gold)':'var(--border)')+';background:'+(on?'rgba(184,137,43,.14)':'transparent')+';color:var(--text)">'+lbl+'</button>';
+    const zs=lvldZones(samples,L,mult).slice(0,10);
+    const th='style="padding:.35rem .5rem;text-align:left;font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.05em;color:var(--text-muted);white-space:nowrap"';
+    let t='<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr style="border-bottom:1px solid var(--border)"><th '+th+'>ZONE</th><th '+th+'>TIME / LEVEL</th><th '+th+'>STYLE</th><th '+th+'>KILLS / HR</th><th '+th+'>DEATHS / HR</th><th '+th+'>FROM</th><th '+th+'>TOP MOBS</th></tr></thead><tbody>';
+    if(!zs.length) t+='<tr><td colspan="7" style="padding:.5rem;color:var(--text-muted)">Nobody has leveled near level '+L+' yet'+(lvldF.mode!=='all'||lvldF.cls?' with these filters':'')+'.</td></tr>';
+    zs.forEach((a,i)=>{ const n=a.xs+a.xg, solo=Math.round(a.xs/Math.max(1,n)*100), mobs=Object.entries(a.mobs).sort((x,y)=>y[1]-x[1]).slice(0,3).map(m=>esc(m[0])).join(', ');
+      const from=a.chars.size+' char'+(a.chars.size===1?'':'s')+' · '+a.n+' level'+(a.n===1?'':'s')+(a.cls.size?'<div style="font-size:.74rem;color:var(--text-muted)">'+[...a.cls].map(esc).join(', ')+'</div>':'');
+      t+='<tr style="border-bottom:1px solid rgba(74,58,26,.2);'+(a.sure?'':'opacity:.6')+(i===0&&a.sure?'background:rgba(184,137,43,.08)':'')+'" title="'+keysAttr(a.sure?'':'Little data — under 45 minutes of hunting from one level')+'">'+
+        '<td style="padding:.4rem .5rem"><b>'+esc(a.zone)+'</b>'+(lvldZem(a.zone)?' <span style="font-size:.74rem;color:var(--text-muted)">ZEM '+lvldZem(a.zone)+'</span>':'')+'</td>'+
+        '<td style="padding:.4rem .5rem;white-space:nowrap;font-weight:600">'+lvldFmt(a.min)+'</td>'+
+        '<td style="padding:.4rem .5rem;white-space:nowrap">'+(solo>=60?'Solo':solo<=40?'Group':'Mixed')+' <span style="font-size:.74rem;color:var(--text-muted)">'+solo+'% solo</span></td>'+
+        '<td style="padding:.4rem .5rem">'+Math.round(n/a.h)+'</td>'+
+        '<td style="padding:.4rem .5rem;color:'+(a.d/a.h>=0.5?'#a03030':'inherit')+'">'+(a.d/a.h).toFixed(1)+'</td>'+
+        '<td style="padding:.4rem .5rem">'+from+'</td>'+
+        '<td style="padding:.4rem .5rem;font-size:.8rem;color:var(--text-muted)">'+mobs+'</td></tr>'; });
+    t+='</tbody></table>';
+    html+=card('<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.3rem;margin-bottom:.3rem">'+h3('WHERE PEOPLE LEVEL AROUND '+L).replace('margin-bottom:.45rem','margin-bottom:0')+
+      '<div>'+chip('All',lvldF.mode==='all',"lvldMode('all')")+chip('Solo',lvldF.mode==='solo',"lvldMode('solo')")+chip('Group',lvldF.mode==='group',"lvldMode('group')")+(cls?chip(esc(cls)+'s only',lvldF.cls,'lvldClsOnly()'):'')+'</div></div>'+
+      '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.35rem">Levels '+Math.max(1,L-3)+'–'+Math.min(59,L+3)+', time per level estimated for <b>'+esc(name)+'</b> at level '+L+'. '+(LVLD_STYLE[cls]?'Solo spots only count characters that solo like a '+esc(cls)+' ('+LVLD_STYLE_NAME[LVLD_STYLE[cls]]+'); group spots count every class. ':'')+'Raid zones (Plane of Hate, Fear, Sky, Growth) and levels carried by quest turn-ins are left out. Faded rows have little data.</div>'+
+      '<div style="overflow-x:auto">'+t+'</div>');
+    // next levels
+    let nl='<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr style="border-bottom:1px solid var(--border)"><th '+th+'>LEVEL</th><th '+th+'>XP NEEDED</th><th '+th+'>BEST MEASURED SPOT</th><th '+th+'>EST. TIME</th></tr></thead><tbody>';
+    for(let l=L;l<=Math.min(59,L+5);l++){ const z=lvldZones(samples,l,mult).filter(a=>a.sure)[0], hell=lvldHell(l)-lvldHell(l-1);
+      nl+='<tr style="border-bottom:1px solid rgba(74,58,26,.2)"><td style="padding:.4rem .5rem;white-space:nowrap">'+l+' → '+(l+1)+'</td>'+
+        '<td style="padding:.4rem .5rem;white-space:nowrap">×'+(lvldNeed(l)/lvldNeed(L)).toFixed(2)+(hell>=0.095?' <span style="font-size:.74rem;color:#a03030">'+(hell>=0.25?'triple hell':hell>=0.15?'double hell':'hell level')+'</span>':'')+'</td>'+
+        '<td style="padding:.4rem .5rem">'+(z?'<b>'+esc(z.zone)+'</b> <span style="font-size:.76rem;color:var(--text-muted)">'+(z.xs>=z.xg?'solo':'group')+'</span>':'<span style="color:var(--text-muted)">no data yet</span>')+'</td>'+
+        '<td style="padding:.4rem .5rem;font-weight:600">'+(z?lvldFmt(z.min):'—')+'</td></tr>'; }
+    nl+='</tbody></table>';
+    html+=card(h3('NEXT LEVELS FOR '+esc(name.toUpperCase()))+'<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.35rem">XP needed is relative to this level (hell levels need much more).</div><div style="overflow-x:auto">'+nl+'</div>');
+  }
+  const hist=lvldHistory(name);
+  html+=card(h3(esc(name.toUpperCase())+'&rsquo;S LEVELS — HUNTING TIME PER LEVEL')+(hist.length?'<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.5rem">Hover a bar for the zones, kills and deaths of that level.</div>':'')+lvldChart(hist,L));
+  return html+'</div>';
+}
+// desktop: rescan once a day so the guild data stays fresh (needs characters loaded)
+function lvldScanDue(){ return Date.now()-(lvldMine.at||0)>24*3600e3||lvldMine.v!==LVLD_SCAN_V; }
+setInterval(function(){
+  try{ if(window.MixelParseApp&&window.MixelParseApp.watcherCommand&&typeof currentUser!=='undefined'&&currentUser&&charNames().length&&!lvldScanState&&lvldScanDue()) lvldScan(true); }catch(e){}
+  // a failed upload (table missing, offline) retries without rescanning
+  try{ if(typeof currentUser!=='undefined'&&currentUser&&!lvldScanState&&lvldMine.v===LVLD_SCAN_V&&lvldMine.uploadErr) lvldUpload(); }catch(e){}
+},10*60e3);
+setTimeout(function(){ try{ if(window.MixelParseApp&&window.MixelParseApp.watcherCommand&&typeof currentUser!=='undefined'&&currentUser&&charNames().length&&lvldScanDue()) lvldScan(true); }catch(e){} },120e3);
 
 let consolidateExcl=(function(){try{return JSON.parse(localStorage.getItem('mp_consol_excl'))||[];}catch(e){return [];}})();
 function isConsolExcluded(name){return consolidateExcl.some(function(x){return x.toLowerCase()===String(name).toLowerCase();});}
