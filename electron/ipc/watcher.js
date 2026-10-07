@@ -1893,6 +1893,107 @@ async function scanKillCountsAllLogs(charFilter) {
   }
 }
 
+// ── Leveling timeline scan (owner, 2026-10-06) ────────────────────────────────
+// Replays a character's whole log history (live, rotated .old, Logs\archive — oldest first, state carried across
+// files) and buckets it by the level the character was at and the zone it was in:
+//   hunt_ms   — time between XP messages in the same zone, each gap capped at 10 min (+1 min for the first kill),
+//               so AFK, camping out and raid waits don't count;
+//   played_ms — time between any two log lines ≤ 5 min apart;
+//   xp_solo / xp_group — kills: "You gain experience!!" / "You gain party experience!!" right after a slain line
+//               (P99 never logs the amount); xp_quest — the same XP lines with no kill (quest turn-ins);
+//   deaths, mobs (the "slain" line just before each XP message).
+// A level is "done" only when it was entered by a ding AND left by the next ding — a level re-entered after
+// "You LOST a level!" isn't a full level. Lines before the first level message are skipped (level unknown).
+const RE_LV_GAIN = /(?:You have gained a level! )?Welcome to level (\d+)!$/;
+const RE_LV_LOST = /You LOST a level! You are now level (\d+)!/;
+const RE_LV_XP = /^You gain (party )?experience!!$/;
+const RE_LV_SLAIN = /^(?:You have slain (.+?)|(.+?) has been slain by .+?)!$/;
+const RE_LV_ZONE = /^You have entered (.+)\.$/;
+let _lvlScanRunning = false;
+async function scanLeveling(charFilter) {
+  if (_lvlScanRunning) { broadcast({ type: 'levelScanResult', error: 'A leveling scan is already running' }); return; }
+  if (!_config || !_config.logDir) { broadcast({ type: 'levelScanResult', error: 'No log directory configured' }); return; }
+  const wanted = new Map((Array.isArray(charFilter) ? charFilter : []).map(c => [String(c).toLowerCase(), String(c)]));
+  if (!wanted.size) { broadcast({ type: 'levelScanResult', error: 'No characters to scan' }); return; }
+  _lvlScanRunning = true;
+  try {
+    const dirs = [_config.logDir, path.join(_config.logDir, 'archive')].filter(d => { try { return fs.statSync(d).isDirectory(); } catch { return false; } });
+    const byChar = new Map();
+    for (const d of dirs) for (const f of fs.readdirSync(d)) {
+      const c = (f.match(/^eqlog_(.+?)_P1999Green.*\.(?:txt|old)$/i) || [])[1];
+      if (!c || !wanted.has(c.toLowerCase())) continue;
+      const fp = path.join(d, f); let mt = 0; try { mt = fs.statSync(fp).mtimeMs; } catch { continue; }
+      const k = c.toLowerCase(); if (!byChar.has(k)) byChar.set(k, []); byChar.get(k).push({ fp, mt });
+    }
+    const results = {}; let done = 0;
+    for (const [k, files] of byChar) {
+      const name = wanted.get(k); files.sort((a, b) => a.mt - b.mt);
+      const st = { level: null, byGain: false, zone: null, lastTs: 0, maxTs: 0, lastXpTs: 0, lastXpZone: null, slain: null };
+      const agg = {}, levels = {};
+      const A = (L, z) => { const key = L + '|' + z; return agg[key] || (agg[key] = { level: L, zone: z, hunt_ms: 0, played_ms: 0, xp_solo: 0, xp_group: 0, xp_quest: 0, deaths: 0, mobs: {}, first: 0, last: 0 }); };
+      const LV = L => levels[L] || (levels[L] = { done: false, xp: 0, quest: 0, start: 0, end: 0 });
+      for (const { fp } of files) {
+        broadcast({ type: 'levelScanProgress', charName: name, idx: done + 1, total: byChar.size });
+        await new Promise(resolve => {
+          const rl = require('readline').createInterface({ input: fs.createReadStream(fp, { encoding: 'latin1' }), crlfDelay: Infinity });
+          rl.on('line', line => {
+            if (line.length < 28 || line.charCodeAt(0) !== 91) return;
+            const ts = /^\[\w{3} \w{3} +\d+ \d\d:/.test(line) ? _rtLineTs(line) : 0; if (!ts) return;   // _rtLineTs falls back to now()
+            if (ts < st.maxTs - 1000) return;                    // overlapping rotated copy — already replayed
+            if (ts > st.maxTs) st.maxTs = ts;
+            const msg = line.slice(line.indexOf('] ') + 2);
+            const gap = ts - st.lastTs; st.lastTs = ts;
+            if (st.level != null && st.zone && gap > 0 && gap <= 5 * 60e3) A(st.level, st.zone).played_ms += gap;
+            // previous line a faction change or someone "says" — the turn-in signature (same rule as the kill scan, v1.4.18)
+            const wasTurnin = st.prevFS; st.prevFS = /^Your faction standing/.test(msg) || /^[A-Z][a-zA-Z`' ]+ says,/.test(msg);
+            let m;
+            if ((m = RE_LV_ZONE.exec(msg))) { if (!/^an? (area|arena)/i.test(m[1])) st.zone = m[1]; return; }
+            if ((m = RE_LV_SLAIN.exec(msg))) { st.slain = { mob: (m[1] || m[2] || '').trim(), ts }; return; }
+            if ((m = RE_LV_XP.exec(msg))) {
+              if (st.level == null) return;
+              const z = st.zone || 'Unknown', a = A(st.level, z);
+              // Quest turn-ins print the same XP line as a kill (owner, 2026-10-07: Neriak Third Gate / Chardok
+              // herbalist turn-ins read as 1,000+ kills). Solo XP with no kill just before it and a faction / "says"
+              // line right before it is a turn-in. Group XP is always a kill — a groupmate's kill out of view
+              // range prints no "slain" line.
+              const slain = st.slain && ts - st.slain.ts <= 3000 ? st.slain : null;
+              if (!m[1] && !slain && wasTurnin) { a.xp_quest++; LV(st.level).quest++; if (!a.first) a.first = ts; a.last = ts; return; }
+              if (m[1]) a.xp_group++; else a.xp_solo++;
+              a.hunt_ms += st.lastXpTs && st.lastXpZone === z && ts - st.lastXpTs <= 10 * 60e3 ? ts - st.lastXpTs : 60e3;
+              st.lastXpTs = ts; st.lastXpZone = z;
+              if (slain && slain.mob && !/^you$/i.test(slain.mob)) a.mobs[slain.mob] = (a.mobs[slain.mob] || 0) + 1;
+              st.slain = null;
+              if (!a.first) a.first = ts; a.last = ts;
+              LV(st.level).xp++;
+              return;
+            }
+            if (msg.indexOf('You have been slain by') === 0 || msg === 'You died.') { if (st.level != null && st.zone) A(st.level, st.zone).deaths++; return; }
+            if ((m = RE_LV_LOST.exec(msg))) { st.level = +m[1]; st.byGain = false; st.lastXpTs = 0; return; }
+            if ((m = RE_LV_GAIN.exec(msg))) {
+              const N = +m[1];
+              if (st.level === N - 1 && st.byGain) { const l = LV(N - 1); l.done = true; l.end = ts; }
+              if (st.level !== N) { st.level = N; st.byGain = true; const l = LV(N); if (!l.start) l.start = ts; }
+              st.lastXpTs = 0;
+            }
+          });
+          rl.on('close', resolve); rl.on('error', resolve);
+        });
+      }
+      done++;
+      const rows = Object.values(agg).filter(a => a.xp_solo + a.xp_group + a.xp_quest > 0 || a.played_ms >= 5 * 60e3).map(a => ({
+        level: a.level, zone: a.zone, hunt_ms: Math.round(a.hunt_ms), played_ms: Math.round(a.played_ms), xp_solo: a.xp_solo, xp_group: a.xp_group, xp_quest: a.xp_quest,
+        deaths: a.deaths, mobs: Object.fromEntries(Object.entries(a.mobs).sort((x, y) => y[1] - x[1]).slice(0, 8)),
+        first_at: a.first || null, last_at: a.last || null }));
+      results[name] = { rows, levels, current: st.level };
+      log(`[LVLSCAN] ${name}: ${rows.length} level/zone row(s), ${Object.values(levels).filter(l => l.done).length} full level(s)`);
+    }
+    broadcast({ type: 'levelScanResult', results, scannedAt: Date.now() });
+  } catch (e) {
+    err('[LVLSCAN]', e.message);
+    broadcast({ type: 'levelScanResult', error: e.message });
+  } finally { _lvlScanRunning = false; }
+}
+
 // ── Historic session backfill scan ────────────────────────────────────────────
 // Replays entire log files and slices them into play sessions. Boundaries:
 // login line, camp line, or a gap of idleGapMin minutes with no log lines
@@ -2189,6 +2290,8 @@ function command(cmd, args) {
     scanSkillsAllLogs();
   } else if (cmd === 'scanKillCounts') {
     scanKillCountsAllLogs(args && args.chars);
+  } else if (cmd === 'scanLeveling') {
+    scanLeveling(args && args.chars);
   } else if (cmd === 'scanSessions') {
     scanLogsForSessions(args && args.chars, args && args.idleGapMin);
   } else if (cmd === 'scanRaidTicks') {
