@@ -2745,6 +2745,19 @@ function _spellClassMap(cls){
     if(!m.has(k) || lvl<m.get(k).lvl) m.set(k,{lvl,act,key:k}); }
   return m;
 }
+// P99 wiki data files (gen-wiki-data.js), loaded the first time a tab needs them: spells / vendors / quests
+const _wikiLoad={};
+function wikiData(name,redraw){
+  const g={spells:'WIKI_SPELLS',vendors:'WIKI_VENDORS',quests:'WIKI_QUESTS',zones:'ZONE_GRAPH'}[name]; if(window[g]) return window[g];
+  if(!_wikiLoad[name]){ _wikiLoad[name]=[]; const s=document.createElement('script'); s.src='wiki-'+name+'.js';
+    s.onload=()=>{ const cbs=_wikiLoad[name]; _wikiLoad[name]=true; cbs.forEach(f=>{try{f();}catch(e){}}); }; document.head.appendChild(s); }
+  if(Array.isArray(_wikiLoad[name])&&redraw) _wikiLoad[name].push(redraw);
+  return null;
+}
+// rows [[zoneIdx, who, note]] → [{zone, who, note}]
+function wikiRows(D,rows){ return (rows||[]).map(r=>({zone:D.z[r[0]]||'',who:r[1],note:r[2]||''})); }
+function spellSources(name){ const D=wikiData('spells'); return D?wikiRows(D,D.s[String(name).toLowerCase()]):[]; }
+function itemVendors(name){ const D=wikiData('vendors'); return D?wikiRows(D,D.i[name]):[]; }
 function buildSpellReport(charKey){
   const meta=charMeta[charKey]||{};
   const cls=meta.class||'';
@@ -2825,8 +2838,11 @@ function renderSpellsPanel(){
       html+='<div style="flex:0 0 2.6rem;color:var(--text-muted);font-family:monospace;font-size:.78rem">L'+l+'</div>';
       html+='<div style="flex:1;display:flex;flex-wrap:wrap;gap:.35rem">';
       for(const m of byLvl.get(l)){
+        const src=spellSources(m.act), zones=[...new Set(src.map(x=>x.zone))];
+        const srcTip=src.length?'Where to get the scroll ('+zones.length+' zone'+(zones.length===1?'':'s')+'):\n'+zones.slice(0,12).map(z=>z+' — '+src.filter(x=>x.zone===z).map(x=>x.who+(x.note?' ('+x.note+')':'')).slice(0,3).join('; ')).join('\n')+(zones.length>12?'\n…':''):'No merchant listed on the wiki — dropped or quested';
         html+='<span style="display:inline-flex;align-items:center;gap:.3rem;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:.12rem .5rem;font-size:.8rem">'
             + '<a href="'+wikiUrl(m.act)+'" target="_blank" rel="noopener" title="View on P99 wiki" class="spell-wiki-link" style="color:inherit;text-decoration:none">'+_spellEsc(m.act)+'</a>'
+            + (window.WIKI_SPELLS?'<span title="'+_spellEsc(srcTip)+'" style="color:'+(zones.length?'var(--text-muted)':'#c98a3a')+';font-size:.72rem;cursor:help">'+(zones.length?'📍'+zones.length:'⚑ drop')+'</span>':'')
             + '<button class="spell-ignore" data-key="'+_spellEsc(m.key)+'" title="Ignore this spell" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;padding:0 0 0 .1rem">\u00d7</button>'
             + '</span>';
       }
@@ -2835,6 +2851,21 @@ function renderSpellsPanel(){
   }
   if(!showAll && hiddenAbove>0){
     html+='<div style="margin-top:.6rem;font-size:.78rem;color:var(--text-muted);font-style:italic">'+hiddenAbove+' more above level '+lvl+' \u2014 tick \u201cshow all levels\u201d to see them.</div>';
+  }
+  // ── where to buy them: zones that sell the most of these missing scrolls (P99 wiki) ──
+  const W=wikiData('spells',()=>{ if(activeSub==='spells') renderSpellsPanel(); });
+  if(shown.length){
+    html+='<div style="font-family:\'Cinzel\',serif;color:var(--gold-dim);font-size:.8rem;letter-spacing:.06em;margin:1.1rem 0 .5rem">WHERE TO BUY THEM</div>';
+    if(!W) html+='<div style="font-size:.8rem;color:var(--text-muted)">Loading merchant data…</div>';
+    else{
+      const z={}, nosrc=[];
+      for(const m of shown){ const src=spellSources(m.act); if(!src.length){ nosrc.push(m.act); continue; }
+        for(const zn of new Set(src.map(x=>x.zone))){ (z[zn]=z[zn]||{spells:[],who:new Set()}).spells.push(m.act); src.filter(x=>x.zone===zn).forEach(x=>z[zn].who.add(x.who)); } }
+      const top=Object.entries(z).sort((a,b)=>b[1].spells.length-a[1].spells.length).slice(0,8);
+      html+='<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.4rem">Cities and zones whose merchants sell the most of these scrolls. Hover a spell&rsquo;s 📍 for every merchant.</div>';
+      html+=top.map(([zn,v])=>'<div style="display:flex;gap:.6rem;align-items:baseline;padding:.3rem 0;border-bottom:1px solid var(--border)"><div style="flex:0 0 11rem;font-weight:600">'+_spellEsc(zn)+' <span style="color:var(--text-muted);font-weight:400">· '+v.spells.length+'</span></div><div style="flex:1;font-size:.8rem">'+v.spells.map(_spellEsc).join(', ')+'<div style="color:var(--text-muted);font-size:.74rem">'+[...v.who].slice(0,4).map(_spellEsc).join(', ')+'</div></div></div>').join('');
+      if(nosrc.length) html+='<div style="font-size:.78rem;color:#c98a3a;margin-top:.45rem">⚑ Not sold by merchants (dropped or quested): '+nosrc.map(_spellEsc).join(', ')+'</div>';
+    }
   }
 
   // ── ignored section ──
@@ -5494,14 +5525,18 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.13',
+  version:'1.7.14',
   date:'October 2026',
   features:[
-    ['&#9876; Exact faction hits','Kills now move your factions by the real amount for that mob (for example Vulak: Claws of Veeshan &minus;1000), taken from the P99 wiki for over 4,000 NPCs, instead of a flat &plusmn;5. /con now sets your standing for 1,062 NPCs, up from 403.'],
+    ['&#128722; Find a vendor','Raid Consumes has a vendor search: type an item and see every merchant that sells it, with the zone, the merchant and where they stand, all linked to the P99 wiki. The closest zones to your character come first, with how many zones away each one is. Consume rows have a &ldquo;show merchants&rdquo; link too.'],
+    ['&#128220; Spell sources','The Spells tab shows where to buy each spell you&rsquo;re missing, grouped by zone with the merchants&rsquo; names, and which ones only drop.'],
+    ['&#128220; More class quests','Quests lists every quest for your class from the P99 wiki that the guide doesn&rsquo;t cover: epic first, then by level, with the start zone, the quest giver and the rewards, each linked to the wiki. &#10004; marks rewards you already have.'],
+    ['&#128277; Parking alerts','Right-click a &ldquo;no toon parked&rdquo; alert &rarr; Mute for this cycle. Settings &rarr; Raids &rarr; Parking alerts turns them off completely.'],
+    ['&#9881; Wiki updates','Settings shows what changed on the P99 wiki for items in the item database each week.'],
   ],
   fixes:[
-    ['Frost giants','A /con on a frost giant now updates Kromrif (it was Kromzek).'],
-    ['Item prices','Price updates from PigParse and ODKP now save only the prices, so they can&rsquo;t overwrite other item details.'],
+    ['Parking Ack','Acknowledging a parking alert now keeps it hidden until that window closes. Before, it came back when the window opened or after a restart.'],
+    ['Names with apostrophes','Buttons for names like Vulak&rsquo;Aerr work again.'],
   ],
 };
 function showWhatsNew(){
@@ -7302,6 +7337,24 @@ function renderSkyshrinePanel(){
     </div>`;
 }
 
+// The class's other quests on the P99 wiki (not already in the guide): epic first, then by level
+function wikiMoreQuests(cls,name){
+  const D=wikiData('quests',()=>{ if(activeSub==='quests') renderQuestsPanel(); });
+  if(!cls) return '';
+  if(!D) return '<div class="quest-section-label">📜 More '+esc(cls)+' Quests (P99 wiki)</div><div style="padding:.5rem .75rem;color:var(--text-muted)">Loading…</div>';
+  const inGuide=new Set(); (function walk(v){ if(Array.isArray(v)) v.forEach(walk); else if(v&&typeof v==='object'){ if(v.wiki) inGuide.add(decodeURIComponent(String(v.wiki).split('/').pop()).replace(/_/g,' ').toLowerCase()); else Object.values(v).forEach(walk); } })(QUEST_DB);
+  const myLvl=+((charMeta[name]||{}).level)||0, num=s=>{ const m=String(s||'').match(/\d+/); return m?+m[0]:0; };
+  const list=(D.c[cls]||[]).filter(t=>!inGuide.has(t.toLowerCase())).map(t=>Object.assign({t},D.q[t]||{}));
+  list.sort((a,b)=>(/epic/i.test(b.t)-/epic/i.test(a.t))||(num(a.lvl)-num(b.lvl))||a.t.localeCompare(b.t));
+  if(!list.length) return '';
+  const rows=list.map(q=>{ const have=(q.r||[]).filter(r=>charHasItem(name,r)), epic=/epic/i.test(q.t), far=myLvl&&num(q.lvl)>myLvl;
+    return '<tr style="'+(epic?'background:rgba(184,137,43,.08);':'')+(far?'opacity:.6':'')+'"><td style="padding:.35rem .5rem"><a href="'+wikiUrl(q.t)+'" target="_blank" rel="noopener" style="color:var(--gold-light);font-weight:'+(epic?'700':'600')+'">'+esc(q.t)+'</a>'+(have.length?' <span style="color:#3a7a3a;font-size:.75rem" title="Has: '+esc(have.join(', '))+'">✔ has reward</span>':'')+'</td>'
+      +'<td style="padding:.35rem .5rem;white-space:nowrap">'+esc(q.lvl||'—')+'</td><td style="padding:.35rem .5rem">'+esc(q.z||'')+(q.g?'<div style="font-size:.75rem;color:var(--text-muted)">'+esc(q.g)+'</div>':'')+'</td>'
+      +'<td style="padding:.35rem .5rem;font-size:.8rem;line-height:1.5">'+(q.r||[]).map(r=>'<a href="'+wikiUrl(r)+'" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;border-bottom:1px dotted var(--gold);white-space:nowrap">'+esc(r)+'</a>'+(have.includes(r)?' <span style="color:#3a7a3a" title="'+esc(name)+' has this">✔</span>':'')).join(', ')+'</td></tr>'; }).join('');
+  return '<div class="quest-section-label">📜 More '+esc(cls)+' Quests — '+list.length+' on the P99 wiki</div>'
+    +'<div style="border:1px solid var(--border);border-radius:4px;overflow:auto;max-height:520px"><table class="ss-table" style="width:100%"><thead><tr><th>Quest</th><th>Level</th><th>Starts in</th><th>Rewards</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +'<div style="font-size:.75rem;color:var(--text-muted);margin:.3rem 0 1rem">From the P99 wiki&rsquo;s '+esc(cls)+' quest list, minus the quests already in this guide. Faded = above '+esc(name)+'&rsquo;s level.</div>';
+}
 function getQuestCatsHidden(){
   try{return new Set(JSON.parse(localStorage.getItem('mp_quest_cats_hidden')||'[]'));}
   catch{return new Set();}
@@ -7458,10 +7511,12 @@ function renderQuestsPanel(){
     {key:'posky',label:'Plane of Sky'},
     {key:'dozekar',label:'Dozekar Tears'},
     {key:'jboots',label:'Jboots'},
+    {key:'wiki',label:'More quests (P99 wiki)'},
   ];
   const criticalHtml=(QUEST_DB.critical||[]).filter(q=>!_questHidden.has(getQuestCat(q))).map(renderQuest).join('');
   const classQuests=QUEST_DB.classes&&QUEST_DB.classes[cls]?QUEST_DB.classes[cls]:[];
   const classHtml=classQuests.filter(q=>!_questHidden.has(getQuestCat(q))).map(renderQuest).join('');
+  const moreHtml=_questHidden.has('wiki')?'':wikiMoreQuests(cls,name);
   const _configOpen=!!window._questCatConfigOpen;
   const configChips=QUEST_CATS.map(c=>{
     const isVis=!_questHidden.has(c.key);
@@ -7479,6 +7534,7 @@ function renderQuestsPanel(){
       ${criticalHtml||classHtml?'':'<div class="empty-state" style="padding:1rem">No quests to show. Set your class in Character Stats, or enable categories via ⚙.</div>'}
       ${criticalHtml?`<div class="quest-section-label">🌟 Critical Quests — All Classes</div>${criticalHtml}`:''}
       ${classHtml?`<div class="quest-section-label">⚔️ ${esc(cls)} Quests</div>${classHtml}`:''}
+      ${moreHtml}
     </div>`;
 }
 
@@ -15200,7 +15256,8 @@ const BT_ALIAS = {
 let btState = {}, btLastQuake = null, btSortKey = 'in', btLoaded = false, _btBuilt = false, _btIv = null;
 let btAutoSig = null;   // lastQuake / autoSig: legacy quake fields, only passed through on load / save (quakes removed 2026-10-04)
 let btIgnored = [], btIgnoredAt = null;  // last paste's rows that didn't resolve to a kill-tracker boss
-let btParkAck = {};  // target -> the window.open ms it was acknowledged against (auto-stale when window changes)
+// target (or '@loc' for a rolled-up group) -> { until: ms } muted until that window closes (old builds: the open ms)
+let btParkAck = (()=>{ try{ return JSON.parse(localStorage.getItem('mp_park_ack')||'{}')||{}; }catch(e){ return {}; } })();
 // Tracked set: mobs the tracker paste / bot timers cover (it used to scope quakes, removed 2026-10-04).
 // Seeded from the current guild paste; every future paste adds its mobs automatically.
 let btTracked = ['Inny','Telk','Vulak','Kreizenn','Vyemm','Aaryonar','Koi','Mirenilla','Feshlak','Cekenar','Sevalak','Dagarn','Jorlleag','Phara Dar','Zlexak','Cazic Thule','Eashen','Yelinak','Tunare','Dracoliche','Dain','Ikatiar','Dozekar','Tormax','Casalen','Tavekalem','Ymmeln','Grozzmel','Midayor','Trakanon','Lepethida','Prog','Yael','Fright','Velketor','VS','Essedera','MOTG','Dread','TFA'];
@@ -15301,8 +15358,12 @@ function btParkedInLoc(locId, roster){
   // Physically parked (last zone) OR bound here (can gate in) both count as parked.
   return Object.values(roster).some(o => (o.zone && zset.indexOf(parkNormZone(o.zone)) >= 0) || (o.bind && zset.indexOf(parkNormZone(o.bind)) >= 0));
 }
-function btParkAcknowledge(t){ const s = btState[t]; if(s) btParkAck[t] = s.open; btSave(); btRenderParkWarn(); }
-function btParkAckLoc(loc, open){ btParkAck['@'+loc] = open; btSave(); btRenderParkWarn(); }
+function btParkCycleEnd(s){ const now = Date.now(); return s && s.close != null ? s.close : Math.max(s && s.open != null ? s.open : now, now) + 24*BT_HR; }   // unknown width: a day
+function btParkMuted(key, open){ const v = btParkAck[key]; return !!v && (typeof v === 'object' ? Date.now() < v.until : v === open); }
+function btParkAckStore(){ const now = Date.now(); for(const k in btParkAck){ const v = btParkAck[k]; if(v && typeof v === 'object' && v.until < now) delete btParkAck[k]; }
+  try{ localStorage.setItem('mp_park_ack', JSON.stringify(btParkAck)); }catch(e){} btSave(); btRenderParkWarn(); }
+function btParkAcknowledge(t){ const s = btState[t]; if(s) btParkAck[t] = { until: btParkCycleEnd(s) }; btParkAckStore(); }
+function btParkAckLoc(loc, until){ btParkAck['@'+loc] = { until }; btParkAckStore(); }
 // A parked target is green-covered unless its location's mapped bosses are still on timer ('soon') or their
 // timers are unknown ('unknown': amber, the yellow tier). Up / in-window / no-mapped-boss stay green (see btLocHeat).
 function parkCoveredNow(t, roster){
@@ -15320,8 +15381,29 @@ function btNoteTod(target, ms){
   });
 }
 // Banner: bosses within 12h of window (or in window) mapped to a park loc with nobody parked.
+window.parkMenu=function(ev,ack,label){
+  ev.preventDefault();
+  let m=document.getElementById('parkMenu');
+  if(!m){
+    m=document.createElement('div');m.id='parkMenu';
+    m.style.cssText='position:fixed;z-index:9999;display:none;min-width:200px;background:var(--surface2);border:1px solid var(--gold);border-radius:6px;padding:4px 0;box-shadow:0 8px 26px rgba(0,0,0,.4);font-family:\'Crimson Pro\',serif;font-size:.9rem;color:var(--text)';
+    document.body.appendChild(m);
+    document.addEventListener('mousedown',e=>{const x=document.getElementById('parkMenu');if(x&&x.style.display!=='none'&&!x.contains(e.target))x.style.display='none';});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'){const x=document.getElementById('parkMenu');if(x)x.style.display='none';}});
+  }
+  const row=(txt,js,tip)=>'<div title="'+tip+'" onclick="document.getElementById(\'parkMenu\').style.display=\'none\';'+js+'" onmouseover="this.style.background=\'rgba(201,168,76,.15)\'" onmouseout="this.style.background=\'\'" style="padding:.35rem .8rem;cursor:pointer">'+txt+'</div>';
+  m.innerHTML='<div style="padding:.2rem .8rem;font-size:.66rem;color:var(--text-muted);letter-spacing:.06em">'+esc(String(label).toUpperCase())+'</div>'
+    +row('🔕 Mute for this cycle',decodeURIComponent(ack),'Hide this alert until the next spawn window')
+    +row('Turn off all parking alerts',"stgDo('parkwarn','off')",'Settings → Raids → Parking alerts');
+  m.style.display='block';
+  const r=m.getBoundingClientRect();
+  m.style.left=Math.min(ev.clientX,innerWidth-r.width-8)+'px'; m.style.top=Math.min(ev.clientY,innerHeight-r.height-8)+'px';
+  return false;
+};
+function btParkWarnOn(){ try{ return localStorage.getItem('mp_park_warn')!=='0'; }catch(e){ return true; } }
 function btRenderParkWarn(){
   const wrap = document.getElementById('btParkWarn'); if(!wrap) return;
+  if(!btParkWarnOn()){ wrap.innerHTML = ''; return; }   // Settings → Raids → Parking alerts: Off
   if(typeof btLoaded !== 'undefined' && !btLoaded){   // self-load once we're logged in, then re-render
     if(typeof sb !== 'undefined' && sb && typeof currentUser !== 'undefined' && currentUser) btEnsureLoaded().then(btRenderParkWarn);
     return;
@@ -15337,16 +15419,18 @@ function btRenderParkWarn(){
     if(!imminent) continue;
     if(btParkedInLoc(loc, roster)) continue;     // someone is parked
     if(ROLLUP[loc]){                             // collapse the group to its soonest member
-      if(!roll[loc] || st.inMs < roll[loc].st.inMs) roll[loc] = { st, open:s.open, label:ROLLUP[loc] };
+      const end = btParkCycleEnd(s);
+      if(!roll[loc] || st.inMs < roll[loc].st.inMs) roll[loc] = { st, open:s.open, label:ROLLUP[loc], until: Math.max(end, roll[loc] ? roll[loc].until : 0) };
+      else roll[loc].until = Math.max(roll[loc].until, end);
       continue;
     }
-    if(btParkAck[t] === s.open) continue;        // per-boss ack
+    if(btParkMuted(t, s.open)) continue;         // muted for this cycle
     warns.push({ t, st });
   }
   for(const loc in roll){                        // one line per rolled-up group, unless acked
     const r = roll[loc];
-    if(btParkAck['@'+loc] === r.open) continue;
-    warns.push({ rollup:true, loc, open:r.open, st:r.st, label:r.label });
+    if(btParkMuted('@'+loc, r.open)) continue;
+    warns.push({ rollup:true, loc, open:r.open, until:r.until, st:r.st, label:r.label });
   }
   if(!warns.length){ wrap.innerHTML = ''; return; }
   warns.sort((a,b) => a.st.inMs - b.st.inMs);
@@ -15355,9 +15439,9 @@ function btRenderParkWarn(){
     const when = w.st.k === 'open' ? 'in window now' : 'opens in ' + btFmtDur(w.st.inMs);
     const label = w.rollup ? w.label : btLabel(w.t);
     const ack = w.rollup
-      ? "btParkAckLoc('" + w.loc + "'," + w.open + ")"
-      : "btParkAcknowledge(decodeURIComponent('" + encodeURIComponent(w.t) + "'))";
-    return '<div style="display:flex;align-items:center;gap:.4rem;padding:.18rem .5rem;background:rgba(160,120,40,.14);border:1px solid var(--gold);border-radius:4px;margin-bottom:.22rem;white-space:nowrap">' +
+      ? "btParkAckLoc('" + w.loc + "'," + w.until + ")"
+      : "btParkAcknowledge(decodeURIComponent('" + encodeURIComponent(w.t).replace(/'/g,'%27') + "'))";
+    return '<div oncontextmenu="return parkMenu(event,\'' + encodeURIComponent(ack).replace(/'/g,'%27') + '\',decodeURIComponent(\'' + encodeURIComponent(label).replace(/'/g,'%27') + '\'))" title="Right-click: mute for this cycle" style="display:flex;align-items:center;gap:.4rem;padding:.18rem .5rem;background:rgba(160,120,40,.14);border:1px solid var(--gold);border-radius:4px;margin-bottom:.22rem;white-space:nowrap;cursor:context-menu">' +
       '<span style="font-size:.72rem;line-height:1">\u26a0\ufe0f</span>' +
       '<span style="flex:1;min-width:0;font-size:.72rem;overflow:hidden;text-overflow:ellipsis"><b>' + esc(label) + '</b> ' + when + ' \u2014 <span style="color:#c98a3a">no toon parked</span></span>' +
       '<button class="btn" style="font-size:.6rem;padding:.1rem .4rem;flex:0 0 auto" onclick="' + ack + '">Ack</button>' +
@@ -15612,6 +15696,7 @@ window.stgDo=function(what,v){
   else if(what==='aucpop'){ aucAutoPop=v==='on'; stgSet('mp_auc_autopop',aucAutoPop?'1':'0'); aucPush(); }
   else if(what==='wl'){ wlSetCountStyle(v); document.querySelectorAll('input[name="wlCountStyle"]').forEach(r=>{r.checked=r.value===v;}); }
   else if(what==='rkd'){ rkdSetMode(v); }
+  else if(what==='parkwarn'){ stgSet('mp_park_warn',v==='on'?'1':'0'); btRenderParkWarn(); }
   else if(what==='timers'){ _autoTimersEnabled=v==='on'; stgSet('mp_auto_timers',_autoTimersEnabled?'1':'0'); if(typeof sessionPushState==='function') sessionPushState(); }
   else if(what==='zoom'){ stgSet('mp_zoom',v); if(window.MixelParseApp&&window.MixelParseApp.setZoom) window.MixelParseApp.setZoom(+v); }
   else if(what==='login'){ if(window.MixelParseApp&&window.MixelParseApp.setLoginItem) window.MixelParseApp.setLoginItem(v==='on').then(x=>{_stgLogin=x;renderSettingsPanel();}); return; }
@@ -15624,6 +15709,90 @@ window.stgDo=function(what,v){
   else if(what==='update'){ if(window.MixelParseApp&&window.MixelParseApp.checkUpdates){ window.MixelParseApp.checkUpdates(); if(typeof showWatcherToast==='function') showWatcherToast('Checking for updates…'); } return; }
   renderSettingsPanel();
 };
+// ── Wiki updates ────────────────────────────────────────────────────────────────────────────────────────────────
+const WIKI_OWNER='afschmitt1@gmail.com';   // the only account that may apply wiki changes to the shared item database
+function wikiIsOwner(){ return typeof currentUser!=='undefined'&&currentUser&&String(currentUser.email||'').toLowerCase()===WIKI_OWNER; }
+function wikiChkGet(){ try{ return JSON.parse(localStorage.getItem('mp_wiki_chk')||'null'); }catch(e){ return null; } }
+function wikiChkSet(v){ try{ localStorage.setItem('mp_wiki_chk',JSON.stringify(v)); }catch(e){} }
+let _wikiChkBusy=false;
+// one item page → the fields the 10/8 review compares (stats, flags, effect, era, drop source)
+function wikiParseItem(text){
+  const ip=text.indexOf('{{Itempage'); if(ip<0) return null; const body=text.slice(ip);
+  const sb=(body.match(/\|\s*statsblock\s*=([\s\S]*?)\n\s*\|\s*[a-z_]+\s*=/i)||[])[1]; if(!sb) return null;
+  const b=sb.replace(/<br\s*\/?>/gi,'\n').replace(/\[\[([^|\]]*\|)?([^\]]*)\]\]/g,'$2').replace(/<[^>]+>/g,'');
+  const ST={STR:'str',STA:'sta',AGI:'agi',DEX:'dex',WIS:'wis',INT:'int',CHA:'cha',HP:'hpbonus',MANA:'manabonus',AC:'ac','SV FIRE':'svfire','SV COLD':'svcold','SV MAGIC':'svmagic','SV POISON':'svpoison','SV DISEASE':'svdisease'};
+  const o={};
+  for(const [lab,k] of Object.entries(ST)){ const r=b.match(new RegExp('(?:^|\\s)'+lab+':\\s*([+-]?\\d+)','i')); if(r) o[k]=+r[1]; }
+  const h=b.match(/Haste:\s*\+?(\d+)%/i); if(h) o.haste=+h[1];
+  const d=b.match(/DMG:\s*(\d+)/i); if(d) o.dmg=+d[1];
+  const dl=b.match(/(?:Atk )?Delay:\s*(\d+)/i); if(dl) o.delay=+dl[1];
+  o._magic=/MAGIC ITEM/i.test(b); o._lore=/LORE ITEM/i.test(b); o._nodrop=/NO ?DROP/i.test(b);
+  const ef=b.match(/Effect:\s*([^\n(]+?)\s*\(([^)]*)\)/i); if(ef){ o._effect=ef[1].trim(); o._effectType=ef[2].trim(); }
+  const era=text.match(/\{\{\s*([A-Za-z ]+?) Era\s*\}\}/); if(era) o._era=era[1].trim()+' Era';
+  const df=(body.match(/\|\s*dropsfrom\s*=([\s\S]*?)\n\s*\|\s*[a-z_]+\s*=/i)||[])[1]||'';
+  o._fromList=[...new Set([...df.matchAll(/^\s*\*+\s*\[\[([^\]|]+)/gm)].map(m=>m[1].trim()))];
+  return o;
+}
+function wikiItemChanges(name,w){
+  const d=itemDB[name]||{}, out=[], add=(f,from,to)=>out.push({item:name,field:f,from:from===undefined?null:from,to});
+  for(const k of ['str','sta','agi','dex','wis','int','cha','hpbonus','manabonus','ac','svfire','svcold','svmagic','svpoison','svdisease','haste','dmg','delay']){ const a=+(d[k]||0), b=+(w[k]||0); if(a!==b) add(k,d[k],w[k]===undefined?null:w[k]); }
+  for(const k of ['_magic','_lore','_nodrop']) if(!!d[k]!==!!w[k]) add(k,!!d[k],!!w[k]);
+  const et=t=>String(t||'').replace('Any Slot/Can Equip','Any Slot').replace(/\s+/g,' ').trim();
+  if(w._effect!==undefined){ if((d._effect||'')!==w._effect) add('_effect',d._effect,w._effect); if(et(d._effectType)!==et(w._effectType)) add('_effectType',d._effectType,w._effectType); }
+  if(w._era&&!d._era) add('_era',null,w._era);
+  if(w._fromList.length&&!(d._from||'').trim()) add('_from',d._from,w._fromList.join('; '));
+  return out;
+}
+window.wikiCheckNow=async function(manual){
+  if(_wikiChkBusy||!(window.MixelParseApp&&window.MixelParseApp.wikiRecent&&window.MixelParseApp.wikiQuery)) return;
+  if(!_itemDBCloudLoaded){ if(manual&&typeof showWatcherToast==='function') showWatcherToast('⚠ Item database not loaded yet — try again in a moment'); return; }
+  _wikiChkBusy=true; if(activeTopView==='settings') renderSettingsPanel();
+  const prev=wikiChkGet(), since=prev&&prev.at?prev.at:new Date(Date.now()-7*864e5).toISOString(), at=new Date().toISOString();
+  try{
+    const r=await window.MixelParseApp.wikiRecent(since); if(!r||!r.ok) throw new Error((r&&r.error)||'wiki not reachable');
+    const titles=r.titles||[], items=titles.filter(t=>itemDB[t]);
+    const ML=window.MOB_LEVELS, npcs=ML?titles.filter(t=>ML.m[t.replace(/\s*\([^)]*\)\s*$/,'').toLowerCase()]).length:0;
+    const changes=(prev&&!prev.applied?prev.changes||[]:[]).filter(c=>!items.includes(c.item));   // keep unapplied ones from last time
+    for(let i=0;i<items.length;i+=50){
+      const q=await window.MixelParseApp.wikiQuery(items.slice(i,i+50)); if(!q||!q.ok) continue;
+      const pages=(q.data&&q.data.query&&q.data.query.pages)||{};
+      for(const p of Object.values(pages)){ const t=p.revisions?p.revisions[0]['*']:''; const w=t&&wikiParseItem(t); if(w&&itemDB[p.title]) changes.push(...wikiItemChanges(p.title,w)); }
+    }
+    wikiChkSet({at,since,titles:titles.length,items:items.length,npcs,changes,applied:false});
+    if(manual&&typeof showWatcherToast==='function') showWatcherToast('Wiki checked: '+titles.length+' pages changed, '+changes.length+' item update'+(changes.length===1?'':'s'));
+  }catch(e){ wikiChkSet(Object.assign({},prev||{},{err:(e&&e.message)||String(e),errAt:at})); }
+  _wikiChkBusy=false; if(activeTopView==='settings') renderSettingsPanel();
+};
+window.wikiApplyNow=async function(){
+  if(!wikiIsOwner()) return;
+  const c=wikiChkGet(); if(!c||!c.changes||!c.changes.length) return;
+  const names=[...new Set(c.changes.map(x=>x.item))], fields=[...new Set(c.changes.map(x=>x.field))];
+  for(const x of c.changes){ const it=itemDB[x.item]; if(!it) continue; if(x.to===null||(x.to===false&&/^_(magic|lore|nodrop)$/.test(x.field))) delete it[x.field]; else it[x.field]=x.to; }
+  await saveItemDBFields(names,fields);
+  wikiChkSet(Object.assign({},c,{applied:true,appliedAt:new Date().toISOString()}));
+  if(typeof showWatcherToast==='function') showWatcherToast('Applied '+c.changes.length+' wiki update'+(c.changes.length===1?'':'s')+' to '+names.length+' item'+(names.length===1?'':'s'));
+  renderSettingsPanel();
+};
+// desktop: weekly, a few minutes after start
+setTimeout(function(){ try{ const c=wikiChkGet(); if(window.MixelParseApp&&window.MixelParseApp.wikiRecent&&typeof currentUser!=='undefined'&&currentUser&&(!c||!c.at||Date.now()-Date.parse(c.at)>7*864e5)) wikiCheckNow(false); }catch(e){} },180e3);
+function wikiUpdatesCard(card,item){
+  const c=wikiChkGet(), desk=!!(window.MixelParseApp&&window.MixelParseApp.wikiRecent);
+  const when=c&&c.at?lvldFmt((Date.now()-Date.parse(c.at))/60e3)+' ago':'never';
+  let body=item('Wiki changes','MixelParse checks the P99 wiki once a week for edits to items it knows, and lists what would update in the shared item database.',
+    '<div style="margin-top:.45rem;font-size:.9rem">'+(_wikiChkBusy?'Checking the wiki…':'Last checked: <b>'+esc(when)+'</b>'+(c&&c.at?' · '+c.titles+' pages changed · '+c.items+' in your item database · '+c.npcs+' NPCs':''))+'</div>'
+    +(c&&c.err?'<div style="color:#a06020;font-size:.85rem">⚠ '+esc(c.err)+'</div>':'')
+    +(desk?'<button class="btn" onclick="wikiCheckNow(true)" style="font-size:.88rem;padding:.3rem .75rem;margin-top:.45rem"'+(_wikiChkBusy?' disabled':'')+'>⟳ Check now</button>':'<div style="color:var(--text-muted);font-size:.85rem">(desktop app only)</div>'));
+  if(c&&c.changes&&c.changes.length){
+    const FL={str:'STR',sta:'STA',agi:'AGI',dex:'DEX',wis:'WIS',int:'INT',cha:'CHA',hpbonus:'HP',manabonus:'Mana',ac:'AC',svfire:'SV Fire',svcold:'SV Cold',svmagic:'SV Magic',svpoison:'SV Poison',svdisease:'SV Disease',haste:'Haste',dmg:'Damage',delay:'Delay',_magic:'MAGIC',_lore:'LORE',_nodrop:'NO DROP',_effect:'Effect',_effectType:'Effect type',_era:'Era',_from:'Drops from'};
+    const fmt=v=>v===null||v===undefined||v===''?'—':typeof v==='boolean'?(v?'yes':'no'):String(v);
+    body+=item((c.applied?'Applied ':'')+c.changes.length+' item update'+(c.changes.length===1?'':'s')+(c.applied?' ✓':''),c.applied?'Written to the shared item database '+esc(lvldFmt((Date.now()-Date.parse(c.appliedAt))/60e3))+' ago.':'Review — nothing is written until applied.',
+      '<div style="max-height:260px;overflow:auto;margin-top:.45rem;border:1px solid var(--border);border-radius:4px"><table style="width:100%;border-collapse:collapse;font-size:.85rem"><tbody>'
+      +c.changes.slice(0,300).map(x=>'<tr style="border-bottom:1px solid var(--border)"><td style="padding:.25rem .45rem"><a href="'+wikiUrl(x.item)+'" target="_blank" rel="noopener" style="color:var(--gold-light)">'+esc(x.item)+'</a></td><td style="padding:.25rem .45rem;color:var(--text-muted)">'+esc(FL[x.field]||x.field)+'</td><td style="padding:.25rem .45rem;color:#a03030">'+esc(fmt(x.from))+'</td><td style="padding:.25rem .45rem;color:#2f6f2f">'+esc(fmt(x.to))+'</td></tr>').join('')+'</tbody></table></div>'
+      +(!c.applied&&wikiIsOwner()?'<button class="btn primary" onclick="wikiApplyNow()" style="font-size:.88rem;padding:.3rem .75rem;margin-top:.45rem">Apply to the item database</button>':'')
+      +(!c.applied&&!wikiIsOwner()?'<div style="font-size:.82rem;color:var(--text-muted);margin-top:.35rem">Only the MixelParse owner can apply these.</div>':''));
+  }
+  return card('WIKI UPDATES',body);
+}
 function renderSettingsPanel(){
   const panel=document.getElementById('settingsPanel'); if(!panel) return;
   const desk=stgDesktop();
@@ -15666,6 +15835,7 @@ function renderSettingsPanel(){
   h+=card('RAIDS',
     item('Auto-Detect','How raid ticks found in your logs are handled.',
       pick('rkd',rkdMode(),[['watch','Watch','Lists what it finds; never adds anything'],['active','Active','Adds strong matches to the Raid Kill Tracker, asks about the rest']]))+
+    item('Parking alerts','The gold lines under the top bar when a raid target is up or due within 12 hours and nobody is parked there.',pick('parkwarn',btParkWarnOn()?'on':'off',[['on','On'],['off','Off']]))+
     item('Map: spawn timers from kills','Start a spawn timer on the map automatically when a tracked mob dies.',pick('timers',_autoTimersEnabled?'on':'off',[['on','On'],['off','Off — map clicks and /note only']])));
   const all=Object.keys(chars||{}).sort((a,b)=>a.localeCompare(b));
   h+=card('CHARACTERS',
@@ -15680,6 +15850,7 @@ function renderSettingsPanel(){
     (desk?item('Closing the window','What the window&rsquo;s ✕ does.',pick('close',_stgClose||'tray',[['tray','Minimize to tray','MixelParse keeps watching your logs in the background (tray icon → Quit to exit)'],['quit','Quit MixelParse','Closes the app completely']])):'')+
     (desk?item('EQ log files','Logs over 250 MB are archived on their own when idle. Archive any log over 50 MB now — renamed, never deleted.',btn('rotate','Archive large logs now')):'')+
     (desk?item('Start with Windows','Open MixelParse when you sign in to Windows.',pick('login',_stgLogin?'on':'off',[['on','On'],['off','Off']])):''));
+  h+=wikiUpdatesCard(card,item);
   h+=card('ABOUT',
     item('Version','MixelParse '+esc(_stgVer&&_stgVer!=='…'?_stgVer:WHATS_NEW.version)+(desk?' · updates install on their own':''),desk?btn('update','Check for updates'):'')+
     (desk&&_stgCfg?item('EverQuest folders','Where MixelParse reads logs and inventory exports.',
@@ -15752,7 +15923,7 @@ async function btEnsureLoaded(){
   if(btLoaded) return; btLoaded = true;
   try{
     const {data} = await sb.from('guild_data').select('boss_windows').eq('pool','SoV').not('boss_windows','is',null).order('updated_at',{ascending:false}).limit(1).maybeSingle();
-    if(data && data.boss_windows){ btState = data.boss_windows.windows || {}; btLastQuake = data.boss_windows.lastQuake || null; btAutoSig = data.boss_windows.autoSig || null; if(Array.isArray(data.boss_windows.tracked) && data.boss_windows.tracked.length) btTracked = data.boss_windows.tracked; if(Array.isArray(data.boss_windows.ignored)) btIgnored = data.boss_windows.ignored; btIgnoredAt = data.boss_windows.ignoredAt || null; if(data.boss_windows.parkAck) btParkAck = data.boss_windows.parkAck; }
+    if(data && data.boss_windows){ btState = data.boss_windows.windows || {}; btLastQuake = data.boss_windows.lastQuake || null; btAutoSig = data.boss_windows.autoSig || null; if(Array.isArray(data.boss_windows.tracked) && data.boss_windows.tracked.length) btTracked = data.boss_windows.tracked; if(Array.isArray(data.boss_windows.ignored)) btIgnored = data.boss_windows.ignored; btIgnoredAt = data.boss_windows.ignoredAt || null; if(data.boss_windows.parkAck && !Object.keys(btParkAck).length) btParkAck = data.boss_windows.parkAck; }
   }catch(e){ console.warn('[TIMERS] load skipped (run the boss_windows migration?):', e && e.message); }
   for(const k in btState) if(btState[k] && (btState[k].src === 'quake' || btState[k].up)) delete btState[k];   // legacy quake "up" entries (removed 2026-10-04)
   btApplySheetCache();   // the last bot-sheet sync (this PC only) over what was loaded
@@ -17363,6 +17534,61 @@ window.rcAdd=function(charName){
 };
 window.rcRemoveAdded=function(charName,name){ const ov=_rcEnsure(charName); ov.added=ov.added.filter(a=>a.name!==name); _rcCommit(); };
 
+// "Sold in: Zone · merchant" under a raid consume (P99 wiki merchants); nothing when it isn't sold
+function consumeVendorLine(c){
+  const D=wikiData('vendors',()=>{ if(activeSub==='consumes') renderConsumesPanel(); }); if(!D) return '';
+  const names=c.anyOf||[c.name], rows=names.flatMap(n=>itemVendors(n).map(x=>Object.assign({item:n},x))); if(!rows.length) return '';
+  const zones=[...new Set(rows.map(x=>x.zone))];
+  return '<div class="rc-item-note" style="font-style:normal" title="'+esc(zones.map(z=>z+' — '+rows.filter(x=>x.zone===z).map(x=>x.who+(names.length>1?' ('+x.item+')':'')).slice(0,4).join(', ')).join('\n'))+'">🛒 Sold in '+zones.slice(0,3).map(esc).join(', ')+(zones.length>3?' +'+(zones.length-3)+' more':'')+' · <a href="#" onclick="vendorFind(decodeURIComponent(\''+encodeURIComponent(rows[0].item).replace(/'/g,'%27')+'\'));return false" style="color:var(--gold-light)">show merchants →</a></div>';
+}
+// Find a vendor for any item (P99 wiki merchants): a list of matches, then the chosen item's merchants in full
+let _vendorPick='';
+const ZONE_NODE_FIX={'plane of air':'Plane of Sky','cazic thule':'Cazic Thule (Zone)','cazic-thule':'Cazic Thule (Zone)','chardok':'Chardok (Post-Revamp)','kithicor woods':'Kithicor Forest','clan runnyeye':'Runnyeye','infected paw':'Splitpaw Lair','lair of the splitpaw':'Splitpaw Lair','ruins of old guk':'Lower Guk','solusek\'s eye':'Solusek\'s Eye','eastern karana':'Eastern Plains of Karana','northern karana':'Northern Plains of Karana'};
+function zoneNode(name){
+  const G=wikiData('zones'); if(!G||!name) return null; const nz=x=>String(x).toLowerCase().replace(/^the\s+/,'').replace(/[^a-z0-9]/g,'');
+  if(!G._n){ G._n={}; for(const k of Object.keys(G.g)) G._n[nz(k)]=k; for(const [k,v] of Object.entries(G.a)) G._n[nz(k)]=v; for(const [k,v] of Object.entries(ZONE_NODE_FIX)) G._n[nz(k)]=v; }
+  for(const t of [name, String(name).replace(/\s*\([^)]*\)\s*$/,''), String(name).replace(/\s+-\s+.*$/,''), typeof lvldZoneKey==='function'?lvldZoneKey(name):'']){ if(!t) continue; if(G.g[t]) return t; if(G.a[t]) return G.a[t]; const k=G._n[nz(t)]; if(k) return k; }
+  return null;
+}
+function zoneHops(from){ const G=wikiData('zones'), a=zoneNode(from); if(!G||!a) return null; G._h=G._h||{}; if(G._h[a]) return G._h[a];
+  const d={[a]:0}, q=[a]; while(q.length){ const z=q.shift(); for(const n of G.g[z]||[]) if(!(n in d)){ d[n]=d[z]+1; q.push(n); } } return G._h[a]=d; }
+window.vendorFind=function(n){ const i=document.getElementById('vendorSearchIn'); if(!i) return; i.value=n; _vendorPick=n; vendorSearch(n); i.closest('div').parentElement.scrollIntoView({behavior:'smooth',block:'start'}); };
+window.vendorPick=function(n){ _vendorPick=n; vendorSearch(document.getElementById('vendorSearchIn').value); };
+window.vendorSearch=function(q){
+  const out=document.getElementById('vendorSearchOut'); if(!out) return;
+  const D=wikiData('vendors',()=>vendorSearch(q)); if(!D){ out.innerHTML='<span style="color:var(--text-muted)">Loading merchant data…</span>'; return; }
+  q=String(q||'').trim().toLowerCase(); if(q.length<3){ out.innerHTML=''; _vendorPick=''; return; }
+  const all=Object.keys(D.i).filter(n=>n.toLowerCase().includes(q));
+  const hits=all.sort((x,y)=>(x.toLowerCase()===q?-1:0)-(y.toLowerCase()===q?-1:0)||x.length-y.length||x.localeCompare(y)).slice(0,30);
+  if(!hits.length){ out.innerHTML='<span style="color:var(--text-muted)">No merchant sells an item matching &ldquo;'+esc(q)+'&rdquo; &mdash; it&rsquo;s looted or player-made.</span>'; return; }
+  const pick=hits.includes(_vendorPick)?_vendorPick:(hits.length===1||hits[0].toLowerCase()===q?hits[0]:'');
+  const wl=(t,label,col)=>'<a href="'+wikiUrl(t)+'" target="_blank" rel="noopener" style="color:'+(col||'var(--text)')+';text-decoration:none;border-bottom:1px dotted var(--gold)">'+esc(label||t)+'</a>';
+  let html='';
+  if(hits.length>1) html+='<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.45rem">'+hits.map(n=>'<button type="button" onclick="vendorPick(decodeURIComponent(\''+encodeURIComponent(n).replace(/'/g,'%27')+'\'))" style="font:inherit;font-size:.82rem;padding:.12rem .55rem;border-radius:12px;cursor:pointer;border:1px solid '+(n===pick?'var(--gold)':'var(--border)')+';background:'+(n===pick?'rgba(184,137,43,.16)':'var(--surface)')+';color:var(--text);font-weight:'+(n===pick?'700':'400')+'">'+esc(n)+' <span style="color:var(--text-muted)">· '+new Set(itemVendors(n).map(x=>x.zone)).size+'</span></button>').join('')+(all.length>hits.length?'<span style="color:var(--text-muted);font-size:.8rem;align-self:center">+'+(all.length-hits.length)+' more — type more of the name</span>':'')+'</div>';
+  if(!pick){ out.innerHTML=html+'<div style="color:var(--text-muted);font-size:.82rem">Pick an item to see every merchant that sells it.</div>'; return; }
+  // where your characters are now (📍) and bound (⚓), by zone
+  const here={}, bound={};
+  const flagChars=activeTab&&activeTab!=='__all__'&&chars[activeTab]?[activeTab]:Object.keys(chars||{});   // on a character's tab, only that character
+  for(const cn of flagChars){ if(isExcludedChar(cn)||isBanker(cn)) continue; const z=(charZones[cn]||{}).zone; if(z) (here[lvldZoneKey(z)]=here[lvldZoneKey(z)]||[]).push(cn); const bz=mpBindZone(cn); if(bz) (bound[lvldZoneKey(bz)]=bound[lvldZoneKey(bz)]||[]).push(cn); }
+  const ok=cn=>cn&&cn!=='__all__'&&!isExcludedChar(cn)&&!isBanker(cn)&&charZones[cn]&&charZones[cn].zone;
+  const me=ok(activeTab)?activeTab:Object.keys(charZones).filter(ok).sort((x,y)=>String(charZones[y].timestamp||'').localeCompare(String(charZones[x].timestamp||'')))[0];
+  let myZone=me?charZones[me].zone:'', from='in'; if(myZone&&wikiData('zones')&&!zoneNode(myZone)&&me&&mpBindZone(me)){ myZone=mpBindZone(me); from='bound in'; }   // a plane has no zone lines: gate home
+  const H=myZone?zoneHops(myZone):null;
+  if(myZone&&!wikiData('zones',()=>vendorSearch(q))){ out.innerHTML='<span style="color:var(--text-muted)">Loading zone map…</span>'; return; }
+  const rows=itemVendors(pick), byZone={};
+  for(const r of rows) (byZone[r.zone]=byZone[r.zone]||[]).push(r);
+  const zones=Object.keys(byZone).map(z=>{ const k=lvldZoneKey(z), node=zoneNode(z); return {z,rows:byZone[z],here:here[k]||[],bound:bound[k]||[],hops:H&&node&&node in H?H[node]:null}; })
+    .sort((x,y)=>(x.hops===null?999:x.hops)-(y.hops===null?999:y.hops)||(y.here.length?1:0)-(x.here.length?1:0)||x.z.localeCompare(y.z));
+  const away=h=>h===null?'<span style="color:var(--text-muted)">—</span>':h===0?'<b style="color:#2f6f2f">here</b>':h+' zone'+(h===1?'':'s');
+  const th='style="text-align:left;padding:.35rem .5rem;font-family:var(--cinzel);font-size:.7rem;letter-spacing:.06em;color:var(--text-muted);background:var(--surface2);border-bottom:2px solid var(--border);position:sticky;top:0"';
+  html+='<div style="display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap;margin:.2rem 0 .35rem">'+wl(pick,pick,'var(--gold-light)')+'<span style="color:var(--text-muted);font-size:.82rem">sold by '+rows.length+' merchant'+(rows.length===1?'':'s')+' in '+zones.length+' zone'+(zones.length===1?'':'s')+(myZone?' · nearest to <b>'+esc(me)+'</b> '+from+' '+esc(myZone)+' first':'')+' · 📍 a character is there now · ⚓ bound there</span></div>'
+    +'<div style="max-height:380px;overflow:auto;border:1px solid var(--border);border-radius:4px"><table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr><th '+th+'>Zone</th>'+(H?'<th '+th+'>Away</th>':'')+'<th '+th+'>Merchant</th><th '+th+'>Where in the zone</th></tr></thead><tbody>'
+    +zones.map(Z=>Z.rows.map((r,i)=>'<tr style="border-top:'+(i?'1px solid rgba(74,58,26,.12)':'1px solid var(--border)')+(Z.here.length?';background:rgba(47,111,47,.07)':Z.bound.length?';background:rgba(184,137,43,.07)':'')+'">'
+      +(i?'<td></td>'+(H?'<td></td>':''):'<td style="padding:.3rem .5rem;vertical-align:top;white-space:nowrap"><b>'+wl(Z.z)+'</b>'+(Z.here.length?'<div style="font-size:.75rem;color:#2f6f2f">📍 '+Z.here.map(esc).join(', ')+'</div>':'')+(Z.bound.length?'<div style="font-size:.75rem;color:var(--gold)">⚓ '+Z.bound.map(esc).join(', ')+'</div>':'')+'</td>'+(H?'<td style="padding:.3rem .5rem;vertical-align:top;white-space:nowrap;font-variant-numeric:tabular-nums;font-size:.82rem">'+away(Z.hops)+'</td>':''))
+      +'<td style="padding:.3rem .5rem">'+wl(r.who)+'</td><td style="padding:.3rem .5rem;color:var(--text-muted);font-size:.82rem">'+esc(r.note||'')+'</td></tr>').join('')).join('')
+    +'</tbody></table></div>';
+  out.innerHTML=html;
+};
 function renderConsumesPanel(){
   const panel = document.getElementById('consumesPanel');
   const allNames = charNames().filter(n => n !== '__all__');
@@ -17396,6 +17622,7 @@ function renderConsumesPanel(){
           <td>
             <div class="rc-item-name">${nameHtml}</div>
             <div class="rc-item-note">${esc(c.note||'')}</div>
+            ${consumeVendorLine(c)}
           </td>
           <td style="text-align:right;color:${statusColor};font-size:.75rem;font-family:var(--cinzel);letter-spacing:.06em;white-space:nowrap">${statusLabel}</td>
         </tr>`;
@@ -17415,6 +17642,11 @@ function renderConsumesPanel(){
           <span><span class="rc-check-red">✘</span> Missing (required)</span>
           <span><span class="rc-check-na" style="font-size:.85rem">N/A</span> Not applicable</span>
         </div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:4px;padding:.55rem .75rem;margin-bottom:.8rem;display:flex;flex-direction:column;gap:.35rem">
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap"><span style="font-family:var(--cinzel);font-size:.78rem;letter-spacing:.06em;color:var(--gold-light)">🛒 FIND A VENDOR</span>
+          <input id="vendorSearchIn" type="search" placeholder="Item name, e.g. Peridot" oninput="vendorSearch(this.value)" style="flex:1;min-width:180px;font-size:.85rem;padding:.2rem .45rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)"></div>
+        <div id="vendorSearchOut" style="font-size:.85rem"></div>
       </div>
       <div style="border:1px solid var(--border);border-radius:4px;overflow:hidden">
         <table class="rc-table" style="table-layout:auto">
