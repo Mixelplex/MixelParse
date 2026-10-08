@@ -1,9 +1,13 @@
-## 1.7.12
+## 1.7.13
+
+- **⚔ Exact faction hits** — kills now move your factions by the real amount for that mob (for example Vulak: Claws of Veeshan −1000), taken from the P99 wiki for over 4,000 NPCs, instead of a flat ±5. /con now sets your standing for 1,062 NPCs, up from 403.
+- **Fix:** a /con on a frost giant now updates Kromrif (it was Kromzek).
+- **Fix:** price updates from PigParse and ODKP now save only the prices, so they can't overwrite other item details.
+
+Everything from 1.7.12 and earlier is included:
 
 - **⚖ Auction tiles** — auctions show as tiles, three to a column. When more open, the window grows another column to the right (up to four) and shrinks back as they close. Size the window once and every column uses that width.
 - **✕ Ignore an auction** — right-click an auction → Ignore this auction to hide it and stop its outbid and Grats notices. The footer's "ignored · show" brings them back (right-click → Un-ignore).
-
-Everything from 1.7.11 and earlier is included:
 
 - **⚙ Settings** — a Settings button in the header gathers your options in one place: corpse tracking (all / Sky only / off), auctions, the Watch List style, which pop-up notices show, text size, Auto-Detect mode, map auto-timers, characters (character / banker / hidden), the tab MixelParse opens on, what closing the window does, archiving large EQ logs, and Start with Windows. Item Database, UI Copy Tool and Gear Planner Reports moved in there too.
 - **📈 Leveling path: real XP** — leveling times now come from the XP each kill is worth (mob levels from the P99 wiki) instead of counting kills, calibrated on the guild's finished levels. Zones also show a measured XP modifier next to the wiki's guess.

@@ -460,6 +460,25 @@ const _charmedPets      = {};    // { [charName]: Set<lowerPetName> } — known 
 const _prevFactionSaysByChar = {};   // v1.4.18 was prev line a faction/says line? (turn-in detection)
 const _lastDeathByChar  = {};    // v1.4.18 last death-message ts per char (turn-in guard)
 const _petLastTarget    = {};    // { [charName]: mobName } — most recent attack target
+// ── Faction data from the P99 wiki's NPC pages (2026-10-08; regenerate with session-data gen-faction-data.js) ──
+// FACTION_HITS: npc name (lower case) → [[wiki zone, [[faction key, amount], …]], …] — the exact hits for killing it.
+// Faction keys are lower-case letters/digits ("ClawsofVeeshan" in the log → "clawsofveeshan").
+let FACTION_HITS = {};
+try { FACTION_HITS = require('./faction-hits.json'); } catch (e) { console.error('[Watcher] faction-hits.json not loaded:', e.message); }
+const _facKey = s => String(s || '').toLowerCase().replace(/\(faction\)/g, '').replace(/[^a-z0-9]/g, '');
+const _zoneKey = s => String(s || '').toLowerCase().replace(/^the /, '').replace(/[^a-z0-9]/g, '').replace(/s$/, '');
+const _lastKillFac = {};   // { [charName]: { mob, ts } } — the kill whose faction lines follow it (same second)
+// The exact hit for this mob and faction: the page in the character's zone if the mob has several, else the one
+// amount every page agrees on. null = not on the wiki → the old ±5 nudge.
+function factionHitFor(mob, factionLogKey, zone) {
+  const pages = FACTION_HITS[String(mob || '').toLowerCase()]; if (!pages) return null;
+  const fk = _facKey(factionLogKey), zk = _zoneKey(zone);
+  const found = pages.map(([z, h]) => [z, (h.find(x => x[0] === fk) || [])[1]]).filter(x => x[1] != null);
+  if (!found.length) return null;
+  const here = found.find(x => zk && (_zoneKey(x[0]) === zk || _zoneKey(x[0]).includes(zk) || zk.includes(_zoneKey(x[0]))));
+  if (here) return here[1];
+  return found.every(x => x[1] === found[0][1]) ? found[0][1] : null;
+}
 const _pendingSlainMob  = {};    // { [charName]: { mob, ts } } — in-range slain-by
 const _killCredited     = {};    // { [charName]: timestamp } — kill already credited, skip XP
 const _lastLocByChar    = {};    // { [charName]: { x, y, z } } — most recent /loc
@@ -895,6 +914,9 @@ const CON_TARGET_MAP = {
   'a dark elf guard':            'The Dead',
   'a necromancer':               'The Dead',
 };
+// Con table additions from the wiki: 659 NPCs whose own faction (their biggest kill hit) is one MixelParse tracks,
+// plus corrections where the wiki clearly differs (frost giants are Kromrif, not Kromzek).
+try { Object.assign(CON_TARGET_MAP, require('./con-wiki.json')); } catch (e) { console.error('[Watcher] con-wiki.json not loaded:', e.message); }
 
 const CON_WORD_TO_LEVEL = {
   'ally':           'Ally',
@@ -1265,12 +1287,22 @@ function processLogLine(line, charName) {
     return;
   }
 
+  // A kill — its faction lines come right after it, in the same second
+  const _ks = /^\[.+?\] (?:You have slain (.+?)|(.+?) has been slain by .+?)!$/.exec(line);
+  if (_ks) _lastKillFac[charName] = { mob: (_ks[1] || _ks[2]).trim(), ts: _rtLineTs(line) };
+
   // Faction change lines (kill-based): "Your faction standing with X got better/worse."
   const factionBetter = line.match(/Your faction standing with (.+?) got better\./i);
   const factionWorse  = line.match(/Your faction standing with (.+?) got worse\./i);
   if (factionBetter || factionWorse) {
     const factionName = (factionBetter || factionWorse)[1].replace(/\s+/g, '');
-    const delta = factionBetter ? 5 : -5; // conservative default nudge
+    // the exact amount for the mob just killed (P99 wiki); otherwise — quest turn-ins, mobs not on the wiki — the old ±5 nudge
+    let delta = factionBetter ? 5 : -5;
+    const k = _lastKillFac[charName];
+    if (k && Math.abs(_rtLineTs(line) - k.ts) <= 2000) {
+      const exact = factionHitFor(k.mob, factionName, zoneState[charName] && zoneState[charName].zone);
+      if (exact != null && Math.sign(exact) === Math.sign(delta)) delta = exact;
+    }
     applyFactionDelta(charName, factionName, delta, 'kill');
     return;
   }

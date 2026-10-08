@@ -5431,7 +5431,8 @@ const HELP_CONTENT={
     'The watcher reads con results and updates standings automatically as you play.',
     'Each city bar (Skyshrine, Kael Drakkel, Thurgadin) has its own \u2699 button \u2014 click it to show or hide that city\'s standings independently.',
     'In the All Characters view, use the \u2699 button to toggle individual faction rows shown or hidden \u2014 state persists in localStorage.',
-    'Kill faction values update when you kill tracked mobs \u2014 exact per-mob deltas sourced from the P99 wiki.',
+    'Kills move factions by the exact amount for that mob, from the P99 wiki\u2019s NPC pages (4,000+ NPCs). Anything not on the wiki, like quest turn-ins, moves \u00b15.',
+    '/con sets your standing for about 1,060 NPCs whose faction MixelParse tracks.',
   ]},
   sub_skyshrine:{title:'Skyshrine',sub:'Armor quest tracker',tips:[
     'Tracks Skyshrine armor quest progress per character.',
@@ -5493,13 +5494,15 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.12',
+  version:'1.7.13',
   date:'October 2026',
   features:[
-    ['&#9878; Auction tiles','Auctions show as tiles, three to a column. When more open, the window grows another column to the right (up to four) and shrinks back as they close. Size the window once and every column uses that width.'],
-    ['&#10005; Ignore an auction','Right-click an auction &rarr; <b>Ignore this auction</b> to hide it and stop its outbid and Grats notices. The footer&rsquo;s &ldquo;ignored &middot; show&rdquo; brings them back (right-click &rarr; Un-ignore).'],
+    ['&#9876; Exact faction hits','Kills now move your factions by the real amount for that mob (for example Vulak: Claws of Veeshan &minus;1000), taken from the P99 wiki for over 4,000 NPCs, instead of a flat &plusmn;5. /con now sets your standing for 1,062 NPCs, up from 403.'],
   ],
-  fixes:[],
+  fixes:[
+    ['Frost giants','A /con on a frost giant now updates Kromrif (it was Kromzek).'],
+    ['Item prices','Price updates from PigParse and ODKP now save only the prices, so they can&rsquo;t overwrite other item details.'],
+  ],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -6293,6 +6296,30 @@ function loadState(){return false;} // handled by loadFromSupabase
 function saveWatchList(){scheduleSave();}
 function loadWatchList(){} // handled by loadFromSupabase
 function saveItemDB(){saveItemDBToSupabase();}
+// Field-only save: for each item, read its current cloud row and write back that row with only `fields` taken from
+// this client — so a price update never carries this client's (possibly older) copy of the other fields.
+async function saveItemDBFields(names, fields){
+  if(!currentUser||!_itemDBCloudLoaded||!names||!names.length)return;
+  let saved=0;
+  for(let i=0;i<names.length;i+=200){
+    const batch=names.slice(i,i+200);
+    try{
+      const{data,error}=await sb.from('item_db').select('item_name,data').in('item_name',batch);
+      if(error)throw error;
+      const cloud=Object.fromEntries((data||[]).map(r=>[r.item_name,r.data||{}]));
+      const rows=[];
+      for(const n of batch){
+        if(!cloud[n]||!itemDB[n])continue;                       // only rows that exist in both
+        const next=Object.assign({},cloud[n]); let diff=false;
+        for(const f of fields){ const v=itemDB[n][f]; if(JSON.stringify(next[f])!==JSON.stringify(v)){ if(v===undefined)delete next[f]; else next[f]=v; diff=true; } }
+        if(diff)rows.push({item_name:n,data:next,updated_at:new Date().toISOString()});
+        Object.assign(itemDB[n],Object.assign({},cloud[n],Object.fromEntries(fields.filter(f=>itemDB[n][f]!==undefined).map(f=>[f,itemDB[n][f]]))));   // pick up others' changes too
+      }
+      if(rows.length){ const{error:e2}=await sb.from('item_db').upsert(rows,{onConflict:'item_name'}); if(e2)throw e2; saved+=rows.length; }
+    }catch(e){ console.warn('[ItemDB] field save failed for a batch:',e.message||e); }
+  }
+  console.log('[ItemDB] Field save ('+fields.join(', ')+'): '+saved+' row(s) written');
+}
 function loadItemDB(){
   if(Object.keys(BAKED_ITEM_DB).length>0){
     itemDB=Object.assign({},BAKED_ITEM_DB);
@@ -7470,12 +7497,14 @@ function applyDkpToItemDB(){
     if(r60==null||r60<=0)continue;
     const canonical=lcMap[rawName.toLowerCase()];
     if(!canonical)continue;
+    if(itemDB[canonical].dkp===Math.round(r60))continue;      // unchanged — nothing to write
     itemDB[canonical].dkp=Math.round(r60);
     itemDB[canonical]._dkpUpdatedAt=new Date().toISOString();
+    (applyDkpToItemDB._names=applyDkpToItemDB._names||[]).push(canonical);
     updated++;
   }
   if(updated){
-    saveItemDB();
+    saveItemDBFields(applyDkpToItemDB._names.splice(0),['dkp','_dkpUpdatedAt']);
     console.log(`[Bridge] DKP: updated ${updated} items from 60d avg`);
     if(activeSub==='upgrades')renderUpgradesPanel();
   }
@@ -7506,12 +7535,14 @@ function applyPlatToItemDB(){
     // WTS price preferred; fall back to WTB only if no WTS data at all
     const price=(wtsMap[lower]||wtbMap[lower]||0)/stackDivFor(lower);
     if(!price)continue;
+    if(itemDB[canonical].plat===Math.round(price/1000*10)/10)continue;   // unchanged — nothing to write
     itemDB[canonical].plat=Math.round(price/1000*10)/10;
     itemDB[canonical]._platUpdatedAt=new Date().toISOString();
+    (applyPlatToItemDB._names=applyPlatToItemDB._names||[]).push(canonical);
     updated++;
   }
   if(updated){
-    saveItemDB();
+    saveItemDBFields(applyPlatToItemDB._names.splice(0),['plat','_platUpdatedAt']);
     console.log(`[Bridge] Plat: updated ${updated} items from PigParse (WTS preferred, WTB fallback)`);
     if(activeSub==='upgrades')renderUpgradesPanel();
   }
