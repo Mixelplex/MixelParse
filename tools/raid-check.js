@@ -2,6 +2,8 @@
 // Reads the newest lines of EVERY log (file mtimes are unreliable while EQ holds a log open) and
 // looks at the timestamps INSIDE them: a fight in progress has no RAIDTICK yet, so enrage/rampage,
 // raid-channel chat, raid ticks and being in a raid zone all count.
+// 10/8: missed a Cekenar kill (no enrage/rampage, zone line scrolled out of the tail) and the app restarted mid-fight.
+// Now ANY raid tick in the last hour, a CH chain, DKP auctions, or a crowd of casters all count as a raid.
 //   node tools/raid-check.js            (uses MixelParse's configured log folder)
 const fs = require('fs'), path = require('path');
 let logDir = 'C:\\Program Files (x86)\\Sony\\EverQuest\\Logs';
@@ -27,11 +29,14 @@ for (const f of fs.readdirSync(logDir).filter(f => /^eqlog_.+_P1999Green\.txt$/i
     tick: recent(60 * 60e3, /RAID ?TICK/i).length,
     raidChat: recent(15 * 60e3, /tells the raid|You tell your raid/).length,
     fight: recent(10 * 60e3, /ENRAGED|goes on a RAMPAGE|executes a FLURRY/).length,
+    chain: recent(10 * 60e3, /\b(CH|CA \d+)\b.*--|Complete Heal/i).length,
+    dkp: recent(30 * 60e3, /auctions, '.*(BID IN \/AUC|DKP)/i).length,
+    casters: new Set(recent(5 * 60e3, /\] (\w+) begins to cast a spell\./).map(l => /\] (\w+) begins/.exec(l)[1])).size,
   };
   const inRaidZone = zone && RAID_ZONES.test(zone);
-  const hot = sig.fight > 0 || sig.raidChat > 0 || (sig.tick > 0 && inRaidZone);
+  const hot = sig.fight > 0 || sig.raidChat > 0 || sig.tick > 0 || sig.chain > 0 || sig.dkp > 0 || sig.casters >= 12 || inRaidZone;
   if (hot) raid = true;
-  out.push(`${hot ? 'RAID ' : 'quiet'} ${f.replace(/^eqlog_|_P1999Green\.txt$/g, '').padEnd(14)} last line ${new Date(last).toLocaleTimeString()}  zone=${zone || '?'}  ticks/60m=${sig.tick} raidChat/15m=${sig.raidChat} enrage+rampage/10m=${sig.fight}`);
+  out.push(`${hot ? 'RAID ' : 'quiet'} ${f.replace(/^eqlog_|_P1999Green\.txt$/g, '').padEnd(14)} last line ${new Date(last).toLocaleTimeString()}  zone=${zone || '?'}  ticks/60m=${sig.tick} raidChat/15m=${sig.raidChat} enrage+rampage/10m=${sig.fight} chChain/10m=${sig.chain} dkpAuc/30m=${sig.dkp} casters/5m=${sig.casters}`);
 }
 console.log(out.length ? out.join('\n') : 'no character played in the last 15 minutes');
 console.log(raid ? '=> RAID ACTIVE - do not restart MixelParse' : '=> clear');

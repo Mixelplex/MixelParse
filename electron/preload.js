@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   // Farm Targets wiki crawl (v1.3.5) — sandbox-safe, ipcRenderer only
   farmCrawl:      (pages) => ipcRenderer.invoke('farm:crawl', pages),
   wikiQuery:      (titles) => ipcRenderer.invoke('wiki:query', titles),   // Wiki Check (≤50 titles)
+  wikiRecent:     (since)  => ipcRenderer.invoke('wiki:recent', since),   // Settings → Wiki updates
   odkpGet:        (path) => ipcRenderer.invoke('odkp:get', path),       // Castle OpenDKP read-only API
   rotateLogs:     (opts)  => ipcRenderer.invoke('logs:rotate', opts),
   onFarmProgress: (cb)    => ipcRenderer.on('farm:progress', (e, p) => cb(p)),

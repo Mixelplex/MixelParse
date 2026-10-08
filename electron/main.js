@@ -518,6 +518,26 @@ ipcMain.handle('farm:crawl', async (e, pages) => {
 // Wiki Check (admin): fetch ≤50 page wikitexts via the P99 wiki's MediaWiki API. Runs
 // here because the wiki sends no CORS headers, so renderer fetch() is blocked. Host is
 // fixed; input is only a list of titles. The caller paces requests (1/sec).
+// Recent changes on the P99 wiki since an ISO date — article titles only (Settings → Wiki updates, 2026-10-08)
+ipcMain.handle('wiki:recent', async (e, since) => {
+  const end = new Date(since || Date.now() - 7 * 864e5).toISOString();
+  const titles = new Set(); let cont = '';
+  for (let k = 0; k < 20; k++) {
+    const url = 'https://wiki.project1999.com/api.php?action=query&format=json&list=recentchanges&rcnamespace=0&rclimit=500&rcprop=title|timestamp&rctype=edit|new&rcend=' + encodeURIComponent(end) + cont;
+    const j = await new Promise((resolve) => {
+      let req; try { req = net.request({ method: 'GET', url, redirect: 'follow' }); } catch (err) { return resolve(null); }
+      req.setHeader('User-Agent', 'MixelParse Wiki Updates (github.com/Mixelplex/MixelParse)');
+      const timer = setTimeout(() => { try { req.abort(); } catch {} resolve(null); }, 20000);
+      req.on('response', (res) => { const dec = new StringDecoder('utf8'); let body = ''; res.on('data', c => { body += dec.write(c); }); res.on('end', () => { clearTimeout(timer); body += dec.end(); try { resolve(JSON.parse(body)); } catch { resolve(null); } }); });
+      req.on('error', () => { clearTimeout(timer); resolve(null); }); req.end();
+    });
+    if (!j || !j.query) return { ok: false, error: 'wiki not reachable' };
+    for (const r of j.query.recentchanges || []) titles.add(r.title);
+    const c = (j['query-continue'] && j['query-continue'].recentchanges) || j.continue;
+    if (c && c.rccontinue) cont = '&rccontinue=' + encodeURIComponent(c.rccontinue); else if (c && c.rcstart) cont = '&rcstart=' + encodeURIComponent(c.rcstart); else break;
+  }
+  return { ok: true, titles: [...titles] };
+});
 ipcMain.handle('wiki:query', async (e, titles) => {
   const list = (Array.isArray(titles) ? titles : []).filter(t => typeof t === 'string' && t.length && t.length <= 200).slice(0, 50);
   if (!list.length) return { ok: false, error: 'no titles' };

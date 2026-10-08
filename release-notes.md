@@ -1,10 +1,18 @@
-## 1.7.13
+## 1.7.14
+
+- **🛒 Find a vendor** — Raid Consumes has a vendor search: type an item and see every merchant that sells it, with the zone, the merchant and where they stand, all linked to the P99 wiki. The closest zones to your character come first, with how many zones away each one is. Consume rows have a "show merchants" link too.
+- **📜 Spell sources** — the Spells tab shows where to buy each spell you're missing, grouped by zone with the merchants' names, and which ones only drop.
+- **📜 More class quests** — Quests lists every quest for your class from the P99 wiki that the guide doesn't cover: epic first, then by level, with the start zone, the quest giver and the rewards, each linked to the wiki. ✔ marks rewards you already have.
+- **🔕 Parking alerts** — right-click a "no toon parked" alert → Mute for this cycle. Settings → Raids → Parking alerts turns them off completely.
+- **⚙ Wiki updates** — Settings shows what changed on the P99 wiki for items in the item database each week.
+- **Fix:** acknowledging a parking alert now keeps it hidden until that window closes. Before, it came back when the window opened or after a restart.
+- **Fix:** buttons for names with an apostrophe (like Vulak'Aerr) work again.
+
+Everything from 1.7.13 and earlier is included:
 
 - **⚔ Exact faction hits** — kills now move your factions by the real amount for that mob (for example Vulak: Claws of Veeshan −1000), taken from the P99 wiki for over 4,000 NPCs, instead of a flat ±5. /con now sets your standing for 1,062 NPCs, up from 403.
 - **Fix:** a /con on a frost giant now updates Kromrif (it was Kromzek).
 - **Fix:** price updates from PigParse and ODKP now save only the prices, so they can't overwrite other item details.
-
-Everything from 1.7.12 and earlier is included:
 
 - **⚖ Auction tiles** — auctions show as tiles, three to a column. When more open, the window grows another column to the right (up to four) and shrinks back as they close. Size the window once and every column uses that width.
 - **✕ Ignore an auction** — right-click an auction → Ignore this auction to hide it and stop its outbid and Grats notices. The footer's "ignored · show" brings them back (right-click → Un-ignore).
