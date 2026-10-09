@@ -5527,20 +5527,13 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.15',
+  version:'1.7.16',
   date:'October 2026',
   features:[
-    ['&#127873; Loot per kill','Every boss kill Auto-Detect finds now has its loot: what the officers auctioned, who won it and for how much. Click &ldquo;&#127873; N drops&rdquo; under the boss in Auto-Detect or the Raid Kill Tracker. Missed the auction? Guild chat (&ldquo;what did it drop?&rdquo;) and ODKP fill it in.'],
-    ['&#9878; Avail to spend','The auction window shows your DKP, minus wins ODKP hasn&rsquo;t charged yet. Click it for the breakdown. Right-click an auction &rarr; I won this (or + Add a win) if one was missed.'],
-    ['&#128200; Gear Planner DKP','The stat sheet lists each pick&rsquo;s DKP cost under the total. Quest rewards are priced from their parts (Silver Charm of Tranquility ~1,279), and items with no recent sale use their all-time average.'],
-    ['&#9876; Epic progress','Quests shows your class epic step by step from the P99 wiki, with &#10004; on the pieces you hold and what&rsquo;s next.'],
-    ['&#127919; Farm Targets mobs','Each mob shows its level, respawn and drop rate; hover for its spawn loc and special abilities.'],
-    ['&#128100; Who took the tick','Auto-Detect shows who called each RAIDTICK under its time.'],
+    ['&#128228; Submit logs for review (optional)','Seeing a problem? &#9881; Admin &rarr; <b>Submit logs for review</b> sends your logs, a description and an optional screenshot so it can be found and fixed. <b>It&rsquo;s completely optional, and every tell is removed on your PC before anything is sent.</b> Submissions are stored privately &mdash; only you and the MixelParse owner can read them &mdash; and you can delete yours any time from the same page.'],
+    ['&#128274; Privacy','Settings &rarr; About now says plainly what stays on your PC and what MixelParse saves to your account. Your EQ log files never leave your PC unless you choose to submit them.'],
   ],
-  fixes:[
-    ['Auto-Detect','Much faster to open. Cazic Thule&rsquo;s idle shout no longer looks like a fight, and a tick taken mid-fight counts as the same kill.'],
-    ['Auctions','Officer grats relayed in guild chat count. The window no longer reopens on re-announces or ignored auctions.'],
-  ],
+  fixes:[],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -5548,6 +5541,7 @@ function showWhatsNew(){
   const li=(tag,[title,desc])=>`<li class="wn-item"><span class="wn-tag wn-tag-${tag}">${tag==='new'?'NEW':'FIX'}</span><span><b>${title}</b> &mdash; ${desc}</span></li>`;
   document.getElementById('whatsNewFeatures').innerHTML=WHATS_NEW.features.map(f=>li('new',f)).join('');
   document.getElementById('whatsNewFixes').innerHTML=WHATS_NEW.fixes.map(f=>li('fix',f)).join('');
+  { const fx=document.getElementById('whatsNewFixes'), hd=fx&&fx.previousElementSibling; if(hd&&hd.classList.contains('wn-section-hdr')) hd.style.display=WHATS_NEW.fixes.length?'':'none'; }
   document.getElementById('whatsNewOverlay').classList.add('open');
 }
 function dismissWhatsNew(){
@@ -16043,6 +16037,95 @@ window.wikiApplyNow=async function(){
 };
 // desktop: weekly, a few minutes after start
 setTimeout(function(){ try{ const c=wikiChkGet(); if(window.MixelParseApp&&window.MixelParseApp.wikiRecent&&typeof currentUser!=='undefined'&&currentUser&&(!c||!c.at||Date.now()-Date.parse(c.at)>7*864e5)) wikiCheckNow(false); }catch(e){} },180e3);
+// ── Submit logs for review ──────────────────────────────────────────────────────────────────────────────────
+// Optional and user-started (⚙ Admin → Submit logs for review). The desktop app reads the chosen characters' logs for the
+// last N days, REMOVES EVERY TELL, gzips them; they go to the private Storage bucket "log-reviews" with a manifest
+// (version, Auto-Detect history, sessions, loot) and an optional screenshot. The owner's MixelParse downloads new
+// submissions to a folder on the owner's PC. SQL: tools/supabase/log_reviews.sql
+window.reviewCharList=function(){ return (typeof charNames==='function'?charNames():[]).filter(n=>n&&n!=='__all__'&&!isExcludedChar(n)&&!isBanker(n)).map(n=>({name:n,cls:(charMeta[n]||{}).class||'',lvl:(charMeta[n]||{}).level||''})); };
+window.reviewSignedIn=function(){ return !!(typeof currentUser!=='undefined'&&currentUser&&currentUser.id); };
+window.reviewDesktop=function(){ return !!(window.MixelParseApp&&window.MixelParseApp.reviewCollect); };
+window.reviewSubmit=async function(o,progress){
+  const A=window.MixelParseApp, say=m=>{ try{ progress&&progress(m); }catch(e){} };
+  if(!A||!A.reviewCollect) throw new Error('Submitting logs works in the desktop app only.');
+  if(!reviewSignedIn()) throw new Error('Sign in to MixelParse first.');
+  if(!o||!o.chars||!o.chars.length) throw new Error('Pick at least one character.');
+  if(!String(o.description||'').trim()) throw new Error('Describe the problem first.');
+  say('Reading your logs and removing tells…');
+  const r=await A.reviewCollect({chars:o.chars,days:o.days}); if(!r||!r.ok) throw new Error((r&&r.error)||'Could not read the logs.');
+  if(!r.files.length) throw new Error('No log lines found for those characters in the last '+r.days+' days.');
+  const id=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random().toString(36).slice(2)), base=currentUser.id+'/'+id+'/', B=sb.storage.from('log-reviews'), files=[];
+  for(const f of r.files){
+    const name=f.char+(f.part?'.part'+f.part:'')+'.txt.gz';
+    say('Uploading '+name+' ('+(f.bytes/1048576).toFixed(1)+' MB)…');
+    const {error}=await B.upload(base+name,new Blob([f.gz],{type:'application/gzip'}),{upsert:false,contentType:'application/gzip'}); if(error) throw new Error(error.message);
+    files.push({path:base+name,char:f.char,part:f.part||0,bytes:f.bytes,raw_bytes:f.raw_bytes,lines:f.lines,tells_removed:f.tells_removed,first:f.first,last:f.last,sources:f.sources});
+  }
+  const since=Date.now()-r.days*864e5, safe=f=>{ try{ return f(); }catch(e){ return null; } };
+  const manifest={v:1,app_version:(typeof WHATS_NEW!=='undefined'?WHATS_NEW.version:null),submitted:new Date().toISOString(),tz:safe(()=>Intl.DateTimeFormat().resolvedOptions().timeZone),tzOffsetMin:new Date().getTimezoneOffset(),
+    user:currentUser.email||null,days:r.days,description:String(o.description),chars:reviewCharList().filter(c=>o.chars.includes(c.name)),allChars:reviewCharList().map(c=>c.name),
+    bankers:safe(()=>bankerRegistry.slice()),hidden:safe(()=>excludedChars.slice()),files,
+    autoDetect:{mode:safe(()=>rkdMode()),log:safe(()=>rkdLog.filter(x=>(x.ts||0)>=since))},
+    sessions:safe(()=>raidSessions.filter(x=>(Date.parse(x.startedAt||x.date||0)||0)>=since-864e5)),
+    loot:safe(()=>lootLog.filter(x=>(x.open||0)>=since)),aucPending:safe(()=>aucPending.slice()),
+    settings:{autoTimers:safe(()=>_autoTimersEnabled),auctions:safe(()=>aucEnabled),parkAlerts:safe(()=>btParkWarnOn())}};
+  say('Uploading the details…');
+  { const {error}=await B.upload(base+'manifest.json',new Blob([JSON.stringify(manifest)],{type:'application/json'}),{upsert:false,contentType:'application/json'}); if(error) throw new Error(error.message); }
+  if(o.shot){ say('Uploading the screenshot…'); const blob=await (await fetch(o.shot)).blob(); const {error}=await B.upload(base+'screenshot.png',blob,{upsert:false,contentType:blob.type||'image/png'}); if(error) throw new Error(error.message); }
+  const {error}=await sb.from('log_reviews').insert({id,user_id:currentUser.id,user_email:currentUser.email||null,app_version:manifest.app_version,chars:o.chars,days:r.days,description:String(o.description).slice(0,5000),files,has_screenshot:!!o.shot});
+  if(error) throw new Error(error.message);
+  return {id,files:files.length,lines:files.reduce((t,f)=>t+f.lines,0),tells:files.reduce((t,f)=>t+f.tells_removed,0),bytes:files.reduce((t,f)=>t+f.bytes,0)};
+};
+// your own submissions (RLS: only yours) and deleting one — files and record
+window.reviewMine=async function(){
+  if(!reviewSignedIn()) return [];
+  const {data,error}=await sb.from('log_reviews').select('id,created_at,chars,days,files,has_screenshot,status,description').eq('user_id',currentUser.id).order('created_at',{ascending:false});
+  if(error) throw new Error(error.message);
+  return data||[];
+};
+window.reviewDelete=async function(id){
+  if(!reviewSignedIn()) throw new Error('Sign in first.');
+  const {data:r,error:e1}=await sb.from('log_reviews').select('id,user_id,files,has_screenshot').eq('id',id).eq('user_id',currentUser.id).maybeSingle();
+  if(e1) throw new Error(e1.message); if(!r) throw new Error('Not found.');
+  const base=r.user_id+'/'+r.id+'/', paths=[...(r.files||[]).map(f=>f.path), base+'manifest.json', ...(r.has_screenshot?[base+'screenshot.png']:[])];
+  const {error:e2}=await sb.storage.from('log-reviews').remove(paths); if(e2) throw new Error(e2.message);
+  const {error:e3}=await sb.from('log_reviews').delete().eq('id',id).eq('user_id',currentUser.id); if(e3) throw new Error(e3.message);
+  return true;
+};
+// owner: download new submissions to <Desktop>\MixelParse-Source\log-reviews\<date>_<char>_<id>\ (logs stay .gz)
+let _revSyncBusy=false, _revSync=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_review_sync')||'null'); }catch(e){ return null; } })();
+window.reviewSyncOwner=async function(manual){
+  const A=window.MixelParseApp; if(_revSyncBusy||!wikiIsOwner()||!A||!A.reviewSave) return;
+  _revSyncBusy=true; let got=0, total=0, err=null;
+  try{
+    const {data,error}=await sb.from('log_reviews').select('*').order('created_at',{ascending:false}).limit(200); if(error) throw error;
+    total=(data||[]).length;
+    for(const r of data||[]){
+      const who=((r.chars&&r.chars[0])||String(r.user_email||'user').split('@')[0]).replace(/[^\w]/g,''), folder=String(r.created_at).slice(0,10)+'_'+who+'_'+String(r.id).slice(0,8);
+      if(await A.reviewHas(folder,'README.md')) continue;
+      const paths=[...(r.files||[]).map(f=>f.path), r.user_id+'/'+r.id+'/manifest.json', ...(r.has_screenshot?[r.user_id+'/'+r.id+'/screenshot.png']:[])];
+      let ok=true;
+      for(const p of paths){ const {data:blob,error:e2}=await sb.storage.from('log-reviews').download(p); if(e2||!blob){ ok=false; continue; } await A.reviewSave(folder,p.split('/').pop(),new Uint8Array(await blob.arrayBuffer())); }
+      if(!ok) continue;   // try again next time
+      await A.reviewSave(folder,'README.md','# Log review — '+who+'\n\n- Submitted: '+new Date(r.created_at).toLocaleString()+'\n- By: '+(r.user_email||'?')+'\n- MixelParse: '+(r.app_version||'?')+'\n- Characters: '+(r.chars||[]).join(', ')+'\n- Last '+r.days+' days\n- Files: '+(r.files||[]).map(f=>f.path.split('/').pop()+' ('+f.lines+' lines, '+f.tells_removed+' tells removed)').join('; ')+(r.has_screenshot?'\n- Screenshot: screenshot.png':'')+'\n- Submission id: '+r.id+'\n\n## The problem, in their words\n\n'+(r.description||'')+'\n');
+      if(r.status==='new') await sb.from('log_reviews').update({status:'downloaded',downloaded_at:new Date().toISOString()}).eq('id',r.id);
+      got++;
+    }
+  }catch(e){ err=(e&&e.message)||String(e); }
+  _revSync={at:Date.now(),got,total,err}; try{ localStorage.setItem('mp_review_sync',JSON.stringify(_revSync)); }catch(e){}
+  _revSyncBusy=false;
+  if((manual||got)&&typeof showWatcherToast==='function') showWatcherToast(err?'⚠ Log reviews: '+err:'📥 Log reviews: '+(got?got+' new submission'+(got===1?'':'s')+' saved':'nothing new'));
+  if(typeof activeTopView!=='undefined'&&activeTopView==='settings') renderSettingsPanel();
+};
+setTimeout(()=>{ try{ reviewSyncOwner(false); }catch(e){} },90e3);
+setInterval(()=>{ try{ reviewSyncOwner(false); }catch(e){} },15*60e3);
+function reviewOwnerCard(card,item){
+  const c=_revSync, desk=!!(window.MixelParseApp&&window.MixelParseApp.reviewSave);
+  return card('LOG REVIEWS',item('Submitted logs','Players can submit their logs (tells removed) from ⚙ Admin → Submit logs for review. Your MixelParse saves new ones to your PC every 15 minutes.',
+    '<div style="margin-top:.45rem;font-size:.9rem">'+(_revSyncBusy?'Checking…':c&&c.at?'Last checked '+esc(lvldFmt((Date.now()-c.at)/60e3))+' ago · '+c.total+' submission'+(c.total===1?'':'s')+(c.got?' · '+c.got+' new saved':''):'Not checked yet')+'</div>'
+    +(c&&c.err?'<div style="color:#a06020;font-size:.85rem">⚠ '+esc(c.err)+(/log_reviews|bucket/i.test(c.err)?' — run tools/supabase/log_reviews.sql in Supabase':'')+'</div>':'')
+    +(desk?'<div style="display:flex;gap:.4rem;margin-top:.45rem"><button class="btn" onclick="reviewSyncOwner(true)" style="font-size:.88rem;padding:.3rem .75rem">⟳ Check now</button><button class="btn" onclick="window.MixelParseApp.reviewOpen()" style="font-size:.88rem;padding:.3rem .75rem">📂 Open folder</button></div>':'')));
+}
 function wikiUpdatesCard(card,item){
   const c=wikiChkGet(), desk=!!(window.MixelParseApp&&window.MixelParseApp.wikiRecent);
   const when=c&&c.at?lvldFmt((Date.now()-Date.parse(c.at))/60e3)+' ago':'never';
@@ -16119,8 +16202,10 @@ function renderSettingsPanel(){
     (desk?item('EQ log files','Logs over 250 MB are archived on their own when idle. Archive any log over 50 MB now — renamed, never deleted.',btn('rotate','Archive large logs now')):'')+
     (desk?item('Start with Windows','Open MixelParse when you sign in to Windows.',pick('login',_stgLogin?'on':'off',[['on','On'],['off','Off']])):''));
   h+=wikiUpdatesCard(card,item);
+  if(wikiIsOwner()) h+=reviewOwnerCard(card,item);
   h+=card('ABOUT',
     item('Version','MixelParse '+esc(_stgVer&&_stgVer!=='…'?_stgVer:WHATS_NEW.version)+(desk?' · updates install on their own':''),desk?btn('update','Check for updates'):'')+
+    item('Privacy','<b>Your EQ log files never leave your PC unless you choose to submit them</b> (⚙ Admin → Submit logs for review — optional). A submission has <b>every tell removed</b> on your PC first, is stored privately where only you and the MixelParse owner can read it, and you can delete it any time. MixelParse does save your settings, raid sessions and leveling summaries to your account, as it always has.','')+
     (desk&&_stgCfg?item('EverQuest folders','Where MixelParse reads logs and inventory exports.',
       '<div style="font-size:.84rem;margin-top:.35rem;line-height:1.6"><b>EverQuest:</b> '+esc(_stgCfg.eqDir||'—')+'<br><b>Logs:</b> '+esc(_stgCfg.logDir||'—')+'</div>'):''));
   h+='</div>';

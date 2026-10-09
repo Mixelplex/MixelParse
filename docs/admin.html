@@ -53,6 +53,18 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .sb-section { font-family: var(--cinzel); font-size: .55rem; letter-spacing: .12em; color: var(--text-m); padding: .8rem 1rem .25rem; text-transform: uppercase; }
 .sb-item { display: flex; align-items: center; gap: .5rem; padding: .4rem 1rem; cursor: pointer; border-left: 2px solid transparent; transition: all .12s; font-size: .82rem; color: var(--text-d); }
 .sb-item:hover { background: var(--surface2); color: var(--text); border-left-color: var(--border2); }
+.rv-notice{border:3px solid var(--gold-l);background:linear-gradient(180deg,rgba(232,176,64,.14),rgba(232,176,64,.05));border-radius:10px;padding:1.1rem 1.3rem;margin-bottom:1.1rem}
+.rv-notice h2{font-family:var(--cinzel);font-size:1.45rem;letter-spacing:.06em;color:var(--gold-l);margin:0 0 .5rem}
+.rv-notice .big{font-size:1.15rem;line-height:1.55;color:var(--text)}
+.rv-notice .big b{color:var(--gold-l)}
+.rv-box{border:1px solid var(--border2);background:var(--surface);border-radius:8px;padding:.9rem 1rem;margin-bottom:.9rem}
+.rv-box h3{font-family:var(--cinzel);font-size:.78rem;letter-spacing:.1em;color:var(--gold);margin:0 0 .55rem}
+.rv-chars{display:flex;flex-wrap:wrap;gap:.35rem .9rem}
+.rv-chars label{display:flex;align-items:center;gap:.35rem;font-size:.9rem;cursor:pointer}
+.rv-chars small{color:var(--text-m)}
+#rvDesc{width:100%;min-height:120px;background:var(--bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;padding:.55rem .65rem;font:inherit;font-size:.95rem;resize:vertical}
+#rvShotPrev{max-width:360px;max-height:220px;border:1px solid var(--border2);border-radius:6px;display:block;margin-top:.5rem}
+#rvStatus{font-size:.95rem;margin-top:.6rem}
 .sb-item.active { background: rgba(200,144,26,.08); color: var(--gold-l); border-left-color: var(--gold); }
 .sb-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-m); flex-shrink: 0; }
 .sb-dot.pass { background: var(--green-l); }
@@ -141,6 +153,11 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
   <div class="sb-logo">
     <div class="sb-logo-title">&#9741; MIXELPARSE</div>
     <div class="sb-logo-sub">Admin Diagnostics v1.0</div>
+  </div>
+
+  <div class="sb-section">Help</div>
+  <div class="sb-item" data-suite="review" onclick="showSuite('review',this)" style="color:var(--gold-l);font-weight:600">
+    &#128228; Submit logs for review
   </div>
 
   <div class="sb-section">Overview</div>
@@ -313,6 +330,63 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
       <div class="sum-card"><div class="sum-label">FAILED</div><div class="sum-val fail" id="sumFail">—</div></div>
       <div class="sum-card"><div class="sum-label">WARNINGS</div><div class="sum-val warn" id="sumWarn">—</div></div>
       <div class="sum-card"><div class="sum-label">TOTAL</div><div class="sum-val total" id="sumTotal">—</div></div>
+    </div>
+
+    <!-- SUBMIT LOGS FOR REVIEW -->
+    <div id="suite-review" class="suite">
+      <div class="rv-notice">
+        <h2>&#128274; THIS IS OPTIONAL &mdash; AND YOUR TELLS ARE REMOVED</h2>
+        <div class="big">Nothing is sent unless <b>you</b> press <b>Submit</b>.<br>
+        Every private <b>tell</b> (to you, or from you) is <b>deleted from the logs on your PC before anything is uploaded</b>.<br>
+        Only the MixelParse owner can read what you submit &mdash; it's used to find and fix problems in MixelParse.</div>
+      </div>
+      <div class="rv-box" style="border-color:var(--gold-d)">
+        <h3>&#128274; YOUR PRIVACY</h3>
+        <ul style="margin:.2rem 0 0 1.1rem;line-height:1.65;font-size:.92rem;color:var(--text)">
+          <li><b>Optional.</b> MixelParse never sends your log files on its own. They only leave your PC when <b>you</b> press <b>Submit</b> on this page.</li>
+          <li><b>Tells are removed first.</b> Every private tell &mdash; to you or from you, including pet tells &mdash; is deleted from the copy on your PC <b>before</b> anything is uploaded. Your log files themselves are never changed.</li>
+          <li><b>Private storage.</b> Submissions go to a private, locked storage area. <b>Only you and the MixelParse owner can read them</b> &mdash; not other players, not other guild members.</li>
+          <li><b>What's sent:</b> the logs of the characters and days you pick (minus tells), your problem description, your screenshot if you add one, and MixelParse's own records for those days (Auto-Detect history, raid sessions, loot) and its version.</li>
+          <li><b>What's never sent:</b> tells, passwords, your EverQuest account, or any other file on your PC.</li>
+          <li><b>Used for one thing:</b> finding and fixing problems in MixelParse.</li>
+          <li><b>Delete any time:</b> your submissions are listed below with a Delete button. (If the owner already saved a copy for review, ask and it will be deleted.)</li>
+        </ul>
+      </div>
+      <div class="suite-title">SUBMIT LOGS FOR REVIEW</div>
+      <div class="suite-desc">Seeing something wrong &mdash; a missed kill, a wrong tick, an auction that didn't show? Tell us what happened and send your logs so it can be found and fixed.</div>
+
+      <div class="rv-box">
+        <h3>1 &middot; WHAT'S THE PROBLEM?</h3>
+        <textarea id="rvDesc" placeholder="e.g. Auto-Detect added Cazic Thule twice on 10/8, and missed the Trakanon failtick around 9 PM."></textarea>
+      </div>
+      <div class="rv-box">
+        <h3>2 &middot; SCREENSHOT (OPTIONAL)</h3>
+        <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+          <label class="btn" style="cursor:pointer">&#128247; Choose image<input type="file" id="rvShotFile" accept="image/*" style="display:none" onchange="rvPickShot(this.files[0])"></label>
+          <span style="color:var(--text-d);font-size:.88rem">or press <b>Ctrl+V</b> here to paste one</span>
+          <button class="btn" id="rvShotClear" onclick="rvSetShot(null)" style="display:none">&#10005; Remove</button>
+        </div>
+        <img id="rvShotPrev" alt="" style="display:none">
+      </div>
+      <div class="rv-box">
+        <h3>3 &middot; WHICH LOGS?</h3>
+        <div class="rv-chars" id="rvChars"></div>
+        <div style="margin-top:.6rem;font-size:.9rem">From the last
+          <select id="rvDays" style="background:var(--bg);color:var(--text);border:1px solid var(--border2);border-radius:4px;padding:.1rem .3rem">
+            <option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option><option value="30">30 days</option>
+          </select>
+          <span style="color:var(--text-m)">&nbsp;Your logs plus MixelParse's Auto-Detect history, raid sessions and loot for those days, and the MixelParse version. Tells are removed. Nothing else on your PC is sent.</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:.6rem;align-items:center">
+        <button class="btn primary" id="rvSubmit" onclick="rvSubmit()" style="font-size:1rem;padding:.5rem 1.4rem">&#128228; Submit logs for review</button>
+        <span style="color:var(--text-m);font-size:.85rem">Optional &middot; tells removed</span>
+      </div>
+      <div id="rvStatus"></div>
+      <div class="rv-box" style="margin-top:1.1rem">
+        <h3>YOUR SUBMISSIONS</h3>
+        <div id="rvMine" style="font-size:.9rem;color:var(--text-d)">&mdash;</div>
+      </div>
     </div>
 
     <!-- OVERVIEW SUITE -->
@@ -2447,6 +2521,71 @@ function showSuite(id, el) {
   if (el) el.classList.add('active');
   if (id === 'bridge') renderLiveBridge();
   if (id === 'gearchecker') gcInit();
+  if (id === 'review') rvInit();
+}
+// ── Submit logs for review ──
+let _rvShot = null;
+function rvSetStatus(html, color){ const el = document.getElementById('rvStatus'); el.innerHTML = html; el.style.color = color || 'var(--text-d)'; }
+function rvInit(){
+  const O = window.opener, el = document.getElementById('rvChars');
+  if (!O || !O.reviewCharList) { el.innerHTML = '<span style="color:var(--amber-l)">Open this from the MixelParse app (&#9881; Admin) to submit logs.</span>'; document.getElementById('rvSubmit').disabled = true; return; }
+  if (el.dataset.ready) return; el.dataset.ready = '1';
+  const list = O.reviewCharList();
+  el.innerHTML = list.length ? list.map(c => '<label><input type="checkbox" value="' + c.name + '" checked> ' + c.name + (c.cls || c.lvl ? ' <small>' + [c.lvl, c.cls].filter(Boolean).join(' ') + '</small>' : '') + '</label>').join('') : '<span style="color:var(--text-m)">No character tabs yet.</span>';
+  rvListMine();
+  if (!O.reviewDesktop()) rvSetStatus('Submitting logs works in the desktop app only.', 'var(--amber-l)');
+  else if (!O.reviewSignedIn()) rvSetStatus('Sign in to MixelParse first, then come back here.', 'var(--amber-l)');
+}
+async function rvListMine(){
+  const O = window.opener, el = document.getElementById('rvMine'); if (!O || !O.reviewMine) return;
+  if (!O.reviewSignedIn()) { el.textContent = 'Sign in to see your submissions.'; return; }
+  try {
+    const list = await O.reviewMine();
+    el.innerHTML = list.length ? list.map(r => '<div style="display:flex;gap:.6rem;align-items:baseline;padding:.3rem 0;border-bottom:1px solid var(--border)">'
+      + '<span style="min-width:9.5rem">' + new Date(r.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + '</span>'
+      + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + String(r.description || '').replace(/"/g, '&quot;') + '">' + (r.chars || []).join(', ') + ' &middot; ' + r.days + ' days' + (r.has_screenshot ? ' &middot; screenshot' : '') + ' &middot; <span style="color:var(--text-m)">' + String(r.description || '').replace(/</g, '&lt;').slice(0, 80) + '</span></span>'
+      + '<span style="color:var(--text-m)">' + (r.status === 'new' ? 'waiting' : r.status === 'reviewed' ? 'reviewed' : 'received') + '</span>'
+      + '<button class="btn" onclick="rvDelete(\'' + r.id + '\')" style="font-size:.8rem;padding:.15rem .6rem">&#128465; Delete</button></div>').join('')
+      : 'None yet.';
+  } catch (e) { el.innerHTML = '<span style="color:var(--amber-l)">' + ((e && e.message) || e) + '</span>'; }
+}
+async function rvDelete(id){
+  const O = window.opener, el = document.getElementById('rvMine');
+  const row = [...el.querySelectorAll('button')].find(b => b.getAttribute('onclick').includes(id));
+  if (row && row.dataset.sure !== '1') { row.dataset.sure = '1'; row.innerHTML = 'Click again to delete'; row.style.color = 'var(--red-l)'; return; }
+  try { await O.reviewDelete(id); rvSetStatus('Deleted &mdash; the files and the record are gone from storage.', 'var(--green-l)'); }
+  catch (e) { rvSetStatus('&#9888; ' + ((e && e.message) || e), 'var(--red-l)'); }
+  rvListMine();
+}
+function rvSetShot(dataUrl){
+  _rvShot = dataUrl; const im = document.getElementById('rvShotPrev');
+  im.style.display = dataUrl ? 'block' : 'none'; if (dataUrl) im.src = dataUrl; else im.removeAttribute('src');
+  document.getElementById('rvShotClear').style.display = dataUrl ? '' : 'none';
+  if (!dataUrl) document.getElementById('rvShotFile').value = '';
+}
+function rvPickShot(file){
+  if (!file || !/^image\//.test(file.type)) return;
+  if (file.size > 15 * 1048576) { rvSetStatus('That image is over 15 MB — pick a smaller one.', 'var(--red-l)'); return; }
+  const r = new FileReader(); r.onload = () => rvSetShot(r.result); r.readAsDataURL(file);
+}
+document.addEventListener('paste', e => {
+  if (!document.getElementById('suite-review').classList.contains('active')) return;
+  const it = [...(e.clipboardData ? e.clipboardData.items : [])].find(i => /^image\//.test(i.type));
+  if (it) { e.preventDefault(); rvPickShot(it.getAsFile()); }
+});
+async function rvSubmit(){
+  const O = window.opener, btn = document.getElementById('rvSubmit');
+  const chars = [...document.querySelectorAll('#rvChars input:checked')].map(i => i.value);
+  const description = document.getElementById('rvDesc').value.trim(), days = +document.getElementById('rvDays').value;
+  if (!description) { rvSetStatus('Describe the problem first (step 1).', 'var(--red-l)'); document.getElementById('rvDesc').focus(); return; }
+  if (!chars.length) { rvSetStatus('Pick at least one character (step 3).', 'var(--red-l)'); return; }
+  btn.disabled = true;
+  try {
+    const r = await O.reviewSubmit({ chars, days, description, shot: _rvShot }, m => rvSetStatus('&#8987; ' + m));
+    rvSetStatus('<b style="color:var(--green-l)">&#10004; Submitted &mdash; thank you!</b> ' + r.files + ' log file' + (r.files === 1 ? '' : 's') + ', ' + r.lines.toLocaleString() + ' lines, <b>' + r.tells.toLocaleString() + ' tells removed</b>, ' + (r.bytes / 1048576).toFixed(1) + ' MB. Reference <code>' + String(r.id).slice(0, 8) + '</code>.');
+    document.getElementById('rvDesc').value = ''; rvSetShot(null); rvListMine();
+  } catch (e) { rvSetStatus('&#9888; ' + ((e && e.message) || e), 'var(--red-l)'); }
+  btn.disabled = false;
 }
 
 // ── LIVE BRIDGE VIEW ──
