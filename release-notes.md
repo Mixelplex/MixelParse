@@ -1,4 +1,9 @@
-## 1.7.15
+## 1.7.16
+
+- **📤 Submit logs for review (optional)** — seeing a problem? ⚙ Admin → Submit logs for review sends your logs, a description and an optional screenshot so it can be found and fixed. **It's completely optional, and every tell is removed on your PC before anything is sent.** Submissions are stored privately — only you and the MixelParse owner can read them — and you can delete yours any time from the same page. See [PRIVACY.md](https://github.com/Mixelplex/MixelParse/blob/main/PRIVACY.md).
+- **🔒 Privacy** — Settings → About now says plainly what stays on your PC and what MixelParse saves to your account. Your EQ log files never leave your PC unless you choose to submit them.
+
+Everything from 1.7.15 and earlier is included:
 
 - **🎁 Loot per kill** — every boss kill Auto-Detect finds now has its loot: what the officers auctioned, who won it and for how much. Click "🎁 N drops" under the boss in Auto-Detect or the Raid Kill Tracker. Missed the auction (died, /q)? Guild chat ("what did it drop?") and ODKP fill it in. Loot is matched to the right boss with the P99 wiki loot tables.
 - **⚖ Avail to spend** — the auction window shows your DKP, minus wins ODKP hasn't charged yet (e.g. 348 − 285 Claw of Lightning = 63). Click it for the breakdown. Right-click an auction → I won this, or + Add a win, if one was missed.
@@ -9,8 +14,6 @@
 - **Fix:** Auto-Detect opens much faster with a long history.
 - **Fix:** Cazic Thule's 10-minute idle shout no longer triggers a kill prompt, and a tick taken mid-fight counts as the same kill, not a second one.
 - **Fix:** the auction window no longer reopens on re-announces or ignored auctions; officer grats relayed in guild chat count; auctions replayed at startup no longer duplicate.
-
-Everything from 1.7.14 and earlier is included:
 
 - **🛒 Find a vendor** — Raid Consumes has a vendor search: type an item and see every merchant that sells it, with the zone, the merchant and where they stand, all linked to the P99 wiki. The closest zones to your character come first, with how many zones away each one is. Consume rows have a "show merchants" link too.
 - **📜 Spell sources** — the Spells tab shows where to buy each spell you're missing, grouped by zone with the merchants' names, and which ones only drop.

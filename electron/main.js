@@ -515,6 +515,69 @@ ipcMain.handle('farm:crawl', async (e, pages) => {
   return results;
 });
 
+// ── Submit logs for review (owner, 2026-10-09) ────────────────────────────────────────────────────────────────
+// Optional, user-started. For each chosen character: the log lines of the last N days (the live log plus rotated
+// .old files), every TELL removed ("X -> Y:", "X tells you,", "You told X,"), gzipped. Read from the END of each file in
+// chunks so a multi-GB log isn't loaded whole. Parts over 45 MB compressed are split.
+const RE_REVIEW_TELL = /^\[[^\]]+\] (?:\S+ -> \S+:|.+? tells you, '|You told .+?, '|.+? told you, ')/;
+const _revMon = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+function _revTs(line) { const x = /^\[\w{3} (\w{3}) +(\d+) (\d\d):(\d\d):(\d\d) (\d{4})\]/.exec(line); return x ? new Date(+x[6], _revMon[x[1]], +x[2], +x[3], +x[4], +x[5]).getTime() : 0; }
+// lines of one file at or after "since", newest file content last
+function _revReadSince(fp, since) {
+  const st = fs.statSync(fp); const CH = 8 * 1048576, MAX = 1024 * 1048576;
+  let pos = st.size, chunks = [], done = false;
+  const fd = fs.openSync(fp, 'r');
+  try {
+    while (pos > 0 && !done && st.size - pos < MAX) {
+      const n = Math.min(CH, pos); pos -= n;
+      const b = Buffer.alloc(n); fs.readSync(fd, b, 0, n, pos); chunks.unshift(b);
+      const s = b.toString('latin1'); const nl = s.indexOf('\n'); const first = _revTs(s.slice(nl + 1, nl + 40));
+      if (first && first < since) done = true;
+    }
+  } finally { fs.closeSync(fd); }
+  return Buffer.concat(chunks).toString('latin1').split(/\r?\n/).filter(l => { const t = _revTs(l); return t && t >= since; });
+}
+ipcMain.handle('review:collect', async (e, opts) => {
+  try {
+    const zlib = require('zlib');
+    const dir = config && config.logDir; if (!dir || !fs.existsSync(dir)) return { ok: false, error: 'EQ log folder not set (run Setup)' };
+    const days = Math.max(1, Math.min(30, +(opts && opts.days) || 7)), since = Date.now() - days * 864e5;
+    const chars = ((opts && opts.chars) || []).map(String).filter(c => /^[A-Za-z]{2,20}$/.test(c));
+    const out = [];
+    const all = fs.readdirSync(dir).concat(fs.existsSync(path.join(dir, 'archive')) ? fs.readdirSync(path.join(dir, 'archive')).map(f => 'archive/' + f) : []);
+    for (const c of chars) {
+      const files = all.filter(f => new RegExp('^(archive/)?eqlog_' + c + '_P1999Green(\\.\\d{4}-\\d\\d(-\\d+)?\\.old|\\.txt)$', 'i').test(f))
+        .map(f => ({ f, fp: path.join(dir, f), st: fs.statSync(path.join(dir, f)) })).filter(x => x.st.mtimeMs >= since).sort((a, b) => a.st.mtimeMs - b.st.mtimeMs);
+      if (!files.length) continue;
+      let lines = []; for (const x of files) lines = lines.concat(_revReadSince(x.fp, since));
+      let tells = 0; const kept = lines.filter(l => { if (RE_REVIEW_TELL.test(l)) { tells++; return false; } return true; });
+      if (!kept.length) continue;
+      const raw = kept.join('\n') + '\n'; const gz = zlib.gzipSync(Buffer.from(raw, 'latin1'), { level: 9 });
+      const parts = gz.length <= 45 * 1048576 ? [gz] : (() => { const n = Math.ceil(gz.length / (40 * 1048576)), per = Math.ceil(kept.length / n), ps = [];
+        for (let i = 0; i < n; i++) ps.push(zlib.gzipSync(Buffer.from(kept.slice(i * per, (i + 1) * per).join('\n') + '\n', 'latin1'), { level: 9 })); return ps; })();
+      parts.forEach((g, i) => out.push({ char: c, part: parts.length > 1 ? i + 1 : 0, gz: g, bytes: g.length, raw_bytes: raw.length, lines: kept.length, tells_removed: tells,
+        first: _revTs(kept[0]), last: _revTs(kept[kept.length - 1]), sources: files.map(x => x.f) }));
+    }
+    return { ok: true, days, files: out };
+  } catch (err) { return { ok: false, error: String(err && err.message || err) }; }
+});
+// The owner's review folder: <Desktop>\MixelParse-Source\log-reviews when that folder exists, else Documents\MixelParse\log-reviews
+function _reviewDir() {
+  const a = path.join(os.homedir(), 'Desktop', 'MixelParse-Source');
+  return fs.existsSync(a) ? path.join(a, 'log-reviews') : path.join(app.getPath('documents'), 'MixelParse', 'log-reviews');
+}
+ipcMain.handle('review:dir', () => _reviewDir());
+ipcMain.handle('review:has', (e, sub, name) => { try { const s = x => String(x).replace(/[^\w.\- ]/g, '_'); return fs.existsSync(path.join(_reviewDir(), s(sub), name ? s(name) : '')); } catch { return false; } });
+ipcMain.handle('review:save', async (e, sub, name, data) => {
+  try {
+    const d = path.join(_reviewDir(), String(sub).replace(/[^\w.\- ]/g, '_')); fs.mkdirSync(d, { recursive: true });
+    const f = path.join(d, path.basename(String(name)).replace(/[^\w.\- ]/g, '_'));
+    fs.writeFileSync(f, typeof data === 'string' ? data : Buffer.from(data));
+    return { ok: true, path: f };
+  } catch (err) { return { ok: false, error: String(err && err.message || err) }; }
+});
+ipcMain.handle('review:open', () => { const d = _reviewDir(); fs.mkdirSync(d, { recursive: true }); shell.openPath(d); return d; });
+
 // Wiki Check (admin): fetch ≤50 page wikitexts via the P99 wiki's MediaWiki API. Runs
 // here because the wiki sends no CORS headers, so renderer fetch() is blocked. Host is
 // fixed; input is only a list of titles. The caller paces requests (1/sec).

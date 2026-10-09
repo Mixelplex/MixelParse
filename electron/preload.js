@@ -16,6 +16,11 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   farmCrawl:      (pages) => ipcRenderer.invoke('farm:crawl', pages),
   wikiQuery:      (titles) => ipcRenderer.invoke('wiki:query', titles),   // Wiki Check (≤50 titles)
   wikiRecent:     (since)  => ipcRenderer.invoke('wiki:recent', since),   // Settings → Wiki updates
+  reviewCollect:  (opts)   => ipcRenderer.invoke('review:collect', opts),   // Submit logs for review (tells removed, gzipped)
+  reviewDir:      ()       => ipcRenderer.invoke('review:dir'),
+  reviewHas:      (sub, name) => ipcRenderer.invoke('review:has', sub, name),
+  reviewSave:     (sub, name, data) => ipcRenderer.invoke('review:save', sub, name, data),
+  reviewOpen:     ()       => ipcRenderer.invoke('review:open'),
   odkpGet:        (path) => ipcRenderer.invoke('odkp:get', path),       // Castle OpenDKP read-only API
   rotateLogs:     (opts)  => ipcRenderer.invoke('logs:rotate', opts),
   onFarmProgress: (cb)    => ipcRenderer.on('farm:progress', (e, p) => cb(p)),
