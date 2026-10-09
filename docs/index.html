@@ -2748,7 +2748,7 @@ function _spellClassMap(cls){
 // P99 wiki data files (gen-wiki-data.js), loaded the first time a tab needs them: spells / vendors / quests
 const _wikiLoad={};
 function wikiData(name,redraw){
-  const g={spells:'WIKI_SPELLS',vendors:'WIKI_VENDORS',quests:'WIKI_QUESTS',zones:'ZONE_GRAPH'}[name]; if(window[g]) return window[g];
+  const g={spells:'WIKI_SPELLS',vendors:'WIKI_VENDORS',quests:'WIKI_QUESTS',zones:'ZONE_GRAPH',mobs:'WIKI_MOBS',epics:'WIKI_EPICS'}[name]; if(window[g]) return window[g];
   if(!_wikiLoad[name]){ _wikiLoad[name]=[]; const s=document.createElement('script'); s.src='wiki-'+name+'.js';
     s.onload=()=>{ const cbs=_wikiLoad[name]; _wikiLoad[name]=true; cbs.forEach(f=>{try{f();}catch(e){}}); }; document.head.appendChild(s); }
   if(Array.isArray(_wikiLoad[name])&&redraw) _wikiLoad[name].push(redraw);
@@ -4850,7 +4850,7 @@ window.upgRefreshStatSheet=function(){
   const proj=Object.assign({},cur);
   // Clone haste map for projection — slots get patched as candidates are applied
   const projHasteByItem=Object.assign({},equippedHasteByItem);
-  let totalDkp=0,totalPlat=0;
+  let totalDkp=0,totalPlat=0; const dkpLines=[];
   if(window._upgSlots){
     for(const sr of window._upgSlots){
       // In 2H mode: skip MH and OH slots (they're disabled); only process the 2H card
@@ -4873,9 +4873,10 @@ window.upgRefreshStatSheet=function(){
       const curItemAc=equippedAcBySlot[_eqKey(equippedItem)]?.ac||0;
       proj.ac=(proj.ac||0)-curItemAc+Number(cand.ac||0);
       const _tQc=(!cand.dkp||!cand.plat)?questCostFor(cand.name):null;
-      const _tDkp =cand.dkp ||(_tQc&&_tQc.dkp) ||0;
+      const _tIc=itemDkpCost(cand.name);
+      const _tDkp =(_tIc&&_tIc.dkp)||cand.dkp ||(_tQc&&_tQc.dkp) ||0;
       const _tPlat=cand.plat||(_tQc&&_tQc.plat)||0;
-      if(_tDkp)totalDkp+=Number(_tDkp);
+      if(_tDkp){ totalDkp+=Number(_tDkp); dkpLines.push({name:cand.name, dkp:Math.round(Number(_tDkp)), src:_tIc?_tIc.src:'Item database (60-day average)', partial:!!(_tIc&&_tIc.partial)}); }
       if(_tPlat)totalPlat+=Number(_tPlat);
     }
   }
@@ -4933,7 +4934,8 @@ window.upgRefreshStatSheet=function(){
   const RESIST_SHORT=['SvPo','SvMa','SvDi','SvFi','SvCo'];
   RESIST_KEYS.forEach((k,i)=>html+=row(RESIST_SHORT[i],cur[k]||0,proj[k]||0,false,buffedSheet?(curUn[k]||0):null));
   html+=`<div class="upg-stat-section">Cost</div>`;
-  html+=`<div class="upg-stat-row${totalDkp?'  upg-stat-changed':''}"><span class="upg-stat-key">DKP</span><span class="upg-stat-vals"><span class="upg-stat-proj-val">${totalDkp?totalDkp+' DKP':'—'}</span></span></div>`;
+  html+=`<div class="upg-stat-row${totalDkp?'  upg-stat-changed':''}"><span class="upg-stat-key">DKP</span><span class="upg-stat-vals"><span class="upg-stat-proj-val">${totalDkp?'~'+Math.round(totalDkp).toLocaleString()+' DKP':'—'}</span></span></div>`;
+  for(const l of dkpLines) html+=`<div class="upg-stat-row" title="${esc(l.src)}" style="font-size:.78rem;cursor:help"><span class="upg-stat-key" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1">${esc(l.name)}</span><span class="upg-stat-vals" style="flex:0 0 auto"><span style="color:var(--text-dim)">${l.dkp.toLocaleString()}${l.partial?'+':''}</span></span></div>`;
   html+=`<div class="upg-stat-row${totalPlat?' upg-stat-changed':''}"><span class="upg-stat-key">Plat</span><span class="upg-stat-vals"><span class="upg-stat-proj-val">${totalPlat?Math.round(totalPlat*100)/100+'k pp':'—'}</span></span></div>`;
 
   body.innerHTML=html;
@@ -5525,18 +5527,19 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.14',
+  version:'1.7.15',
   date:'October 2026',
   features:[
-    ['&#128722; Find a vendor','Raid Consumes has a vendor search: type an item and see every merchant that sells it, with the zone, the merchant and where they stand, all linked to the P99 wiki. The closest zones to your character come first, with how many zones away each one is. Consume rows have a &ldquo;show merchants&rdquo; link too.'],
-    ['&#128220; Spell sources','The Spells tab shows where to buy each spell you&rsquo;re missing, grouped by zone with the merchants&rsquo; names, and which ones only drop.'],
-    ['&#128220; More class quests','Quests lists every quest for your class from the P99 wiki that the guide doesn&rsquo;t cover: epic first, then by level, with the start zone, the quest giver and the rewards, each linked to the wiki. &#10004; marks rewards you already have.'],
-    ['&#128277; Parking alerts','Right-click a &ldquo;no toon parked&rdquo; alert &rarr; Mute for this cycle. Settings &rarr; Raids &rarr; Parking alerts turns them off completely.'],
-    ['&#9881; Wiki updates','Settings shows what changed on the P99 wiki for items in the item database each week.'],
+    ['&#127873; Loot per kill','Every boss kill Auto-Detect finds now has its loot: what the officers auctioned, who won it and for how much. Click &ldquo;&#127873; N drops&rdquo; under the boss in Auto-Detect or the Raid Kill Tracker. Missed the auction? Guild chat (&ldquo;what did it drop?&rdquo;) and ODKP fill it in.'],
+    ['&#9878; Avail to spend','The auction window shows your DKP, minus wins ODKP hasn&rsquo;t charged yet. Click it for the breakdown. Right-click an auction &rarr; I won this (or + Add a win) if one was missed.'],
+    ['&#128200; Gear Planner DKP','The stat sheet lists each pick&rsquo;s DKP cost under the total. Quest rewards are priced from their parts (Silver Charm of Tranquility ~1,279), and items with no recent sale use their all-time average.'],
+    ['&#9876; Epic progress','Quests shows your class epic step by step from the P99 wiki, with &#10004; on the pieces you hold and what&rsquo;s next.'],
+    ['&#127919; Farm Targets mobs','Each mob shows its level, respawn and drop rate; hover for its spawn loc and special abilities.'],
+    ['&#128100; Who took the tick','Auto-Detect shows who called each RAIDTICK under its time.'],
   ],
   fixes:[
-    ['Parking Ack','Acknowledging a parking alert now keeps it hidden until that window closes. Before, it came back when the window opened or after a restart.'],
-    ['Names with apostrophes','Buttons for names like Vulak&rsquo;Aerr work again.'],
+    ['Auto-Detect','Much faster to open. Cazic Thule&rsquo;s idle shout no longer looks like a fight, and a tick taken mid-fight counts as the same kill.'],
+    ['Auctions','Officer grats relayed in guild chat count. The window no longer reopens on re-announces or ignored auctions.'],
   ],
 };
 function showWhatsNew(){
@@ -7211,6 +7214,35 @@ function questCostFor(itemName){
   };
 }
 
+// DKP price of any item for the Gear Planner: ODKP sales (quote-insensitive: ' \` ’ &#39;), 60-day avg else all-time,
+// else a quest reward's parts added up (QUEST_DB turn-in steps), else Skyshrine mold + gems. Never written to itemDB.
+let _dkpNormIdx=null,_dkpNormSrc=null,_questParts=null;
+function dkpNorm(n){ return String(n||'').replace(/&#39;|[\u2018\u2019\u0060]/g,"'").replace(/\s+/g,' ').toLowerCase().trim(); }
+function dkpFind(name){
+  if(_dkpNormSrc!==dkpLookup){ _dkpNormIdx={}; for(const k of Object.keys(dkpLookup||{})){ const nk=dkpNorm(k), cur=_dkpNormIdx[nk]; if(!cur||(dkpLookup[k][3]||0)>(cur[3]||0)) _dkpNormIdx[nk]=dkpLookup[k]; } _dkpNormSrc=dkpLookup; }
+  return _dkpNormIdx[dkpNorm(name)]||null;
+}
+function dkpPrice(name){ const d=dkpFind(name); if(!d) return null; const v=d[5]||d[2]; return v>0?{dkp:Math.round(v),recent:!!d[5],n:d[5]?d[6]:d[3]}:null; }
+function questPartsFor(name){
+  if(!_questParts){ _questParts={};
+    (function walk(v){ if(Array.isArray(v)) v.forEach(walk); else if(v&&typeof v==='object'){
+      if(typeof v.desc==='string'&&Array.isArray(v.items)&&v.items.length){ const ms=[...v.desc.matchAll(/→\s*([^(→]+?)\s*\(/g)]; if(ms.length){ const r=dkpNorm(ms[ms.length-1][1]); if(r&&!_questParts[r]) _questParts[r]=v.items.map(it=>String(it).replace(/\s*\([^)]*\)\s*$/,'')); } }
+      Object.values(v).forEach(walk); } })(typeof QUEST_DB!=='undefined'?QUEST_DB:{}); }
+  return _questParts[dkpNorm(name)]||null;
+}
+function itemDkpCost(name){
+  const p=dkpPrice(name), parts=questPartsFor(name);
+  const own=p?{dkp:p.dkp, src:p.recent?'ODKP 60-day average ('+p.n+' sales)':'ODKP all-time average ('+p.n+' sales, none in 60 days)'}:null;
+  let q=null;
+  if(parts){ let sum=0; const miss=[]; for(const it of parts){ const x=dkpPrice(it); if(x) sum+=x.dkp; else miss.push(it); }
+    if(sum>0) q={dkp:sum, partial:miss.length>0, src:'Quest parts: '+parts.map(it=>{ const x=dkpPrice(it); return it+' '+(x?x.dkp:'?'); }).join(' + ')+(miss.length?' (no DKP price for '+miss.join(', ')+', so it costs more)':'')}; }
+  if(own&&(p.recent||!q)) return own;                 // its own recent sales are the price
+  if(own&&q) return own.dkp>=q.dkp?Object.assign(own,{src:own.src+'. Parts today: '+q.dkp+(q.partial?'+':'')}):Object.assign(q,{src:q.src+'. Its own last sales averaged '+own.dkp+' (old)'});
+  if(q) return q;
+  const qc=questCostFor(name); if(qc){ const m=dkpPrice(qc.mold), g=dkpPrice(qc.gem); if(m&&g) return {dkp:m.dkp+qc.gemQty*g.dkp, src:'Skyshrine: '+qc.mold+' '+m.dkp+' + '+qc.gemQty+'× '+qc.gem+' '+g.dkp}; if(m) return {dkp:m.dkp, src:'Skyshrine: '+qc.mold+' '+m.dkp+' DKP; the '+qc.gemQty+'× '+qc.gem+' are bought with plat'}; if(qc.dkp) return {dkp:Math.round(qc.dkp), src:'Skyshrine: '+qc.mold+' + '+qc.gemQty+'× '+qc.gem}; }
+  return null;
+}
+
 // Account-wide item holdings for the Skyshrine tracker: how many, who, and where
 // across EVERY loaded inventory (mains + bankers). Same smart-quote match as
 // charHasItem; buckets via locationType. `need` colors the cell (green >= need,
@@ -7337,6 +7369,33 @@ function renderSkyshrinePanel(){
     </div>`;
 }
 
+// The class's epic from the P99 wiki checklist: ✔ on linked items the character holds; furthest held step = where they are
+function wikiEpicHtml(cls,name){
+  const E=wikiData('epics',()=>{ if(activeSub==='quests') renderQuestsPanel(); });
+  if(!cls) return '';
+  if(!E) return '<div class="quest-section-label">⚔ '+esc(cls)+' Epic</div><div style="padding:.5rem .75rem;color:var(--text-muted)">Loading…</div>';
+  const e=E[cls]; if(!e||!e.s||!e.s.length) return '';
+  const has=it=>charHasItem(name,it), epicItem=e.r[e.r.length-1]||'', done=!!epicItem&&has(epicItem);
+  let far=-1; e.s.forEach((st,i)=>{ if(st.i.some(has)) far=i; });
+  const heldRewards=e.r.filter(has);
+  const status=done?'<span style="color:#3a7a3a;font-weight:700">✔ Complete — '+esc(name)+' has '+esc(epicItem)+'</span>'
+    :far<0?'<span style="color:var(--text-muted)">Not started — no epic items in '+esc(name)+'&rsquo;s inventory or bank</span>'
+    :'<b>Around step '+(far+1)+' of '+e.s.length+'</b> <span style="color:var(--text-muted)">(furthest step with an item '+esc(name)+' holds)</span>';
+  const pct=done?100:far<0?0:Math.round(100*(far+1)/e.s.length);
+  const link=(n,held)=>'<a href="'+wikiUrl(n)+'" target="_blank" rel="noopener" style="color:'+(held?'#3a7a3a':'var(--text)')+';text-decoration:none;border-bottom:1px dotted var(--gold);white-space:nowrap">'+(held?'✔ ':'')+esc(n)+'</a>';
+  const rows=e.s.map((st,i)=>{ const held=st.i.some(has), past=done||i<=far, next=!done&&i===far+1;
+    return '<tr style="'+(next?'background:rgba(184,137,43,.12);':'')+(past&&!held?'opacity:.55;':'')+'">'
+      +'<td style="padding:.3rem .5rem;vertical-align:top;white-space:nowrap;color:'+(held?'#3a7a3a':'var(--text-muted)')+'">'+(held?'✔':next?'▶':'')+' '+(i+1)+'</td>'
+      +'<td style="padding:.3rem .5rem;font-size:.85rem">'+esc(st.x)+(st.i.length?'<div style="font-size:.75rem;margin-top:.15rem;line-height:1.6">'+st.i.map(n=>link(n,has(n))).join(' · ')+'</div>':'')+'</td></tr>'; }).join('');
+  return '<div class="quest-section-label">⚔ '+esc(cls)+' Epic — '+esc(epicItem)+'</div>'
+    +'<div style="border:1px solid var(--border);border-radius:4px;padding:.55rem .75rem;margin-bottom:1rem">'
+    +'<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">'+status+'<span style="flex:1"></span><a href="'+wikiUrl(e.t)+'" target="_blank" rel="noopener" style="color:var(--gold-light);font-size:.82rem">Full walkthrough on the wiki →</a></div>'
+    +'<div style="height:6px;background:var(--surface2);border-radius:3px;margin:.45rem 0;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(done?'#3a7a3a':'var(--gold)')+'"></div></div>'
+    +(e.r.length>1?'<div style="font-size:.8rem;margin-bottom:.35rem">Rewards: '+e.r.map(r=>link(r,has(r))).join(' · ')+'</div>':'')
+    +'<details'+(done?'':' open')+'><summary style="cursor:pointer;font-size:.82rem;color:var(--text-muted)">Checklist — '+e.s.length+' steps'+(heldRewards.length?' · '+heldRewards.length+' of '+e.r.length+' rewards held':'')+'</summary>'
+    +'<div style="max-height:460px;overflow:auto;margin-top:.35rem"><table class="ss-table" style="width:100%"><tbody>'+rows+'</tbody></table></div>'
+    +'<div style="font-size:.72rem;color:var(--text-muted);margin-top:.3rem">From the P99 wiki&rsquo;s checklist. ✔ = '+esc(name)+' holds that item (inventory or bank). Steps with no item to hold can&rsquo;t be checked, so they show faded once a later step is reached.</div></details></div>';
+}
 // The class's other quests on the P99 wiki (not already in the guide): epic first, then by level
 function wikiMoreQuests(cls,name){
   const D=wikiData('quests',()=>{ if(activeSub==='quests') renderQuestsPanel(); });
@@ -7512,11 +7571,13 @@ function renderQuestsPanel(){
     {key:'dozekar',label:'Dozekar Tears'},
     {key:'jboots',label:'Jboots'},
     {key:'wiki',label:'More quests (P99 wiki)'},
+    {key:'epic',label:'Epic'},
   ];
   const criticalHtml=(QUEST_DB.critical||[]).filter(q=>!_questHidden.has(getQuestCat(q))).map(renderQuest).join('');
   const classQuests=QUEST_DB.classes&&QUEST_DB.classes[cls]?QUEST_DB.classes[cls]:[];
   const classHtml=classQuests.filter(q=>!_questHidden.has(getQuestCat(q))).map(renderQuest).join('');
   const moreHtml=_questHidden.has('wiki')?'':wikiMoreQuests(cls,name);
+  const epicHtml=_questHidden.has('epic')?'':wikiEpicHtml(cls,name);
   const _configOpen=!!window._questCatConfigOpen;
   const configChips=QUEST_CATS.map(c=>{
     const isVis=!_questHidden.has(c.key);
@@ -7531,7 +7592,8 @@ function renderQuestsPanel(){
     <div class="quests-wrap" style="padding-top:.1rem">
       ${filterBarHtml}
       ${configRowHtml}
-      ${criticalHtml||classHtml?'':'<div class="empty-state" style="padding:1rem">No quests to show. Set your class in Character Stats, or enable categories via ⚙.</div>'}
+      ${epicHtml}
+      ${criticalHtml||classHtml||epicHtml?'':'<div class="empty-state" style="padding:1rem">No quests to show. Set your class in Character Stats, or enable categories via ⚙.</div>'}
       ${criticalHtml?`<div class="quest-section-label">🌟 Critical Quests — All Classes</div>${criticalHtml}`:''}
       ${classHtml?`<div class="quest-section-label">⚔️ ${esc(cls)} Quests</div>${classHtml}`:''}
       ${moreHtml}
@@ -8071,6 +8133,7 @@ window.applyDBToChar    = applyDBToChar;
         if(msg.type==='skyCorpses'){ skyCorpseState=msg; skyRenderWarn(); if(activeTopView==='keys') renderKeysPanel(); }
         if(msg.type==='raidEvidence') rkdOnEvidence(msg);
         if(msg.type==='auctionLine') aucOnLine(msg);
+        if(msg.type==='chatLine') try{ lootOnChat(msg); }catch(e){}
         if(msg.type==='raidLogin') rkdOnLogin(msg);
         if(msg.type==='raidScanProgress'||msg.type==='raidScanResult') rkdHandleScanMsg(msg);
         if(msg.type==='killScanProgress'||msg.type==='killScanResult') handleKillScanMsg(msg);
@@ -9125,12 +9188,13 @@ function odkpDate(dt){ const t=Date.parse(dt||''); return isFinite(t)?new Date(t
 
 // ── your DKP in the header, next to Est. Market Value (owner, 2026-10-05) ──
 // The account holding most of your characters (as the Credit Check ledger picks it); ODKP's "as of" time underneath.
-function odkpHeaderDkp(){
-  if(!odkpGuild) return '';
+// your ODKP account (the one holding most of your characters) and its balance — header and auction window
+function odkpMyBalance(){
+  if(!odkpGuild) return null;
   const mine=(typeof charNames==='function'?charNames():[]).filter(n=>n&&n!=='__all__');
   const count={};for(const n of mine){const c=odkpC(n);if(c)count[c.mainId]=(count[c.mainId]||0)+1;}
-  const id=Object.keys(count).sort((x,y)=>count[y]-count[x])[0]; if(!id) return '';
-  const a=odkpGuild.accts[id], c=odkpC(a.main)||odkpGuild.chars[a.ids[0]]; if(!c) return '';
+  const id=Object.keys(count).sort((x,y)=>count[y]-count[x])[0]; if(!id) return null;
+  const a=odkpGuild.accts[id], c=odkpC(a.main)||odkpGuild.chars[a.ids[0]]; if(!c) return null;
   let asOf=Date.parse(odkpGuild.asOf||'')||odkpGuild.at, bal=c.dkp;
   // the Credit Check ledger is live; ODKP's /dkp summary is recomputed on their side and can trail it
   const m=typeof odkpTicksMeta!=='undefined'&&odkpTicksMeta;
@@ -9138,8 +9202,13 @@ function odkpHeaderDkp(){
     const lt=Math.max(Date.parse(m.updatedAt||'')||0,m.checkedAt||0);
     if(lt>asOf){bal=Math.round(m.dkp.balance*10)/10;asOf=lt;}
   }
+  return {mainId:id, main:a.main, ids:a.ids, c, bal, asOf, multi:Object.keys(count).length>1};
+}
+function odkpHeaderDkp(){
+  const me=odkpMyBalance(); if(!me) return '';
+  const a={main:me.main, ids:me.ids}, c=me.c, bal=me.bal, asOf=me.asOf, count={length:me.multi?2:1};
   return '<div onclick="event.stopPropagation();odkpOpenGuild(decodeURIComponent(\''+encodeURIComponent(a.main)+'\'))" style="cursor:pointer" title="'+esc(a.main)+'\'s ODKP account ('+a.ids.length+' characters) · '+odkpRaTip(c)+' — click for the Guild DKP list">'
-    +'<div class="nw-header-label">&#9876; Your DKP'+(Object.keys(count).length>1?' · '+esc(a.main):'')+'</div>'
+    +'<div class="nw-header-label">&#9876; Your DKP'+(me.multi?' · '+esc(a.main):'')+'</div>'
     +'<div class="nw-header-value">'+bal.toLocaleString()+' DKP</div>'
     +'<div class="nw-header-note">updated '+new Date(asOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div></div>';
 }
@@ -9264,8 +9333,15 @@ function aucOnLine(msg){
     const m=/~\[([^\]]+)\]/.exec(msg.text); if(!m) return;
     const item=m[1].trim();
     let A=aucList.find(a=>aucNorm(a.item)===aucNorm(item)&&aucIsOpen(a,msg.ts));   // a re-announce is the same auction
-    if(!A){ A={id:'a'+msg.ts+'_'+Math.random().toString(36).slice(2,6),item,by:msg.who,open:msg.ts,last:msg.ts,bids:[],wasMineTop:false}; aucList.push(A); }
-    if(aucAutoPop&&now-msg.ts<3*60e3&&window.MixelParseApp&&window.MixelParseApp.popAuction) window.MixelParseApp.popAuction();
+    let isNew=false;
+    if(!A){
+      const wasIgnored=aucList.some(a=>aucNorm(a.item)===aucNorm(item)&&aucIgnored.has(a.id)&&(aucIsOpen(a,msg.ts)||msg.ts-aucClosedAt(a)<AUC_KEEP));
+      A={id:'a'+msg.ts+'_'+Math.random().toString(36).slice(2,6),item,by:msg.who,open:msg.ts,last:msg.ts,bids:[],wasMineTop:false}; aucList.push(A); isNew=true;
+      if(wasIgnored) aucIgnored.add(A.id);
+      try{ lootOnAuction(A); }catch(e){}
+    }else A.last=Math.max(A.last,msg.ts);   // a re-announce / LAST CALL keeps it open
+    // pop only for a new auction you haven't ignored — never on re-announces, so closing the window sticks
+    if(isNew&&!aucIgnored.has(A.id)&&aucAutoPop&&now-msg.ts<3*60e3&&window.MixelParseApp&&window.MixelParseApp.popAuction) window.MixelParseApp.popAuction();
   }else{
     const g=RE_AUC_GRATS.exec(msg.text);
     if(g){
@@ -9273,6 +9349,8 @@ function aucOnLine(msg){
       const A=aucList.filter(a=>aucNorm(a.item)===aucNorm(g[2])&&msg.ts>=a.open&&(aucIsOpen(a,msg.ts)||msg.ts-aucClosedAt(a)<AUC_KEEP)).sort((x,y)=>y.open-x.open)[0];
       if(A){
         const w={who:g[1],n:g[3]!=null?+g[3]:null,ts:msg.ts};
+        if(w.n!=null) aucPendingAdd(A.item,w.who,w.n,msg.ts);
+        try{ lootOnGrats(A,w); }catch(e){}   // your win → off "Avail to spend" until ODKP has it
         if(!(A.winners||(A.winners=[])).some(x=>x.who===w.who&&x.n===w.n)){
           A.winners.push(w);
           if(!aucIgnored.has(A.id)&&aucMine().has(String(w.who).toLowerCase())&&now-msg.ts<60e3&&typeof showWatcherToast==='function') showWatcherToast('⚖ Grats! You won '+A.item+(w.n!=null?' for '+w.n+' DKP':''));
@@ -9280,18 +9358,182 @@ function aucOnLine(msg){
         if(!A.gratsAt) A.gratsAt=msg.ts;
         A.last=Math.max(A.last,msg.ts);
       }
-      aucList=aucList.filter(A=>aucKeep(A,now));
+      if(!A){ const w={who:g[1],n:g[3]!=null?+g[3]:null,ts:msg.ts}; if(w.n!=null) aucPendingAdd(g[2],w.who,w.n,msg.ts); const le=lootGratsEntry(g[2],msg.ts); if(le){ if(!le.winners.some(x=>x.who===w.who&&x.n===w.n)) le.winners.push({who:w.who,n:w.n}); lootUpdate(le); } }
+      aucList=aucList.filter(A=>aucKeep(A,Math.min(now,msg.ts||now)));   // the line's own time: a replayed auction isn't "old" mid-replay
       aucPush(); return;
     }
     const open=aucList.filter(A=>aucIsOpen(A,msg.ts)).sort((x,y)=>y.item.length-x.item.length);   // longest name first ("Scroll of War" vs "Iron Scroll of War")
     for(const A of open){ const b=aucParseBid(msg.text,A.item); if(b){ A.bids.push({ts:msg.ts,who:msg.who,toon:b.toon,n:b.n}); A.last=msg.ts; aucOutbidCheck(A,now); break; } }
   }
-  aucList=aucList.filter(A=>aucKeep(A,now));
+  aucList=aucList.filter(A=>aucKeep(A,Math.min(now,msg.ts||now)));
   aucPush();
+}
+// ── Loot per kill ──
+let lootLog=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_loot_log')||'[]')||[]; }catch(e){ return []; } })();
+let _lootSaveT=null;
+function lootSave(){ try{ localStorage.setItem('mp_loot_log',JSON.stringify(lootLog.slice(-3000))); }catch(e){} }
+// does this boss's wiki loot table list the item? true / false / null (no wiki data for the boss)
+// the later tick of the same fight, for a tick with no death evidence (mid-fight / hourly tick)
+let _sfIdx=null,_sfKey='';
+function _rkdSameFightIndex(){
+  const key=_rkdVer+'|'+rkdLog.length+'|'+((rkdLog[rkdLog.length-1]||{}).id||'');
+  if(key===_sfKey&&_sfIdx) return _sfIdx;
+  const by={}, next=new Map(), prev=new Map();
+  for(const x of rkdLog) if(x.boss&&(x.tier==='strong'||x.tier==='weak')&&!/^(nknc|dismissed|undone)$/.test(x.confirm||'')) (by[x.boss]=by[x.boss]||[]).push(x);
+  for(const b in by) by[b].sort((a,c)=>a.ts-c.ts);
+  for(const r of rkdLog){
+    if(!r.boss||/slain|faction/i.test(r.todSource||'')) continue;
+    const x=(by[r.boss]||[]).find(y=>y!==r&&y.ts>r.ts);
+    if(x&&x.ts-r.ts<=45*60e3){ next.set(r,x); (prev.get(x)||prev.set(x,[]).get(x)).push(r.id); }
+  }
+  _sfKey=key; return _sfIdx={next,prev};
+}
+function _rkdLaterSameFight(r){ return r?_rkdSameFightIndex().next.get(r)||null:null; }
+function lootTableHas(target,item){
+  const W=wikiData('mobs'); if(!W) return null;
+  if(!W._ix){ W._ix=new Map(); W.it.forEach((n,i)=>W._ix.set(dkpNorm(n),i)); W._mk=new Map(); for(const [k,v] of Object.entries(W.m)){ const nk=dkpNorm(k); W._mk.set(nk,(W._mk.get(nk)||[]).concat(v)); } }
+  const b=BOSS_ROSTER.find(x=>x.target===target)||{full:target}, ix=W._ix.get(dkpNorm(item));
+  const ents=[b.full,b.target,target].map(n=>W._mk.get(dkpNorm(n))).find(Boolean);   // quote-insensitive: Vulak'Aerr (roster) = Vulak`Aerr (wiki)
+  if(!ents) return null;
+  if(ix==null) return false;
+  return ents.some(e=>(e.lt||[]).some(x=>x[0]===ix));
+}
+function _lootKills(){ return rkdLog.filter(r=>r.boss&&(r.tier==='strong'||r.tier==='weak'||r.confirm==='auto'||r.confirm==='added')&&!/^(nknc|dismissed|undone)$/.test(r.confirm||'')); }
+function lootAttribute(e){
+  const ks=_lootKills().map(r=>({r,t:r.tod||r.ts})).filter(k=>k.t<=e.open+60e3&&k.t>=e.open-3*3600e3).sort((a,b)=>b.t-a.t);
+  for(const k of ks) if(lootTableHas(k.r.boss,e.item)===true) return k;
+  const near=ks.find(k=>e.open-k.t<=45*60e3&&lootTableHas(k.r.boss,e.item)===null);
+  return near||null;
+}
+function lootSessionFor(r){ return (r.autoSession&&raidSessions.find(s=>s.id===r.autoSession))||(typeof _rkdSessionAt==='function'?_rkdSessionAt(r.tod||r.ts):null); }
+function lootUpdate(e){
+  if(!e.boss){ const k=lootAttribute(e); if(k){ e.boss=k.r.boss; e.killTs=k.t; e.rkdId=k.r.id; } }
+  if(e.boss){ const r=rkdLog.find(x=>x.id===e.rkdId), sess=r&&lootSessionFor(r);
+    if(sess){ sess.loot=sess.loot||[]; const i=sess.loot.findIndex(x=>x.k===e.k), v={k:e.k,item:e.item,boss:e.boss,killTs:e.killTs,open:e.open,winners:e.winners||[]};
+      if(i<0) sess.loot.push(v); else sess.loot[i]=v;
+      sess.loot=lootMerge(sess.loot);
+      clearTimeout(_lootSaveT); _lootSaveT=setTimeout(()=>{ try{ saveSessionsToSupabase(); }catch(x){} },8000); } }
+  lootSave();
+}
+function lootOnAuction(A){
+  const k=dkpNorm(A.item)+'|'+A.open; if(lootLog.some(e=>e.k===k)){ A.lootK=k; return; }
+  // the same item already logged for the same kill (a re-announce, a replay, another character's log) → that entry
+  const kk=lootAttribute({item:A.item,open:A.open}), same=lootLog.find(e=>e.src!=='chat'&&dkpNorm(e.item)===dkpNorm(A.item)&&Math.abs(A.open-e.open)<60*60e3&&(!kk||!e.rkdId||e.rkdId===kk.r.id));
+  if(same){ A.lootK=same.k; if(A.open<same.open) same.open=A.open; lootUpdate(same); return; }
+  A.lootK=k;
+  const c=lootLog.find(e=>e.src==='chat'&&dkpNorm(e.item)===dkpNorm(A.item)&&A.open-e.open<3*3600e3&&A.open>=e.open-60*60e3);
+  if(c){ c.k=k; c.src='auction'; c.open=A.open; lootUpdate(c); return; }
+  const e={k,item:A.item,open:A.open,by:A.by,winners:[]}; lootLog.push(e); lootUpdate(e);
+}
+function lootOnGrats(A,w){
+  const e=lootLog.find(x=>x.k===(A.lootK||dkpNorm(A.item)+'|'+A.open))||lootGratsEntry(A.item,w.ts||A.gratsAt||A.last); if(!e) return;
+  if(!e.winners.some(x=>x.who===w.who&&x.n===w.n)) e.winners.push({who:w.who,n:w.n}); lootUpdate(e);
+}
+// the loot entry a grats belongs to: that item, opened in the hour before the grats (latest first)
+function lootGratsEntry(item,ts){ const ni=dkpNorm(item); return lootLog.filter(e=>dkpNorm(e.item)===ni&&e.open<=ts+60e3&&ts-e.open<60*60e3).sort((a,b)=>b.open-a.open)[0]||null; }
+// merge duplicates: same item, same kill (or same boss within an hour) → one entry, winners kept
+function lootMerge(list){
+  const out=[];
+  for(const e of list.slice().sort((a,b)=>a.open-b.open)){
+    const m=out.find(x=>dkpNorm(x.item)===dkpNorm(e.item)&&(x.boss||'')===(e.boss||'')&&(x.rkdId&&e.rkdId?x.rkdId===e.rkdId:true)&&Math.abs(e.open-x.open)<60*60e3);
+    if(!m){ out.push(Object.assign({},e,{winners:(e.winners||[]).slice()})); continue; }
+    for(const w of e.winners||[]) if(!m.winners.some(x=>x.who===w.who&&x.n===w.n)) m.winners.push(w);
+    if(m.src==='chat'&&e.src&&e.src!=='chat'){ m.src=e.src; m.k=e.k; }
+    if(!m.rkdId&&e.rkdId){ m.rkdId=e.rkdId; m.killTs=e.killTs; }
+  }
+  return out;
+}
+(function lootCleanup(){ try{ const n=lootLog.length; lootLog=lootMerge(lootLog); if(lootLog.length!==n){ lootSave(); console.log('[Loot] merged',n-lootLog.length,'duplicate entries'); } }catch(e){} })();
+// a kill recorded after its auctions started (tick late, Active-mode add) picks up the loot then
+function lootRematch(){ let n=0; for(const e of lootLog) if(!e.boss&&Date.now()-e.open<6*3600e3){ lootUpdate(e); if(e.boss) n++; } return n; }
+// loot for one kill: this PC's auctions, else ODKP sales from that night for the boss
+function lootForKill(r){
+  if(_rkdLaterSameFight(r)) return [];   // a mid-fight tick: the loot is on the kill row
+  const prior=_rkdSameFightIndex().prev.get(r)||[];
+  const t=r.tod||r.ts, mine=lootLog.filter(e=>e.rkdId===r.id||prior.includes(e.rkdId)||(e.boss===r.boss&&(e.killTs===t||(!e.rkdId&&e.open>=t-20*60e3&&e.open<=t+3*3600e3))));
+  if(mine.length) return lootMerge(mine).map(e=>({item:e.item,winners:e.winners,src:e.src||'auction',by:e.by,text:e.text}));
+  const out=[], seen=new Set();
+  const S=lootOdkpSales(); let lo=0,hi=S.length; while(lo<hi){ const m=(lo+hi)>>1; if(S[m].ts<t-14*3600e3) lo=m+1; else hi=m; }
+  for(let j=lo;j<S.length&&S[j].ts<t+14*3600e3;j++){ const h=S[j];
+    if(!lootRaidNames(h.raid,r.boss)||lootTableHas(r.boss,h.name)!==true) continue;   // the raid often names several bosses: only this one's drops
+    const key=h.name+'|'+h.who+'|'+h.n; if(seen.has(key)) continue; seen.add(key);
+    out.push({item:h.name,winners:[{who:h.who,n:h.n}],src:'odkp'}); }
+  return out;
+}
+// an ODKP raid name ("7-28 15:58 Nevederia 1, 7-28 16:43 NToV 2, 7-28 17:44 Vulak 3") mentions this boss anywhere
+// the boss's loot table item names (P99 wiki)
+function lootTableItems(target){
+  const W=wikiData('mobs'); if(!W) return [];
+  lootTableHas(target,'');   // builds W._mk
+  const b=BOSS_ROSTER.find(x=>x.target===target)||{full:target};
+  const ents=[b.full,b.target,target].map(n=>W._mk&&W._mk.get(dkpNorm(n))).find(Boolean)||[];
+  return [...new Set(ents.flatMap(e=>(e.lt||[]).map(x=>W.it[x[0]])))].filter(n=>n&&n.length>=4);
+}
+// bosses fighting or killed recently, from what this PC logged
+function lootRecentBosses(ts){
+  const out=new Map();
+  for(const r of _lootKills()){ const t=r.tod||r.ts; if(t<=ts&&ts-t<=3*3600e3&&!out.has(r.boss)) out.set(r.boss,{t,r}); }
+  for(const e of (typeof _rkdEvidence!=='undefined'?_rkdEvidence:[])) if(e.boss&&e.ts<=ts&&ts-e.ts<=60*60e3&&!out.has(e.boss)) out.set(e.boss,{t:e.ts,r:null});
+  return out;
+}
+function lootOnChat(msg){
+  const text=dkpNorm(msg.text); if(text.length<4) return;
+  for(const [boss,a] of lootRecentBosses(msg.ts)){
+    for(const item of lootTableItems(boss)){
+      const ni=dkpNorm(item), i=text.indexOf(ni); if(i<0) continue;
+      if(/[a-z0-9]/.test(text[i-1]||'')||/[a-z0-9]/.test(text[i+ni.length]||'')) continue;   // whole name only
+      if(lootLog.some(e=>e.boss===boss&&dkpNorm(e.item)===ni&&Math.abs(e.open-msg.ts)<3*3600e3)) continue;   // already have it (auction or an earlier mention)
+      const e={k:'chat|'+ni+'|'+msg.ts,item,open:msg.ts,by:msg.who,src:'chat',text:String(msg.text).slice(0,200),winners:[],boss,killTs:a.r?(a.r.tod||a.r.ts):a.t,rkdId:a.r?a.r.id:null};
+      lootLog.push(e); lootUpdate(e);
+    }
+  }
+}
+function lootRaidNames(raid,target){ const bo=BOSS_ROSTER.find(x=>x.target===target); if(!bo) return false; const t=_rkdNorm(raid); return _rkdWordRx(_rkdNorm(bo.full)).test(t)||(bo.target.length>=4&&_rkdWordRx(_rkdNorm(bo.target)).test(t)); }
+// every ODKP sale in one time-sorted list (rebuilt when the ODKP data changes)
+let _lootOdkp=null,_lootOdkpSrc=null;
+function lootOdkpSales(){
+  if(_lootOdkpSrc===dkpLookup&&_lootOdkp) return _lootOdkp;
+  const a=[]; for(const [name,d] of Object.entries(dkpLookup||{})) if(Array.isArray(d[4])) for(const h of d[4]){ const ts=Date.parse(h[2]); if(isFinite(ts)) a.push({name,who:h[0],n:+h[1],ts,raid:String(h[3]||'')}); }
+  a.sort((x,y)=>x.ts-y.ts); _lootOdkpSrc=dkpLookup; return _lootOdkp=a;
+}
+const _lootOpen=new Set();
+window.lootToggle=function(el,key){ const open=!_lootOpen.has(key); open?_lootOpen.add(key):_lootOpen.delete(key); const b=el.nextElementSibling; if(b) b.style.display=open?'':'none'; const a=el.querySelector('.lt-arrow'); if(a) a.textContent=open?'▾':'▸'; };
+function lootLineHtml(list,boss,key){
+  if(!list||!list.length) return '';
+  const hist=lootBossHistory(boss), k=String(key||boss), open=_lootOpen.has(k), mine=list.some(l=>(l.winners||[]).some(w=>aucIsMyAcct(w.who)));
+  return '<div onclick="event.stopPropagation();lootToggle(this,decodeURIComponent(\''+encodeURIComponent(k).replace(/'/g,'%27')+'\'))" title="'+(open?'Hide':'Show')+' the loot" style="font-size:.72rem;font-weight:400;color:var(--text-muted);cursor:pointer;user-select:none;margin-top:.1rem;white-space:nowrap">🎁 '+list.length+' drop'+(list.length===1?'':'s')+(mine?' <span style="color:#3a7a3a">· yours</span>':'')+' <span class="lt-arrow">'+(open?'▾':'▸')+'</span></div>'
+    +'<div style="display:'+(open?'':'none')+';font-size:.72rem;font-weight:400;line-height:1.5;margin-top:.1rem" title="'+esc(hist).replace(/"/g,'&quot;')+'">'+list.map(l=>'🎁 <a href="'+wikiUrl(l.item)+'" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;border-bottom:1px dotted var(--gold)">'+esc(l.item)+'</a>'
+    +(l.winners&&l.winners.length?' <span style="color:'+(l.winners.some(w=>aucIsMyAcct(w.who))?'#3a7a3a':'var(--text-muted)')+'">· '+l.winners.map(w=>esc(w.who)+(w.n!=null?' '+w.n:'')).join(', ')+'</span>':l.src==='chat'?'':' <span style="color:var(--text-muted)">· no grats seen</span>')
+    +(l.src==='odkp'?' <span style="color:var(--text-muted)" title="From ODKP — not seen in your logs">(ODKP)</span>':'')
+    +(l.src==='chat'?' <span style="color:var(--text-muted)" title="'+esc(l.by+': '+(l.text||'')).replace(/"/g,'&quot;')+'">(mentioned by '+esc(l.by||'?')+' in chat)</span>':'')).join('<br>')+'</div>';
+}
+function lootBossHistory(boss){
+  const kills=new Set(), c={};
+  for(const e of lootLog) if(e.boss===boss){ kills.add(e.killTs); c[e.item]=(c[e.item]||0)+1; }
+  if(!kills.size) return '';
+  return boss+' — loot seen on '+kills.size+' kill'+(kills.size===1?'':'s')+':\n'+Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([i,n])=>i+' ×'+n).join('\n');
 }
 function aucMine(){ return new Set((typeof charNames==='function'?charNames():[]).map(n=>String(n).toLowerCase())); }
 function aucTop(A){ return A.bids.length?A.bids.reduce((m,b)=>b.n>m.n||(b.n===m.n&&b.ts<m.ts)?b:m):null; }
 function aucIsMine(b,mine){ return mine.has(String(b.who).toLowerCase())||(b.toon&&mine.has(String(b.toon).toLowerCase())); }
+// Auction wins ODKP doesn't have yet (owner, 2026-10-09) → "Avail to spend" in the auction window
+let aucPending=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_auc_pending')||'[]')||[]; }catch(e){ return []; } })();
+function aucPendingSave(){ try{ localStorage.setItem('mp_auc_pending',JSON.stringify(aucPending)); }catch(e){} }
+function aucIsMyAcct(who){ const lc=String(who||'').toLowerCase(); if(aucMine().has(lc)) return true; const me=odkpMyBalance(), c=odkpC(who); return !!(me&&c&&String(c.mainId)===String(me.mainId)); }
+function aucPendingAdd(item,who,n,ts){
+  if(!(n>0)||!aucIsMyAcct(who)) return;
+  if(aucPending.some(p=>dkpNorm(p.item)===dkpNorm(item)&&p.who.toLowerCase()===String(who).toLowerCase()&&p.n===n&&Math.abs(p.ts-ts)<6*3600e3)) return;
+  aucPending.push({item,who,n,ts}); aucPendingSave();
+}
+// on ODKP once its item history has the sale: same buyer, same DKP, within 3 days of the grats (ODKP can lag a week)
+function aucPendingOnOdkp(p){ const d=dkpFind(p.item), win=(p.manual?7:3)*864e5;   // a manual entry may be added days later, by any of your characters
+  return !!(d&&Array.isArray(d[4])&&d[4].some(h=>(String(h[0]).toLowerCase()===String(p.who).toLowerCase()||(p.manual&&aucIsMyAcct(h[0])))&&Math.abs(+h[1]-p.n)<0.5&&Math.abs((Date.parse(h[2])||0)-p.ts)<win)); }
+function aucAvail(){
+  const before=aucPending.length; aucPending=aucPending.filter(p=>Date.now()-p.ts<21*864e5&&!aucPendingOnOdkp(p)); if(aucPending.length!==before) aucPendingSave();
+  const me=odkpMyBalance(); if(!me) return null;
+  const spent=aucPending.reduce((t,p)=>t+p.n,0);
+  return {bal:me.bal, asOf:me.asOf, main:me.main, avail:Math.round((me.bal-spent)*10)/10, pending:aucPending.slice().sort((x,y)=>y.ts-x.ts)};
+}
 // auctions ignored in the auction window (right-click → Ignore) — no outbid / grats notices for them
 const aucIgnored=new Set();
 function aucOutbidCheck(A,now){
@@ -9307,7 +9549,7 @@ function aucBidView(b,mine){
 }
 function aucState(){
   const mine=aucMine(), now=Date.now();
-  return {autoPop:aucAutoPop,dkpAsOf:odkpGuild?(Date.parse(odkpGuild.asOf||'')||odkpGuild.at):null,
+  return {autoPop:aucAutoPop,dkpAsOf:odkpGuild?(Date.parse(odkpGuild.asOf||'')||odkpGuild.at):null,avail:aucAvail(),
     auctions:aucList.slice().sort((x,y)=>{const ox=aucIsOpen(x,now),oy=aucIsOpen(y,now);return ox!==oy?(ox?-1:1):y.open-x.open;}).map(A=>{
       const d=typeof getDkp==='function'?getDkp(A.item):null, top=aucTop(A);
       const iBid=A.bids.some(b=>aucIsMine(b,mine)), topV=top?aucBidView(top,mine):null;
@@ -9326,6 +9568,8 @@ if(window.MixelParseApp){
   if(window.MixelParseApp.onAuctionCommand) window.MixelParseApp.onAuctionCommand(c=>{
     if(c&&c.type==='autoPop'){ aucAutoPop=!!c.on; try{localStorage.setItem('mp_auc_autopop',aucAutoPop?'1':'0');}catch(e){} aucPush(); }
     if(c&&c.type==='ignore'&&c.id){ c.on?aucIgnored.add(c.id):aucIgnored.delete(c.id); }
+    if(c&&c.type==='pendingAdd'&&c.item&&+c.n>0){ aucPending.push({item:String(c.item).trim(),who:c.who||(odkpMyBalance()||{}).main||'you',n:Math.round(+c.n),ts:c.ts||Date.now(),manual:true}); aucPendingSave(); aucPush(); }
+    if(c&&c.type==='pendingRemove'){ aucPending=aucPending.filter(p=>!(p.ts===c.ts&&p.item===c.item)); aucPendingSave(); aucPush(); }
   });
 }
 setInterval(()=>{ if(aucList.length) aucPush(); },15000);   // closes idle auctions / refreshes balances
@@ -11082,6 +11326,20 @@ async function loadFarmTargetsFromSupabase(){
   }catch(e){console.warn('[Farm] load exception',e);}
 }
 
+// one mob in a Drops From cell: name + level · respawn · this item's drop rate; hover: loc, specials, placeholder notes
+function farmMobHtml(mob,zone,item){
+  const W=wikiData('mobs',()=>{ if(activeTopView==='farm') renderFarmPanel(); });
+  if(!W) return esc(mob);
+  const all=W.m[String(mob).toLowerCase()]; if(!all) return esc(mob);
+  const nz=x=>String(x||'').toLowerCase().replace(/^the\s+/,'').replace(/[^a-z0-9]/g,'');
+  const e=all.find(x=>nz(x.z)===nz(zone))||all[0];
+  const ix=W.it.indexOf(item), lt=ix>=0?(e.lt||[]).find(x=>x[0]===ix):null;
+  const bits=[e.l?'L'+e.l:'', e.r||'', lt&&lt[1]!=null?lt[1]+'%':''].filter(Boolean);
+  const tip=[e.n+(e.z?' — '+e.z:''), e.l?'Level '+e.l:'', e.loc?'Spawns: '+e.loc:'', e.r?'Respawn: '+e.r:'', lt&&lt[1]!=null?item+': '+lt[1]+'% per kill':'', e.sp?'Special: '+e.sp:'', e.d||''].filter(Boolean).join('\n');
+  return '<a href="'+wikiUrl(e.n)+'" target="_blank" rel="noopener" title="'+esc(tip).replace(/"/g,'&quot;')+'" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--gold)">'+esc(mob)+'</a>'
+    +(bits.length?' <span style="color:var(--text-muted);font-size:.66rem;white-space:nowrap">('+esc(bits.join(' · '))+')</span>':'')
+    +(e.sp&&/unslow|unmez|unfear|unsnare|immune/i.test(e.sp)?' <span title="'+esc(e.sp).replace(/"/g,'&quot;')+'" style="font-size:.66rem;color:#a06020">⚠</span>':'');
+}
 function renderFarmTargetsPanel(panel){
   if(!farmTargetsData&&!_farmLoaded){_farmLoaded=true;loadFarmTargetsFromSupabase();}
   if(!_farmIgnoresLoaded&&currentUser){_farmIgnoresLoaded=true;loadFarmIgnoresFromSupabase().then(()=>{renderFarmPanel();});}
@@ -11119,7 +11377,7 @@ function renderFarmTargetsPanel(panel){
         if(it.removed)status='<span style="color:#a03030">🚫 no longer drops</span>';
         else if(it.legacy)status='<span style="color:#b08020" title="Wiki has legacy/cease-drop language — check era vs server date">⚠ legacy flag</span>';
         else status='<span style="color:#3a7a3a">✅ farmable</span>';
-        if(it.zones&&it.zones.length)src=it.zones.map(z=>`<b>${esc(z.zone)}</b>${z.mobs.length?' — '+z.mobs.map(esc).join(', '):''}`).join('<br>');
+        if(it.zones&&it.zones.length)src=it.zones.map(z=>`<b>${esc(z.zone)}</b>${z.mobs.length?' — '+z.mobs.map(m=>farmMobHtml(m,z.zone,t.n)).join(', '):''}`).join('<br>');
         else src='<span style="color:var(--text-muted)">no Drops From section parsed</span>';
         if(it.era)src+=`<span style="color:var(--text-muted);font-size:.66rem"> · ${esc(it.era)} era</span>`;
       }
@@ -11752,7 +12010,8 @@ function renderGearReportsPanel(){
       // Computed at render time, so plans saved before this existed pick it up
       // with no re-save.
       const _qc=(!e.dkp||!e.plat)?questCostFor(e.upgradeName):null;
-      const _eDkp  = e.dkp  || (_qc&&_qc.dkp)  || null;
+      const _ic=e.dkp?null:itemDkpCost(e.upgradeName);
+      const _eDkp  = e.dkp  || (_ic&&_ic.dkp) || (_qc&&_qc.dkp)  || null;
       const _ePlat = e.plat || (_qc&&_qc.plat) || null;
       if(_eDkp){
         totalDkp+=Number(_eDkp);
@@ -12286,6 +12545,7 @@ function renderKillsPanel(){
           <span class="kt-expand-btn" onclick="ktToggleBossRoles('${esc(b.target)}')">${isOpen?'▲':'▼'}</span>
           <button type="button" data-bosstgt="${esc(b.target)}" onclick="ktAddSpawn(this.dataset.bosstgt)" title="Add another spawn of ${esc(b.display||b.target)} (quake repop, GM event, second attempt)" style="margin-left:.25rem;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.85rem;padding:0 .2rem;line-height:1">＋</button>
         </div>
+        ${state==='killed'&&(activeSession.loot||[]).some(l=>l.boss===b.target)?'<div style="padding:.1rem .8rem .35rem 2.2rem">'+lootLineHtml(lootMerge(activeSession.loot.filter(l=>l.boss===b.target)),b.target,'kt|'+(activeSession.id||'')+'|'+b.target)+'</div>':''}
         <div id="ktbr_${esc(b.target)}" style="display:${isOpen?'block':'none'};border-bottom:1px solid var(--border);background:var(--surface)">
           ${buildBossRoleHtml(b.target)}
         </div>
@@ -12957,7 +13217,8 @@ function _rkdBossInText(text){
   return BOSS_ROSTER.find(b=>_rkdWordRx(_rkdNorm(b.full)).test(t))
       || BOSS_ROSTER.find(b=>b.target.length>=5&&_rkdWordRx(_rkdNorm(b.target)).test(t)) || null;
 }
-function rkdSave(){try{localStorage.setItem('mp_rkd_log',JSON.stringify(rkdLog.slice(-RKD_LOG_MAX)));}catch(e){}}
+let _rkdVer=0;
+function rkdSave(){_rkdVer++;try{localStorage.setItem('mp_rkd_log',JSON.stringify(rkdLog.slice(-RKD_LOG_MAX)));}catch(e){}}
 function rkdOnEvidence(msg){
   const b=msg.kind==='call'?_rkdBossInText(msg.text):_rkdBossByMob(msg.mob);
   if(!b&&msg.kind!=='faction'&&msg.kind!=='slain')return;   // boss-less faction hits mark a death; named trash kills explain some of them
@@ -13457,7 +13718,11 @@ function rkdActOnTick(r){
   if(Date.now()-r.ts>10*60e3)return;                       // live ticks only — never scans / startup replay
   if(!_rkdAttended(r))return;                               // in zone or raid chat, not just guild chat
   const when=r.tod||r.ts;
-  if(r.boss&&_rkdRecordedCount(r.boss,when)>0)return;       // already /note'd or added
+  if(r.boss&&_rkdRecordedCount(r.boss,when)>0){
+    // already recorded from a mid-fight tick of this fight → this tick has the real death: correct the timer
+    if(rkdLog.some(e=>_rkdLaterSameFight(e)===r)&&/slain|faction/i.test(r.todSource||'')){ btNoteTod(r.boss,when); if(typeof showWatcherToast==='function') showWatcherToast('⚔ '+btLabel(r.boss)+' kill time updated to '+new Date(when).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'})+' (an earlier tick was mid-fight)'); }
+    return;
+  }
   if(r.tier==='strong'&&r.boss){rkdAutoAdd(r);return;}
   if(!rkdConfirmOn())return;
   let item;
@@ -13489,6 +13754,7 @@ function rkdAutoAdd(r){
   saveSessionsToSupabase();
   btNoteTod(r.boss,when);
   r.confirm='auto';r.autoSession=saved.id;r.autoLabel=label;rkdSave();rkdConfirmTally('auto');
+  try{ lootRematch(); }catch(e){}
   if(typeof showWatcherToast==='function')showWatcherToast('⚔ Auto-Detect added '+label.replace(r.boss,btLabel(r.boss))+' (Strong) — right-click the tick to undo'+(rkdLvlWarn(r)?' · ⚠ '+r.char+' is '+rkdLvlWarn(r).short:''));
   if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();
 }
@@ -13600,7 +13866,9 @@ function renderAutoDetectPanel(){
   let nOk=0,nMiss=0,nNewer=0;
   for(const r of rkdLog){const k=odkpState(r).k;if(k==='ok')nOk++;else if(k==='missing')nMiss++;else if(k==='newer'&&_rkdAttended(r))nNewer++;}
   // repeat kills: the Nth suggestion of a boss in a night needs N recorded (Statue, Statue #2…)
-  const rankOf=r=>rkdLog.filter(e=>e.boss===r.boss&&(e.tier==='strong'||e.tier==='weak')&&e.confirm!=='nknc'&&e.confirm!=='dismissed'&&e.ts<=r.ts&&e.ts>=r.ts-12*3600e3).length;
+  const _rk={}; for(const e of rkdLog) if(e.boss&&(e.tier==='strong'||e.tier==='weak')&&!_rkdLaterSameFight(e)&&e.confirm!=='nknc'&&e.confirm!=='dismissed') (_rk[e.boss]=_rk[e.boss]||[]).push(e.ts);
+  for(const b in _rk) _rk[b].sort((a,c)=>a-c);
+  const rankOf=r=>{ let n=0; for(const t of _rk[r.boss]||[]){ if(t>r.ts) break; if(t>=r.ts-12*3600e3) n++; } return n; };
   const rows=rkdLog.slice().reverse().filter(r=>{
     if(onlyUncredited)return odkpState(r).k==='missing';
     return showNoise||r.tier!=='none'||r.sameZone;
@@ -13608,7 +13876,7 @@ function renderAutoDetectPanel(){
   // live ticks still in their 2-minute evidence window
   const pending=_rkdOpenTicks.filter(t=>!rkdLog.some(r=>Math.abs(t.ts-r.ts)<=RKD_TICK_DEDUPE)).slice().sort((a,b)=>b.ts-a.ts).map(t=>
     `<tr style="border-bottom:1px solid var(--border);background:rgba(201,168,76,.06)">
-      <td style="padding:.3rem .5rem;white-space:nowrap">${fmt(t.ts)}</td>
+      <td style="padding:.3rem .5rem;white-space:nowrap">${fmt(t.ts)}${t.poster?`<div style="font-size:.7rem;color:var(--text-muted)" title="Who took the tick">by <b style="color:var(--text)">${esc(t.poster)}</b></div>`:''}</td>
       <td style="padding:.3rem .5rem">${esc(t.char||'')}${t.zone?`<div style="font-size:.68rem;color:var(--text-muted)">${esc(t.zone)}</div>`:''}</td>
       <td colspan="7" style="padding:.3rem .5rem;color:var(--text-muted);font-size:.78rem">⏳ Collecting evidence — the suggestion appears about 2 minutes after the tick (kill lines often come right after it).</td>
     </tr>`).join('');
@@ -13632,13 +13900,13 @@ function renderAutoDetectPanel(){
       :'<span style="color:var(--text-muted)">—</span>';
     const ev=(r.evidence||[]).map(e=>`<div>${fmt(e.ts).split(', ').pop()} <b>${esc(e.kind)}</b> ${esc(e.raw)}</div>`).join('');
     return `<tr data-rkd="${esc(r.id)}" oncontextmenu="return rkdRowMenu(event,this)" title="Right-click: add to the Raid Kill Tracker" style="border-bottom:1px solid var(--border)${o.k==='missing'?';background:rgba(180,40,40,.07)':''}">
-      <td style="padding:.3rem .5rem;white-space:nowrap">${fmt(r.ts)}</td>
+      <td style="padding:.3rem .5rem;white-space:nowrap">${fmt(r.ts)}${r.poster?`<div style="font-size:.7rem;color:var(--text-muted)" title="Who took the tick">by <b style="color:var(--text)">${esc(r.poster)}</b></div>`:''}</td>
       <td style="padding:.3rem .5rem">${esc(r.char||'')}${r.zone?`<div style="font-size:.68rem;color:var(--text-muted)" title="Zone the tick was taken in">${esc(r.zone)}</div>`:''}${(()=>{const w=rkdLvlWarn(r);return w?`<div style="font-size:.66rem;color:${w.farmOk?'var(--text-muted)':'#c48a3a'}" title="${esc(w.tip)}">⚠ lvl ${r.lvl} — ${esc(w.short)}</div>`:'';})()}</td>
-      <td style="padding:.3rem .5rem;font-weight:600">${who}</td>
+      <td style="padding:.3rem .5rem;font-weight:600">${who}${r.boss&&(r.tier==='strong'||r.tier==='weak'||r.confirm==='auto'||r.confirm==='added')?lootLineHtml(lootForKill(r),r.boss,'rkd|'+r.id):''}</td>
       <td style="padding:.3rem .5rem;font-size:.74rem;color:var(--text-muted)" title="Up in ${esc(r.zone||'this zone')} at the tick, per the spawn timers">${Array.isArray(r.upZone)?(r.upZone.length?'<div style="display:grid;grid-template-columns:repeat(2,max-content);column-gap:.9rem;row-gap:.05rem">'+r.upZone.map(b=>'<span style="white-space:nowrap">'+esc(btLabel(b))+'</span>').join('')+'</div>':'<span style="font-size:.7rem">none on the timers</span>')+(r.upStale?`<div style="font-size:.66rem;opacity:.75;margin-top:.15rem" title="Up on the spawn timers for more than a day at the tick — almost always a kill nobody recorded, so not offered. Search for them in the right-click menu if needed.">+${r.upStale} stale (up 1 day+)</div>`:''):'—'}</td>
-      <td style="padding:.3rem .5rem;color:${tc};white-space:nowrap">${tl}${r.basis?` <span style="font-size:.7rem;color:var(--text-muted)">(${esc(r.basis)})</span>`:''}</td>
+      <td style="padding:.3rem .5rem;color:${tc};white-space:nowrap">${(()=>{const x=_rkdLaterSameFight(r);return x?'<div style="font-size:.7rem;color:var(--text-muted);white-space:normal" title="A tick taken during the fight — the boss died later">mid-fight tick: killed '+(x.tod?fmt(x.tod).split(', ').pop():'later')+' ('+fmt(x.ts).split(', ').pop()+' tick)</div>':'';})()}${tl}${r.basis?` <span style="font-size:.7rem;color:var(--text-muted)">(${esc(r.basis)})</span>`:''}</td>
       <td style="padding:.3rem .5rem;white-space:nowrap">${r.tod?fmt(r.tod).split(', ').pop()+` <span style="font-size:.68rem;color:var(--text-muted)">${esc(r.todSource||'')}</span>`:'—'}</td>
-      <td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted)">${r.sameZone?'OOC+':''}${esc(r.poster||'')}<div style="font-size:.68rem">${ev}</div>${r.qAfter?`<div style="font-size:.68rem;color:#c48a3a" title="A character logged in ${Math.max(1,Math.round((r.qAfter-r.ts)/60e3))} min after this tick (/q to another character, or a relog) and no kill line was seen — if you left before the kill, the log can't show it">${fmt(r.qAfter).split(', ').pop()} /q or relog after the tick — kill not seen</div>`:''}</td>
+      <td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted)"><span title="Where the tick was heard">${r.sameZone?'OOC (in zone)':'guild chat'}</span><div style="font-size:.68rem">${ev}</div>${r.qAfter?`<div style="font-size:.68rem;color:#c48a3a" title="A character logged in ${Math.max(1,Math.round((r.qAfter-r.ts)/60e3))} min after this tick (/q to another character, or a relog) and no kill line was seen — if you left before the kill, the log can't show it">${fmt(r.qAfter).split(', ').pop()} /q or relog after the tick — kill not seen</div>`:''}</td>
       <td style="padding:.3rem .5rem;white-space:nowrap;font-size:.75rem">${rec}</td>
       <td style="padding:.3rem .5rem;font-size:.75rem">${odkp}</td>
     </tr>`;
