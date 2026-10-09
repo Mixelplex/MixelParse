@@ -974,6 +974,9 @@ const RE_RT_CALL     = /^\[.+?\] (\w+) (tells the guild|says out of character|te
 // A boss talking: NPC speech has no comma ("Fright says 'JAEJEE'", "Cazic Thule says 'You will not evade me …'",
 // "Derakor the Vindicator says 'Only the strong will survive'"); players' /say has one. Only roster bosses count.
 const RE_RT_SAY      = /^\[.+?\] (.+?) says '(.*)'$/;
+// Zone-wide lines a boss repeats on a timer while it is UP and idle — proof it's alive, not a fight (owner, 2026-10-09:
+// Cazic Thule's 10-minute "Beware all infidels…" was the only boss line before a Fear tick at 2:17 → a CT kill prompt).
+const RE_RT_AMBIENT  = /Beware all infidels who dare to taint my plane/i;
 const RE_RT_CALLKIND = /<\s*(tash|malo|slow|brd slow)\s*>|\b(tashed|malo|slowed)\b/i;
 const RT_LAND_KIND   = { 'glances nervously about':'tash', 'looks very uncomfortable':'malo', 'yawns':'slow', 'slows down':'slow' };
 const _rtGeneric     = name => /^(a|an) /i.test(name);   // "a fiery watcher" — never a roster boss
@@ -996,7 +999,7 @@ function raidSignal(line, charName) {
   if ((m = RE_RT_LAND.exec(line)))   return { type:'raidEvidence', charName, kind:'land', sub:RT_LAND_KIND[m[2]], mob:m[1], ts };
   if ((m = RE_RT_FACTION.exec(line))) return { type:'raidEvidence', charName, kind:'faction', mob:m[1], ts };
   if ((m = RE_RT_FIGHT.exec(line)))  return _rtGeneric(m[1]) ? null : { type:'raidEvidence', charName, kind:'fight', mob:m[1], ts };
-  if ((m = RE_RT_SAY.exec(line)))   return _rtGeneric(m[1]) ? null : { type:'raidEvidence', charName, kind:'say', mob:m[1], ts };
+  if ((m = RE_RT_SAY.exec(line)))   return _rtGeneric(m[1]) || RE_RT_AMBIENT.test(m[2]) ? null : { type:'raidEvidence', charName, kind:'say', mob:m[1], ts };
   if ((m = RE_RT_CALL.exec(line)) && RE_RT_CALLKIND.test(m[3])) return { type:'raidEvidence', charName, kind:'call', text:m[3], poster:m[1], channel:m[2], ts };
   return null;
 }
@@ -1041,18 +1044,30 @@ function _rtZoneOf(charName) {
 const RE_AUC_LINE = /^\[.+?\] (\w+) auctions?, '(.*)'$/;
 const RE_AUC_OPEN = /~\[([^\]]+)\]\s*-\s*BID IN \/AUC/i;
 const RE_AUC_GRATS = /~\s*grat+[sz]*\s+\S+\s+on\s+\[/i;   // the officer's close — always forwarded
+// an officer relaying the close in guild chat: "Bahbin tells the guild, '/AUC ~Gratss Mixelmedic on [Claw of Lightning] (285 DKP)!'"
+// — the only copy a character out of the zone (or one you swapped to) sees. Only the grats is taken from a relay.
+const RE_AUC_RELAY = /^\[.+?\] (\w+) tells the guild, '\s*\/auc\s+(.*)'$/i;
 let _aucLastOpen = 0;
 function auctionSignal(line, charName) {
-  if (line.indexOf(' auction') < 0) return;
-  const m = RE_AUC_LINE.exec(line); if (!m) return;
+  if (line.indexOf(' auction') < 0 && line.indexOf('/AUC') < 0 && line.indexOf('/auc') < 0) return;
+  let m = RE_AUC_LINE.exec(line);
+  if (!m) { const r = RE_AUC_RELAY.exec(line); if (!r || !RE_AUC_GRATS.test(r[2])) return; m = r; }
   const ts = _rtLineTs(line), open = RE_AUC_OPEN.test(m[2]);
   if (open) _aucLastOpen = Math.max(_aucLastOpen, ts);
   else if (!RE_AUC_GRATS.test(m[2]) && Math.abs(ts - _aucLastOpen) > 45 * 60e3) return;   // auctions stay open until grats (owner, 2026-10-05)
   broadcast({ type: 'auctionLine', charName, who: m[1] === 'You' ? charName : m[1], text: m[2], ts, open });
 }
+// guild / raid chat for loot mentions ("what did Fright drop?" → "Claw of Lightning") — not OOC (EC tunnel spam)
+const RE_CHAT_LOOT = /^\[.+?\] (?:(\w+) (tells the guild|tells the raid)|You (say to your guild|tell your raid)), '(.*)'$/;
+function chatSignal(line, charName) {
+  if (line.indexOf(' guild') < 0 && line.indexOf(' raid') < 0) return;
+  const m = RE_CHAT_LOOT.exec(line); if (!m) return;
+  broadcast({ type: 'chatLine', charName, who: m[1] || charName, channel: m[2] || m[3], text: m[4], ts: _rtLineTs(line) });
+}
 function raidEvidence(line, charName) {
   _rtNoteZone(line, charName);
   auctionSignal(line, charName);
+  chatSignal(line, charName);
   // a login (/q to another character, relog after a crash): the renderer marks a tick just before it "logged out before the kill"
   if (line.indexOf('Welcome to EverQuest!') >= 0 && RE_SESSION_LOGIN.test(line)) { broadcast({ type:'raidLogin', charName, ts:_rtLineTs(line) }); return; }
   const msg = raidSignal(line, charName);
@@ -1121,6 +1136,9 @@ function raidBackfill() {
   const since = Date.now() - RT_BACKFILL_MS;
   let files = [];
   try { files = fs.readdirSync(_config.logDir).filter(f => /^eqlog_.+_P1999Green\.txt$/i.test(f)); } catch { return; }
+  // All logs in ONE time-ordered pass (owner, 2026-10-09): file by file, a grats relayed in Mixelshank's log replayed before
+  // the auction in Mixelmedic's and was lost. Zone changes before the window are applied per character first.
+  const lines = [], saved = {};
   for (const f of files) {
     const fp = path.join(_config.logDir, f);
     try {
@@ -1132,26 +1150,29 @@ function raidBackfill() {
       const fd = fs.openSync(fp, 'r');
       fs.readSync(fd, buf, 0, readSize, stat.size - readSize);
       fs.closeSync(fd);
-      let n = 0;
       // Replay the zone changes too, so each backfilled line carries the zone it was logged in (the
       // character's zone right now is wrong for anything before a port or a /q). Synchronous, so the
       // live tail can't interleave; ends on the log's last zone line = where the character is now.
-      const keep = _rtZone[charName], had = charName in _rtZone;
-      delete _rtZone[charName]; _rtBackfilling = true;
-      try {
-        for (const raw of buf.toString('utf8').split('\n')) {
-          const line = raw.trim();
-          if (!line) continue;
-          if (_rtLineTs(line) < since) { _rtNoteZone(line, charName); continue; }
-          raidEvidence(line, charName); n++;
-        }
-      } finally {
-        _rtBackfilling = false;
-        if (!_rtZone[charName]) { if (had) _rtZone[charName] = keep; else delete _rtZone[charName]; }
+      saved[charName] = { keep: _rtZone[charName], had: charName in _rtZone }; delete _rtZone[charName];
+      let i = 0;
+      for (const raw of buf.toString('utf8').split('\n')) {
+        const line = raw.trim();
+        if (!line) continue;
+        const ts = _rtLineTs(line);
+        if (ts < since) { _rtNoteZone(line, charName); continue; }
+        lines.push({ ts, i: i++, line, charName });
       }
-      log(`[RAID] backfilled ${charName}: ${n} lines from the last 6 hours`);
     } catch (e) { err('[RAID] backfill error:', f, e.message); }
   }
+  lines.sort((a, b) => a.ts - b.ts || (a.charName < b.charName ? -1 : a.charName > b.charName ? 1 : a.i - b.i));
+  _rtBackfilling = true;
+  try { for (const x of lines) raidEvidence(x.line, x.charName); }
+  catch (e) { err('[RAID] backfill error:', e.message); }
+  finally {
+    _rtBackfilling = false;
+    for (const [c, v] of Object.entries(saved)) if (!_rtZone[c]) { if (v.had) _rtZone[c] = v.keep; else delete _rtZone[c]; }
+  }
+  log(`[RAID] backfilled ${Object.keys(saved).length} log(s): ${lines.length} lines from the last 6 hours, in time order`);
 }
 
 // Bind look-back (owner, 2026-10-04: Mixelboom rebound in Western Wastes on 9/22 while MixelParse was closed; the app

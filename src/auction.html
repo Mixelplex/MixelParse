@@ -107,6 +107,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .menu div:hover{background:rgba(224,181,82,.14)}
 .menu .mh{font-size:.68rem;letter-spacing:.08em;color:var(--muted);cursor:default;padding:.2rem .7rem .3rem}
 .menu .mh:hover{background:none}
+.tb-dkp{font-size:.74rem;font-weight:700;color:var(--gold2);padding:.14rem .6rem;border:1px solid var(--golddk);border-radius:999px;cursor:pointer;white-space:nowrap;background:rgba(224,181,82,.08)}
+.tb-dkp:hover{background:rgba(224,181,82,.18)}
+.tb-dkp .k{font-weight:500;color:var(--dim);margin-right:.3rem}
+.tb-dkp.pend{border-color:var(--warn)}
+.menu .mrow{display:flex;justify-content:space-between;gap:1rem;cursor:default}
+.menu .mrow:hover{background:none}
+.menu .mx{color:var(--muted);cursor:pointer;padding:0 .2rem}
+.menu .mx:hover{color:var(--danger)}
 .foot a{color:var(--gold);cursor:pointer;text-decoration:none}
 .foot a:hover{text-decoration:underline}
 .foot{font-size:.72rem;color:var(--muted);padding:.4rem .8rem;background:var(--bg2);border-top:1px solid var(--line);flex-shrink:0;display:flex;justify-content:space-between;gap:.5rem}
@@ -117,6 +125,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   <div class="tb">
     <span class="tb-title">⚖ Auctions <span class="tb-count none" id="count">none open</span></span>
     <span class="tb-sp"></span>
+    <span class="tb-dkp nd" id="avail" onclick="availMenu(event)" style="display:none"></span>
     <label class="tb-pop nd" title="Open this window by itself when an officer starts an auction in /auction"><input type="checkbox" id="pop" onchange="cmd({type:'autoPop',on:this.checked})"> pop up</label>
     <button class="tb-btn nd" onclick="zoom(-1)" title="Smaller text">A−</button>
     <button class="tb-btn nd" onclick="zoom(1)" title="Bigger text">A+</button>
@@ -150,8 +159,13 @@ function cardMenu(ev, id){
   ev.preventDefault();
   const a = (S.auctions || []).find(x => x.id === id); if (!a) return false;
   const m = document.getElementById('menu'), ig = ignored.has(id);
+  const myBids = (a.bids || []).filter(b => b.mine).sort((x, y) => y.n - x.n), mb = myBids[0];
+  const won = S.avail && (S.avail.pending || []).some(p => p.item.toLowerCase() === a.item.toLowerCase() && Math.abs(p.ts - (a.gratsAt || a.last || 0)) < 6 * 3600e3);
   m.innerHTML = '<div class="mh">' + esc(a.item.toUpperCase()) + '</div>'
-    + '<div onclick="setIgnored(\'' + id + '\',' + (!ig) + ')">' + (ig ? '↶ Un-ignore' : '✕ Ignore this auction') + '</div>';
+    + '<div onclick="setIgnored(\'' + id + '\',' + (!ig) + ')">' + (ig ? '↶ Un-ignore' : '✕ Ignore this auction') + '</div>'
+    + (won ? '<div class="mh" style="color:var(--live)">✓ Counted in Avail to spend</div>'
+      : '<div class="mrow" style="align-items:center">✓ I won this <span><input id="mwN" type="number" min="1" value="' + (mb ? mb.n : (a.top ? a.top.n : '')) + '" style="width:4.5rem;font:inherit;font-size:.85rem;padding:.1rem .3rem;background:var(--bg2);color:var(--text);border:1px solid var(--line2);border-radius:5px"> DKP '
+        + '<button onclick="manualWin(decodeURIComponent(\'' + encodeURIComponent(a.item).replace(/'/g, '%27') + '\'),' + JSON.stringify(mb ? (mb.toon || mb.who) : '').replace(/"/g, '&quot;') + ',' + (a.gratsAt || a.last || 0) + ')" style="font:inherit;font-size:.8rem;padding:.1rem .5rem;margin-left:.2rem;border-radius:5px;border:1px solid var(--golddk);background:rgba(224,181,82,.15);color:var(--gold2);cursor:pointer">Add</button></span></div>');
   m.style.display = 'block';
   m.style.left = Math.min(ev.clientX, innerWidth - m.offsetWidth - 6) + 'px';
   m.style.top = Math.min(ev.clientY, innerHeight - m.offsetHeight - 6) + 'px';
@@ -177,6 +191,34 @@ function fitColumns(n){
 }
 
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// your DKP: ODKP balance minus wins ODKP doesn't have yet
+function fmtT(t){ return new Date(t).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'}); }
+function renderAvail(){
+  const el = document.getElementById('avail'), v = S.avail; if (!v) { el.style.display = 'none'; return; }
+  el.style.display = ''; el.classList.toggle('pend', v.pending.length > 0);
+  el.innerHTML = v.pending.length ? '<span class="k">Avail to spend</span>' + v.avail.toLocaleString() + ' DKP' : '<span class="k">DKP</span>' + v.bal.toLocaleString();
+  el.title = v.pending.length ? v.bal.toLocaleString() + ' on ODKP (as of ' + fmtT(v.asOf) + ') − ' + v.pending.map(p => p.n + ' ' + p.item).join(' − ') + ' (won, not on ODKP yet). Click for details.' : v.bal.toLocaleString() + ' DKP on ODKP (as of ' + fmtT(v.asOf) + ')';
+}
+function availMenu(ev){
+  const v = S.avail; if (!v) return;
+  const m = document.getElementById('menu');
+  m.innerHTML = '<div class="mh">AVAILABLE TO SPEND · ' + esc(String(v.main).toUpperCase()) + '</div>'
+    + '<div class="mrow"><span>ODKP balance <span style="color:var(--muted);font-size:.75rem">as of ' + fmtT(v.asOf) + '</span></span><b>' + v.bal.toLocaleString() + '</b></div>'
+    + v.pending.map(p => '<div class="mrow"><span>− ' + esc(p.item) + ' <span style="color:var(--muted);font-size:.75rem">' + esc(p.who) + ', ' + fmtT(p.ts) + '</span></span><span><b>' + p.n.toLocaleString() + '</b> <span class="mx" title="Not mine / already on ODKP — remove" onclick="cmd({type:\'pendingRemove\',ts:' + p.ts + ',item:decodeURIComponent(\'' + encodeURIComponent(p.item).replace(/'/g, '%27') + '\')});hideMenu()">✕</span></span></div>').join('')
+    + '<div class="mrow" style="border-top:1px solid var(--line2);margin-top:.2rem"><span>Avail to spend</span><b style="color:var(--gold2)">' + v.avail.toLocaleString() + '</b></div>'
+    + '<div class="mrow" style="align-items:center;gap:.35rem;margin-top:.2rem"><input id="mwI" placeholder="Item you won" style="flex:1;min-width:0;font:inherit;font-size:.82rem;padding:.12rem .35rem;background:var(--bg2);color:var(--text);border:1px solid var(--line2);border-radius:5px">'
+    + '<input id="mwN" type="number" min="1" placeholder="DKP" style="width:4.2rem;font:inherit;font-size:.82rem;padding:.12rem .3rem;background:var(--bg2);color:var(--text);border:1px solid var(--line2);border-radius:5px">'
+    + '<button onclick="manualWin(\'\',\'\',0)" style="font:inherit;font-size:.8rem;padding:.1rem .5rem;border-radius:5px;border:1px solid var(--golddk);background:rgba(224,181,82,.15);color:var(--gold2);cursor:pointer;white-space:nowrap">+ Add a win</button></div>'
+    + '<div class="mh" style="white-space:normal;max-width:20rem;padding-top:.4rem">Wins drop off by themselves once ODKP lists the sale (it can lag a few days).</div>';
+  m.style.display = 'block';
+  m.style.left = Math.max(6, Math.min(ev.clientX - 40, innerWidth - m.offsetWidth - 6)) + 'px';
+  m.style.top = Math.min(ev.clientY + 12, innerHeight - m.offsetHeight - 6) + 'px';
+}
+function manualWin(item, who, ts){
+  const n = +((document.getElementById('mwN') || {}).value || 0), it = item || ((document.getElementById('mwI') || {}).value || '').trim();
+  if (!it || !(n > 0)) return;
+  cmd({ type: 'pendingAdd', item: it, n, who: who || '', ts: ts || Date.now() }); hideMenu();
+}
 function cmd(c){ if (window.MixelParseApp && window.MixelParseApp.sendAuctionCommand) window.MixelParseApp.sendAuctionCommand(c); }
 function mmss(ms){ ms = Math.max(0, Math.round(ms / 1000)); return Math.floor(ms / 60) + ':' + String(ms % 60).padStart(2, '0'); }
 function ago(ms){ const s = Math.max(0, Math.round(ms / 1000)); return s < 60 ? s + 's' : Math.floor(s / 60) + 'm'; }
@@ -236,7 +278,7 @@ function card(a, now){
 }
 function closedRow(a){
   const t = a.top, ws = a.winners || [];
-  return '<div class="cl"><span class="cl-item" onclick="' + wiki(a.item) + '" title="Open on the P99 wiki">' + esc(a.item) + '</span>'
+  return '<div class="cl" oncontextmenu="return cardMenu(event,\'' + a.id + '\')" title="Right-click: I won this"><span class="cl-item" onclick="' + wiki(a.item) + '" title="Open on the P99 wiki">' + esc(a.item) + '</span>'
     + (ws.length ? '<span class="cl-win" title="From the officer\'s grats">✓ ' + winText(ws, true) + '</span>'
       : '<span class="cl-none" title="No grats seen for 30 minutes' + (t ? ' — top bid was ' + t.n + ' by ' + esc(t.toon || t.who) : '') + '">no grats seen</span>') + '</div>';
 }
@@ -252,6 +294,7 @@ function render(){
   const nOpen = open.filter(a => !justSold(a)).length;
   c.textContent = nOpen ? nOpen + ' open' : 'none open'; c.classList.toggle('none', !nOpen);
   document.getElementById('pop').checked = !!S.autoPop;
+  renderAvail();
   document.getElementById('sync').textContent = S.dkpAsOf ? 'DKP as of ' + new Date(S.dkpAsOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
   const body = document.getElementById('body'), y = body.scrollTop;
   // auctions you're in first (outbid, then leading), then newest opened — order doesn't jump as bids arrive

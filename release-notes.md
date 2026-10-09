@@ -1,4 +1,16 @@
-## 1.7.14
+## 1.7.15
+
+- **🎁 Loot per kill** — every boss kill Auto-Detect finds now has its loot: what the officers auctioned, who won it and for how much. Click "🎁 N drops" under the boss in Auto-Detect or the Raid Kill Tracker. Missed the auction (died, /q)? Guild chat ("what did it drop?") and ODKP fill it in. Loot is matched to the right boss with the P99 wiki loot tables.
+- **⚖ Avail to spend** — the auction window shows your DKP, minus wins ODKP hasn't charged yet (e.g. 348 − 285 Claw of Lightning = 63). Click it for the breakdown. Right-click an auction → I won this, or + Add a win, if one was missed.
+- **📈 Gear Planner DKP** — the stat sheet lists each pick's DKP cost under the total. Quest rewards are priced from their parts (Silver Charm of Tranquility ~1,279, Serrated Dragon Tooth ~128), Skyshrine pieces from their mold, and items with no sale in 60 days use their all-time average.
+- **⚔ Epic progress** — Quests shows your class epic step by step from the P99 wiki checklist, with ✔ on the pieces you hold (bank too) and what's next.
+- **🎯 Farm Targets mobs** — each mob shows its level, respawn time and drop rate; hover for its spawn loc, special abilities and placeholder notes.
+- **👤 Who took the tick** — Auto-Detect shows who called each RAIDTICK under its time.
+- **Fix:** Auto-Detect opens much faster with a long history.
+- **Fix:** Cazic Thule's 10-minute idle shout no longer triggers a kill prompt, and a tick taken mid-fight counts as the same kill, not a second one.
+- **Fix:** the auction window no longer reopens on re-announces or ignored auctions; officer grats relayed in guild chat count; auctions replayed at startup no longer duplicate.
+
+Everything from 1.7.14 and earlier is included:
 
 - **🛒 Find a vendor** — Raid Consumes has a vendor search: type an item and see every merchant that sells it, with the zone, the merchant and where they stand, all linked to the P99 wiki. The closest zones to your character come first, with how many zones away each one is. Consume rows have a "show merchants" link too.
 - **📜 Spell sources** — the Spells tab shows where to buy each spell you're missing, grouped by zone with the merchants' names, and which ones only drop.
@@ -7,8 +19,6 @@
 - **⚙ Wiki updates** — Settings shows what changed on the P99 wiki for items in the item database each week.
 - **Fix:** acknowledging a parking alert now keeps it hidden until that window closes. Before, it came back when the window opened or after a restart.
 - **Fix:** buttons for names with an apostrophe (like Vulak'Aerr) work again.
-
-Everything from 1.7.13 and earlier is included:
 
 - **⚔ Exact faction hits** — kills now move your factions by the real amount for that mob (for example Vulak: Claws of Veeshan −1000), taken from the P99 wiki for over 4,000 NPCs, instead of a flat ±5. /con now sets your standing for 1,062 NPCs, up from 403.
 - **Fix:** a /con on a frost giant now updates Kromrif (it was Kromzek).
