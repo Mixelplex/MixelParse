@@ -5527,13 +5527,15 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.16',
+  version:'1.7.17',
   date:'October 2026',
   features:[
-    ['&#128228; Submit logs for review (optional)','Seeing a problem? &#9881; Admin &rarr; <b>Submit logs for review</b> sends your logs, a description and an optional screenshot so it can be found and fixed. <b>It&rsquo;s completely optional, and every tell is removed on your PC before anything is sent.</b> Submissions are stored privately &mdash; only you and the MixelParse owner can read them &mdash; and you can delete yours any time from the same page.'],
-    ['&#128274; Privacy','Settings &rarr; About now says plainly what stays on your PC and what MixelParse saves to your account. Your EQ log files never leave your PC unless you choose to submit them.'],
+    ['&#9876; Ring War in Auto-Detect','Ring War ticks are now recognised and labelled with their checkpoint &mdash; Muster, Start of round 1, End of round 2, End of round 3 &mdash; from Narandi&rsquo;s round calls and Seneschal Aldikar&rsquo;s victory shout. Checked against every Ring War in our logs and ODKP: the ones it adds on its own (Active mode) were all right; the rest it asks about.'],
   ],
-  fixes:[],
+  fixes:[
+    ['No more double kills from late answers','Answering an Auto-Detect question with a boss that was already added from a later tick of the same fight no longer adds it a second time (the &ldquo;#2&rdquo; entries).'],
+    ['Scan logs','Keeps every Ring War shout, so a long wait between the start and the first tick no longer loses it.'],
+  ],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -8127,7 +8129,7 @@ window.applyDBToChar    = applyDBToChar;
         if(msg.type==='skyCorpses'){ skyCorpseState=msg; skyRenderWarn(); if(activeTopView==='keys') renderKeysPanel(); }
         if(msg.type==='raidEvidence') rkdOnEvidence(msg);
         if(msg.type==='auctionLine') aucOnLine(msg);
-        if(msg.type==='chatLine') try{ lootOnChat(msg); }catch(e){}
+        if(msg.type==='chatLine') try{ lootOnChat(msg); rkdRwChatNote(msg); }catch(e){}
         if(msg.type==='raidLogin') rkdOnLogin(msg);
         if(msg.type==='raidScanProgress'||msg.type==='raidScanResult') rkdHandleScanMsg(msg);
         if(msg.type==='killScanProgress'||msg.type==='killScanResult') handleKillScanMsg(msg);
@@ -8505,6 +8507,11 @@ function todAddToSession(killState){
   const target = overlay.dataset.target;
   const session = raidSessions.find(s => s.id === sel.value);
   if(!session) return;
+  { const it=_todQueue[0], when=it&&it.when||0;
+    const later=it&&it.auto&&killState==='killed'&&rkdLog.find(x=>x.boss===target&&x.confirm==='auto'&&x.ts>when&&x.ts-when<=45*60e3);
+    if(later){ rkdAutoResolved(it,'dismissed'); _todAdvance();
+      if(typeof showWatcherToast==='function') showWatcherToast('⚔ '+btLabel(target)+' was already recorded from the '+new Date(later.tod||later.ts).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+' kill — this tick was the same fight, so it was not added twice');
+      if(typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel(); return; } }
   const label = ktRecordBossState(session, target, killState, _todGetCheckedRoles());
   if(killState==='killed') session.lastKillAt = _todKillAtFor(session);
   saveSessionsToSupabase();
@@ -9386,7 +9393,7 @@ function _rkdLaterSameFight(r){ return r?_rkdSameFightIndex().next.get(r)||null:
 function lootTableHas(target,item){
   const W=wikiData('mobs'); if(!W) return null;
   if(!W._ix){ W._ix=new Map(); W.it.forEach((n,i)=>W._ix.set(dkpNorm(n),i)); W._mk=new Map(); for(const [k,v] of Object.entries(W.m)){ const nk=dkpNorm(k); W._mk.set(nk,(W._mk.get(nk)||[]).concat(v)); } }
-  const b=BOSS_ROSTER.find(x=>x.target===target)||{full:target}, ix=W._ix.get(dkpNorm(item));
+  const b=/^RW /.test(target)?{full:'Narandi the Wretched'}:(BOSS_ROSTER.find(x=>x.target===target)||{full:target}), ix=W._ix.get(dkpNorm(item));
   const ents=[b.full,b.target,target].map(n=>W._mk.get(dkpNorm(n))).find(Boolean);   // quote-insensitive: Vulak'Aerr (roster) = Vulak`Aerr (wiki)
   if(!ents) return null;
   if(ix==null) return false;
@@ -13213,7 +13220,54 @@ function _rkdBossInText(text){
 }
 let _rkdVer=0;
 function rkdSave(){_rkdVer++;try{localStorage.setItem('mp_rkd_log',JSON.stringify(rkdLog.slice(-RKD_LOG_MAX)));}catch(e){}}
+// Ring War signals (kept 4 h — a Ring War runs about an hour; boss evidence is kept 40 min)
+let _rkdRw=[], _rkdRwChat=[];
+function _rkdRwNote(m,keepAll){
+  const ts=m.ts||Date.now(), last=_rkdRw[_rkdRw.length-1];
+  if(m.sub==='wave'&&last&&last.sub==='wave'&&ts-last.ts<60e3) return;   // the captains shout every few seconds
+  _rkdRw.push({ts,sub:m.sub,mob:m.mob,char:m.charName,zone:m.zone||null});
+  if(!keepAll) _rkdRw=_rkdRw.filter(e=>e.ts>=ts-4*3600e3);   // a log scan keeps every Ring War it replays
+}
+function rkdRwChatNote(msg){ if(/\bring ?war\b|\bRW\b/i.test(msg.text||'')){ const ts=msg.ts||Date.now(); _rkdRwChat.push(ts); _rkdRwChat=_rkdRwChat.filter(x=>x>=ts-4*3600e3); } }
+const RKD_RW={r:'RW Readiness',w1:'RW Wave 1',w2:'RW Wave 2',w3:'RW Wave 3'};
+// a tick during a Ring War → its checkpoint (null = not a Ring War tick). ctx 'npc' = the event's own shouts were logged.
+function _rkdRingWar(t){
+  const ev=_rkdRw.filter(e=>e.ts>=t.ts-4*3600e3&&e.ts<=t.ts+RKD_WIN_AFTER);
+  const chat=_rkdRwChat.some(x=>x>=t.ts-90*60e3&&x<=t.ts+RKD_WIN_AFTER), gd=/great divide|thurgadin/i.test(t.zone||'');
+  if(!ev.length&&!chat&&!gd) return null;
+  const R2=(28*60+22)*1e3, R3=(57*60+53)*1e3, M=60e3;
+  // this Ring War's start: Form up, else backed off from a round call, else a captain's shout
+  const fu=ev.filter(e=>e.sub==='start').pop()||null;
+  let start=fu&&fu.ts;
+  const r2e=ev.find(e=>e.sub==='r2'&&(!start||e.ts>start)), r3e=ev.find(e=>e.sub==='r3'&&(!start||e.ts>start));
+  if(!start&&r2e) start=r2e.ts-R2; if(!start&&r3e) start=r3e.ts-R3;
+  if(!start){ const w=ev.find(e=>e.sub==='wave'); if(w) start=w.ts; }
+  const r2=r2e&&r2e.ts, r3=r3e&&r3e.ts, wonE=ev.filter(e=>(e.sub==='won'||e.sub==='end')&&(!start||e.ts>start)).pop(), won=wonE&&wonE.ts;
+  // that Ring War is over
+  if(won&&t.ts>won+5*M) return null;
+  if(!won&&r3&&t.ts>r3+45*M) return null;
+  if(start&&t.ts>start+3*3600e3) return null;
+  const prior=rkdLog.filter(r=>r.ts<t.ts&&r.ts>=t.ts-4*3600e3&&/^RW /.test(r.boss||'')&&!/^(dismissed|nknc|undone)$/.test(r.confirm||'')).map(r=>r.boss), has=x=>prior.includes(x);
+  const evs=ev.slice(-5).map(e=>({ts:e.ts,kind:'rw',boss:null,raw:e.mob+({start:': Kromrif! Form up!',r2:': round 2 call',r3:': round 3 call',won:': the invasion has been frustrated',end:' slain'}[e.sub]||' (Ring War)'),char:e.char,zone:e.zone}));
+  const ctx=ev.length?'npc':'chat';
+  const mk=(target,tier,basis)=>({tier,boss:target,basis,tod:t.ts,todSource:'tick',events:evs,ctx});
+  if(!start||t.ts<start-M) return has(RKD_RW.r)?null:mk(RKD_RW.r,gd&&(chat||ev.length)?'strong':'weak','Ring War muster');
+  const r2x=r2||start+R2, r3x=r3||start+R3;
+  if(won&&t.ts>=won-10*M) return mk(RKD_RW.w3,'strong','Ring War won');
+  if(Math.abs(t.ts-r3x)<=6*M) return has(RKD_RW.w2)?null:mk(RKD_RW.w2,r3?'strong':'weak',r3?'Ring War round 3 call':'Ring War round 2 end');
+  if(t.ts>r3x+6*M){
+    if(t.ts-r3x>=22*M) return has(RKD_RW.w3)?null:mk(RKD_RW.w3,'weak','Ring War round 3 end');
+    return has(RKD_RW.w2)?null:mk(RKD_RW.w2,'weak','Ring War round 2 end (late)');
+  }
+  if(t.ts>=r2x){
+    if(!has(RKD_RW.w1)) return mk(RKD_RW.w1,'weak','Ring War start (late tick)');
+    return t.ts>=r2x+25*M&&!has(RKD_RW.w2)?mk(RKD_RW.w2,'weak','Ring War round 2 end'):null;
+  }
+  return has(RKD_RW.w1)?null:mk(RKD_RW.w1,fu?'strong':'weak','Ring War start');
+}
 function rkdOnEvidence(msg){
+  if(msg.kind==='rw'){ _rkdRwNote(msg); return; }
+  if(msg.kind==='chat'){ rkdRwChatNote(msg); return; }
   const b=msg.kind==='call'?_rkdBossInText(msg.text):_rkdBossByMob(msg.mob);
   if(!b&&msg.kind!=='faction'&&msg.kind!=='slain')return;   // boss-less faction hits mark a death; named trash kills explain some of them
   const raw=_rkdRaw(msg);
@@ -13261,6 +13315,7 @@ function _rkdEvInZone(e,t){
   return !(tl&&bl&&bl!==tl);
 }
 function rkdAttribute(t){
+  const _rw=_rkdRingWar(t); if(_rw&&_rw.ctx==='npc') return _rw;
   const from=Math.max(t.ts-RKD_WIN_BEFORE,t.prevTickTs!=null?t.prevTickTs+1:-Infinity);
   // The previous tick's boss: its lines in the 2 minutes after that tick are the tail of its own fight and belong
   // to that tick, never this one (7/1: Nevederia's enrage 30 s after her 12:18 tick named the 12:28 Cekenar tick).
@@ -13291,7 +13346,7 @@ function rkdAttribute(t){
   // boss speech only breaks a silence: at equal rank a boss with real fight evidence (calls, rampage, landings…) wins
   const real=c=>c.events.some(e=>e.kind!=='say')?1:0;
   const cands=Object.values(per).sort((a,b)=>b.best-a.best||real(b)-real(a)||b.events.length-a.events.length||lastTs(b)-lastTs(a));
-  if(!cands.length)return rkdTimerGuess(t)||{tier:'none'};
+  if(!cands.length)return rkdTimerGuess(t)||(_rw&&{..._rw,tier:'weak'})||{tier:'none'};
   // Same rank is only a toss-up when the runner-up has comparable evidence (one stray rampage from
   // another character's log doesn't tie ~35 Statue lines).
   if(cands.length>1&&cands[1].best===cands[0].best&&real(cands[1])===real(cands[0])&&cands[1].events.length*3>cands[0].events.length)return{tier:'ambiguous',cands:cands.filter(c=>c.best===cands[0].best).map(c=>c.boss),events:win};
@@ -13563,6 +13618,8 @@ function rkdImportScan(ticks,evidence,logins){
   const saved=_rkdEvidence;
   const ev=[];
   for(const m of evidence){
+    if(m.kind==='rw'){ _rkdRwNote(m,true); continue; }
+    if(m.kind==='chat'){ rkdRwChatNote(m); continue; }
     const b=m.kind==='call'?_rkdBossInText(m.text):_rkdBossByMob(m.mob);
     if(!b&&m.kind!=='faction'&&m.kind!=='slain')continue;
     const raw=_rkdRaw(m);
@@ -13746,7 +13803,7 @@ function rkdAutoAdd(r){
   // a loaded working copy of that session is what the tracker shows (and what Save writes back) — mark it too
   if(activeSession&&activeSession!==saved&&activeSession.id===saved.id){ktRecordBossState(activeSession,r.boss,'killed',null);activeSession.lastKillAt=saved.lastKillAt;}
   saveSessionsToSupabase();
-  btNoteTod(r.boss,when);
+  if(!/^RW /.test(r.boss)) btNoteTod(r.boss,when);   // Ring War has no spawn timer
   r.confirm='auto';r.autoSession=saved.id;r.autoLabel=label;rkdSave();rkdConfirmTally('auto');
   try{ lootRematch(); }catch(e){}
   if(typeof showWatcherToast==='function')showWatcherToast('⚔ Auto-Detect added '+label.replace(r.boss,btLabel(r.boss))+' (Strong) — right-click the tick to undo'+(rkdLvlWarn(r)?' · ⚠ '+r.char+' is '+rkdLvlWarn(r).short:''));
