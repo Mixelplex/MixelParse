@@ -5527,14 +5527,13 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.17',
+  version:'1.7.18',
   date:'October 2026',
   features:[
-    ['&#9876; Ring War in Auto-Detect','Ring War ticks are now recognised and labelled with their checkpoint &mdash; Muster, Start of round 1, End of round 2, End of round 3 &mdash; from Narandi&rsquo;s round calls and Seneschal Aldikar&rsquo;s victory shout. Checked against every Ring War in our logs and ODKP: the ones it adds on its own (Active mode) were all right; the rest it asks about.'],
+    ['&#128228; Submit older logs','The log review page (&#9881; Admin &rarr; Submit logs for review) now also sends old logs you cut out or moved because they got too big: ones in your Logs and Logs\\archive folders are found for you, and &ldquo;Add older log files&hellip;&rdquo; adds any others (sent in full). Tells are still removed. Describing the problem is now optional.'],
   ],
   fixes:[
-    ['No more double kills from late answers','Answering an Auto-Detect question with a boss that was already added from a later tick of the same fight no longer adds it a second time (the &ldquo;#2&rdquo; entries).'],
-    ['Scan logs','Keeps every Ring War shout, so a long wait between the start and the first tick no longer loses it.'],
+    ['Keys tab &rarr; Sky corpses','Each Sky corpse line now says when that character died, &ldquo;keys not checked&rdquo; instead of &ldquo;keys unverified&rdquo;, and how long until it decays; hover the &#9432; header for what the column shows.'],
   ],
 };
 function showWhatsNew(){
@@ -15831,13 +15830,14 @@ function skyCorpsesFor(name){ return allCorpsesFor(name).filter(c=>!c.zone||c.zo
 function skyCorpseLabel(c,now){
   const decay=(skyCorpseState.decayMs||7*864e5),left=c.t+decay-now,rez=(skyCorpseState.rezMs||3*3600e3)-(now-c.t);
   const when=new Date(c.t).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-  const keys=c.keys==null?'<span style="color:#a06020">keys unverified</span>':c.keys.length?c.keys.length+' key'+(c.keys.length===1?'':'s'):'<span style="color:var(--text-muted)">no keys</span>';
-  const tl=left<=0?'<span style="color:var(--text-muted)">decayed</span>':'<b style="color:'+(left<=SKY_WARN_MS?'#b03030':'inherit')+'">'+btFmtDur(left)+'</b> left';
+  const keys=c.keys==null?'<span style="color:#a06020">keys not checked</span>':c.keys.length?'<b>'+c.keys.length+' key'+(c.keys.length===1?'':'s')+'</b>':'<span style="color:var(--text-muted)">no keys</span>';
+  const tl=left<=0?'<span style="color:var(--text-muted)">decayed</span>':'decays in <b style="color:'+(left<=SKY_WARN_MS?'#b03030':'inherit')+'">'+btFmtDur(left)+'</b>';
+  const died='<span style="color:var(--text-muted)">died '+esc(when)+'</span>';
   const tip='Sky corpse — died '+when+(c.by?' (slain by '+c.by+')':'')+'\n'+
-    (c.keys==null?'Keys unverified: type /outputfile inventory in Sky before you die (or with your corpse open) so the app can see them.':
+    (c.keys==null?'Keys not checked: Sky keys only show here if the app saw them — type /outputfile inventory in Sky before you die (or with your corpse open).':
       c.keys.length?'Keys (verified by '+(c.keysSrc==='corpse'?'a corpse export':'an inventory export in Sky')+'):\n  '+c.keys.join('\n  '):'Verified: no Sky keys on this corpse.')+
     (rez>0?'\nRez window: '+btFmtDur(rez)+' left':'');
-  return {html:'🗝 '+keys+' · '+tl+(rez>0?' · rez '+btFmtDur(rez):''),tip,left};
+  return {html:'🗝 '+(left<=0?tl+' · '+died:keys+' · '+died+' · '+tl+(rez>0?' · <b style="color:#2f6f2f">rez '+btFmtDur(rez)+'</b>':'')),tip,left};
 }
 function renderKeysPanel(){
   const panel=document.getElementById('keysPanel');if(!panel)return;
@@ -15856,7 +15856,7 @@ function renderKeysPanel(){
   panel.innerHTML='<div class="rc-title" style="font-family:\'Cinzel\',serif;letter-spacing:.06em;margin-bottom:.3rem">KEYS</div>'+
     '<div style="font-size:.74rem;color:var(--text-muted);margin-bottom:.6rem">From your inventory exports (raiders only). Hover a cell for details and what’s missing. <b>Sky corpse</b>: any death in the Plane of Sky — corpses decay after 7 days. Sky keys vanish when you leave the zone, so the app only trusts keys it has seen: type <code>/outputfile inventory</code> in Sky before you die, or with your corpse open.</div>'+
     '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr style="border-bottom:1px solid var(--border)"><th></th>'+
-    th('Old Sebilis')+th("Veeshan's Peak")+th("Sleeper's Tomb")+th('Charasis')+th('Cobalt Scar')+th('Sky corpse')+'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+    th('Old Sebilis')+th("Veeshan's Peak")+th("Sleeper's Tomb")+th('Charasis')+th('Cobalt Scar')+'<th title="Each death in the Plane of Sky: when, the keys on that corpse (if the app saw them), how long until it decays (7 days) and the rez window (3 hours). Hover a line for who killed you." style="padding:.3rem .5rem;font-size:.66rem;font-family:\'Cinzel\',serif;letter-spacing:.05em;color:var(--text-muted);text-align:left;white-space:nowrap;cursor:help">Sky corpses ⓘ</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 /* ═══ Flowers of Functionality (owner, 2026-10-05) ═══════════════════════════════════════════════════════
    Deck of Spontaneous Generation Quest, Plane of Mischief (lvl 46, all classes). Four PoM cards combined in the deck
@@ -16106,20 +16106,19 @@ window.reviewSubmit=async function(o,progress){
   const A=window.MixelParseApp, say=m=>{ try{ progress&&progress(m); }catch(e){} };
   if(!A||!A.reviewCollect) throw new Error('Submitting logs works in the desktop app only.');
   if(!reviewSignedIn()) throw new Error('Sign in to MixelParse first.');
-  if(!o||!o.chars||!o.chars.length) throw new Error('Pick at least one character.');
-  if(!String(o.description||'').trim()) throw new Error('Describe the problem first.');
-  say('Reading your logs and removing tells…');
-  const r=await A.reviewCollect({chars:o.chars,days:o.days}); if(!r||!r.ok) throw new Error((r&&r.error)||'Could not read the logs.');
+  if(!o||((!o.chars||!o.chars.length)&&!(o.extra&&o.extra.length))) throw new Error('Pick at least one character or add an older log file.');
+  say('Reading your logs and removing tells…'+(o.extra&&o.extra.length?' (older files can take a minute)':''));
+  const r=await A.reviewCollect({chars:o.chars||[],days:o.days,extra:o.extra||[]}); if(!r||!r.ok) throw new Error((r&&r.error)||'Could not read the logs.');
   if(!r.files.length) throw new Error('No log lines found for those characters in the last '+r.days+' days.');
   const id=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random().toString(36).slice(2)), base=currentUser.id+'/'+id+'/', B=sb.storage.from('log-reviews'), files=[];
   for(const f of r.files){
-    const name=f.char+(f.part?'.part'+f.part:'')+'.txt.gz';
+    const name=(f.legacy?'older__'+String(f.legacy).replace(/\.(txt|old|log)$/i,'').replace(/[^\w.\-]/g,'_'):f.char)+(f.part?'.part'+f.part:'')+'.txt.gz';
     say('Uploading '+name+' ('+(f.bytes/1048576).toFixed(1)+' MB)…');
     const {error}=await B.upload(base+name,new Blob([f.gz],{type:'application/gzip'}),{upsert:false,contentType:'application/gzip'}); if(error) throw new Error(error.message);
-    files.push({path:base+name,char:f.char,part:f.part||0,bytes:f.bytes,raw_bytes:f.raw_bytes,lines:f.lines,tells_removed:f.tells_removed,first:f.first,last:f.last,sources:f.sources});
+    files.push({path:base+name,char:f.char,legacy:f.legacy||null,part:f.part||0,bytes:f.bytes,raw_bytes:f.raw_bytes,lines:f.lines,tells_removed:f.tells_removed,first:f.first,last:f.last,sources:f.sources});
   }
   const since=Date.now()-r.days*864e5, safe=f=>{ try{ return f(); }catch(e){ return null; } };
-  const manifest={v:1,app_version:(typeof WHATS_NEW!=='undefined'?WHATS_NEW.version:null),submitted:new Date().toISOString(),tz:safe(()=>Intl.DateTimeFormat().resolvedOptions().timeZone),tzOffsetMin:new Date().getTimezoneOffset(),
+  const manifest={v:1,older:(o.extra||[]).map(p=>String(p).split(/[\\/]/).pop()),app_version:(typeof WHATS_NEW!=='undefined'?WHATS_NEW.version:null),submitted:new Date().toISOString(),tz:safe(()=>Intl.DateTimeFormat().resolvedOptions().timeZone),tzOffsetMin:new Date().getTimezoneOffset(),
     user:currentUser.email||null,days:r.days,description:String(o.description),chars:reviewCharList().filter(c=>o.chars.includes(c.name)),allChars:reviewCharList().map(c=>c.name),
     bankers:safe(()=>bankerRegistry.slice()),hidden:safe(()=>excludedChars.slice()),files,
     autoDetect:{mode:safe(()=>rkdMode()),log:safe(()=>rkdLog.filter(x=>(x.ts||0)>=since))},
@@ -16129,7 +16128,7 @@ window.reviewSubmit=async function(o,progress){
   say('Uploading the details…');
   { const {error}=await B.upload(base+'manifest.json',new Blob([JSON.stringify(manifest)],{type:'application/json'}),{upsert:false,contentType:'application/json'}); if(error) throw new Error(error.message); }
   if(o.shot){ say('Uploading the screenshot…'); const blob=await (await fetch(o.shot)).blob(); const {error}=await B.upload(base+'screenshot.png',blob,{upsert:false,contentType:blob.type||'image/png'}); if(error) throw new Error(error.message); }
-  const {error}=await sb.from('log_reviews').insert({id,user_id:currentUser.id,user_email:currentUser.email||null,app_version:manifest.app_version,chars:o.chars,days:r.days,description:String(o.description).slice(0,5000),files,has_screenshot:!!o.shot});
+  const {error}=await sb.from('log_reviews').insert({id,user_id:currentUser.id,user_email:currentUser.email||null,app_version:manifest.app_version,chars:o.chars,days:r.days,description:String(o.description||'').slice(0,5000),files,has_screenshot:!!o.shot});
   if(error) throw new Error(error.message);
   return {id,files:files.length,lines:files.reduce((t,f)=>t+f.lines,0),tells:files.reduce((t,f)=>t+f.tells_removed,0),bytes:files.reduce((t,f)=>t+f.bytes,0)};
 };
@@ -16164,7 +16163,7 @@ window.reviewSyncOwner=async function(manual){
       let ok=true;
       for(const p of paths){ const {data:blob,error:e2}=await sb.storage.from('log-reviews').download(p); if(e2||!blob){ ok=false; continue; } await A.reviewSave(folder,p.split('/').pop(),new Uint8Array(await blob.arrayBuffer())); }
       if(!ok) continue;   // try again next time
-      await A.reviewSave(folder,'README.md','# Log review — '+who+'\n\n- Submitted: '+new Date(r.created_at).toLocaleString()+'\n- By: '+(r.user_email||'?')+'\n- MixelParse: '+(r.app_version||'?')+'\n- Characters: '+(r.chars||[]).join(', ')+'\n- Last '+r.days+' days\n- Files: '+(r.files||[]).map(f=>f.path.split('/').pop()+' ('+f.lines+' lines, '+f.tells_removed+' tells removed)').join('; ')+(r.has_screenshot?'\n- Screenshot: screenshot.png':'')+'\n- Submission id: '+r.id+'\n\n## The problem, in their words\n\n'+(r.description||'')+'\n');
+      await A.reviewSave(folder,'README.md','# Log review — '+who+'\n\n- Submitted: '+new Date(r.created_at).toLocaleString()+'\n- By: '+(r.user_email||'?')+'\n- MixelParse: '+(r.app_version||'?')+'\n- Characters: '+(r.chars||[]).join(', ')+'\n- Last '+r.days+' days\n- Files: '+(r.files||[]).map(f=>f.path.split('/').pop()+' ('+f.lines+' lines, '+f.tells_removed+' tells removed)').join('; ')+(r.has_screenshot?'\n- Screenshot: screenshot.png':'')+'\n- Submission id: '+r.id+'\n\n## The problem, in their words\n\n'+(r.description||'(none given)')+'\n');
       if(r.status==='new') await sb.from('log_reviews').update({status:'downloaded',downloaded_at:new Date().toISOString()}).eq('id',r.id);
       got++;
     }

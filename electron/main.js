@@ -546,7 +546,7 @@ ipcMain.handle('review:collect', async (e, opts) => {
     const out = [];
     const all = fs.readdirSync(dir).concat(fs.existsSync(path.join(dir, 'archive')) ? fs.readdirSync(path.join(dir, 'archive')).map(f => 'archive/' + f) : []);
     for (const c of chars) {
-      const files = all.filter(f => new RegExp('^(archive/)?eqlog_' + c + '_P1999Green(\\.\\d{4}-\\d\\d(-\\d+)?\\.old|\\.txt)$', 'i').test(f))
+      const files = all.filter(f => new RegExp('^(archive/)?eqlog_' + c + '_P1999Green[^/]*\\.(txt|old|log)$', 'i').test(f))   // live, rotated .old, and logs cut out by hand / other tools
         .map(f => ({ f, fp: path.join(dir, f), st: fs.statSync(path.join(dir, f)) })).filter(x => x.st.mtimeMs >= since).sort((a, b) => a.st.mtimeMs - b.st.mtimeMs);
       if (!files.length) continue;
       let lines = []; for (const x of files) lines = lines.concat(_revReadSince(x.fp, since));
@@ -558,8 +558,35 @@ ipcMain.handle('review:collect', async (e, opts) => {
       parts.forEach((g, i) => out.push({ char: c, part: parts.length > 1 ? i + 1 : 0, gz: g, bytes: g.length, raw_bytes: raw.length, lines: kept.length, tells_removed: tells,
         first: _revTs(kept[0]), last: _revTs(kept[kept.length - 1]), sources: files.map(x => x.f) }));
     }
+    // picked older logs: whole file, tells removed, streamed
+    const readline = require('readline');
+    for (const fp of ((opts && opts.extra) || []).map(String)) {
+      if (!_revPicked.has(fp) || !fs.existsSync(fp)) continue;
+      const base = path.basename(fp), c = (base.match(/^eqlog_([A-Za-z]+)_/i) || [])[1] || 'legacy';
+      let buf = [], bufBytes = 0, lines = 0, tells = 0, first = 0, last = 0, part = 0; const parts = [];
+      const flush = () => { if (!buf.length) return; const g = zlib.gzipSync(Buffer.from(buf.join('\n') + '\n', 'latin1'), { level: 6 }); parts.push({ g, raw: bufBytes }); buf = []; bufBytes = 0; };
+      const rl = readline.createInterface({ input: fs.createReadStream(fp, { encoding: 'latin1' }), crlfDelay: Infinity });
+      for await (const l of rl) {
+        if (!l) continue;
+        if (RE_REVIEW_TELL.test(l)) { tells++; continue; }
+        const t = _revTs(l); if (t) { if (!first) first = t; last = t; }
+        buf.push(l); bufBytes += l.length + 1; lines++;
+        if (bufBytes >= 150 * 1048576) flush();
+      }
+      flush();
+      parts.forEach((x, i) => out.push({ char: c, legacy: base, part: parts.length > 1 ? i + 1 : 0, gz: x.g, bytes: x.g.length, raw_bytes: x.raw, lines, tells_removed: tells, first, last, sources: [base] }));
+    }
     return { ok: true, days, files: out };
   } catch (err) { return { ok: false, error: String(err && err.message || err) }; }
+});
+// "Add older log files…": the only way a file outside the character logs can be read
+const _revPicked = new Set();
+ipcMain.handle('review:pick', async () => {
+  const dir = config && config.logDir, arch = dir && path.join(dir, 'archive');
+  const r = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow() || mainWindow, { title: 'Add older EverQuest log files', defaultPath: arch && fs.existsSync(arch) ? arch : (dir || undefined),
+    properties: ['openFile', 'multiSelections'], filters: [{ name: 'EverQuest logs', extensions: ['txt', 'old', 'log'] }, { name: 'All files', extensions: ['*'] }] });
+  if (r.canceled) return [];
+  return r.filePaths.map(fp => { _revPicked.add(fp); let size = 0; try { size = fs.statSync(fp).size; } catch {} const base = path.basename(fp); return { path: fp, name: base, size, char: (base.match(/^eqlog_([A-Za-z]+)_/i) || [])[1] || null }; });
 });
 // The owner's review folder: <Desktop>\MixelParse-Source\log-reviews when that folder exists, else Documents\MixelParse\log-reviews
 function _reviewDir() {

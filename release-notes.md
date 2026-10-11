@@ -1,10 +1,13 @@
-## 1.7.17
+## 1.7.18
+
+- **📤 Submit older logs** — the log review page (⚙ Admin → Submit logs for review) now also sends old logs you cut out or moved because they got too big: ones in your `Logs` and `Logs\archive` folders are found for you, and "Add older log files…" adds any others (sent in full). Tells are still removed. Describing the problem is now optional.
+- **Fix:** Keys tab → Sky corpses: each line now says when that character died, "keys not checked" instead of "keys unverified", and how long until it decays; hover the ⓘ header for what the column shows.
+
+Everything from 1.7.17 and earlier is included:
 
 - **⚔ Ring War in Auto-Detect** — Ring War ticks are now recognised and labelled with their checkpoint (Muster, Start of round 1, End of round 2, End of round 3) from Narandi's round calls and Seneschal Aldikar's victory shout. Checked against every Ring War in our logs and ODKP's records: the ones it adds on its own in Active mode were all right; the rest it asks about.
 - **Fix:** answering an Auto-Detect question with a boss that was already added from a later tick of the same fight no longer adds it a second time (the "#2" entries).
 - **Fix:** Scan logs keeps every Ring War shout, so a long wait between the start and the first tick no longer loses it.
-
-Everything from 1.7.16 and earlier is included:
 
 - **📤 Submit logs for review (optional)** — seeing a problem? ⚙ Admin → Submit logs for review sends your logs, a description and an optional screenshot so it can be found and fixed. **It's completely optional, and every tell is removed on your PC before anything is sent.** Submissions are stored privately — only you and the MixelParse owner can read them — and you can delete yours any time from the same page. See [PRIVACY.md](https://github.com/Mixelplex/MixelParse/blob/main/PRIVACY.md).
 - **🔒 Privacy** — Settings → About now says plainly what stays on your PC and what MixelParse saves to your account. Your EQ log files never leave your PC unless you choose to submit them.

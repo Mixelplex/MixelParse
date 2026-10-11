@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   wikiQuery:      (titles) => ipcRenderer.invoke('wiki:query', titles),   // Wiki Check (≤50 titles)
   wikiRecent:     (since)  => ipcRenderer.invoke('wiki:recent', since),   // Settings → Wiki updates
   reviewCollect:  (opts)   => ipcRenderer.invoke('review:collect', opts),   // Submit logs for review (tells removed, gzipped)
+  reviewPick:     ()       => ipcRenderer.invoke('review:pick'),            // "Add older log files…" (only picked files can be read)
   reviewDir:      ()       => ipcRenderer.invoke('review:dir'),
   reviewHas:      (sub, name) => ipcRenderer.invoke('review:has', sub, name),
   reviewSave:     (sub, name, data) => ipcRenderer.invoke('review:save', sub, name, data),
