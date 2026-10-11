@@ -1,9 +1,13 @@
-## 1.7.16
+## 1.7.17
+
+- **⚔ Ring War in Auto-Detect** — Ring War ticks are now recognised and labelled with their checkpoint (Muster, Start of round 1, End of round 2, End of round 3) from Narandi's round calls and Seneschal Aldikar's victory shout. Checked against every Ring War in our logs and ODKP's records: the ones it adds on its own in Active mode were all right; the rest it asks about.
+- **Fix:** answering an Auto-Detect question with a boss that was already added from a later tick of the same fight no longer adds it a second time (the "#2" entries).
+- **Fix:** Scan logs keeps every Ring War shout, so a long wait between the start and the first tick no longer loses it.
+
+Everything from 1.7.16 and earlier is included:
 
 - **📤 Submit logs for review (optional)** — seeing a problem? ⚙ Admin → Submit logs for review sends your logs, a description and an optional screenshot so it can be found and fixed. **It's completely optional, and every tell is removed on your PC before anything is sent.** Submissions are stored privately — only you and the MixelParse owner can read them — and you can delete yours any time from the same page. See [PRIVACY.md](https://github.com/Mixelplex/MixelParse/blob/main/PRIVACY.md).
 - **🔒 Privacy** — Settings → About now says plainly what stays on your PC and what MixelParse saves to your account. Your EQ log files never leave your PC unless you choose to submit them.
-
-Everything from 1.7.15 and earlier is included:
 
 - **🎁 Loot per kill** — every boss kill Auto-Detect finds now has its loot: what the officers auctioned, who won it and for how much. Click "🎁 N drops" under the boss in Auto-Detect or the Raid Kill Tracker. Missed the auction (died, /q)? Guild chat ("what did it drop?") and ODKP fill it in. Loot is matched to the right boss with the P99 wiki loot tables.
 - **⚖ Avail to spend** — the auction window shows your DKP, minus wins ODKP hasn't charged yet (e.g. 348 − 285 Claw of Lightning = 63). Click it for the breakdown. Right-click an auction → I won this, or + Add a win, if one was missed.

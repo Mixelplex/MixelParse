@@ -971,6 +971,9 @@ const RE_RT_SLAIN    = /^\[.+?\] (.+?) has been slain by .+!$/;
 const RE_RT_YOUSLAIN = /^\[.+?\] You have slain (.+)!$/;
 const RE_RT_LAND     = /^\[.+?\] (.+?) (glances nervously about|looks very uncomfortable|yawns|slows down)\.$/;
 const RE_RT_CALL     = /^\[.+?\] (\w+) (tells the guild|says out of character|tells the raid|shouts|says), '(.*)'$/;
+// Ring War (2026-10-10): Narandi's "Form up" = start, the Coldain captains' shouts = waves, Narandi's death = end
+const RE_RT_RW       = /^\[.+?\] (?:(Narandi the Wretched) shouts, 'Kromrif! Form up!|(Zrelik the Scout|Corbin Blackwell|Dobbin Crossaxe|Garadain Glacierbane|Churn the Axeman) shouts '|(Narandi the Wretched) has been slain)/;
+const RE_RT_RW2      = /^\[.+?\] (?:Narandi the Wretched shouts, '(?:(Interlopers!|Warriors! Charge)|(Silence fool!|Veterans!))|(Seneschal Aldikar) shouts, 'Outlander! You've done it!)/;
 // A boss talking: NPC speech has no comma ("Fright says 'JAEJEE'", "Cazic Thule says 'You will not evade me …'",
 // "Derakor the Vindicator says 'Only the strong will survive'"); players' /say has one. Only roster bosses count.
 const RE_RT_SAY      = /^\[.+?\] (.+?) says '(.*)'$/;
@@ -989,8 +992,10 @@ function _rtLineTs(line) {
 }
 // Parse one log line into a raid signal message (raidTick / raidEvidence), or null.
 function raidSignal(line, charName) {
-  if (!/RAID ?TICK|ENRAGED|slain|nervously|uncomfortable|yawns\.|slows down\.|tash|malo|slow|faction standing|RAMPAGE|FLURRY| says '/i.test(line)) return null;   // cheap pre-filter
+  if (!/RAID ?TICK|ENRAGED|slain|nervously|uncomfortable|yawns\.|slows down\.|tash|malo|slow|faction standing|RAMPAGE|FLURRY| says '|Narandi|Zrelik|Corbin Blackwell|Dobbin Crossaxe|Glacierbane|Churn the Axeman|Seneschal Aldikar/i.test(line)) return null;   // cheap pre-filter
   let m; const ts = _rtLineTs(line);
+  if ((m = RE_RT_RW.exec(line)))     return { type:'raidEvidence', charName, kind:'rw', sub: m[1] ? 'start' : m[3] ? 'end' : 'wave', mob: m[1] || m[2] || m[3], ts };
+  if ((m = RE_RT_RW2.exec(line)))    return { type:'raidEvidence', charName, kind:'rw', sub: m[1] ? 'r2' : m[2] ? 'r3' : 'won', mob: m[3] || 'Narandi the Wretched', ts };
   if ((m = RE_RT_TICK.exec(line)))   return { type:'raidTick', charName, poster:m[1], channel:m[2], text:m[3].trim(), ts };
   // Enrage + landing lines are low-volume, so generic names pass too — some bosses are
   // "a dracoliche" / "an undead bard" in-game. Kill lines stay filtered (every trash kill).
@@ -1058,11 +1063,11 @@ function auctionSignal(line, charName) {
   broadcast({ type: 'auctionLine', charName, who: m[1] === 'You' ? charName : m[1], text: m[2], ts, open });
 }
 // guild / raid chat for loot mentions ("what did Fright drop?" → "Claw of Lightning") — not OOC (EC tunnel spam)
-const RE_CHAT_LOOT = /^\[.+?\] (?:(\w+) (tells the guild|tells the raid)|You (say to your guild|tell your raid)), '(.*)'$/;
+const RE_CHAT_LOOT = /^\[.+?\] (?:(\w+) (tells the guild|tells the raid|says out of character|shouts)|You (say to your guild|tell your raid|say out of character|shout)), '(.*)'$/;
 function chatSignal(line, charName) {
-  if (line.indexOf(' guild') < 0 && line.indexOf(' raid') < 0) return;
-  const m = RE_CHAT_LOOT.exec(line); if (!m) return;
-  broadcast({ type: 'chatLine', charName, who: m[1] || charName, channel: m[2] || m[3], text: m[4], ts: _rtLineTs(line) });
+  if (line.indexOf(' guild') < 0 && line.indexOf(' raid') < 0) return;   // guild + raid only: OOC loot calls are often another guild's kill
+  const m = RE_CHAT_LOOT.exec(line); if (!m || /out of character|shout/.test(m[2] || m[3] || '')) return;
+  broadcast({ type: 'chatLine', charName, who: m[1] || charName, channel: m[2] || m[3], text: m[4], ts: _rtLineTs(line), zone: _rtZoneOf(charName) });
 }
 function raidEvidence(line, charName) {
   _rtNoteZone(line, charName);
@@ -1101,7 +1106,8 @@ async function scanRaidHistory(sinceMs) {
         rl.on('line', (line) => {
           if (line.indexOf('You have entered ') >= 0) { const zm = /^\[[^\]]+\] You have entered (.+)\.$/.exec(line); if (zm) zone = zm[1]; }
           else if (RE_SESSION_LOGIN.test(line)) { zone = null; const ts = _rtLineTs(line); if (ts >= since) logins.push({ charName, ts }); return; }
-          const msg = raidSignal(line, charName);
+          let msg = raidSignal(line, charName);
+          if (!msg) { const c = RE_CHAT_LOOT.exec(line); if (c && /ring ?war|\bRW\b/i.test(c[4])) msg = { type:'raidEvidence', kind:'chat', charName, who: c[1] || charName, channel: c[2] || c[3], text: c[4], ts: _rtLineTs(line) }; }   // Ring War chatter
           if (!msg || msg.ts < since) return;
           msg.zone = zone;
           const key = charName + '|' + line;          // archive copies repeat live-log lines
@@ -1115,7 +1121,7 @@ async function scanRaidHistory(sinceMs) {
     // keep evidence from 10 min before to 2 min after some tick (the attribution window)
     const tt = ticks.map(t => t.ts);
     const nearTick = ts => { let lo = 0, hi = tt.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (tt[mid] < ts - 2 * 60e3) lo = mid + 1; else hi = mid; } return lo < tt.length && tt[lo] <= ts + 10 * 60e3; };
-    const ev = evidence.filter(e => nearTick(e.ts)).sort((a, b) => a.ts - b.ts);
+    const ev = evidence.filter(e => e.kind === 'rw' || e.kind === 'chat' || nearTick(e.ts)).sort((a, b) => a.ts - b.ts);   // Ring War shouts / chat: kept whole (Form up can be 40 min before the Wave 1 tick)
     log(`[RAIDSCAN] ${files.length} file(s): ${ticks.length} RAIDTICK(s), ${ev.length} evidence line(s)`);
     const lg = logins.filter(l => nearTick(l.ts)).sort((a, b) => a.ts - b.ts);   // only logins near some tick matter
     broadcast({ type:'raidScanResult', ticks, evidence: ev, logins: lg, files: files.length });
