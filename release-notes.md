@@ -1,9 +1,11 @@
-## 1.7.18
+## 1.7.19
+
+- **Fix:** Outfitter now fills in class, race, deity and level from the Character Stats of the tab you're on, every time you switch tabs. Changing one by hand changes that tab only ("✎ Manual for …"), and "↺ Use …'s" puts it back. Before, the first change you made stuck for every character until a restart.
+
+Everything from 1.7.18 and earlier is included:
 
 - **📤 Submit older logs** — the log review page (⚙ Admin → Submit logs for review) now also sends old logs you cut out or moved because they got too big: ones in your `Logs` and `Logs\archive` folders are found for you, and "Add older log files…" adds any others (sent in full). Tells are still removed. Describing the problem is now optional.
 - **Fix:** Keys tab → Sky corpses: each line now says when that character died, "keys not checked" instead of "keys unverified", and how long until it decays; hover the ⓘ header for what the column shows.
-
-Everything from 1.7.17 and earlier is included:
 
 - **⚔ Ring War in Auto-Detect** — Ring War ticks are now recognised and labelled with their checkpoint (Muster, Start of round 1, End of round 2, End of round 3) from Narandi's round calls and Seneschal Aldikar's victory shout. Checked against every Ring War in our logs and ODKP's records: the ones it adds on its own in Active mode were all right; the rest it asks about.
 - **Fix:** answering an Auto-Detect question with a boss that was already added from a later tick of the same fight no longer adds it a second time (the "#2" entries).
