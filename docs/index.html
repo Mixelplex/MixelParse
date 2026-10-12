@@ -2317,16 +2317,39 @@ const WORN_EFFECT_STATS={"Aura of Battle":{"atk":10},"Rage of Tallon":{"atk":30,
 const ITEM_WORN_EFFECT={"Belt of the Great Turtle":"Aura of Battle","Belt of Dwarf Slaying":"Aura of Battle","Blade of Tactics":"Rage of Tallon","Chestplate of Vindication":"Aura of Battle","Boots of Deep Thought":"Aura of Battle","Boots of Silent Striding":"Aura of Battle","Ragebringer":"Seething Fury","Silver Mask of the Slayer":"Aura of Battle","Spirit Wracked Cord":"Aura of Battle","Swiftwind":"Swift Spirit","Tolan`s Longsword of the Glade":"Blessing of the Grove"};
 const CASTER_AC_CLASSES=new Set(['Wizard','Magician','Necromancer','Enchanter']);
 // AGI → avoidance bonus (classic acmod table). Verified: AGI 99→44, 100→45, 119→47 at
-// L52-60; above 137 it is a flat 65 at L40+ (AGI 145 and 212 both need 65). The
-// lower-level columns and the >137 values below L40 are from the table, unverified.
+// L52-60. Above 137: EQEmu's table (see below), checked at L59 on Mixelflop (AGI 172 / 159). The lower-level
+// columns are from the table, unverified.
 function acAgiBonus(agi,lvl){
   if(agi<1||lvl<1)return 0;
   if(agi<=74){const T=[[1,-24],[3,-23],[4,-22],[6,-21],[8,-20],[9,-19],[11,-18],[12,-17],[14,-16],[15,-15],[17,-14],[19,-13],[20,-12],[22,-11],[23,-10],[25,-9],[27,-8],[28,-7],[30,-6],[31,-5],[33,-4],[35,-3],[36,-2],[38,-1],[65,0],[70,1],[74,5]];for(const[a,v]of T)if(agi<=a)return v;}
   const tier=lvl<=6?0:lvl<=19?1:lvl<=39?2:3;
   if(agi<=137){const R=[[75,[9,23,33,39]],[79,[10,23,33,40]],[80,[11,24,34,41]],[85,[12,25,35,42]],[90,[12,26,36,42]],[95,[13,26,36,43]],[99,[14,27,37,44]],[100,[15,28,38,45]],[105,[15,29,39,45]],[110,[15,29,39,46]],[115,[15,30,40,47]],[119,[15,31,41,47]],[120,[15,31,41,48]],[125,[15,32,42,49]],[130,[15,32,42,49]],[135,[15,33,43,50]],[137,[15,34,44,51]]];for(const[a,v]of R)if(agi<=a)return v[tier];}
-  return [15,34,44,65][tier];
+  // above 137: EQEmu's acmod table (breakpoint → value per level tier); 65 at 240+ from L40. Mixelflop (MNK59) AGI 172 / 159
+  // read 3 apart in game, as this table says (58 / 55); the earlier flat 65 couldn't fit them.
+  const H=[[[138,21],[140,22],[141,23],[151,24],[156,25],[160,26],[166,27],[171,28],[180,29],[181,30],[186,31],[196,32],[200,33],[220,34],[240,35]],
+           [[138,34],[140,35],[141,36],[146,37],[156,38],[160,39],[161,40],[171,41],[176,42],[180,43],[186,44],[191,45],[200,46],[220,47],[240,48]],
+           [[138,44],[140,45],[141,46],[146,47],[156,48],[160,49],[161,50],[171,51],[176,52],[180,53],[186,54],[191,55],[200,56],[220,57],[240,58]],
+           [[138,51],[140,52],[141,53],[151,54],[156,55],[160,56],[166,57],[171,58],[180,59],[181,60],[186,61],[196,62],[200,63],[220,64],[240,65]]][tier];
+  if(agi>300) return H[H.length-1][1]+Math.trunc((agi-300)/21);
+  let v=H[0][1]; for(const [a,b] of H){ if(agi>=a) v=b; else break; } return v;
 }
-// o: {cls,race,level,defense,gearAC,agi,buffAC,wornAC}. buffAC/wornAC are wiki-scale
+// Monk weight caps (EQEmu's table — Mixelflop's readings were all at 18–19, under the soft cap; heavier is unverified).
+function monkWeightCaps(lvl){ return lvl>59?{soft:24,hard:45}:lvl>54?{soft:20,hard:40}:lvl>50?{soft:18,hard:38}:lvl>44?{soft:17,hard:36}:lvl>29?{soft:16,hard:34}:lvl>14?{soft:15,hard:32}:{soft:14,hard:30}; }
+// Share of the monk AC bonus kept at this carried weight: 1 up to the soft cap, −6.7% per point above it, 0 within 1 of
+// the hard cap, negative (a penalty, up to the whole bonus) past it. Unknown weight = assume light.
+function monkWeightFactor(lvl,w){
+  if(w==null) return 1; const c=monkWeightCaps(lvl);
+  if(w<c.hard-1) return w>c.soft?Math.max(0,1-(w-c.soft)*0.0666667):1;
+  if(w<=c.hard+1) return 0;
+  return -Math.min(1,(w-(c.hard-10))/100);
+}
+// Carried weight as the inventory window shows it (Curr WT): items (bag reductions) + coins, 40 coins = 1. null = no data.
+function carriedWeightNow(name,deltaTenths){
+  try{ const cw=carriedWeight(name); if(!cw.tenths&&!cw.rows.length) return null; let t=cw.tenths+(deltaTenths||0);
+    const coins=typeof coinsFor==='function'?coinsFor(name):null; if(coins) t+=Math.floor(coins.count/4);
+    return Math.max(0,Math.floor(t/10)); }catch(e){ return null; }
+}
+// o: {cls,race,level,defense,gearAC,agi,buffAC,wornAC,weight}. buffAC/wornAC are wiki-scale
 // values (PotG "24"); they count at 5/6 in the sum (both PotG readings need 20).
 function calcDisplayAC(o){
   const caster=CASTER_AC_CLASSES.has(o.cls),lvl=o.level||1,def=o.defense||0;
@@ -2335,14 +2358,18 @@ function calcDisplayAC(o){
   // in-game readings (2026-09-27): Mixelboom WIZ54 Def 122 (525 / Orb off 484 / Gloves off
   // 517) and Mixelmez ENC60 Def 145 (622). How casters count buff AC is still open.
   parts.defenseMit=Math.trunc(def/(caster?2:3));
+  // Monk (level+5)×4/3 (less when heavy) and Iksar clamp(level,10,35) — EQEmu's class/race AC bonus. Exact on four unbuffed
+  // readings of Mixelflop (Iksar MNK59, Def 252, weight 18–19), 2026-10-12: gear AC 132 / AGI 172 → 1046, 115 / 172 → 1018,
+  // 97 / 159 → 987, 114 / 159 → 1014. Other non-casters: gear ×4/3 (Mixelreaper SHD48 846 / 799).
   parts.gear=caster?(o.gearAC||0):Math.trunc((o.gearAC||0)*4/3);
-  parts.monk=o.cls==='Monk'?Math.trunc(lvl*13/10):0;
-  parts.iksar=o.race==='Iksar'?12+Math.trunc(Math.min(Math.max(lvl-10,0),25)*12/10):0;
+  parts.monk=o.cls==='Monk'?Math.trunc(4*(lvl+5)/3*monkWeightFactor(lvl,o.weight)):0;
+  parts.iksar=o.race==='Iksar'?Math.min(35,Math.max(10,lvl)):0;
   parts.defenseAvoid=Math.trunc(def*16/9);
   parts.agi=acAgiBonus(o.agi||0,lvl);
   parts.spells=Math.trunc(((o.buffAC||0)+(o.wornAC||0))*5/6);
   const sum=Object.values(parts).reduce((a,b)=>a+b,0);
-  const why=[];if(caster&&((o.buffAC||0)+(o.wornAC||0)))why.push('caster buff / worn-effect AC not yet confirmed');if(lvl<20)why.push('below level 20 not yet confirmed (AGI bonus tiers)');
+  const why=[];if(caster&&((o.buffAC||0)+(o.wornAC||0)))why.push('caster buff / worn-effect AC not yet confirmed');
+  if(o.cls==='Monk'){ const c=monkWeightCaps(lvl); if(o.weight==null) why.push('monk AC assumes you carry under '+c.soft+' weight'); else if(o.weight>c.soft) why.push('monk AC bonus '+(o.weight>c.hard+1?'turned into a penalty':'reduced')+': carrying '+o.weight+' (full bonus up to '+c.soft+', none from '+(c.hard-1)+')'); }if(lvl<20)why.push('below level 20 not yet confirmed (AGI bonus tiers)');
   return{value:Math.trunc(sum*1000/847),exact:!why.length,why,parts};
 }
 // o: {offense,str,weaponSkill,itemATK,wornATK,spellATK}. Worn/item ATK ×1.342, spell 1:1.
@@ -2393,7 +2420,7 @@ function combatDisplayFor(name){
   const sDef=charSkill(name,'Defense'),sOff=charSkill(name,'Offense'),sW=charSkill(name,wSkill);
   const inputs={cls,race:m.race||'',level:lvl,agi:tot('agi'),str:tot('str'),gearAC,itemATK,wornAC,wornATK,buffAC:+(bsum.ac||0),worn,
     weapon:primary?primary.name||'(weapon)':'(none)',weaponSkillName:wSkill,defense:sDef,offense:sOff,weaponSkill:sW};
-  const ac=calcDisplayAC({cls,race:m.race,level:lvl,defense:sDef.v||0,gearAC,agi:inputs.agi,buffAC:inputs.buffAC,wornAC});
+  const ac=calcDisplayAC({cls,race:m.race,level:lvl,defense:sDef.v||0,gearAC,agi:inputs.agi,buffAC:inputs.buffAC,wornAC,weight:cls==='Monk'?carriedWeightNow(name):null});
   if(sDef.v==null){ac.exact=false;ac.why.unshift('Defense skill not in your logs yet — it fills in as it rises');}
   const atk=calcDisplayATK({offense:sOff.v||0,str:inputs.str,weaponSkill:sW.v||0,itemATK,wornATK});
   atk.exact=false;atk.why=['ATK is an estimate (±3 in testing; spell ATK from buffs not included)'];
@@ -4823,9 +4850,11 @@ window.upgRefreshStatSheet=function(){
   const _eqKey=it=>'__eq_'+String((it&&it.location)||'');
   const _srKey=sr=>sr.isEmpty?('__empty_'+(sr.cardId||sr.dbSlot)):_eqKey(sr.item);
   const is2hModeSheet=!!(window['_upgTwoHander_'+name]);
+  const _atkCur=new Map();   // equipped item object → {n, slot} — the AC / ATK rows' gear (the two Ear / Wrist / Fingers slots share a location name)
   for(const item of equipped){
     const _cg4=charGear[item.name]||{},_db4=itemDBGet(item.name)||{};
     const dbSlot=invSlotToDBSlot(item.location);
+    _atkCur.set(item,{n:item.name,slot:dbSlot});
     // In 2H mode: MH and OH are treated as empty — exclude their stats from cur baseline
     if(is2hModeSheet&&(dbSlot==='PRIMARY'||dbSlot==='SECONDARY')){
       equippedAcBySlot[_eqKey(item)]={ac:0,dbSlot};
@@ -4851,6 +4880,8 @@ window.upgRefreshStatSheet=function(){
   // Clone haste map for projection — slots get patched as candidates are applied
   const projHasteByItem=Object.assign({},equippedHasteByItem);
   let totalDkp=0,totalPlat=0; const dkpLines=[];
+  const _atkProj=new Map(_atkCur);
+  if(is2hModeSheet) for(const [k,v] of _atkProj) if(v.slot==='PRIMARY'||v.slot==='SECONDARY') _atkProj.delete(k);
   if(window._upgSlots){
     for(const sr of window._upgSlots){
       // In 2H mode: skip MH and OH slots (they're disabled); only process the 2H card
@@ -4863,6 +4894,7 @@ window.upgRefreshStatSheet=function(){
       const cand=sr.candidates[idx];
       if(!cand)continue;
       const curData=sr.currentData;
+      _atkProj.set(sr.isEmpty||!sr.item?'__empty_'+(sr.cardId||sr.dbSlot):sr.item,{n:cand.name,slot:sr.is2hCard?'PRIMARY':sr.dbSlot});
       for(const k of STAT_KEYS_ALL){proj[k]=(proj[k]||0)-Number(curData[k]||0)+Number(cand[k]||0);}
       // Patch this slot's haste in the per-item map; proj.haste recomputed after loop
       const equippedItem=sr.item;
@@ -4923,10 +4955,29 @@ window.upgRefreshStatSheet=function(){
       +`<span class="upg-stat-proj-val">${pDisp}${deltaHtml}</span>`
       +`</span></div>`;
   }
+  // AC and ATK — the same estimates as Character Stats (calcDisplayAC / calcDisplayATK), from the gear in each column.
+  // Item AC shows in game at ~1.57× (×4/3 for non-casters, then ÷0.847), so adding it 1:1 to a saved "naked AC" drifted
+  // as gear changed and under-counted a pick's AC (owner, 2026-10-12: Mixelflop in game 1046, sheet 1058).
+  const _gearOf=map=>{ let ac=0,itemATK=0,prim=null; const effs=new Set();
+    for(const e of map.values()){ const n=e&&e.n; if(!n||n==='(empty)') continue; const d=itemDBGet(n)||charGear[n]||{}, cg=charGear[n]||{};
+      ac+=Number(d.ac||0)||Number(cg.ac||0); itemATK+=Number(d.atk||0);
+      const ef=ITEM_WORN_EFFECT[n]; if(ef&&WORN_EFFECT_STATS[ef]) effs.add(ef); if(e.slot==='PRIMARY') prim=d; }
+    let wornATK=0,wornAC=0; for(const ef of effs){ wornATK+=WORN_EFFECT_STATS[ef].atk||0; wornAC+=WORN_EFFECT_STATS[ef].ac||0; }
+    return {ac,wornAC,itemATK,wornATK,skill:charSkill(name,weaponSkillFor(prim)).v}; };
+  const _gC=_gearOf(_atkCur),_gP=_gearOf(_atkProj);
+  const _def=charSkill(name,'Defense').v, _buffAC=buffedSheet?Number(buffSumFor(name).ac||0):0;
+  const _wtOf=map=>{ const W=window.ITEM_WT||{}; let t=0; for(const e of map.values()) if(e&&e.n&&e.n!=='(empty)') t+=W[String(e.n).replace(/\*+$/,'').trim()]||0; return t; };
+  const _wtC=charClass==='Monk'?carriedWeightNow(name):null, _wtP=charClass==='Monk'?carriedWeightNow(name,_wtOf(_atkProj)-_wtOf(_atkCur)):null;
+  const _acVal=(g,agi,buffAC,wt)=>calcDisplayAC({cls:charClass,race:meta.race,level:charLevel,defense:_def,gearAC:g.ac,agi:Math.min(255,agi||0),buffAC,wornAC:g.wornAC,weight:wt}).value;
   let html=`<div class="upg-stat-section">Combat pools</div>`;
-  html+=row('AC',cur.ac||0,proj.ac||0,false,buffedSheet?(curUn.ac||0):null);
+  if(base&&charClass&&_def!=null) html+=row('<span title="Worked out like Character Stats: Defense skill, gear AC, AGI, worn effects'+(buffedSheet?' and parked buffs':'')+'." style="cursor:help">AC</span>',_acVal(_gC,cur.agi,_buffAC,_wtC),_acVal(_gP,proj.agi,_buffAC,_wtP),false,buffedSheet?_acVal(_gC,curUn.agi,0,_wtC):null);
+  else html+=row('<span title="Estimate from the AC you entered: your Defense skill is not in your logs yet, so the in-game formula cannot be used." style="cursor:help">AC</span>',cur.ac||0,proj.ac||0,false,buffedSheet?(curUn.ac||0):null);
   if(curHP!==null){html+=row('HP',curHP,projHP,false,curHPUn);if(MANA_CLASSES.has(charClass))html+=row('Mana',curMana,projMana,false,curManaUn);}
   html+=hasteStatRow(curHaste,projHaste);
+  // a weapon skill not in the logs yet counts as the other weapon's, so a missing skill can't fake a jump
+  const _wC=_gC.skill!=null?_gC.skill:(_gP.skill||0),_wP=_gP.skill!=null?_gP.skill:(_gC.skill||0);
+  const _atkVal=(g,w,str)=>calcDisplayATK({offense:charSkill(name,'Offense').v||0,str:Math.min(255,str||0),weaponSkill:w,itemATK:g.itemATK,wornATK:g.wornATK}).value;
+  if(base) html+=row('<span title="Estimate, worked out like Character Stats: Offense skill, STR, the primary weapon’s skill, and item / worn-effect ATK (spell buffs not included). A weapon skill not in your logs yet counts the same as your current one." style="cursor:help">ATK</span>',_atkVal(_gC,_wC,cur.str),_atkVal(_gP,_wP,proj.str));
   const weights=getStatWeights(charClass,cur);
   html+=`<div class="upg-stat-section">Primary</div>`;
   STAT_KEYS.forEach(k=>html+=row(k.toUpperCase(),cur[k]||0,proj[k]||0,true,buffedSheet?(curUn[k]||0):null));
@@ -5527,11 +5578,16 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.19',
+  version:'1.7.20',
   date:'October 2026',
-  features:[],
+  features:[
+    ['&#128221; Character sheet from /who','Type <b>/who</b> (or just <b>/</b>) in game and MixelParse fills in that character&rsquo;s class and race in Character Stats from your own line. It only fills empty ones &mdash; anything you set by hand stays. A character that dies outside a raid with no class or race gets a small reminder (never in raids; Settings &rarr; Pop-up notices &rarr; Character sheet reminders turns it off).'],
+    ['&#9876; Gear Planner AC and ATK','The stat sheet now has an ATK row, and AC is worked out the way the game does it (Defense skill, gear AC, AGI, worn effects), so a pick&rsquo;s +/&minus; matches the inventory window.'],
+    ['&#128465; Remove a line','Auto-Detect: right-click a &ldquo;no kill, no credit&rdquo; tick &rarr; Remove this line. &ldquo;show removed&rdquo; brings them back.'],
+  ],
   fixes:[
-    ['Outfitter follows your character','Outfitter now fills in class, race, deity and level from the Character Stats of the tab you&rsquo;re on, every time you switch tabs. Changing one by hand changes that tab only (&ldquo;&#9998; Manual for &hellip;&rdquo;), and &ldquo;&#8634; Use &hellip;&rsquo;s&rdquo; puts it back. Before, the first change you made stuck for every character until a restart.'],
+    ['Monk AC','Monk AC in Character Stats and the Gear Planner now matches the game exactly, including the monk bonus shrinking when you carry too much weight. AGI above 137 and the Iksar AC bonus were also corrected.'],
+    ['Ring War in Auto-Detect','Guild chat about Ring War no longer labels a tick &ldquo;RW Readiness&rdquo; when it says it isn&rsquo;t happening (&ldquo;we don&rsquo;t have the force for RW&rdquo;) or only one person mentions it.'],
   ],
 };
 function showWhatsNew(){
@@ -5540,7 +5596,7 @@ function showWhatsNew(){
   const li=(tag,[title,desc])=>`<li class="wn-item"><span class="wn-tag wn-tag-${tag}">${tag==='new'?'NEW':'FIX'}</span><span><b>${title}</b> &mdash; ${desc}</span></li>`;
   document.getElementById('whatsNewFeatures').innerHTML=WHATS_NEW.features.map(f=>li('new',f)).join('');
   document.getElementById('whatsNewFixes').innerHTML=WHATS_NEW.fixes.map(f=>li('fix',f)).join('');
-  { const fx=document.getElementById('whatsNewFixes'), hd=fx&&fx.previousElementSibling; if(hd&&hd.classList.contains('wn-section-hdr')) hd.style.display=WHATS_NEW.fixes.length?'':'none'; }
+  for(const [id,list] of [['whatsNewFeatures',WHATS_NEW.features],['whatsNewFixes',WHATS_NEW.fixes]]){ const el=document.getElementById(id), hd=el&&el.previousElementSibling; if(hd&&hd.classList.contains('wn-section-hdr')) hd.style.display=list.length?'':'none'; }
   document.getElementById('whatsNewOverlay').classList.add('open');
 }
 function dismissWhatsNew(){
@@ -8100,6 +8156,8 @@ window.applyDBToChar    = applyDBToChar;
             setCharBind(msg.charName, msg.zone, msg.src||'watcher', msg.timestamp||Date.now());
           }
         }
+        if(msg.type === 'whoSelf'){ sheetFromWho(msg); }
+        if(msg.type === 'selfDeath'){ sheetNudgeOnDeath(msg); }
         if(msg.type === 'levelUp'){
           if(msg.charName && msg.level){
             knownWatcherChars.add(msg.charName);
@@ -12686,7 +12744,7 @@ function renderKillsPanel(){
       <div class="kt-view-tab${sessionsView==='new'?' active':''}" onclick="ktSetView('new')">⚔ New Session</div>
       <div class="kt-view-tab${sessionsView==='history'?' active':''}" onclick="ktSetView('history')">📜 History (${raidSessions.length})</div>
       <div class="kt-view-tab${sessionsView==='creditcheck'?' active':''}" onclick="ktSetView('creditcheck')">🔍 Credit Check</div>
-      <div class="kt-view-tab${sessionsView==='autodetect'?' active':''}" onclick="ktSetView('autodetect')">🎯 Auto-Detect${rkdLog.filter(r=>r.tier==='strong'||r.tier==='weak'||r.tier==='ambiguous').length?` (${rkdLog.filter(r=>r.tier==='strong'||r.tier==='weak'||r.tier==='ambiguous').length})`:''}</div>
+      <div class="kt-view-tab${sessionsView==='autodetect'?' active':''}" onclick="ktSetView('autodetect')">🎯 Auto-Detect${rkdLog.filter(r=>!r.hidden&&(r.tier==='strong'||r.tier==='weak'||r.tier==='ambiguous')).length?` (${rkdLog.filter(r=>!r.hidden&&(r.tier==='strong'||r.tier==='weak'||r.tier==='ambiguous')).length})`:''}</div>
       <div style="margin-left:auto;display:flex;align-items:center;padding:0 .6rem"><button class="watchlist-gear-btn" onclick="toggleNoteRef()" title="/note keyword reference" style="font-size:.72rem;font-family:'Cinzel',serif;letter-spacing:.04em;padding:.2rem .5rem;border:1px solid var(--border);border-radius:3px">/note INFO</button></div>
     </div>
     <div id="ktNoteRef" style="display:none">${buildNoteRefHtml()}</div>
@@ -13231,12 +13289,16 @@ function _rkdRwNote(m,keepAll){
   _rkdRw.push({ts,sub:m.sub,mob:m.mob,char:m.charName,zone:m.zone||null});
   if(!keepAll) _rkdRw=_rkdRw.filter(e=>e.ts>=ts-4*3600e3);   // a log scan keeps every Ring War it replays
 }
-function rkdRwChatNote(msg){ if(/\bring ?war\b|\bRW\b/i.test(msg.text||'')){ const ts=msg.ts||Date.now(); _rkdRwChat.push(ts); _rkdRwChat=_rkdRwChat.filter(x=>x>=ts-4*3600e3); } }
+// Ring War chat counts only when it sounds like it's on, and only from two or more people: "We dont have the force for RW" /
+// "cant we do LTK inot ringwar ??" made a 4 AM Kunark tick "RW Readiness" (owner, 2026-10-12). Real musters had 2–7 people
+// talking it up ("TIME FOR RING WAR", "Porting for RW", "we're doing ring war").
+const RE_RW_CHAT=/\bring ?wars?\b|\bRW\b/i, RE_RW_NOT=/\b(?:don'?t|do not|can'?t|cannot|won'?t|not|no|isn'?t|aren'?t|without|instead|skip(?:ping)?|cancel(?:led)?)\b/i;
+function rkdRwChatNote(msg){ const tx=msg.text||''; if(RE_RW_CHAT.test(tx)&&!RE_RW_NOT.test(tx)){ const ts=msg.ts||Date.now(); _rkdRwChat.push({ts,who:String(msg.who||msg.charName||'').toLowerCase()}); _rkdRwChat=_rkdRwChat.filter(x=>x.ts>=ts-4*3600e3); } }
 const RKD_RW={r:'RW Readiness',w1:'RW Wave 1',w2:'RW Wave 2',w3:'RW Wave 3'};
 // a tick during a Ring War → its checkpoint (null = not a Ring War tick). ctx 'npc' = the event's own shouts were logged.
 function _rkdRingWar(t){
   const ev=_rkdRw.filter(e=>e.ts>=t.ts-4*3600e3&&e.ts<=t.ts+RKD_WIN_AFTER);
-  const chat=_rkdRwChat.some(x=>x>=t.ts-90*60e3&&x<=t.ts+RKD_WIN_AFTER), gd=/great divide|thurgadin/i.test(t.zone||'');
+  const chat=new Set(_rkdRwChat.filter(x=>x.ts>=t.ts-90*60e3&&x.ts<=t.ts+RKD_WIN_AFTER).map(x=>x.who)).size>=2, gd=/great divide|thurgadin/i.test(t.zone||'');
   if(!ev.length&&!chat&&!gd) return null;
   const R2=(28*60+22)*1e3, R3=(57*60+53)*1e3, M=60e3;
   // this Ring War's start: Form up, else backed off from a round call, else a captain's shout
@@ -13549,6 +13611,8 @@ window.rkdRowMenu=function(ev,tr){
   const pick=b=>"rkdAddToTracker(decodeURIComponent('"+idE+"'),decodeURIComponent('"+encodeURIComponent(b)+"'))";
   const item=(html,on)=>`<div ${on?`onclick="${on}" onmouseover="this.style.background='rgba(201,168,76,.15)'" onmouseout="this.style.background=''" style="padding:.35rem .8rem;cursor:pointer"`:'style="padding:.35rem .8rem;color:var(--text-muted)"'}>${html}</div>`;
   const nkncItem=r.confirm==='nknc'?item('↶ Clear <b>no kill, no credit</b>',"rkdSetNknc(decodeURIComponent('"+idE+"'),false)")
+      +(r.hidden?item('↶ Restore this line',"rkdHideRow(decodeURIComponent('"+idE+"'),false)")
+        :item('🗑 Remove this line <span style="color:var(--text-muted);font-size:.78rem">— hide it from Auto-Detect</span>',"rkdHideRow(decodeURIComponent('"+idE+"'),true)"))
     :item('✗ No kill, no credit <span style="color:var(--text-muted);font-size:.78rem">— an attempt, we went again</span>',"rkdSetNknc(decodeURIComponent('"+idE+"'),true)");
   m.innerHTML=(r.confirm==='auto'?item('↶ Undo auto-add of <b>'+esc(btLabel(r.boss))+'</b>',"rkdUndoAuto(decodeURIComponent('"+idE+"'))"):'')+nkncItem+'<div style="border-top:1px solid var(--border);margin:4px 0"></div>'+(bosses.length
       ?'<div style="padding:.2rem .8rem;font-size:.66rem;color:var(--text-muted);letter-spacing:.06em">SUGGESTED</div>'+bosses.map(b=>item('⚔ Add <b>'+esc(btLabel(b))+'</b> to Raid Kill Tracker…',pick(b))).join('')
@@ -13855,6 +13919,16 @@ window.rkdSetNknc=function(id,on){
   }else{ if(r.nkncFrom&&r.nkncFrom!=='auto')r.confirm=r.nkncFrom;else delete r.confirm; delete r.nkncFrom; }
   rkdSave();renderKillsPanel();
 };
+// Hide / restore a no-kill-no-credit row. It stays in the log (marked hidden) so a startup re-scan doesn't bring the tick
+// back as new; it already counts for nothing (no session, no ToD, no ODKP tick expected).
+window.rkdHideRow=function(id,on){
+  const m=document.getElementById('rkdMenu');if(m)m.style.display='none';
+  const r=rkdLog.find(x=>String(x.id)===String(id));if(!r)return;
+  if(on){ if(r.confirm!=='nknc')return; r.hidden=true; showWatcherToast('🗑 '+(r.boss?btLabel(r.boss)+' ':'')+fmtRkdTime(r.ts)+' line removed — "show removed" brings it back'); }
+  else delete r.hidden;
+  rkdSave();renderKillsPanel();
+};
+window.rkdToggleRemoved=function(v){try{localStorage.setItem('mp_rkd_removed',v?'1':'0');}catch(e){}renderKillsPanel();};
 function fmtRkdTime(ms){return new Date(ms).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}
 // "Which boss?" — Pick / No-boss ticks in Active mode. Choosing one opens the normal kill dialog for it.
 function showRkdPickModal(item){
@@ -13898,8 +13972,9 @@ window.rkdPickBoss=function(boss){
 };
 window.rkdToggleUncredited=function(v){try{localStorage.setItem('mp_rkd_uncredited',v?'1':'0');}catch(e){}renderKillsPanel();};
 function renderAutoDetectPanel(){
-  let showNoise=false,onlyUncredited=false;
-  try{showNoise=localStorage.getItem('mp_rkd_noise')==='1';onlyUncredited=localStorage.getItem('mp_rkd_uncredited')==='1';}catch(e){}
+  let showNoise=false,onlyUncredited=false,showRemoved=false;
+  try{showNoise=localStorage.getItem('mp_rkd_noise')==='1';onlyUncredited=localStorage.getItem('mp_rkd_uncredited')==='1';showRemoved=localStorage.getItem('mp_rkd_removed')==='1';}catch(e){}
+  const nRemoved=rkdLog.filter(r=>r.hidden).length;
   // "No boss" ticks: try the spawn-timer board (loads it once, then re-renders if anything changed)
   if(typeof btLoaded!=='undefined'&&!btLoaded&&typeof btEnsureLoaded==='function'){btEnsureLoaded().then(()=>{if(rkdRetryNoBoss()&&typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();});}
   else rkdRetryNoBoss();
@@ -13924,6 +13999,7 @@ function renderAutoDetectPanel(){
   for(const b in _rk) _rk[b].sort((a,c)=>a-c);
   const rankOf=r=>{ let n=0; for(const t of _rk[r.boss]||[]){ if(t>r.ts) break; if(t>=r.ts-12*3600e3) n++; } return n; };
   const rows=rkdLog.slice().reverse().filter(r=>{
+    if(r.hidden&&!showRemoved)return false;
     if(onlyUncredited)return odkpState(r).k==='missing';
     return showNoise||r.tier!=='none'||r.sameZone;
   });
@@ -13944,6 +14020,7 @@ function renderAutoDetectPanel(){
       rec=have>=n?'<span style="color:#4caf7d" title="Marked in the kill tracker">✓ in tracker'+(n>1?' (#'+n+')':'')+'</span>'
                  :'<span style="color:var(--text-muted)">'+(n>1?'#'+n+' not recorded':'not recorded')+'</span>';
     }else if(r.tier==='ambiguous')rec=(r.cands||[]).map(b=>_rkdRecordedCount(b,r.ts)?'✓':'·').join(' / ');
+    if(r.hidden)rec+='<div style="font-size:.66rem;color:var(--text-muted)" title="Right-click → Restore this line">removed</div>';
     if(r.confirm)rec+={nknc:'<div style="font-size:.66rem;color:#c48a3a" title="An attempt with no kill and no failtick — right-click to clear">no kill, no credit</div>',auto:'<div style="font-size:.66rem;color:#4caf7d" title="Active mode added it — right-click to undo">auto-added</div>',undone:'<div style="font-size:.66rem;color:#c07050">auto-add undone</div>',confirmed:'<div style="font-size:.66rem;color:#4caf7d">confirmed by prompt'+(r.picked?' ('+esc(btLabel(r.picked))+')':'')+'</div>',dismissed:'<div style="font-size:.66rem;color:#c07050">prompt: not a kill</div>',failtick:'<div style="font-size:.66rem;color:#c48a3a">prompt: failtick</div>',noted:'<div style="font-size:.66rem;color:var(--text-muted)">/noted before the prompt</div>'}[r.confirm]||'';
     const o=odkpState(r);
     const odkp=o.k==='ok'?'<span style="color:#4caf7d" title="'+esc(o.t.l)+(OM.offset&&OM.offset[r.id]?' — ODKP time is 1 hour off from the RAIDTICK':'')+'">✓ '+(OM.offset&&OM.offset[r.id]?'<span style="color:var(--text-muted)">(±1h)</span> ':'')+esc(o.t.l.replace(/^\d{1,2}-\d{1,2}\s+\d{1,2}:\d{2}\s+/,''))+(o.t.v!=null?' <b>'+o.t.v+'</b>':'')+'</span>'
@@ -13983,6 +14060,7 @@ function renderAutoDetectPanel(){
       <span style="margin-left:auto;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
         <label style="font-size:.72rem;color:var(--text-muted);cursor:pointer"><input type="checkbox" ${onlyUncredited?'checked':''} onchange="rkdToggleUncredited(this.checked)"> only not credited</label>
         <label style="font-size:.72rem;color:var(--text-muted);cursor:pointer"><input type="checkbox" ${showNoise?'checked':''} onchange="rkdToggleNoise(this.checked)"> show guild-only ticks with no boss</label>
+        ${nRemoved?`<label style="font-size:.72rem;color:var(--text-muted);cursor:pointer"><input type="checkbox" ${showRemoved?'checked':''} onchange="rkdToggleRemoved(this.checked)"> show removed (${nRemoved})</label>`:''}
         ${scanBtn}
         <button class="kt-undo-btn" onclick="rkdClearLog()">Clear log</button>
       </span>
@@ -15978,8 +16056,69 @@ const TOAST_KINDS=[
   ['auc','Auctions','Outbid and “Grats — you won”',/^⚖/],
   ['raid','Raid ticks &amp; Auto-Detect','Ticks added to the Raid Kill Tracker, Auto-Detect adds and failticks',/^(⚔|💀|⏱ .*(×|New session))/],
   ['map','Map timers &amp; pins','Spawn timers, charm marks, pins',/^(⏱|🌀|📍|🗑|Pin\b)/],
+  ['sheet','Character sheet reminders','After a death outside a raid when a character has no class or race, and class / race filled in from /who',/^📝/],
   ['other','Everything else','Imports, scans, saves and other confirmations',null],
 ];
+// ── Character sheet: class / race from a /who of yourself; a reminder after a death outside a raid while they're empty ──
+// (beta-user idea, 2026-10-11). Only empty fields are filled — a class or race set by hand is never changed.
+const WHO_TITLES={Champion:'Warrior',Myrmidon:'Warrior',Warlord:'Warrior',Vicar:'Cleric',Templar:'Cleric','High Priest':'Cleric',Cavalier:'Paladin',Knight:'Paladin',Crusader:'Paladin',
+  Pathfinder:'Ranger',Outrider:'Ranger',Warder:'Ranger',Reaver:'Shadow Knight',Revenant:'Shadow Knight','Grave Lord':'Shadow Knight',Wanderer:'Druid',Preserver:'Druid',Hierophant:'Druid',
+  Disciple:'Monk',Master:'Monk',Grandmaster:'Monk',Minstrel:'Bard',Troubadour:'Bard',Virtuoso:'Bard',Rake:'Rogue',Blackguard:'Rogue',Assassin:'Rogue',Mystic:'Shaman',Luminary:'Shaman',Oracle:'Shaman',
+  Heretic:'Necromancer',Defiler:'Necromancer',Warlock:'Necromancer',Channeler:'Wizard',Evoker:'Wizard',Sorcerer:'Wizard',Elementalist:'Magician',Conjurer:'Magician','Arch Mage':'Magician',
+  Illusionist:'Enchanter',Beguiler:'Enchanter',Phantasmist:'Enchanter'};
+// raid zones (log names) — a wipe isn't the moment for a reminder
+const SHEET_RAID_ZONES=new Set(['Temple of Veeshan',"Veeshan's Peak","Sleeper's Tomb",'Plane of Fear','Plane of Hate','Plane of Air','Plane of Growth','Kael Drakkel','Dragon Necropolis','Icewell Keep','Western Wastes']);
+function sheetKey(cn){ return charNames().find(c=>c.toLowerCase()===String(cn||'').toLowerCase())||null; }
+function sheetFromWho(msg){
+  const key=sheetKey(msg.charName); if(!key) return;
+  const m=charMeta[key]||(charMeta[key]={}); const set=[]; let changed=false;
+  const cls=EQ_CLASSES.includes(msg.title)?msg.title:WHO_TITLES[msg.title];
+  const race=EQ_RACES.find(r=>r.toLowerCase()===String(msg.race||'').toLowerCase());
+  if(cls&&!m.class){ m.class=cls; set.push(cls); changed=true; }
+  if(race&&!m.race){ m.race=race; set.push(race); changed=true; }
+  if(msg.level>=1&&msg.level<=60&&m.level!==msg.level){ m.level=msg.level; changed=true; }
+  if(!changed) return;
+  saveState(); if(set.length) sheetNudgeHide(key);
+  if(activeTab===key&&typeof refresh==='function') refresh();
+  if(set.length) showWatcherToast('📝 '+key+': '+set.join(' · ')+' filled in from /who');
+}
+function sheetNudgeState(){ try{ return JSON.parse(localStorage.getItem('mp_sheet_nudge')||'{}'); }catch(e){ return {}; } }
+function sheetNudgeMark(key,v){ const s=sheetNudgeState(); s[key]=v; try{ localStorage.setItem('mp_sheet_nudge',JSON.stringify(s)); }catch(e){} }
+const _sheetNudgeLast={};
+function sheetNudgeOnDeath(msg){
+  const key=sheetKey(msg.charName); if(!key||isBanker(key)||isExcludedChar(key)) return;
+  const m=charMeta[key]||{}; if(m.class&&m.race) return;
+  if(Date.now()-(_sheetNudgeLast[key]||0)<60e3) return; _sheetNudgeLast[key]=Date.now();   // "slain by" + "You died." = one death
+  const st=sheetNudgeState()[key]; if(st==='never'||(+st&&Date.now()<+st)) return;
+  const zone=((typeof charZones!=='undefined'&&(charZones[msg.charName]||charZones[key]))||{}).zone||'';
+  if(SHEET_RAID_ZONES.has(zone)) return;
+  const lastTick=(typeof rkdLog!=='undefined'?rkdLog:[]).reduce((a,r)=>Math.max(a,r.ts||0),typeof _rkdLastTickTs!=='undefined'?(_rkdLastTickTs||0):0);
+  if(lastTick>Date.now()-90*60e3) return;   // a raid tick in the last 90 minutes
+  if(!toastAllowed('📝')) return;
+  sheetNudgeHide();
+  const miss=[!m.class&&'class',!m.race&&'race'].filter(Boolean).join(' or ');
+  const d=document.createElement('div'); d.id='sheetNudge'; d.dataset.char=key;
+  d.style.cssText='position:fixed;bottom:1.2rem;right:1.2rem;width:340px;max-width:calc(100vw - 2.4rem);background:var(--surface);border:1px solid var(--border-glow);border-radius:6px;padding:.7rem .85rem;z-index:9998;box-shadow:0 4px 14px rgba(0,0,0,.25);font-size:.82rem;color:var(--text)';
+  d.innerHTML='<div style="display:flex;gap:.5rem;align-items:flex-start"><span style="font-size:1.05rem">📝</span><div style="flex:1;min-width:0"><b>'+esc(key)+' died'+(msg.by?' to '+esc(msg.by):'')+'</b>'
+    +'<div style="color:var(--text-muted);margin-top:.2rem;line-height:1.4">This character’s sheet has no '+miss+', so Outfitter, Gear Planner and Spells can’t plan for it. Type <code>/who</code> (or just <code>/</code>) in game to fill it in, or set it now.</div></div>'
+    +'<a href="#" onclick="sheetNudgeClose(7);return false" title="Remind me in a week" style="color:var(--text-muted);text-decoration:none">✕</a></div>'
+    +'<div style="display:flex;gap:.5rem;margin-top:.55rem;padding-left:1.6rem;flex-wrap:wrap"><button class="btn" onclick="sheetNudgeFill()">Fill in sheet</button>'
+    +'<button class="btn" style="background:none;border-color:transparent;color:var(--text-muted)" onclick="sheetNudgeNever()">Don’t ask for this character</button></div>';
+  document.body.appendChild(d);
+  d._t=setTimeout(()=>sheetNudgeClose(1),20000);   // ignored → ask again tomorrow at the earliest
+}
+function sheetNudgeHide(key){ const d=document.getElementById('sheetNudge'); if(d&&(!key||d.dataset.char===key)){ clearTimeout(d._t); d.remove(); } }
+window.sheetNudgeClose=function(days){ const d=document.getElementById('sheetNudge'); if(!d) return; sheetNudgeMark(d.dataset.char,Date.now()+days*864e5); sheetNudgeHide(); };
+window.sheetNudgeNever=function(){ const d=document.getElementById('sheetNudge'); if(!d) return; sheetNudgeMark(d.dataset.char,'never'); sheetNudgeHide(); };
+window.sheetNudgeFill=function(){
+  const d=document.getElementById('sheetNudge'); if(!d) return; const key=d.dataset.char; sheetNudgeHide();
+  switchTopView('characters');
+  const t=document.querySelector('.tab[data-char="'+CSS.escape(key)+'"]'); if(t) t.click();
+  setTimeout(()=>{   // after the tab switch has rendered (it restores that tab's last sub-tab)
+    const sb=document.querySelector('.subtab[data-sub="stats"]'); if(sb) sb.click();
+    setTimeout(()=>{ for(const id of ['classSelect','raceSelect']){ const el=document.getElementById(id); if(el&&!el.value){ el.style.outline='2px solid #b07020'; el.style.outlineOffset='2px'; } }
+      const c=document.getElementById('classSelect'); if(c) c.scrollIntoView({block:'center',behavior:'smooth'}); },150); },50);
+};
 function toastOff(){ try{ return new Set(JSON.parse(localStorage.getItem('mp_toast_off')||'[]')); }catch(e){ return new Set(); } }
 function toastAllowed(msg){
   const m=String(msg||''); if(/^(❌|⚠|✗)/.test(m)) return true;
