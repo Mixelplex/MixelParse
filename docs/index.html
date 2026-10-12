@@ -5527,13 +5527,11 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.18',
+  version:'1.7.19',
   date:'October 2026',
-  features:[
-    ['&#128228; Submit older logs','The log review page (&#9881; Admin &rarr; Submit logs for review) now also sends old logs you cut out or moved because they got too big: ones in your Logs and Logs\\archive folders are found for you, and &ldquo;Add older log files&hellip;&rdquo; adds any others (sent in full). Tells are still removed. Describing the problem is now optional.'],
-  ],
+  features:[],
   fixes:[
-    ['Keys tab &rarr; Sky corpses','Each Sky corpse line now says when that character died, &ldquo;keys not checked&rdquo; instead of &ldquo;keys unverified&rdquo;, and how long until it decays; hover the &#9432; header for what the column shows.'],
+    ['Outfitter follows your character','Outfitter now fills in class, race, deity and level from the Character Stats of the tab you&rsquo;re on, every time you switch tabs. Changing one by hand changes that tab only (&ldquo;&#9998; Manual for &hellip;&rdquo;), and &ldquo;&#8634; Use &hellip;&rsquo;s&rdquo; puts it back. Before, the first change you made stuck for every character until a restart.'],
   ],
 };
 function showWhatsNew(){
@@ -10118,7 +10116,9 @@ window.setFarmSub=function(v){
 // (lore items fill at most one regardless of copies).
 const OUTFIT_CLASS_ABBR={'Bard':'BRD','Cleric':'CLR','Druid':'DRU','Enchanter':'ENC','Magician':'MAG','Monk':'MNK','Necromancer':'NEC','Paladin':'PAL','Ranger':'RNG','Rogue':'ROG','Shadow Knight':'SHD','Shaman':'SHM','Warrior':'WAR','Wizard':'WIZ'};
 const OUTFIT_SLOT_SEQ=[['PRIMARY',1],['SECONDARY',1],['RANGE',1],['EAR',2],['FINGERS',2],['WRIST',2],['HEAD',1],['FACE',1],['NECK',1],['SHOULDERS',1],['ARMS',1],['BACK',1],['HANDS',1],['CHEST',1],['LEGS',1],['FEET',1],['WAIST',1],['AMMO',1]];
-let _outfit={cls:'Rogue',race:'Dwarf',deity:'',level:1,includeEquipped:false,_userSet:false};
+let _outfit={cls:'Rogue',race:'Dwarf',deity:'',level:1,includeEquipped:false};
+const _OUTFIT_DEFAULT={cls:'Rogue',race:'Dwarf',deity:'',level:1};
+let _outfitOv={};   // per character tab: the fields set by hand (the rest follow Character Stats)
 
 
 // Worn-effect scoring for the Outfitter (PROC_DB's sibling). Keyed by EFFECT
@@ -10966,24 +10966,23 @@ function renderConsolidatePanel(){
 function renderOutfitterPanel(){
   const panel=document.getElementById('outfitterPanel');
   if(!panel)return;
-  // Seed class/race/level from the active character until the user takes manual
-  // control. Option-2 behaviour: follows whoever's selected (re-seeds when you
-  // land on a new character), but the first manual pick via outfitSet() flips
-  // _userSet and freezes it, so a twink plan you're building survives tabbing.
-  // Falls back to the standing default on All-Characters or when class/race is
-  // unknown; each field is seeded only on a clean match.
-  if(!_outfit._userSet){
-    const _m=(typeof charMeta!=='undefined'&&activeTab&&activeTab!=='__all__')?charMeta[activeTab]:null;
-    if(_m){
-      const _ck=Object.keys(CLASS_STAT_WEIGHTS).find(c=>c.toUpperCase()===String(_m.class||'').toUpperCase());
-      if(_ck)_outfit.cls=_ck;
-      const _rk=EQ_RACES.find(r=>r.toUpperCase()===String(_m.race||'').toUpperCase());
-      if(_rk)_outfit.race=_rk;
-      const _lv=parseInt(_m.level,10);
-      if(_lv>=1&&_lv<=60)_outfit.level=_lv;
-      _outfit.deity=_m.deity||'';
-    }
+  // Class / race / deity / level follow the character on this tab (Character Stats). A manual change overrides that
+  // tab only (_outfitOv) and "↺ Use <name>'s" drops it (owner, 2026-10-11; it used to freeze for every character).
+  const _tab=activeTab&&activeTab!=='__all__'?activeTab:null;
+  const _m=(typeof charMeta!=='undefined'&&_tab)?charMeta[_tab]:null;
+  Object.assign(_outfit,_OUTFIT_DEFAULT);
+  if(_m){
+    const _ck=Object.keys(CLASS_STAT_WEIGHTS).find(c=>c.toUpperCase()===String(_m.class||'').toUpperCase()||(OUTFIT_CLASS_ABBR[c]||'')===String(_m.class||'').toUpperCase());
+    if(_ck)_outfit.cls=_ck;
+    const _rk=EQ_RACES.find(r=>r.toUpperCase()===String(_m.race||'').toUpperCase());
+    if(_rk)_outfit.race=_rk;
+    const _lv=parseInt(_m.level,10);
+    if(_lv>=1&&_lv<=60)_outfit.level=_lv;
+    _outfit.deity=_m.deity||'';
   }
+  const _ov=_outfitOv[_tab||'__all__']||{};
+  Object.assign(_outfit,_ov);
+  const _manual=Object.keys(_ov).length>0;
   const o=_outfit;
   const kit=outfitBuildKit();
   const selStyle='background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .45rem;font-family:\'Crimson Pro\',serif;font-size:.85rem;outline:none;cursor:pointer';
@@ -11044,6 +11043,10 @@ function renderOutfitterPanel(){
       </label>
       <span style="font-size:.68rem;color:var(--text-muted);margin-left:auto">${kit.rowCount} owned tradeable rows scanned \u00b7 ${kit.nodropSkipped} NO DROP excluded</span>
     </div>
+    <div style="font-size:.74rem;margin:-.25rem 0 .55rem;color:var(--text-muted)">${_manual
+      ?'<span style="color:#b07020">\u270e Manual for '+esc(_tab||'All Characters')+'</span> \u2014 class / race / deity / level set by hand for this tab. '+(_m?'<a href="#" onclick="outfitReset();return false" style="color:var(--gold-light)">\u21ba Use '+esc(_tab)+'\u2019s</a>':'<a href="#" onclick="outfitReset();return false" style="color:var(--gold-light)">\u21ba Reset</a>')
+      :_m?'From <b>'+esc(_tab)+'</b>\u2019s Character Stats \u2014 change any of these to plan for something else (this tab only).'
+      :_tab?'Set '+esc(_tab)+'\u2019s class, race and level in Character Stats to fill these in, or pick them here.':'Pick a class, race and level to plan a kit.'}</div>
     <table class="dkp-table" style="width:100%">
       <thead><tr><th style="width:5.5rem">Slot</th><th>Item</th><th class="dkp-th-right" style="width:4rem">Score</th><th>Stats</th><th style="width:14rem">From</th></tr></thead>
       <tbody>${kitRows}</tbody>
@@ -11058,10 +11061,11 @@ function renderOutfitterPanel(){
     </div>`;
 }
 window.outfitSet=function(k,v){
-  _outfit[k]=k==='level'?Math.max(1,Math.min(60,parseInt(v,10)||1)):v;
-  _outfit._userSet=true;   // user took manual control — stop auto-seeding from the active character
+  const key=activeTab&&activeTab!=='__all__'?activeTab:'__all__';
+  (_outfitOv[key]=_outfitOv[key]||{})[k]=k==='level'?Math.max(1,Math.min(60,parseInt(v,10)||1)):v;   // this tab only
   renderOutfitterPanel();
 };
+window.outfitReset=function(){ delete _outfitOv[activeTab&&activeTab!=='__all__'?activeTab:'__all__']; renderOutfitterPanel(); };
 window.outfitToggleEq=function(cb){
   _outfit.includeEquipped=!!cb.checked;
   renderOutfitterPanel();
