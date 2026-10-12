@@ -458,6 +458,8 @@ const CHARM_CONFIRM_MS  = 8 * 1000;
 const _charmLastCast    = {};    // { [charName]: timestamp }
 const _charmedPets      = {};    // { [charName]: Set<lowerPetName> } — known pet names
 const _prevFactionSaysByChar = {};   // v1.4.18 was prev line a faction/says line? (turn-in detection)
+const RE_WHO_SELF = /^\[[^\]]+\] \[(\d+) ([A-Za-z ]+)\] ([A-Za-z]+) \(([A-Za-z ]+)\)/;   // "[60 Hierophant] Mixelplex (Wood Elf) <Castle>"
+const RE_SELF_DEATH = /^\[[^\]]+\] (?:You have been slain by (.+?)!|You died\.)\s*$/;
 const _lastDeathByChar  = {};    // v1.4.18 last death-message ts per char (turn-in guard)
 const _petLastTarget    = {};    // { [charName]: mobName } — most recent attack target
 // ── Faction data from the P99 wiki's NPC pages (2026-10-08; regenerate with session-data gen-faction-data.js) ──
@@ -1392,6 +1394,11 @@ function processLogLine(line, charName) {
   if (_lvlUp) {
     broadcast({ type: 'levelUp', charName, level: parseInt(_lvlUp[1], 10) });
   }
+  // /who of yourself → class (from the title) + race for the character sheet; your own death → the sheet reminder
+  const _who = RE_WHO_SELF.exec(line);
+  if (_who && _who[3].toLowerCase() === String(charName).toLowerCase()) broadcast({ type: 'whoSelf', charName, level: +_who[1], title: _who[2].trim(), race: _who[4].trim() });
+  const _died = RE_SELF_DEATH.exec(line);
+  if (_died) broadcast({ type: 'selfDeath', charName, by: _died[1] || null });
   if (RE_SESSION_XP.test(line)) {
     broadcast({ type: 'sessionXP', charName });
     if (_killCredited[charName]) {

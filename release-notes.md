@@ -1,8 +1,14 @@
-## 1.7.19
+## 1.7.20
+
+- **📝 Character sheet from /who** — type `/who` (or just `/`) in game and MixelParse fills in that character's class and race in Character Stats from your own line. It only fills empty ones; anything you set by hand stays. A character that dies outside a raid with no class or race gets a small reminder (never in raids; Settings → Pop-up notices → Character sheet reminders turns it off).
+- **⚔ Gear Planner AC and ATK** — the stat sheet now has an ATK row, and AC is worked out the way the game does it (Defense skill, gear AC, AGI, worn effects), so a pick's +/− matches the inventory window.
+- **🗑 Remove a line** — Auto-Detect: right-click a "no kill, no credit" tick → Remove this line. "show removed" brings them back.
+- **Fix:** Monk AC in Character Stats and the Gear Planner now matches the game exactly, including the monk bonus shrinking when you carry too much weight. AGI above 137 and the Iksar AC bonus were also corrected.
+- **Fix:** guild chat about Ring War no longer labels a tick "RW Readiness" when it says it isn't happening ("we don't have the force for RW") or only one person mentions it.
+
+Everything from 1.7.19 and earlier is included:
 
 - **Fix:** Outfitter now fills in class, race, deity and level from the Character Stats of the tab you're on, every time you switch tabs. Changing one by hand changes that tab only ("✎ Manual for …"), and "↺ Use …'s" puts it back. Before, the first change you made stuck for every character until a restart.
-
-Everything from 1.7.18 and earlier is included:
 
 - **📤 Submit older logs** — the log review page (⚙ Admin → Submit logs for review) now also sends old logs you cut out or moved because they got too big: ones in your `Logs` and `Logs\archive` folders are found for you, and "Add older log files…" adds any others (sent in full). Tells are still removed. Describing the problem is now optional.
 - **Fix:** Keys tab → Sky corpses: each line now says when that character died, "keys not checked" instead of "keys unverified", and how long until it decays; hover the ⓘ header for what the column shows.
