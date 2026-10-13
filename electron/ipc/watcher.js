@@ -14,6 +14,7 @@ const crypto   = require('crypto');
 const chokidar = require('chokidar');
 const resistWatch = require('./resistwatch');   // silent resist data recorder (watch-only)
 const skyCorpse   = require('./skycorpse');     // Plane of Sky corpses + the keys on them
+const capTrack    = require('./captrack');      // Leatherfoot Raider Skullcap: used / recharged
 
 let _onMessage = null;   // set by start()
 let _config    = null;   // MixelParse app config (eqDir, logDir, notesFile)
@@ -1399,6 +1400,9 @@ function processLogLine(line, charName) {
   if (_who && _who[3].toLowerCase() === String(charName).toLowerCase()) broadcast({ type: 'whoSelf', charName, level: +_who[1], title: _who[2].trim(), race: _who[4].trim() });
   const _died = RE_SELF_DEATH.exec(line);
   if (_died) broadcast({ type: 'selfDeath', charName, by: _died[1] || null });
+  // Leatherfoot Raider Skullcap — a use (instant trip to West Commonlands) or a recharge (sold + bought back)
+  const _capEv = (_capTrack[charName] || (_capTrack[charName] = capTrack.createTracker())).feed(line);
+  if (_capEv) broadcast({ type: 'capEvent', charName, live: true, ..._capEv });
   if (RE_SESSION_XP.test(line)) {
     broadcast({ type: 'sessionXP', charName });
     if (_killCredited[charName]) {
@@ -2346,12 +2350,51 @@ async function scanLogsForSessions(charFilter, idleGapMin) {
   }
 }
 
+// ── Leatherfoot Raider Skullcap: each character's last use / recharge from all their logs (captrack.js) ──
+// Each file's last event is cached by size + mtime (cap-cache.json next to the log positions), so the big archived logs are
+// read once (first run ~30 s on the owner's 1.5 GB); live logs are re-read at start.
+const _capTrack = {};
+let _capScanRunning = false;
+async function capBackfill(force) {
+  if (_capScanRunning || !_config || !_config.logDir) return;
+  _capScanRunning = true;
+  try {
+    const cacheFp = _logPosPath ? path.join(path.dirname(_logPosPath), 'cap-cache.json') : null;
+    let cache = {}; if (cacheFp && !force) { try { cache = JSON.parse(fs.readFileSync(cacheFp, 'utf8')); } catch {} }
+    const results = {}, next = {};
+    for (const d of [_config.logDir, path.join(_config.logDir, 'archive')]) {
+      let names = []; try { names = fs.readdirSync(d); } catch { continue; }
+      for (const f of names) {
+        const c = (f.match(/^eqlog_(.+?)_P1999Green.*\.(?:txt|old)$/i) || [])[1]; if (!c) continue;
+        const fp = path.join(d, f); let st; try { st = fs.statSync(fp); } catch { continue; }
+        const hit = cache[fp]; let last = null;
+        if (hit && hit.size === st.size && hit.mtime === st.mtimeMs) last = hit.last;
+        else {
+          const tr = capTrack.createTracker();
+          await new Promise(resolve => {
+            const rl = require('readline').createInterface({ input: fs.createReadStream(fp, { encoding: 'latin1' }), crlfDelay: Infinity });
+            rl.on('line', line => { const e = tr.feed(line); if (e && (!last || e.ts >= last.ts)) last = e; });
+            rl.on('close', resolve); rl.on('error', resolve);
+          });
+        }
+        next[fp] = { size: st.size, mtime: st.mtimeMs, last };
+        if (last && (!results[c] || last.ts > results[c].ts)) results[c] = last;
+      }
+    }
+    if (cacheFp) { try { fs.writeFileSync(cacheFp, JSON.stringify(next), 'utf8'); } catch {} }
+    broadcast({ type: 'capScanResult', results, scannedAt: Date.now() });
+    log(`[CAP] ${Object.keys(results).length} character(s) with a cap use / recharge in the logs`);
+  } catch (e) { err('[CAP]', e.message); }
+  finally { _capScanRunning = false; }
+}
+
 function command(cmd, args) {
   if (cmd === 'requestAll') {
     sendFullSnapshot();
     raidBackfill();
     bindBackfill();
     skyCorpse.emit();
+    capBackfill();
   } else if (cmd === 'reload') {
     stop();
     start({ config: _config, logPosPath: _logPosPath, factionPath: _factionPath, onMessage: _onMessage });
@@ -2359,6 +2402,8 @@ function command(cmd, args) {
     scanSkillsAllLogs();
   } else if (cmd === 'scanKillCounts') {
     scanKillCountsAllLogs(args && args.chars);
+  } else if (cmd === 'scanCaps') {
+    capBackfill(true);
   } else if (cmd === 'scanLeveling') {
     scanLeveling(args && args.chars);
   } else if (cmd === 'scanSessions') {

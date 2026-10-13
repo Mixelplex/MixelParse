@@ -1,12 +1,15 @@
-## 1.7.20
+## 1.7.21
+
+- **🧢 Leatherfoot cap tracking** — every character holding a Leatherfoot Raider Skullcap gets a cap badge next to its name in Last Zone Location: ✓ charged, ✗ empty or ? unknown — hover for when it was used or recharged. A cap counts as **used** when you land in West Commonlands from a zone that doesn't border it without a death, port or gate of your own, and **recharged** when you sell it and buy it back or someone hands you one in a trade. Your whole log history is read once in the background, so every cap starts with its real state. Right-click the badge to set it by hand.
+- **⚠ Empty caps before raids** — Raid Parking lists every character with an empty cap at the top, and a notice pops up the moment a cap is used or recharged (Settings → Pop-up notices → Leatherfoot cap).
+
+Everything from 1.7.20 and earlier is included:
 
 - **📝 Character sheet from /who** — type `/who` (or just `/`) in game and MixelParse fills in that character's class and race in Character Stats from your own line. It only fills empty ones; anything you set by hand stays. A character that dies outside a raid with no class or race gets a small reminder (never in raids; Settings → Pop-up notices → Character sheet reminders turns it off).
 - **⚔ Gear Planner AC and ATK** — the stat sheet now has an ATK row, and AC is worked out the way the game does it (Defense skill, gear AC, AGI, worn effects), so a pick's +/− matches the inventory window.
 - **🗑 Remove a line** — Auto-Detect: right-click a "no kill, no credit" tick → Remove this line. "show removed" brings them back.
 - **Fix:** Monk AC in Character Stats and the Gear Planner now matches the game exactly, including the monk bonus shrinking when you carry too much weight. AGI above 137 and the Iksar AC bonus were also corrected.
 - **Fix:** guild chat about Ring War no longer labels a tick "RW Readiness" when it says it isn't happening ("we don't have the force for RW") or only one person mentions it.
-
-Everything from 1.7.19 and earlier is included:
 
 - **Fix:** Outfitter now fills in class, race, deity and level from the Character Stats of the tab you're on, every time you switch tabs. Changing one by hand changes that tab only ("✎ Manual for …"), and "↺ Use …'s" puts it back. Before, the first change you made stuck for every character until a restart.
 
