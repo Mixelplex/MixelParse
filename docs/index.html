@@ -5578,17 +5578,13 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.20',
+  version:'1.7.21',
   date:'October 2026',
   features:[
-    ['&#128221; Character sheet from /who','Type <b>/who</b> (or just <b>/</b>) in game and MixelParse fills in that character&rsquo;s class and race in Character Stats from your own line. It only fills empty ones &mdash; anything you set by hand stays. A character that dies outside a raid with no class or race gets a small reminder (never in raids; Settings &rarr; Pop-up notices &rarr; Character sheet reminders turns it off).'],
-    ['&#9876; Gear Planner AC and ATK','The stat sheet now has an ATK row, and AC is worked out the way the game does it (Defense skill, gear AC, AGI, worn effects), so a pick&rsquo;s +/&minus; matches the inventory window.'],
-    ['&#128465; Remove a line','Auto-Detect: right-click a &ldquo;no kill, no credit&rdquo; tick &rarr; Remove this line. &ldquo;show removed&rdquo; brings them back.'],
+    ['&#129506; Leatherfoot cap tracking','Every character holding a Leatherfoot Raider Skullcap gets a cap badge next to its name in Last Zone Location: &#10003; charged, &#10007; empty or ? unknown &mdash; hover for when it was used or recharged. A cap counts as <b>used</b> when you land in West Commonlands from a zone that doesn&rsquo;t border it without a death, port or gate of your own, and <b>recharged</b> when you sell it and buy it back or someone hands you one in a trade. Your whole log history is read once in the background, so every cap starts with its real state. Right-click the badge to set it by hand.'],
+    ['&#9888; Empty caps before raids','Raid Parking lists every character with an empty cap at the top, and a notice pops up the moment a cap is used or recharged (Settings &rarr; Pop-up notices &rarr; Leatherfoot cap).'],
   ],
-  fixes:[
-    ['Monk AC','Monk AC in Character Stats and the Gear Planner now matches the game exactly, including the monk bonus shrinking when you carry too much weight. AGI above 137 and the Iksar AC bonus were also corrected.'],
-    ['Ring War in Auto-Detect','Guild chat about Ring War no longer labels a tick &ldquo;RW Readiness&rdquo; when it says it isn&rsquo;t happening (&ldquo;we don&rsquo;t have the force for RW&rdquo;) or only one person mentions it.'],
-  ],
+  fixes:[],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -8157,6 +8153,8 @@ window.applyDBToChar    = applyDBToChar;
           }
         }
         if(msg.type === 'whoSelf'){ sheetFromWho(msg); }
+        if(msg.type === 'capEvent'){ capOnEvent(msg); }
+        if(msg.type === 'capScanResult'){ capOnScan(msg); }
         if(msg.type === 'selfDeath'){ sheetNudgeOnDeath(msg); }
         if(msg.type === 'levelUp'){
           if(msg.charName && msg.level){
@@ -16056,9 +16054,73 @@ const TOAST_KINDS=[
   ['auc','Auctions','Outbid and “Grats — you won”',/^⚖/],
   ['raid','Raid ticks &amp; Auto-Detect','Ticks added to the Raid Kill Tracker, Auto-Detect adds and failticks',/^(⚔|💀|⏱ .*(×|New session))/],
   ['map','Map timers &amp; pins','Spawn timers, charm marks, pins',/^(⏱|🌀|📍|🗑|Pin\b)/],
+  ['cap','Leatherfoot cap','A cap used (it needs a recharge) or recharged',/^🧢/],
   ['sheet','Character sheet reminders','After a death outside a raid when a character has no class or race, and class / race filled in from /who',/^📝/],
   ['other','Everything else','Imports, scans, saves and other confirmations',null],
 ];
+// ── Leatherfoot Raider Skullcap charges (electron/ipc/captrack.js; owner, 2026-10-12) ──
+// charMeta[name].cap = {log:{kind:'use'|'recharge', ts, from, vendor}, man:{s:'charged'|'empty', ts}} — the newer one wins.
+// A use = an instant trip to West Commonlands nobody cast that wasn't a death; a recharge = cap sold + bought back.
+const CAP_ITEM='Leatherfoot Raider Skullcap';
+function capKey(cn){ return charNames().find(c=>c.toLowerCase()===String(cn||'').toLowerCase())||null; }
+function capHas(name){
+  const inv=chars[name]; if(inv&&inv.length) return inv.some(i=>String(i.name||'').replace(/\*+$/,'').trim()===CAP_ITEM);
+  return !!((charMeta[name]||{}).cap);
+}
+function capState(name){
+  const c=(charMeta[name]||{}).cap; if(!c) return null; const L=c.log, M=c.man;
+  if(M&&(!L||M.ts>=L.ts)) return {s:M.s,ts:M.ts,src:'manual'};
+  return L?{s:L.kind==='use'?'empty':'charged',ts:L.ts,src:'log',from:L.from,vendor:L.vendor}:null;
+}
+function capSetLog(key,ev){ const m=charMeta[key]||(charMeta[key]={}), c=m.cap||(m.cap={}); if(c.log&&c.log.ts>=ev.ts) return false; c.log={kind:ev.kind,ts:ev.ts,from:ev.from||null,vendor:ev.vendor||null}; return true; }
+function capRefresh(){ if(typeof renderZoneBar==='function') renderZoneBar(); if(typeof activeTopView!=='undefined'&&activeTopView==='parking'&&typeof renderParkingPanel==='function') renderParkingPanel(); }
+function capOnEvent(msg){
+  const key=capKey(msg.charName); if(!key||!capSetLog(key,msg)) return;
+  saveState(); capRefresh();
+  if(msg.live&&capHas(key)) showWatcherToast(msg.kind==='use'?'🧢 '+key+' used the Leatherfoot cap'+(msg.from?' leaving '+msg.from:'')+' — it needs a recharge':'🧢 '+key+'\u2019s Leatherfoot cap is recharged');
+}
+function capOnScan(msg){
+  let ch=false; for(const [cn,ev] of Object.entries(msg.results||{})){ const key=ev&&capKey(cn); if(key&&capSetLog(key,ev)) ch=true; }
+  if(ch){ saveState(); capRefresh(); }
+}
+const _capFmt=ts=>new Date(ts).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+function capBadge(name){
+  if(!capHas(name)) return '';
+  const s=capState(name), enc=encodeURIComponent(name);
+  const [txt,col,tip]=!s?['🧢?','var(--text-muted)','Leatherfoot cap: no use or recharge in your logs yet']
+    :s.s==='empty'?['🧢✗','#c03030','Leatherfoot cap EMPTY \u2014 '+(s.src==='manual'?'set by hand '+_capFmt(s.ts):'used '+_capFmt(s.ts)+(s.from?' leaving '+s.from:''))]
+    :['🧢✓','#3a8a3a','Leatherfoot cap charged \u2014 '+(s.src==='manual'?'set by hand '+_capFmt(s.ts):'recharged '+_capFmt(s.ts)+(s.vendor?' at '+s.vendor:''))];
+  return ' <span class="zb-cap" style="color:'+col+';font-size:.78em;cursor:context-menu;white-space:nowrap" title="'+esc(tip+' \u00b7 right-click to change')+'" onclick="event.stopPropagation()" oncontextmenu="event.stopPropagation();return capMenu(event,\''+enc+'\')">'+txt+'</span>';
+}
+window.capMenu=function(ev,enc){
+  ev.preventDefault(); const name=decodeURIComponent(enc);
+  let m=document.getElementById('capMenu');
+  if(!m){ m=document.createElement('div'); m.id='capMenu';
+    m.style.cssText="position:fixed;z-index:9999;display:none;min-width:210px;background:var(--surface2);border:1px solid var(--gold);border-radius:6px;padding:4px 0;box-shadow:0 8px 26px rgba(0,0,0,.4);font-family:'Crimson Pro',serif;font-size:.85rem;color:var(--text)";
+    document.body.appendChild(m);
+    document.addEventListener('mousedown',e=>{const x=document.getElementById('capMenu');if(x&&x.style.display!=='none'&&!x.contains(e.target))x.style.display='none';}); }
+  const it=(h,on)=>'<div onclick="'+on+'" onmouseover="this.style.background=\'rgba(201,168,76,.15)\'" onmouseout="this.style.background=\'\'" style="padding:.35rem .8rem;cursor:pointer">'+h+'</div>';
+  const nm="decodeURIComponent('"+enc+"')", hasMan=!!(((charMeta[name]||{}).cap||{}).man);
+  m.innerHTML='<div style="padding:.25rem .8rem;font-size:.7rem;color:var(--text-muted)">🧢 '+esc(name)+' \u2014 Leatherfoot cap</div>'
+    +it('✓ Mark charged',"capSet("+nm+",'charged')")+it('✗ Mark empty',"capSet("+nm+",'empty')")
+    +(hasMan?it('↺ Go by the logs again',"capSet("+nm+",null)"):'');
+  m.style.display='block';
+  m.style.left=Math.min(ev.clientX,window.innerWidth-m.offsetWidth-8)+'px'; m.style.top=Math.min(ev.clientY,window.innerHeight-m.offsetHeight-8)+'px';
+  return false;
+};
+window.capSet=function(name,s){
+  const x=document.getElementById('capMenu'); if(x) x.style.display='none';
+  const m=charMeta[name]||(charMeta[name]={}), c=m.cap||(m.cap={});
+  if(s) c.man={s,ts:Date.now()}; else delete c.man;
+  saveState(); capRefresh();
+};
+function capWarnHtml(){
+  const empty=charNames().filter(n=>!isBanker(n)&&!isExcludedChar(n)&&capHas(n)&&(capState(n)||{}).s==='empty');
+  if(!empty.length) return '';
+  return '<div style="margin:.2rem 0 .7rem;padding:.45rem .7rem;border:1px solid #c03030;border-radius:5px;background:rgba(192,48,48,.08);font-size:.82rem"><b style="color:#c03030">🧢 Empty Leatherfoot caps:</b> '
+    +empty.map(n=>{ const st=capState(n); return '<b>'+esc(n)+'</b> <span style="color:var(--text-muted);font-size:.9em">('+(st.src==='manual'?'set by hand':'used '+new Date(st.ts).toLocaleDateString([], {month:'short',day:'numeric'})+(st.from?' leaving '+esc(st.from):''))+')</span>'; }).join(', ')
+    +' \u2014 get them recharged before the raid.</div>';
+}
 // ── Character sheet: class / race from a /who of yourself; a reminder after a death outside a raid while they're empty ──
 // (beta-user idea, 2026-10-11). Only empty fields are filled — a class or race set by hand is never changed.
 const WHO_TITLES={Champion:'Warrior',Myrmidon:'Warrior',Warlord:'Warrior',Vicar:'Cleric',Templar:'Cleric','High Priest':'Cleric',Cavalier:'Paladin',Knight:'Paladin',Crusader:'Paladin',
@@ -17115,7 +17177,7 @@ function renderParkingPanel(){
       </div>
     </div>`;
   }
-  panel.innerHTML=`<div style="padding:.6rem 1rem 1rem">${header}${cfgPanel}${muleUI}${cards}</div>`;
+  panel.innerHTML=`<div style="padding:.6rem 1rem 1rem">${header}${capWarnHtml()}${cfgPanel}${muleUI}${cards}</div>`;
 }
 
 // ── Bind location (per-char) ────────────────────────────────────────────────
@@ -17222,7 +17284,7 @@ function renderZoneBar(){
     if(!char) return `<span></span><span></span>`;
     const enc=encodeURIComponent(char);
     const bind=getCharBind(char);
-    const nameCell=`<span class="zone-bar-char zbc-click" onclick="mpZbFlip('${enc}')" oncontextmenu="return mpZbMenu(event,'${enc}')" title="Click: show bind \u00b7 Right-click: set bind">${esc(char)}</span>`;
+    const nameCell=`<span class="zone-bar-char zbc-click" onclick="mpZbFlip('${enc}')" oncontextmenu="return mpZbMenu(event,'${enc}')" title="Click: show bind \u00b7 Right-click: set bind">${esc(char)}${capBadge(char)}</span>`;
     let zoneCell;
     if(mpBindFlipped(char)&&bind){
       const stale=mpBindStale(bind.ts);
