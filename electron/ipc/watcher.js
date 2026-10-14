@@ -1403,6 +1403,8 @@ function processLogLine(line, charName) {
   // Leatherfoot Raider Skullcap — a use (instant trip to West Commonlands) or a recharge (sold + bought back)
   const _capEv = (_capTrack[charName] || (_capTrack[charName] = capTrack.createTracker())).feed(line);
   if (_capEv) broadcast({ type: 'capEvent', charName, live: true, ..._capEv });
+  // a merchant's offer for something you're selling — "is it worth looting?" prices
+  if (line.indexOf("tells you, 'I'll give you ") > 0) { const _vq = capTrack.vendorQuote(line); if (_vq) broadcast({ type: 'vendorPrice', charName, ..._vq }); }
   if (RE_SESSION_XP.test(line)) {
     broadcast({ type: 'sessionXP', charName });
     if (_killCredited[charName]) {
@@ -1835,7 +1837,8 @@ const RE_SKILLUP = /You have become better at (.+?)! \((\d+)\)/;
 //   You receive 50 platinum, 0 gold, 0 silver, 0 copper as your split.  (group split)
 //   You receive 2 gold 3 silver 6 copper from Hanga Wiskin for the …    (merchant sale / trade)
 //   You give 12 platinum 6 gold 6 silver 8 copper to Altha Shadowjumper. (purchase / trainer / trade)
-// The renderer adds these to a coin count the user typed in (see coinsFor in index.html).
+// The renderer replays these, in order, through a purse that starts at the coin count the user typed (coinsFor in
+// index.html): silver / copper you receive are assumed destroyed, purchases are paid from your smallest coins up.
 const RE_COIN_LINE = /^\[.+?\] You (receive|give) (.+?) (?:from (.+?)|to (.+?)|as your split)\.?$/;
 const RE_COIN_AMT  = /(\d+) (platinum|gold|silver|copper)\b/g;
 const COIN_KEY = { platinum:'pp', gold:'gp', silver:'sp', copper:'cp' };
@@ -1850,8 +1853,8 @@ function coinLine(line) {
   const kind = m[1] === 'give' ? 'give' : /as your split/.test(line) ? 'split' : m[3] === 'the corpse' ? 'loot' : 'receive';
   return { kind, pp: sign * amt.pp, gp: sign * amt.gp, sp: sign * amt.sp, cp: sign * amt.cp, ts: _rtLineTs(line) };
 }
-// Sum a character's coin lines after `since` across live / .old / archived logs.
-// args.chars: { charName: sinceMs }. One result per call: coinScanResult { totals, scannedAt }.
+// A character's coin lines after `since` across live / .old / archived logs, in time order.
+// args.chars: { charName: sinceMs }. One result per call: coinScanResult { totals: {name: {events, lines, lastTs}}, scannedAt }.
 let _coinScanRunning = false, _coinScanQueue = null;   // requests during a scan run right after it
 async function scanCoins(want) {
   if (!want || !_config || !_config.logDir) return;
@@ -1869,18 +1872,20 @@ async function scanCoins(want) {
     }
     const seen = new Set();
     for (const { file, w } of files) {
-      const t = totals[w.name] || (totals[w.name] = { pp:0, gp:0, sp:0, cp:0, lines:0, lastTs:0 });
+      const t = totals[w.name] || (totals[w.name] = { events: [], lines: 0, lastTs: 0 });
       await new Promise((resolve) => {
         const rl = require('readline').createInterface({ input: fs.createReadStream(file, { encoding: 'latin1' }), crlfDelay: Infinity });
         rl.on('line', (line) => {
           const c = coinLine(line); if (!c || c.ts <= w.since || c.ts > scannedAt) return;
           const key = w.name + '|' + line; if (seen.has(key)) return; seen.add(key);   // archive copies repeat lines
-          t.pp += c.pp; t.gp += c.gp; t.sp += c.sp; t.cp += c.cp; t.lines++; if (c.ts > t.lastTs) t.lastTs = c.ts;
+          t.events.push({ k: c.kind, pp: Math.abs(c.pp), gp: Math.abs(c.gp), sp: Math.abs(c.sp), cp: Math.abs(c.cp), ts: c.ts });
+          t.lines++; if (c.ts > t.lastTs) t.lastTs = c.ts;
         });
         rl.on('close', resolve); rl.on('error', resolve);
       });
     }
-    for (const w of Object.values(lower)) if (!totals[w.name]) totals[w.name] = { pp:0, gp:0, sp:0, cp:0, lines:0, lastTs:0 };
+    for (const w of Object.values(lower)) if (!totals[w.name]) totals[w.name] = { events: [], lines: 0, lastTs: 0 };
+    for (const t of Object.values(totals)) t.events.sort((a, b) => a.ts - b.ts);   // files are read one at a time — put them in order
     broadcast({ type: 'coinScanResult', totals, scannedAt });
   } catch (e) {
     err('[COINS]', e.message);
@@ -2355,34 +2360,45 @@ async function scanLogsForSessions(charFilter, idleGapMin) {
 // read once (first run ~30 s on the owner's 1.5 GB); live logs are re-read at start.
 const _capTrack = {};
 let _capScanRunning = false;
+// merge one item's merchant offers into a map: lowest / highest / how many / the latest
+function _vpAdd(map, e, item) {
+  const o = map[item];
+  if (!o) { map[item] = { lo: e.lo, hi: e.hi, n: e.n, cp: e.cp, ts: e.ts }; return; }
+  o.lo = Math.min(o.lo, e.lo); o.hi = Math.max(o.hi, e.hi); o.n += e.n; if ((e.ts || 0) >= (o.ts || 0)) { o.cp = e.cp; o.ts = e.ts; }
+}
 async function capBackfill(force) {
   if (_capScanRunning || !_config || !_config.logDir) return;
   _capScanRunning = true;
   try {
     const cacheFp = _logPosPath ? path.join(path.dirname(_logPosPath), 'cap-cache.json') : null;
     let cache = {}; if (cacheFp && !force) { try { cache = JSON.parse(fs.readFileSync(cacheFp, 'utf8')); } catch {} }
-    const results = {}, next = {};
+    const results = {}, next = {}, prices = {};
     for (const d of [_config.logDir, path.join(_config.logDir, 'archive')]) {
       let names = []; try { names = fs.readdirSync(d); } catch { continue; }
       for (const f of names) {
         const c = (f.match(/^eqlog_(.+?)_P1999Green.*\.(?:txt|old)$/i) || [])[1]; if (!c) continue;
         const fp = path.join(d, f); let st; try { st = fs.statSync(fp); } catch { continue; }
-        const hit = cache[fp]; let last = null;
-        if (hit && hit.size === st.size && hit.mtime === st.mtimeMs) last = hit.last;
+        const hit = cache[fp]; let last = null, pr = {};
+        if (hit && hit.size === st.size && hit.mtime === st.mtimeMs && hit.prices) { last = hit.last; pr = hit.prices; }
         else {
           const tr = capTrack.createTracker();
           await new Promise(resolve => {
             const rl = require('readline').createInterface({ input: fs.createReadStream(fp, { encoding: 'latin1' }), crlfDelay: Infinity });
-            rl.on('line', line => { const e = tr.feed(line); if (e && (!last || e.ts >= last.ts)) last = e; });
+            rl.on('line', line => {
+              const e = tr.feed(line); if (e && (!last || e.ts >= last.ts)) last = e;
+              if (line.indexOf("tells you, 'I'll give you ") > 0) { const q = capTrack.vendorQuote(line); if (q) _vpAdd(pr, { lo: q.cp, hi: q.cp, n: 1, cp: q.cp, ts: q.ts }, q.item); }
+            });
             rl.on('close', resolve); rl.on('error', resolve);
           });
         }
-        next[fp] = { size: st.size, mtime: st.mtimeMs, last };
+        next[fp] = { size: st.size, mtime: st.mtimeMs, last, prices: pr };
         if (last && (!results[c] || last.ts > results[c].ts)) results[c] = last;
+        for (const [item, e] of Object.entries(pr)) _vpAdd(prices, e, item);
       }
     }
     if (cacheFp) { try { fs.writeFileSync(cacheFp, JSON.stringify(next), 'utf8'); } catch {} }
     broadcast({ type: 'capScanResult', results, scannedAt: Date.now() });
+    broadcast({ type: 'vendorPrices', prices });   // what merchants have offered you, per item (copper): lo / hi / n / last
     log(`[CAP] ${Object.keys(results).length} character(s) with a cap use / recharge in the logs`);
   } catch (e) { err('[CAP]', e.message); }
   finally { _capScanRunning = false; }

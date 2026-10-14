@@ -27,6 +27,7 @@ MixelParse owner so the problem can be found and fixed: **⚙ Admin → 📤 Sub
 
 As it always has, MixelParse saves some of your own data to your MixelParse account so it follows you between PCs:
 your settings, character roles (banker / hidden), raid sessions and the Raid Kill Tracker, boss timers, Gear Planner plans
-and similar. Leveling summaries (time and XP per level and zone, no chat) are shared with the guild for the Leveling tab.
+and similar. Leveling summaries (time and XP per level and zone, no chat) are shared with the guild for the Leveling tab,
+and so are the prices merchants have offered you for things you sold (item and price only, no chat) for the loot value check.
 
 The access rules are in [`tools/supabase/log_reviews.sql`](tools/supabase/log_reviews.sql).

@@ -78,4 +78,17 @@ function createTracker() {
   };
 }
 
-module.exports = { createTracker, CAP };
+// A merchant's price for something you're selling (used by "is it worth looting?"):
+//   "Slea Pinewhisper tells you, 'I'll give you 5 platinum 6 gold 4 silver 5 copper for the Fine Steel Long Sword.'"
+//   "Peron ThreadSpinner tells you, 'I'll give you 9 platinum 4 gold 8 copper per Peridot'" (a stack)
+// Returns {item, cp, ts, vendor} in copper; "nothing" = 0.
+const COIN = { platinum: 1000, gold: 100, silver: 10, copper: 1 };
+function vendorQuote(line) {
+  const m = /^\[[^\]]+\] (.+?) tells you, 'I'll give you (.+?) (?:for the |per )(.+?)\.?'$/.exec(line); if (!m) return null;
+  let cp = 0, any = /nothing/i.test(m[2]);
+  m[2].replace(/(\d+) (platinum|gold|silver|copper)/g, (_, n, c) => { cp += +n * COIN[c]; any = true; return ''; });
+  if (!any) return null;
+  return { item: m[3].trim(), cp, ts: lineTs(line), vendor: m[1] };
+}
+
+module.exports = { createTracker, CAP, vendorQuote, lineTs };

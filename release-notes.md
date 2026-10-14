@@ -1,9 +1,17 @@
-## 1.7.21
+## 1.7.22
+
+- **📌 Tasks** — a new Tasks tab: jot down things to do on a character ("buy reagents", "turn in a quest item") and get reminded every time you log in on it, when it enters a zone, or at a time. Items you need to buy show who sells them, nearest first. Characters with open tasks get a red 📌 next to their name in Last Zone Location.
+- **⚠ Cap and task alerts** — empty Leatherfoot caps and tasks waiting for you show side by side as red alerts under the top bar. Settings → Checks & reminders picks how each one shows (or turns it off), plus the task pins.
+- **💰 Merchant prices (collecting)** — MixelParse now notes what merchants offer you for the things you sell (item and price only) and shares it with the guild, like the leveling data. Nothing is shown yet; it will power a "worth looting?" check once enough members have added theirs. See [PRIVACY.md](https://github.com/Mixelplex/MixelParse/blob/main/PRIVACY.md).
+- **Fix:** coins are now counted coin by coin the way EQ does it: looted silver and copper are assumed destroyed, and purchases are paid from your smallest coins first (gold before platinum). The Coins chip turns amber when your count looks out of date (the bank isn't in your log), and the weight shows how much of it is coins.
+- **Fix:** a play session that's running when MixelParse closes now picks up where it left off when you start it again, and zoning on one of your characters starts a session too.
+- **Fix:** clicking empty space in the header no longer switches auctions off (or opens Session / This Week).
+- **Fix:** a Leatherfoot cap you set by hand (right-click the 🧢) is now kept after a restart.
+
+Everything from 1.7.21 and earlier is included:
 
 - **🧢 Leatherfoot cap tracking** — every character holding a Leatherfoot Raider Skullcap gets a cap badge next to its name in Last Zone Location: ✓ charged, ✗ empty or ? unknown — hover for when it was used or recharged. A cap counts as **used** when you land in West Commonlands from a zone that doesn't border it without a death, port or gate of your own, and **recharged** when you sell it and buy it back or someone hands you one in a trade. Your whole log history is read once in the background, so every cap starts with its real state. Right-click the badge to set it by hand.
 - **⚠ Empty caps before raids** — Raid Parking lists every character with an empty cap at the top, and a notice pops up the moment a cap is used or recharged (Settings → Pop-up notices → Leatherfoot cap).
-
-Everything from 1.7.20 and earlier is included:
 
 - **📝 Character sheet from /who** — type `/who` (or just `/`) in game and MixelParse fills in that character's class and race in Character Stats from your own line. It only fills empty ones; anything you set by hand stays. A character that dies outside a raid with no class or race gets a small reminder (never in raids; Settings → Pop-up notices → Character sheet reminders turns it off).
 - **⚔ Gear Planner AC and ATK** — the stat sheet now has an ATK row, and AC is worked out the way the game does it (Defense skill, gear AC, AGI, worn effects), so a pick's +/− matches the inventory window.

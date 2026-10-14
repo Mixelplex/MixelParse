@@ -907,10 +907,10 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
     <h1>MixelParse</h1>
     <p>Project 1999 &middot; Guild Inventory Tool</p>
     <div class="ornament">&#10022;</div>
-    <button id="sessionTitleBtn" onclick="sessionToggleOverlay()" title="Active Session" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.25rem;background:none;border:none;padding:0;display:block;width:100%;text-align:center;pointer-events:all">&#9711; Session</button>
-    <button id="aucOpenBtn" onclick="aucToggleWindow()" title="Live DKP auctions from /auction — current bids with each bidder's DKP" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:100%;text-align:center;pointer-events:all">&#9878; Auctions</button>
-    <label id="aucEnLbl" title="Off: auctions are switched off completely — no auction window, no pop-up, no outbid / grats toasts" style="font-size:.62rem;cursor:pointer;font-family:monospace;user-select:none;margin:.05rem 0 0 .9rem;display:flex;align-items:center;justify-content:center;gap:.3rem;pointer-events:all"><input type="checkbox" id="aucEnChk" onchange="aucSetEnabled(this.checked)" style="margin:0;width:.7rem;height:.7rem;cursor:pointer;accent-color:#8a7a4a"><span id="aucEnTxt">Auction enabled</span></label>
-    <button id="twnOpenBtn" onclick="openThisWeek()" title="This Week in Norrath — weekly digest" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:100%;text-align:center;pointer-events:all">&#128240; This Week</button>
+    <button id="sessionTitleBtn" onclick="sessionToggleOverlay()" title="Active Session" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.25rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#9711; Session</button>
+    <button id="aucOpenBtn" onclick="aucToggleWindow()" title="Live DKP auctions from /auction — current bids with each bidder's DKP" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#9878; Auctions</button>
+    <label id="aucEnLbl" title="Off: auctions are switched off completely — no auction window, no pop-up, no outbid / grats toasts" style="font-size:.62rem;cursor:pointer;font-family:monospace;user-select:none;margin:.05rem auto 0;display:flex;width:max-content;align-items:center;justify-content:center;gap:.3rem;pointer-events:all"><input type="checkbox" id="aucEnChk" onchange="aucSetEnabled(this.checked)" style="margin:0;width:.7rem;height:.7rem;cursor:pointer;accent-color:#8a7a4a"><span id="aucEnTxt">Auction enabled</span></label>
+    <button id="twnOpenBtn" onclick="openThisWeek()" title="This Week in Norrath — weekly digest" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#128240; This Week</button>
   </div>
   <div class="version-badge" id="versionBadge"></div>
   <div id="networthDisplay" onclick="openNetworthModal()"></div>
@@ -972,6 +972,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
 
 <div id="btParkWarn"></div>
 <div id="skyCorpseWarn"></div>
+<div id="mpPingWarn"></div>
 <div class="top-nav" id="topNav" style="display:none">
   <div class="top-nav-item active" data-view="characters">Characters</div>
   <div class="top-nav-item" data-view="dkp">DKP History</div>
@@ -982,6 +983,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
   <div class="top-nav-item" data-view="flowers">Flowers</div>
   <div class="top-nav-item" data-view="farm">Farm Targets</div>
   <div class="top-nav-item" data-view="bankers">Bankers</div>
+  <div class="top-nav-item" data-view="tasks">Tasks</div>
   <div class="top-nav-item" data-view="settings" style="display:none">Settings</div>
   <div id="syncIndicator" title="Click to save now" onclick="forceSaveNow()" style="margin-left:auto;cursor:pointer;font-size:.65rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:4px;transition:background .15s">
     <span id="syncDot" style="width:7px;height:7px;border-radius:50%;background:#888;display:inline-block;transition:background .3s"></span>
@@ -1029,6 +1031,10 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
 
 <div id="flowersView" style="display:none">
   <div class="rc-panel" id="flowersPanel"></div>
+</div>
+
+<div id="tasksView" style="display:none">
+  <div class="rc-panel" id="tasksPanel"></div>
 </div>
 
 <div id="settingsView" style="display:none">
@@ -2775,7 +2781,7 @@ function _spellClassMap(cls){
 // P99 wiki data files (gen-wiki-data.js), loaded the first time a tab needs them: spells / vendors / quests
 const _wikiLoad={};
 function wikiData(name,redraw){
-  const g={spells:'WIKI_SPELLS',vendors:'WIKI_VENDORS',quests:'WIKI_QUESTS',zones:'ZONE_GRAPH',mobs:'WIKI_MOBS',epics:'WIKI_EPICS'}[name]; if(window[g]) return window[g];
+  const g={spells:'WIKI_SPELLS',vendors:'WIKI_VENDORS',quests:'WIKI_QUESTS',zones:'ZONE_GRAPH',mobs:'WIKI_MOBS',epics:'WIKI_EPICS',values:'WIKI_VALUES'}[name]; if(window[g]) return window[g];
   if(!_wikiLoad[name]){ _wikiLoad[name]=[]; const s=document.createElement('script'); s.src='wiki-'+name+'.js';
     s.onload=()=>{ const cbs=_wikiLoad[name]; _wikiLoad[name]=true; cbs.forEach(f=>{try{f();}catch(e){}}); }; document.head.appendChild(s); }
   if(Array.isArray(_wikiLoad[name])&&redraw) _wikiLoad[name].push(redraw);
@@ -3021,6 +3027,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     const isParking=activeTopView==='parking';
     const isKeys=activeTopView==='keys';
     const isFlowers=activeTopView==='flowers';
+    const isTasks=activeTopView==='tasks';
     const isSettings=activeTopView==='settings';
     try{localStorage.setItem('mp_last_view',activeTopView);}catch(e){}
     const isTimers=activeTopView==='timers';
@@ -3041,6 +3048,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     document.getElementById('parkingView').style.display=isParking?'block':'none';
     document.getElementById('keysView').style.display=isKeys?'block':'none';
     document.getElementById('flowersView').style.display=isFlowers?'block':'none';
+    document.getElementById('tasksView').style.display=isTasks?'block':'none';
     document.getElementById('settingsView').style.display=isSettings?'block':'none';
     document.getElementById('timersView').style.display=isTimers?'block':'none';
     document.getElementById('gearReportsView').style.display=isGearReports?'block':'none';
@@ -3052,6 +3060,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     else if(isParking){renderParkingPanel();}
     else if(isKeys){renderKeysPanel();}
     else if(isFlowers){renderFlowersPanel();}
+    else if(isTasks){renderTasksPanel();}
     else if(isSettings){renderSettingsPanel();}
     else if(isTimers){renderTimersPanel();}
     else if(isGearReports){renderGearReportsPanel();}
@@ -3066,7 +3075,7 @@ function renderOnly(){buildTabs();renderView();}
 function renderView(){if(activeTopView&&activeTopView!=='characters')return;const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderCityBars();renderFoodDrinkPanel();applyPanelLayout();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();}
 
 // ─── Inventory Table ──────────────────────────────────────────────────────────
-function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const classFilter=document.getElementById('classFilter').value;const slotFilter=document.getElementById('slotFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.entries(chars).filter(([_cn])=>!isExcludedChar(_cn)).flatMap(([,_it])=>_it):(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;let mc=true;if(classFilter||slotFilter){const db=itemDBGet(item.name);if(!db||(db._slot||'NONE')==='NONE'){mc=false;}else{if(classFilter){const cls=(db._classes||'ALL').toUpperCase();if(cls!=='ALL'&&!cls.split(/\s+/).includes(classFilter))mc=false;}if(slotFilter&&mc){const slots=db._slots||[db._slot];if(!slots.includes(slotFilter))mc=false;}}}return ms&&ml&&mc;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=items.reduce((s,i)=>s+i.count,0);const unique=new Set(items.map(i=>i.id)).size;const stacks=items.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span><span class="stat">Bankers <span class="stat-val">'+bankerNames().length+'</span></span>':'');}
+function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const classFilter=document.getElementById('classFilter').value;const slotFilter=document.getElementById('slotFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.entries(chars).filter(([_cn])=>!isExcludedChar(_cn)).flatMap(([,_it])=>_it):(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;let mc=true;if(classFilter||slotFilter){const db=itemDBGet(item.name);if(!db||(db._slot||'NONE')==='NONE'){mc=false;}else{if(classFilter){const cls=(db._classes||'ALL').toUpperCase();if(cls!=='ALL'&&!cls.split(/\s+/).includes(classFilter))mc=false;}if(slotFilter&&mc){const slots=db._slots||[db._slot];if(!slots.includes(slotFilter))mc=false;}}}return ms&&ml&&mc;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+(lt==='equipped'?'':lootValueTag(item.name))+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=items.reduce((s,i)=>s+i.count,0);const unique=new Set(items.map(i=>i.id)).size;const stacks=items.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span><span class="stat">Bankers <span class="stat-val">'+bankerNames().length+'</span></span>':'');}
 
 // ─── Stats Panel ──────────────────────────────────────────────────────────────
 function renderStatsPanel(){const panel=document.getElementById('statsPanel');const name=activeTab;if(!name||name==='__all__'){panel.innerHTML='';return;}const meta=charMeta[name]||{};const base=meta.baseStats||null;const selClass=meta.class||'';const selLevel=meta.level||1;const selRace=meta.race||'';const charGear=gearStats[name]||{};const dbCount=Object.keys(itemDB).length;const getBaseVal=(k)=>{if(!base)return'';const si=STAT_KEYS.indexOf(k);if(si>=0)return base.stats[si]||'';const ri=RESIST_KEYS.indexOf(k);if(ri>=0)return base.resists[ri]||'';const pi=POOL_KEYS.indexOf(k);if(pi>=0)return base.pools?.[pi]||'';return'';};const getCurVal=(k)=>{const cs=meta.currentStats;if(cs){const si=STAT_KEYS.indexOf(k);if(si>=0)return cs.stats?.[si]||'';const ri=RESIST_KEYS.indexOf(k);if(ri>=0)return cs.resists?.[ri]||'';const pi=POOL_KEYS.indexOf(k);if(pi>=0)return cs.pools?.[pi]||'';return'';}return getBaseVal(k);};
@@ -3239,11 +3248,15 @@ if(base){document.getElementById('statCardsContainer').innerHTML=buildStatCards(
 }
 
 // ── Coins (Stats tab) ─────────────────────────────────────────────────────────
-// P99's inventory export has no coins, and banking / destroying coins isn't logged. So: the user
-// types their coins once (charMeta[name].coins = {pp,gp,sp,cp,ts,small}) and every coin line the
-// log shows after that (loot, splits, merchant sales, purchases, trades) is added. Most players
-// destroy copper / silver, so those are only added when `small` ("I keep copper & silver") is on;
-// what was typed in always counts. Re-enter after banking coins.
+// P99's inventory export has no coins, and banking / destroying coins isn't logged. So: the user types their coins
+// once (charMeta[name].coins = {pp,gp,sp,cp,ts,small}) and every coin line after that is replayed IN ORDER through a
+// purse, coin by coin (owner, 2026-10-14) — EQ never converts coins itself, only a banker does:
+//   loot / splits / sales  → platinum + gold kept; silver + copper assumed destroyed unless `small` ("I keep copper &
+//                            silver") is on (what was typed in always counts)
+//   purchases              → the price is paid from the smallest coins up: copper, silver, gold, then platinum (0 cp,
+//                            0 sp, 766 gp, 1000 pp → a 76 pp buy takes 760 gold); change comes back in smaller coins
+//   a purchase the purse couldn't cover → coins were moved at a banker since the count → recount (amber chip).
+// The old version subtracted the coins named in the price, so gold piled up and platinum drained.
 let coinLog={};   // name(lower) -> {pp,gp,sp,cp,lines,lastTs,upTo, since}  — log sums after the typed count
 let _coinScanPending=null;
 function coinsRequestScan(name){
@@ -3251,7 +3264,7 @@ function coinsRequestScan(name){
   const k=name.toLowerCase(),cur=coinLog[k];
   if(cur&&cur.since===c.ts)return;                 // already summed for this starting point
   if(!(window.MixelParseApp&&window.MixelParseApp.watcherCommand))return;
-  coinLog[k]={pp:0,gp:0,sp:0,cp:0,lines:0,lastTs:0,upTo:Infinity,since:c.ts,pending:true};
+  coinLog[k]={ev:[],lines:0,lastTs:0,upTo:Infinity,since:c.ts,pending:true};
   _coinScanPending=Object.assign(_coinScanPending||{},{[name]:c.ts});
   window.MixelParseApp.watcherCommand('scanCoins',{chars:{[name]:c.ts}});
 }
@@ -3259,7 +3272,7 @@ function coinsOnScan(msg){
   if(msg.error||!msg.totals)return;
   for(const[name,t] of Object.entries(msg.totals)){
     const k=name.toLowerCase(),c=charMeta[name]&&charMeta[name].coins; if(!c)continue;
-    coinLog[k]={pp:t.pp,gp:t.gp,sp:t.sp,cp:t.cp,lines:t.lines,lastTs:t.lastTs,upTo:msg.scannedAt,since:c.ts};
+    coinLog[k]={ev:Array.isArray(t.events)?t.events:[],lines:t.lines||0,lastTs:t.lastTs||0,upTo:msg.scannedAt,since:c.ts};
   }
   if(typeof activeTab!=='undefined'&&msg.totals[activeTab]&&typeof renderStatsPanel==='function')renderStatsPanel();
   if(typeof renderFoodDrinkPanel==='function')renderFoodDrinkPanel();
@@ -3268,16 +3281,33 @@ function coinsOnLine(msg){
   const name=Object.keys(charMeta).find(n=>n.toLowerCase()===String(msg.charName||'').toLowerCase());
   const c=name&&charMeta[name].coins; if(!c||!(msg.ts>c.ts))return;
   const L=coinLog[name.toLowerCase()]; if(!L||L.pending||msg.ts<=L.upTo)return;   // the scan already has it / will have it
-  L.pp+=msg.pp;L.gp+=msg.gp;L.sp+=msg.sp;L.cp+=msg.cp;L.lines++;L.lastTs=Math.max(L.lastTs,msg.ts);
+  (L.ev=L.ev||[]).push({k:msg.kind,pp:Math.abs(msg.pp||0),gp:Math.abs(msg.gp||0),sp:Math.abs(msg.sp||0),cp:Math.abs(msg.cp||0),ts:msg.ts});L.lines++;L.lastTs=Math.max(L.lastTs||0,msg.ts);
   clearTimeout(coinsOnLine._t);coinsOnLine._t=setTimeout(()=>{if(activeTab===name&&typeof renderStatsPanel==='function')renderStatsPanel();if(typeof renderFoodDrinkPanel==='function')renderFoodDrinkPanel();},1500);
 }
-// Current coins: typed count + logged changes after it. null when nothing was typed.
+// Current coins: the typed count, then every coin line since replayed through the purse (see above). null when nothing was
+// typed. S = what happened since the count (looted / sold / paid, per coin), short = purchases the purse couldn't cover.
 function coinsFor(name){
   const c=charMeta[name]&&charMeta[name].coins; if(!c)return null;
-  const L=coinLog[name.toLowerCase()]||{pp:0,gp:0,sp:0,cp:0,lines:0};
-  const o={pp:Math.max(0,(+c.pp||0)+L.pp),gp:Math.max(0,(+c.gp||0)+L.gp),
-    sp:Math.max(0,(+c.sp||0)+(c.small?L.sp:Math.min(0,L.sp))),cp:Math.max(0,(+c.cp||0)+(c.small?L.cp:Math.min(0,L.cp)))};
-  o.count=o.pp+o.gp+o.sp+o.cp;o.lines=L.lines;o.since=c.ts;o.small=!!c.small;o.pending=!!L.pending;
+  const L=coinLog[name.toLowerCase()]||{ev:[],lines:0}, keep=!!c.small;
+  const P={pp:Math.max(0,+c.pp||0),gp:Math.max(0,+c.gp||0),sp:Math.max(0,+c.sp||0),cp:Math.max(0,+c.cp||0)};
+  const Z=()=>({pp:0,gp:0,sp:0,cp:0,n:0}), S={loot:Z(),sold:Z(),paid:Object.assign(Z(),{price:0})}; let short=0;
+  const evs=(L.ev||[]).slice().sort((a,b)=>(a.ts||0)-(b.ts||0));
+  for(const e of evs){
+    if(e.k==='give'){   // a purchase (or trainer / coins handed over): pay from the smallest coins up
+      let rem=(e.pp||0)*1000+(e.gp||0)*100+(e.sp||0)*10+(e.cp||0); S.paid.n++; S.paid.price+=rem;
+      for(const [key,val] of [['cp',1],['sp',10],['gp',100],['pp',1000]]){
+        if(rem<=0) break; if(P[key]<=0) continue;
+        const t=Math.min(P[key],Math.ceil(rem/val)); P[key]-=t; S.paid[key]+=t; rem-=t*val;
+        if(rem<0){ let ch=-rem; rem=0;   // change, in smaller coins (silver / copper go the way of all silver / copper)
+          for(const [k2,v2] of [['gp',100],['sp',10],['cp',1]]){ if(v2>=val) continue; const q=Math.floor(ch/v2); ch-=q*v2; if(k2==='gp'||keep) P[k2]+=q; } }
+      }
+      if(rem>0) short++;   // the purse couldn't have paid it — coins were moved at a banker since the count
+    } else {            // loot, a group split, a sale or a trade: platinum + gold kept
+      const bkt=(e.k==='loot'||e.k==='split')?S.loot:S.sold; bkt.n++;
+      for(const key of ['pp','gp','sp','cp']){ const v=e[key]||0; bkt[key]+=v; if(key==='pp'||key==='gp'||keep) P[key]+=v; }
+    }
+  }
+  const o=Object.assign({},P); o.count=o.pp+o.gp+o.sp+o.cp; o.lines=L.lines||evs.length; o.since=c.ts; o.small=keep; o.pending=!!L.pending; o.S=S; o.short=short;
   return o;
 }
 // Click-to-edit popover (Food & Drink Coins chip). Enter saves, Esc / outside click closes.
@@ -3292,7 +3322,7 @@ window.coinsPopOpen=function(ev,name){
   p.innerHTML=`<div style="font-weight:700;margin-bottom:.3rem">${esc(name)} — coins in your Inventory window</div>`+
     `<div style="display:flex;gap:.35rem">${inp('PP',cur.pp??c.pp,'pp')}${inp('GP',cur.gp??c.gp,'gp')}${inp('SP',cur.sp??c.sp,'sp')}${inp('CP',cur.cp??c.cp,'cp')}</div>`+
     `<label style="display:block;margin:.35rem 0 .15rem"><input id="coinPopSmall" type="checkbox" ${c.small?'checked':''}> I keep copper &amp; silver</label>`+
-    `<div style="color:var(--text-muted);font-size:.62rem;margin-bottom:.35rem">Loot, splits, sales and purchases from your logs keep it current. Re-enter after using the bank.</div>`+
+    `<div style="color:var(--text-muted);font-size:.62rem;margin-bottom:.35rem">Your logs keep it current: platinum and gold you loot or get from a sale are added, silver and copper are assumed destroyed (tick the box if you keep them), and purchases are paid from your smallest coins first. Re-enter after using the bank.</div>`+
     `<button class="btn" style="font-size:.68rem" onclick="coinsSave(decodeURIComponent('${encodeURIComponent(name)}'),'coinPop')">Save</button> <button class="btn" style="font-size:.68rem" onclick="coinsPopClose()">Cancel</button>`;
   document.body.appendChild(p);
   const r=(ev&&ev.currentTarget&&ev.currentTarget.getBoundingClientRect())||{left:100,bottom:100};
@@ -3377,7 +3407,8 @@ try{
   const coins=coinsFor(charName);
   if(coins){cw.tenths+=Math.floor(coins.count/4);cw.wt=Math.floor(cw.tenths/10);}   // 40 coins = 1
   if(cw.tenths||cw.rows.length){
-    const over=cw.wt>maxWt,near=!over&&maxWt&&cw.wt>=maxWt*0.9;
+    const coinT=coins?Math.floor(coins.count/4):0, coinOver=cw.wt>maxWt&&Math.floor((cw.tenths-coinT)/10)<=maxWt;   // over only because of the (estimated) coins
+    const over=cw.wt>maxWt&&!coinOver,near=!over&&maxWt&&cw.wt>=maxWt*0.9;
     const col=over?'#b03030':near?'#a07000':'';
     const f=t=>(t/10).toFixed(1);
     const top=cw.rows.slice(0,6).map(r=>'  '+r.name+'  '+f(r.w)+(r.red?' ('+f(r.full)+' − '+r.red+'% '+r.bag+')':r.worn?' (worn)':''));
@@ -3385,7 +3416,7 @@ try{
     if(over)tips.push('Over by '+(cw.wt-maxWt)+' — you move slower until you\'re back to '+maxWt+'.');
     const loose=cw.rows.filter(r=>!r.worn&&!r.red&&!r.shell).slice(0,3).map(r=>r.name+' '+f(r.w));
     if((over||near)&&loose.length)tips.push((cw.fullBags.length?'Move into '+[...new Set(cw.fullBags)].join(' / ')+' (weighs nothing inside) or bank: ':'Bank them or use a weight-reduction bag: ')+loose.join(', ')+'.');
-    const tip='Carried weight: '+cw.wt+' of '+maxWt+' (Max WT = STR).'+(coins?' Includes '+coins.count+' coins (40 coins = 1).':' Coins not included — set them on the Coins row (40 coins = 1).')+
+    const tip='Carried weight: '+cw.wt+' of '+maxWt+' (Max WT = STR).'+(coins?'\nItems '+(Math.floor((cw.tenths-coinT)/10))+' + coins '+(coinT/10).toFixed(1)+' ('+coins.count+' coins, 40 = 1 \u2014 an estimate since your last count'+(coins.short?'; looks out of date \u2014 recount':'')+').'+(coinOver?'\nOver only because of the coins \u2014 check your coin count.':''):' Coins not included — set them on the Coins row (40 coins = 1).')+
       (top.length?'\nHeaviest:\n'+top.join('\n'):'')+(tips.length?'\n'+tips.join('\n'):'')+
       (cw.unknown.length?'\nNo weight on the wiki for: '+[...new Set(cw.unknown)].slice(0,6).join(', ')+(cw.unknown.length>6?'…':''):'');
     weightRow=`<div class="stat-row" title="${esc(tip)}"><span class="stat-row-label">Weight</span><div class="stat-row-vals"><span class="val-base">&mdash;</span><span class="val-gear zero"></span><span class="val-total" style="${col?'color:'+col+';font-weight:700':''}">${cw.wt}/${maxWt}${over?' ⚠':''}</span><span style="min-width:1.8rem;font-size:.68rem;color:var(--text-muted)">${coins?'':'+coins'}</span></div></div>`;
@@ -5322,7 +5353,7 @@ document.getElementById('gearReportsBtn').addEventListener('click',()=>{
   document.getElementById('platView').style.display='none';
   document.getElementById('killsView').style.display='none';
   document.getElementById('bankersView').style.display='none';
-  ['farmView','parkingView','keysView','timersView','flowersView','settingsView'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['farmView','parkingView','keysView','timersView','flowersView','tasksView','settingsView'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   document.getElementById('gearReportsView').style.display='block';
   renderGearReportsPanel();
 });
@@ -5578,13 +5609,19 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.21',
+  version:'1.7.22',
   date:'October 2026',
   features:[
-    ['&#129506; Leatherfoot cap tracking','Every character holding a Leatherfoot Raider Skullcap gets a cap badge next to its name in Last Zone Location: &#10003; charged, &#10007; empty or ? unknown &mdash; hover for when it was used or recharged. A cap counts as <b>used</b> when you land in West Commonlands from a zone that doesn&rsquo;t border it without a death, port or gate of your own, and <b>recharged</b> when you sell it and buy it back or someone hands you one in a trade. Your whole log history is read once in the background, so every cap starts with its real state. Right-click the badge to set it by hand.'],
-    ['&#9888; Empty caps before raids','Raid Parking lists every character with an empty cap at the top, and a notice pops up the moment a cap is used or recharged (Settings &rarr; Pop-up notices &rarr; Leatherfoot cap).'],
+    ['&#128204; Tasks','A new <b>Tasks</b> tab: jot down things to do on a character (&ldquo;buy reagents&rdquo;, &ldquo;turn in a quest item&rdquo;) and get reminded every time you log in on it, when it enters a zone, or at a time. Items you need to buy show who sells them, nearest first. Characters with open tasks get a red &#128204; next to their name in Last Zone Location.'],
+    ['&#9888; Cap and task alerts','Empty Leatherfoot caps and tasks waiting for you show side by side as red alerts under the top bar. Settings &rarr; <b>Checks &amp; reminders</b> picks how each one shows (or turns it off), plus the task pins.'],
+    ['&#128176; Merchant prices (collecting)','MixelParse now notes what merchants offer you for the things you sell (item and price only) and shares it with the guild, like the leveling data &mdash; nothing is shown yet; it will power a &ldquo;worth looting?&rdquo; check once enough members have added theirs.'],
   ],
-  fixes:[],
+  fixes:[
+    ['Coins','Coins are now counted coin by coin the way EQ does it: looted silver and copper are assumed destroyed, and purchases are paid from your smallest coins first (gold before platinum). The Coins chip turns amber when your count looks out of date (the bank isn&rsquo;t in your log), and the weight shows how much of it is coins.'],
+    ['Sessions','A play session that&rsquo;s running when MixelParse closes now picks up where it left off when you start it again, and zoning on one of your characters starts a session too.'],
+    ['Header','Clicking empty space in the header no longer switches auctions off (or opens Session / This Week).'],
+    ['Leatherfoot cap','A cap you set by hand (right-click the &#129506;) is now kept after a restart.'],
+  ],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -6022,7 +6059,7 @@ async function loadFromSupabase(){
           }
         }
         if(row.base_stats?.questData)questData[row.char_name]=row.base_stats.questData;
-        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,factionValues:_fv,questData:_qd,buffs:_bu,planBuffed:_pb,plan:_pl,coins:_coin,spellbook:_sb,spellIgnore:_si,customWeights:_cw,consumeOverrides:_co,deity:_de,skills:_sk,skillsManual:_skm,...bs}=row.base_stats||{};
+        const{factions:_f,nakedStats:_n,currentStats:_c,skyshrine:_s,gearPlans:_gp,factionValues:_fv,questData:_qd,buffs:_bu,planBuffed:_pb,plan:_pl,coins:_coin,spellbook:_sb,spellIgnore:_si,customWeights:_cw,consumeOverrides:_co,deity:_de,skills:_sk,skillsManual:_skm,cap:_cap,...bs}=row.base_stats||{};
         const hasRealStats=bs.stats||bs.resists;
         charMeta[row.char_name]={
           class:row.class||'',race:row.race||'',level:row.level||1,
@@ -6043,6 +6080,7 @@ async function loadFromSupabase(){
           deity:row.base_stats?.deity||'',
           skills:row.base_stats?.skills||{},
           skillsManual:row.base_stats?.skillsManual||{},
+          cap:_capMergeLoad(charMeta[row.char_name]&&charMeta[row.char_name].cap,row.base_stats?.cap),
         };
         if(row.gear_stats)gearStats[row.char_name]=row.gear_stats;
         _charLoadedMeta[row.char_name]={
@@ -6188,6 +6226,7 @@ function _charSaveRow(cn){
         deity:charMeta[cn]?.deity||null,
         skills:charMeta[cn]?.skills||null,              // highest value per skill, from logs
         skillsManual:charMeta[cn]?.skillsManual||null,  // typed from the in-game Skills window
+        cap:charMeta[cn]?.cap||null,                    // Leatherfoot cap: last use / recharge from the logs + a set-by-hand override
       };
     })(),
     gear_stats:gearStats[cn]||null,
@@ -6811,18 +6850,28 @@ function fdCoinChip(n){
   if(!c)return'<span class="tov-chip tov-chip-none" style="cursor:pointer"'+click+' title="Click to enter this character\'s coins — your logs keep it current after that">&#9998; set</span>';
   const txt=c.pp+'p '+c.gp+'g'+(c.small||c.sp||c.cp?' '+c.sp+'s '+c.cp+'c':'');
   const when=new Date(c.since).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-  const tip=c.pp+' pp · '+c.gp+' gp · '+c.sp+' sp · '+c.cp+' cp ('+c.count+' coins = '+(Math.floor(c.count/4)/10).toFixed(1)+' weight)\n'+
-    'Typed in '+when+(c.pending?' — reading your logs…':' + '+c.lines+' coin line'+(c.lines===1?'':'s')+' from your logs since.')+
-    (c.small?'':' Looted copper/silver not added (assumed destroyed).')+' Click to re-enter (after using the bank).';
-  return'<span class="tov-chip" style="background:rgba(160,120,40,.12);border-color:var(--gold);color:var(--text);cursor:pointer"'+click+' title="'+esc(tip)+'">'+txt+'</span>';
+  const ageD=(Date.now()-(c.since||Date.now()))/864e5, stale=!c.pending&&(c.short>0||ageD>=3), S=c.S||{loot:{},sold:{},paid:{}};
+  const coins=o=>['pp','gp','sp','cp'].filter(k=>o[k]).map(k=>o[k]+' '+k).join(' ');
+  const lines=[c.pp+' pp \u00b7 '+c.gp+' gp \u00b7 '+c.sp+' sp \u00b7 '+c.cp+' cp  ('+c.count+' coins = '+(Math.floor(c.count/4)/10).toFixed(1)+' weight) \u2014 an estimate',
+    'Counted '+when+(c.pending?' \u2014 reading your logs\u2026':'')];
+  const dropped=c.small?'':' (silver / copper assumed destroyed)';
+  if(S.loot.n) lines.push('Looted since: +'+coins(S.loot)+dropped);
+  if(S.sold.n) lines.push('Sold / received since: +'+coins(S.sold)+dropped);
+  if(S.paid.n) lines.push('Spent: '+S.paid.n+' purchase'+(S.paid.n>1?'s':'')+' worth '+fmtCp(S.paid.price)+', paid smallest coins first: '+(coins(S.paid)||'nothing'));
+  if(c.short) lines.push('\u26a0 Your coins couldn\u2019t have covered '+c.short+' purchase'+(c.short>1?'s':'')+' \u2014 coins were moved at a banker since the count. Click to recount.');
+  else if(ageD>=3) lines.push('Counted '+Math.floor(ageD)+' days ago \u2014 the bank isn\u2019t in your log, so click to recount if you\u2019ve used it.');
+  else lines.push('Click to recount after using the bank.');
+  const st=stale?'background:rgba(176,112,32,.16);border-color:#b07020':'background:rgba(160,120,40,.12);border-color:var(--gold)';
+  return'<span class="tov-chip" style="'+st+';color:var(--text);cursor:pointer"'+click+' title="'+esc(lines.join('\n'))+'">'+(stale?'\u26a0 ':'')+txt+'</span>';
 }
 // Weight cell (see charWeightInfo): carried / Max WT, amber at 90%+, red when over; hover for the heaviest items.
 function fdWeightChip(n){
   let w;try{w=charWeightInfo(n);}catch(e){w=null;}
   if(!w||(!w.tenths&&!w.rows.length))return'<span class="tov-chip tov-chip-none" title="No inventory file for this character yet">&#9675; No data</span>';
-  const f=t=>(t/10).toFixed(1),over=w.maxWt!=null&&w.wt>w.maxWt,near=!over&&w.maxWt&&w.wt>=w.maxWt*0.9;
+  const coinT=w.coins?Math.floor(w.coins.count/4):0, coinOver=w.maxWt!=null&&w.wt>w.maxWt&&Math.floor((w.tenths-coinT)/10)<=w.maxWt;   // over only because of the (estimated) coins
+  const f=t=>(t/10).toFixed(1),over=w.maxWt!=null&&w.wt>w.maxWt&&!coinOver,near=!over&&w.maxWt&&w.wt>=w.maxWt*0.9;
   const tip='Carried weight '+w.wt+(w.maxWt!=null?' of '+w.maxWt+' (Max WT = STR)':' — enter this character\'s stats on the Stats tab to see Max WT')+'.'+
-    (w.coins?' Includes '+w.coins.count+' coins (40 coins = 1).':' Coins not included — click the Coins chip to enter them.')+
+    (w.coins?'\nItems '+Math.floor((w.tenths-coinT)/10)+' + coins '+(coinT/10).toFixed(1)+' ('+w.coins.count+' coins, 40 = 1 \u2014 an estimate since your last count'+(w.coins.short?'; looks out of date \u2014 recount':'')+').'+(coinOver?'\nOver only because of the coins \u2014 check your coin count.':''):' Coins not included — click the Coins chip to enter them.')+
     (over?'\nOver by '+(w.wt-w.maxWt)+' — you move slower until you\'re back to '+w.maxWt+'.':'')+
     (w.rows.length?'\nHeaviest:\n'+w.rows.slice(0,6).map(r=>'  '+r.name+'  '+f(r.w)+(r.red?' ('+r.red+'% '+r.bag+')':r.worn?' (worn)':'')).join('\n'):'');
   const txt=w.wt+(w.maxWt!=null?'/'+w.maxWt:'')+(over?' &#9888;':'');
@@ -8154,6 +8203,11 @@ window.applyDBToChar    = applyDBToChar;
         }
         if(msg.type === 'whoSelf'){ sheetFromWho(msg); }
         if(msg.type === 'capEvent'){ capOnEvent(msg); }
+        if(msg.type === 'vendorPrices'){ vpOnScan(msg); }
+        if(msg.type === 'vendorPrice'){ vpOnQuote(msg); }
+        if(msg.type === 'sessionLoot'&&msg.item){ lootValueToast(msg); }
+        if(msg.type === 'sessionLogin'&&msg.charName){ taskRemind(msg.charName,'login'); }
+        if(msg.type === 'zoneUpdate'&&msg.charName&&msg.zone){ taskZoneSeen(msg.charName,msg.zone); }
         if(msg.type === 'capScanResult'){ capOnScan(msg); }
         if(msg.type === 'selfDeath'){ sheetNudgeOnDeath(msg); }
         if(msg.type === 'levelUp'){
@@ -16055,9 +16109,275 @@ const TOAST_KINDS=[
   ['raid','Raid ticks &amp; Auto-Detect','Ticks added to the Raid Kill Tracker, Auto-Detect adds and failticks',/^(⚔|💀|⏱ .*(×|New session))/],
   ['map','Map timers &amp; pins','Spawn timers, charm marks, pins',/^(⏱|🌀|📍|🗑|Pin\b)/],
   ['cap','Leatherfoot cap','A cap used (it needs a recharge) or recharged',/^🧢/],
+  ['tasks','Task reminders','Your tasks, when you log in on that character, enter its zone or the time comes',/^📌/],
   ['sheet','Character sheet reminders','After a death outside a raid when a character has no class or race, and class / race filled in from /who',/^📝/],
   ['other','Everything else','Imports, scans, saves and other confirmations',null],
 ];
+// cap state loaded from the cloud vs. what the log scan already set this session — the newer of each part wins
+function _capMergeLoad(mem,cloud){
+  if(!mem) return cloud||undefined; if(!cloud) return mem;
+  const o={}; for(const k of ['log','man']){ const a=mem[k],b=cloud[k]; const v=a&&b?((a.ts||0)>=(b.ts||0)?a:b):(a||b); if(v) o[k]=v; } return o;
+}
+
+// ── Is it worth looting? (beta-tester idea, 2026-10-13) ──
+// Vendor price = what merchants have offered YOU (every "I'll give you X for the Y" in your logs — it moves with CHA and
+// faction); player price = the item database (Plat Prices); keep = a step of a quest in the guide uses it.
+let _vp=(()=>{try{return JSON.parse(localStorage.getItem('mp_vendor_prices')||'{}')||{};}catch(e){return {};}})(), _vpLower=null, _vpSaveT=0;
+function vpSave(){ _vpLower=null; clearTimeout(_vpSaveT); _vpSaveT=setTimeout(()=>{ try{localStorage.setItem('mp_vendor_prices',JSON.stringify(_vp));}catch(e){} },2000); }
+function vpOnScan(msg){
+  for(const [k,v] of Object.entries(msg.prices||{})) if(!_vp[k]||(v.ts||0)>=(_vp[k].ts||0)||(v.n||0)>(_vp[k].n||0)) _vp[k]=v;
+  vpSave(); if(typeof activeTopView!=='undefined'&&activeTopView==='characters'&&activeSub==='inventory'&&typeof renderTable==='function') renderTable();
+  vpUploadSoon(5000); vpLoadGuild();
+}
+function vpOnQuote(msg){
+  const e=_vp[msg.item]||{lo:msg.cp,hi:msg.cp,n:0};
+  e.lo=Math.min(e.lo,msg.cp); e.hi=Math.max(e.hi,msg.cp); e.n=(e.n||0)+1; e.cp=msg.cp; e.ts=msg.ts; _vp[msg.item]=e; vpSave();
+  vpUploadSoon(10*60e3);   // a selling spree goes up in one batch
+}
+// ── Shared merchant prices (owner, 2026-10-13: "add this to the leveling pull we get from our members") ──
+// Like the leveling pull: each app uploads what merchants offered its characters (item + price, no chat) to vendor_prices
+// (tools/supabase/vendor_prices.sql); the guild's prices fill in items you've never sold, the P99 wiki's after that.
+let _vpUpT=0, _vpUpOff=false, _vpGuild={}, _vpGuildLower=null, _vpGuildAt=0, _vpGuildLoading=false;
+function vpUploadSoon(ms){ clearTimeout(_vpUpT); _vpUpT=setTimeout(vpUpload,ms||15000); }
+async function vpUpload(){
+  if(_vpUpOff||typeof sb==='undefined') return;
+  if(typeof currentUser==='undefined'||!currentUser){ vpUploadSoon(60e3); return; }   // not signed in yet
+  let sent={}; try{ sent=JSON.parse(localStorage.getItem('mp_vp_sent')||'{}')||{}; }catch(e){}
+  const rows=[];
+  for(const [item,e] of Object.entries(_vp)){ const sig=(e.n||1)+':'+e.cp; if(sent[item]===sig) continue;
+    rows.push({user_id:currentUser.id,item_name:item,cp:Math.round(e.cp),lo:Math.round(e.lo),hi:Math.round(e.hi),n:e.n||1,last_at:e.ts?new Date(e.ts).toISOString():null,updated_at:new Date().toISOString()}); }
+  if(!rows.length) return;
+  try{
+    for(let i=0;i<rows.length;i+=500){ const part=rows.slice(i,i+500);
+      const {error}=await sb.from('vendor_prices').upsert(part,{onConflict:'user_id,item_name'}); if(error) throw error;
+      for(const r of part) sent[r.item_name]=r.n+':'+r.cp; }
+    try{ localStorage.setItem('mp_vp_sent',JSON.stringify(sent)); }catch(e){}
+  }catch(e){ const m=(e&&e.message)||String(e); if(/vendor_prices|relation|does not exist|schema cache/i.test(m)) _vpUpOff=true; console.warn('[VP] upload failed:',m); }
+}
+async function vpLoadGuild(force){
+  if(_vpGuildLoading||typeof sb==='undefined'||typeof currentUser==='undefined'||!currentUser) return;
+  if(!force&&Date.now()-_vpGuildAt<6*3600e3) return;
+  _vpGuildLoading=true;
+  try{
+    const out=[]; for(let i=0;i<60000;i+=1000){ const {data,error}=await sb.from('vendor_prices').select('user_id,item_name,cp,lo,hi,n').order('id').range(i,i+999); if(error) throw error; out.push(...(data||[])); if(!data||data.length<1000) break; }
+    const by={}; for(const r of out){ if(r.user_id===currentUser.id) continue;   // yours come from your own logs
+      const g=by[r.item_name]||(by[r.item_name]={c:[],lo:r.lo,hi:r.hi,n:0}); g.c.push(r.cp); g.lo=Math.min(g.lo,r.lo); g.hi=Math.max(g.hi,r.hi); g.n+=r.n||1; }
+    const G={}; for(const [k,g] of Object.entries(by)){ g.c.sort((a,b)=>a-b); G[k]={cp:g.c[Math.floor(g.c.length/2)],lo:g.lo,hi:g.hi,n:g.n,players:g.c.length}; }
+    _vpGuild=G; _vpGuildLower=null; _vpGuildAt=Date.now();
+    if(typeof activeTopView!=='undefined'&&activeTopView==='characters'&&activeSub==='inventory'&&typeof renderTable==='function') renderTable();
+  }catch(e){ _vpGuildAt=Date.now(); console.warn('[VP] guild prices:',(e&&e.message)||e); }
+  finally{ _vpGuildLoading=false; }
+}
+function vpGuildGet(name){
+  const n=String(name||'').replace(/\*+$/,'').trim(); if(_vpGuild[n]) return _vpGuild[n];
+  if(!_vpGuildLower){ _vpGuildLower={}; for(const k in _vpGuild) _vpGuildLower[k.toLowerCase()]=k; }
+  const k=_vpGuildLower[n.toLowerCase()]; return k?_vpGuild[k]:null;
+}
+function wikiValueOf(name){
+  const W=wikiData('values',()=>{ if(typeof activeTopView!=='undefined'&&activeTopView==='characters'&&activeSub==='inventory'&&typeof renderTable==='function') renderTable(); });
+  if(!W) return null; const n=String(name||'').replace(/\*+$/,'').trim(); return W[n]!=null?W[n]:null;
+}
+function vpGet(name){
+  const n=String(name||'').replace(/\*+$/,'').trim(); if(_vp[n]) return _vp[n];
+  if(!_vpLower){ _vpLower={}; for(const k in _vp) _vpLower[k.toLowerCase()]=k; }
+  const k=_vpLower[n.toLowerCase()]; return k?_vp[k]:null;
+}
+function fmtCp(cp){ cp=Math.round(cp||0); if(cp>=1000){ const p=cp/1000; return (p<10?Math.round(p*10)/10:Math.round(p)).toLocaleString()+' pp'; } if(cp>=100) return Math.round(cp/10)/10+' gp'; if(cp>=10) return Math.round(cp/10)+' sp'; return cp+' cp'; }
+let _questUseIdx=null;
+function questUsesOf(name){
+  if(!_questUseIdx){ _questUseIdx={};
+    for(const list of Object.values(typeof QUEST_DB!=='undefined'?QUEST_DB:{})) if(Array.isArray(list)) for(const q of list) for(const st of q.steps||[]) for(const it of st.items||[]){ const k=String(it).toLowerCase(); (_questUseIdx[k]=_questUseIdx[k]||new Set()).add(q.shortName||q.name); } }
+  return [...(_questUseIdx[String(name||'').toLowerCase()]||[])];
+}
+const LOOT_COL={keep:'#3a6ea5',players:'#3a8a3a',vendor:'#b07020',junk:'#999',nodrop:'#999',unknown:'#999'};
+// Player price: Plat Prices' fair value when that data is loaded (fetched once in the background), else the item database's
+// plat — stored rounded to 100 pp (0.1 = ~50–150 pp, under ~50 pp = 0), so shown as approximate.
+let _platFair=null,_platFairN=-1,_platAsked=false;
+function platFairOf(n){
+  if(typeof platData==='undefined') return null;
+  if(!platData.length){
+    if(!_platAsked&&typeof fetchPlatData==='function'){ _platAsked=true; try{ Promise.resolve(fetchPlatData()).then(()=>{ if(typeof activeTopView!=='undefined'&&activeTopView==='characters'&&activeSub==='inventory'&&typeof renderTable==='function') renderTable(); }).catch(()=>{}); }catch(e){} }
+    return null;
+  }
+  if(_platFairN!==platData.length){ _platFair={}; for(const r of platData) if(r&&r.t===0&&r.n){ const f=farmFair(r); if(f>0) _platFair[String(r.n).toLowerCase()]=Math.round(f); } _platFairN=platData.length; }
+  return _platFair[String(n).toLowerCase()]||null;
+}
+function lootValue(name){
+  const n=String(name||'').replace(/\*+$/,'').trim(), db=itemDBGet(n)||{}, q=questUsesOf(n);
+  const own=vpGet(n), gd=own?null:vpGuildGet(n), wk=(own||gd)?null:wikiValueOf(n);
+  const v=own||gd||(wk!=null?{cp:wk,lo:wk,hi:wk,n:0}:null), vsrc=own?'you':gd?'guild':wk!=null?'wiki':null;
+  const fair=platFairOf(n), approx=!fair&&!!db.plat;
+  const vend=v?v.cp:null, mkt=fair||(db.plat?Math.round(db.plat*1000):0), nodrop=!!db._nodrop;   // vend in copper, mkt in pp
+  let k,label,short;
+  if(q.length){ k='keep'; short='keep'; label='Keep \u2014 used in '+q.slice(0,2).join(', ')+(q.length>2?' +'+(q.length-2)+' more':''); }
+  else if(nodrop){ k='nodrop'; short=''; label='NO DROP'+(vend!=null?' \u2014 a merchant pays '+fmtCp(vend):''); }
+  else if(mkt>=20&&(vend==null||mkt>=vend/1000*2)){ k='players'; short='~'+fmtCp(mkt*1000)+' to players'; label='Sell to players \u2014 ~'+fmtCp(mkt*1000)+(vend!=null?' (a merchant pays '+fmtCp(vend)+')':''); }
+  else if(vend!=null&&vend>=1000){ k='vendor'; short='vendor '+fmtCp(vend); label='Vendor it \u2014 '+fmtCp(vend); }
+  else if(vend!=null){ k='junk'; short='trash '+fmtCp(vend); label='Vendor trash \u2014 '+fmtCp(vend); }
+  else { k='unknown'; short=mkt?'~'+fmtCp(mkt*1000)+' to players':''; label=mkt?'Players pay ~'+fmtCp(mkt*1000)+' \u2014 no merchant price seen yet':'No price seen yet'; }
+  return {k,label,short,vend,mkt,q,nodrop,v,approx,vsrc};
+}
+function lootValueTip(n,r){
+  const p=[], rng=r.v&&r.v.hi>r.v.lo?', '+fmtCp(r.v.lo)+'\u2013'+fmtCp(r.v.hi):'';
+  if(r.vsrc==='you') p.push('Merchants offered you '+fmtCp(r.v.cp)+(r.v.n>1?' (seen '+r.v.n+'\u00d7'+rng+')':'')+' \u2014 from your logs, moves with CHA and faction');
+  else if(r.vsrc==='guild') p.push('Merchants offered guild members '+fmtCp(r.v.cp)+' ('+r.v.players+' player'+(r.v.players>1?'s':'')+rng+') \u2014 you haven\u2019t sold one yet');
+  else if(r.vsrc==='wiki') p.push('P99 wiki: a merchant pays '+fmtCp(r.v.cp)+' at CHA 80 with Ally faction');
+  if(r.mkt) p.push('Players: ~'+fmtCp(r.mkt*1000)+(r.approx?' (item database — rounded to the nearest 100 pp)':' (Plat Prices fair value)')); if(r.q.length) p.push('Used in: '+r.q.join(', ')); if(r.nodrop) p.push('NO DROP');
+  return n+' \u2014 '+r.label+(p.length?'\n'+p.join('\n'):'');
+}
+// WATCH-ONLY (owner, 2026-10-14: "put the vendor price into watch only mode (no display) until we get more player data
+// from other users"): prices are still read from the logs, uploaded to vendor_prices and the guild's loaded — nothing is
+// shown (no inventory tags, no loot notices). Set true to show them again (and put 'loot' back in TOAST_KINDS).
+const LOOT_VALUE_SHOW=false;
+function lootValueTag(name){
+  if(!LOOT_VALUE_SHOW) return '';
+  const r=lootValue(name); if(!r.short) return '';
+  return ' <span class="lv-tag" style="font-size:.72rem;color:'+LOOT_COL[r.k]+';white-space:nowrap;cursor:help" title="'+esc(lootValueTip(name,r))+'">\u00b7 '+esc(r.short)+'</span>';
+}
+function lootValueToast(msg){
+  if(!LOOT_VALUE_SHOW) return;
+  const r=lootValue(msg.item); if(r.k==='unknown'&&!r.mkt) return;
+  showWatcherToast('💰 '+msg.item+' \u2014 '+r.label);
+}
+
+// ── Tasks (beta-tester idea, 2026-10-13): "make ant potion for Fled", "restock peridots on Fentin" ──
+// A task belongs to a character and reminds you: every time you log in on it until it's done, when it enters a zone, or at
+// a date / time. Stored on this PC (localStorage mp_tasks).
+let _tasks=(()=>{try{return JSON.parse(localStorage.getItem('mp_tasks')||'[]')||[];}catch(e){return [];}})();
+function tasksSave(){ try{localStorage.setItem('mp_tasks',JSON.stringify(_tasks));}catch(e){} tasksNavCount(); pingRender(); if(typeof renderZoneBar==='function') renderZoneBar(); }
+// red 📌 next to a character's name in Last Zone Location (beside the 🧢) while it has open tasks — click to open Tasks
+function taskPinOn(){ try{ return localStorage.getItem('mp_task_pin')!=='0'; }catch(e){ return true; } }
+function taskBadge(name){
+  if(!taskPinOn()) return '';   // its own switch only — "Task reminders: Off" stops the pop-ups, not the pins
+  const list=tasksOpen().filter(t=>String(t.char||'').toLowerCase()===String(name||'').toLowerCase()); if(!list.length) return '';
+  const tip=list.map(t=>'• '+t.text).join('\n')+'\nClick to open Tasks';
+  return ' <span class="zb-task" style="font-size:.74em;cursor:pointer;white-space:nowrap;color:#b03030" title="'+esc(name+' — '+list.length+' open task'+(list.length>1?'s':'')+'\n'+tip)+'" onclick="event.stopPropagation();switchTopView(\'tasks\')" oncontextmenu="event.stopPropagation();return false">📌'+(list.length>1?'<b style="font-size:.85em">'+list.length+'</b>':'')+'</span>';
+}
+function taskDisplay(){ try{ const v=localStorage.getItem('mp_task_display'); return v==='alert'||v==='card'||v==='off'?v:'all'; }catch(e){ return 'all'; } }
+function tasksOpen(){ return _tasks.filter(t=>!t.done); }
+function tasksNavCount(){ const n=tasksOpen().length, el=document.querySelector('.top-nav-item[data-view="tasks"]'); if(el) el.textContent='Tasks'+(n?' ('+n+')':''); }
+setTimeout(tasksNavCount,0);
+// your character tabs (not bankers, not hidden) — the list and the default; any other name can still be typed
+function taskChars(){
+  return charNames().filter(n=>n&&!isBanker(n)&&!isExcludedChar(n)).sort((a,b)=>a.localeCompare(b));
+}
+const _taskSame=(a,b)=>String(a||'').toLowerCase()===String(b||'').toLowerCase();
+function taskZoneMatch(a,b){ if(!a||!b) return false; const na=zoneNode(a), nb=zoneNode(b); return na&&nb?na===nb:String(a).toLowerCase().replace(/^the /,'')===String(b).toLowerCase().replace(/^the /,''); }
+function taskWhenText(t){
+  return t.when==='zone'?'when '+t.char+' enters '+(t.zone||'?')
+    :t.when==='date'?(t.at<=Date.now()?'was due ':'on ')+new Date(t.at).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})
+    :'every time you log in on '+t.char;
+}
+// "restock peridots" → who sells Peridots, closest to that character first (P99 wiki merchants)
+let _taskVendIdx=null;
+function taskVendorHint(t){
+  const _re=()=>{ if(typeof activeTopView!=='undefined'&&activeTopView==='tasks') renderTasksPanel(); };
+  const D=wikiData('vendors',_re); if(!D||!D.i) return '';
+  wikiData('zones',_re);   // distances need the zone map — redraw once it's loaded
+  if(!_taskVendIdx) _taskVendIdx=Object.keys(D.i).filter(n=>n.length>=4).map(n=>[n,n.toLowerCase()]).sort((a,b)=>b[1].length-a[1].length);
+  const tx=' '+String(t.text||'').toLowerCase().replace(/[^a-z0-9'\x60: -]+/g,' ')+' ';
+  const hit=_taskVendIdx.find(([,l])=>tx.includes(' '+l+' ')||tx.includes(' '+l+'s ')||tx.includes(' '+l+'es '));
+  if(!hit) return '';
+  const rows=itemVendors(hit[0]); if(!rows.length) return '';
+  const here=((typeof charZones!=='undefined'&&charZones[t.char])||{}).zone, hops=here?zoneHops(here):null;
+  const byZone={}; for(const r of rows) (byZone[r.zone]=byZone[r.zone]||[]).push(r.who);
+  const zs=Object.keys(byZone).map(z=>{ const n=zoneNode(z); return {z,h:hops&&n&&hops[n]!=null?hops[n]:99}; }).sort((a,b)=>a.h-b.h||a.z.localeCompare(b.z));
+  const top=zs.slice(0,2).map(x=>esc(byZone[x.z][0])+' in <b>'+esc(x.z)+'</b>'+(x.h<99?' ('+(x.h===0?'where '+esc(t.char)+' is':x.h+' zone'+(x.h>1?'s':'')+' away')+')':'')).join(' \u00b7 ');
+  return '<div style="font-size:.75rem;color:var(--text-muted);margin-top:.15rem">🛒 '+esc(hit[0])+': '+top+(zs.length>2?' \u00b7 +'+(zs.length-2)+' more':'')+'</div>';
+}
+const _TASK_IN="background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:.35rem .5rem;font-family:'Crimson Pro',serif;font-size:.88rem";
+function renderTasksPanel(){
+  const p=document.getElementById('tasksPanel'); if(!p) return;
+  if(typeof mpEnsureZonesDL==='function') mpEnsureZonesDL();
+  const chs=taskChars(); let sel=''; try{ sel=localStorage.getItem('mp_task_char')||''; }catch(e){}
+  if(!chs.includes(sel)) sel=chs[0]||'';   // the last character you added a task for, else the first
+  const open=tasksOpen(), done=_tasks.filter(t=>t.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0)).slice(0,15);
+  const by={}; for(const t of open) (by[t.char]=by[t.char]||[]).push(t);
+  const row=t=>'<div style="display:flex;gap:.6rem;align-items:flex-start;padding:.5rem 0;border-top:1px solid var(--border)">'
+    +'<input type="checkbox" title="Mark done" onclick="taskDone(\''+t.id+'\',true)" style="margin-top:.25rem;cursor:pointer">'
+    +'<div style="flex:1;min-width:0"><div style="font-size:.95rem">'+esc(t.text)+'</div>'
+    +'<div style="font-size:.74rem;color:'+(t.when==='date'&&t.at<=Date.now()?'#c03030':'var(--text-muted)')+'">🔔 '+esc(taskWhenText(t))+'</div>'+taskVendorHint(t)+'</div>'
+    +'<a href="#" onclick="taskDelete(\''+t.id+'\');return false" title="Delete" style="color:var(--text-muted);text-decoration:none;padding:0 .2rem">\u2715</a></div>';
+  const groups=Object.keys(by).sort((a,b)=>a.localeCompare(b)).map(c=>'<div style="margin-top:.9rem"><div style="font-family:\'Cinzel\',serif;font-size:.8rem;color:var(--gold);letter-spacing:.05em">'+esc(c)+' <span style="color:var(--text-muted);font-family:\'Crimson Pro\',serif">('+by[c].length+')</span></div>'+by[c].map(row).join('')+'</div>').join('');
+  p.innerHTML='<div style="padding:.7rem 1rem 1.2rem;max-width:860px">'
+    +'<div style="font-family:\'Cinzel\',serif;font-size:1rem;color:var(--gold)">📌 Tasks</div>'
+    +'<div style="font-size:.8rem;color:var(--text-muted);margin:.2rem 0 .6rem">Things to do on a character. You\u2019re reminded every time you log in on it until it\u2019s done, when it enters a zone, or at a time \u2014 and items you need to buy show who sells them, nearest first. Kept on this PC.</div>'
+    +'<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.4rem">'
+    +'<input id="taskText" placeholder="What needs doing? e.g. buy reagents \u00b7 turn in a quest item \u00b7 bank the loot" style="'+_TASK_IN+';flex:2 1 280px" onkeydown="if(event.key===\'Enter\')taskAdd()">'
+    +'<select id="taskChar" title="Which character it’s for" style="'+_TASK_IN+';flex:0 1 160px">'+(chs.length?chs.map(c=>'<option value="'+esc(c)+'"'+(c===sel?' selected':'')+'>'+esc(c)+'</option>').join(''):'<option value="">No characters loaded</option>')+'</select>'
+    +'<select id="taskWhen" onchange="taskWhenUi()" style="'+_TASK_IN+'"><option value="login">every login on it</option><option value="zone">when it enters a zone\u2026</option><option value="date">at a date / time\u2026</option></select>'
+    +'<input id="taskZone" list="mpZonesDL" placeholder="Zone" style="'+_TASK_IN+';display:none;flex:0 1 180px">'
+    +'<input id="taskAt" type="datetime-local" style="'+_TASK_IN+';display:none">'
+    +'<button class="btn primary" onclick="taskAdd()">Add task</button></div>'
+    +'<div id="taskErr" style="font-size:.78rem;color:#c03030;min-height:1em"></div>'
+    +(open.length?groups:'<div style="margin-top:1rem;color:var(--text-muted);font-size:.88rem">No open tasks. Add one above and pick when you want to be reminded.</div>')
+    +(done.length?'<details style="margin-top:1.2rem"><summary style="cursor:pointer;color:var(--text-muted);font-size:.82rem">Done ('+done.length+')</summary>'
+      +done.map(t=>'<div style="display:flex;gap:.6rem;padding:.3rem 0;font-size:.85rem;color:var(--text-muted)"><span style="flex:1;text-decoration:line-through">'+esc(t.char)+': '+esc(t.text)+'</span><a href="#" onclick="taskDone(\''+t.id+'\',false);return false" style="color:var(--gold-light)">\u21ba undo</a><a href="#" onclick="taskDelete(\''+t.id+'\');return false" style="color:var(--text-muted);text-decoration:none">\u2715</a></div>').join('')+'</details>':'')
+    +'</div>';
+}
+window.taskWhenUi=function(){ const w=document.getElementById('taskWhen').value; document.getElementById('taskZone').style.display=w==='zone'?'':'none'; document.getElementById('taskAt').style.display=w==='date'?'':'none'; };
+window.taskAdd=function(){
+  const g=id=>document.getElementById(id), err=g('taskErr'), text=g('taskText').value.trim(), ch=g('taskChar').value.trim(), when=g('taskWhen').value;
+  const zone=g('taskZone').value.trim(), atV=g('taskAt').value, at=atV?new Date(atV).getTime():0;
+  if(!text){ err.textContent='Type what needs doing.'; return; }
+  if(!ch){ err.textContent='Pick the character it\u2019s for.'; return; }
+  if(when==='zone'&&!zone){ err.textContent='Pick the zone.'; return; }
+  if(when==='date'&&!at){ err.textContent='Pick the date and time.'; return; }
+  const name=taskChars().find(c=>_taskSame(c,ch))||ch.charAt(0).toUpperCase()+ch.slice(1);
+  _tasks.push({id:'t'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),text,char:name,when,zone:when==='zone'?zone:null,at:when==='date'?at:null,created:Date.now(),done:false});
+  try{ localStorage.setItem('mp_task_char',name); }catch(e){}
+  tasksSave(); renderTasksPanel();
+};
+window.taskDone=function(id,on){ const t=_tasks.find(x=>x.id===id); if(!t) return; t.done=!!on; t.doneAt=on?Date.now():null; if(on) delete t.ping; tasksSave(); if(activeTopView==='tasks') renderTasksPanel(); taskNudgeDrop(id); };
+window.taskDelete=function(id){ _tasks=_tasks.filter(x=>x.id!==id); tasksSave(); if(activeTopView==='tasks') renderTasksPanel(); taskNudgeDrop(id); };
+// reminders
+const _taskZoneSeen={};
+function taskZoneSeen(ch,zone){ const k=String(ch).toLowerCase(), prev=_taskZoneSeen[k]; _taskZoneSeen[k]=zone; if(prev!==undefined&&prev!==zone){ taskRemind(ch,'zone',zone); if(typeof sessionZoneActivity==='function') sessionZoneActivity(ch); } }   // only a real zone change, not the startup snapshot
+function taskRemind(ch,why,zone){
+  const list=tasksOpen().filter(t=>_taskSame(t.char,ch)&&(why==='login'?t.when==='login':(t.when==='zone'&&taskZoneMatch(t.zone,zone))));
+  if(!list.length) return;
+  for(const t of list) t.ping=Date.now(); tasksSave();   // waiting on the red alert until done / closed
+  taskNudge(list,why==='login'?ch+' logged in':ch+' is in '+zone);
+}
+setInterval(()=>{ const due=tasksOpen().filter(t=>t.when==='date'&&t.at&&t.at<=Date.now()&&!t.reminded); if(!due.length) return; for(const t of due){ t.reminded=Date.now(); t.ping=Date.now(); } tasksSave(); taskNudge(due,'Due now'); },30e3);
+function taskNudge(list,head){
+  const td=taskDisplay(); if(td==='off'||td==='alert') return;
+  if(typeof toastAllowed==='function'&&!toastAllowed('📌')) return;
+  let d=document.getElementById('taskNudge');
+  if(!d){ d=document.createElement('div'); d.id='taskNudge';
+    d.style.cssText='position:fixed;bottom:1.2rem;left:1.2rem;width:360px;max-width:calc(100vw - 2.4rem);background:var(--surface);border:1px solid var(--border-glow);border-radius:6px;padding:.7rem .85rem;z-index:9998;box-shadow:0 4px 14px rgba(0,0,0,.25);font-size:.85rem;color:var(--text)';
+    document.body.appendChild(d); }
+  d.dataset.ids=list.map(t=>t.id).join(',');
+  d.innerHTML='<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem"><b style="flex:1">📌 '+esc(head)+' \u2014 '+list.length+' task'+(list.length>1?'s':'')+'</b><a href="#" onclick="document.getElementById(\'taskNudge\').remove();return false" title="Close" style="color:var(--text-muted);text-decoration:none">\u2715</a></div>'
+    +list.map(t=>'<div data-task="'+t.id+'" style="display:flex;gap:.5rem;align-items:flex-start;padding:.3rem 0;border-top:1px solid var(--border)"><div style="flex:1;min-width:0">'+esc(t.text)+(t.when==='date'?'':'<span style="color:var(--text-muted);font-size:.78rem"> \u00b7 '+esc(t.char)+'</span>')+taskVendorHint(t)+'</div><button class="btn" style="font-size:.75rem;padding:.15rem .5rem" onclick="taskDone(\''+t.id+'\',true)">Done</button></div>').join('')
+    +'<div style="margin-top:.35rem;font-size:.75rem"><a href="#" onclick="switchTopView(\'tasks\');return false" style="color:var(--gold-light)">Open Tasks</a></div>';
+}
+// ── Red alert strip under the top bar (next to parking / Sky corpses): empty Leatherfoot caps and tasks waiting for you,
+// side by side. Settings → Checks & reminders picks what shows.
+function pingRender(){
+  const wrap=document.getElementById('mpPingWarn'); if(!wrap) return;
+  const chips=[], RED='display:flex;align-items:center;gap:.45rem;padding:.2rem .5rem;background:rgba(176,48,48,.10);border:1px solid #b03030;border-radius:4px;margin-bottom:.22rem;flex:1 1 300px;min-width:0';
+  if(capDisplay()==='all'&&typeof charNames==='function'){
+    const empty=capEmptyList();
+    if(empty.length){
+      const tip=empty.map(n=>{ const st=capState(n)||{}; return n+': '+(st.src==='manual'?'set empty by hand':'used '+_capFmt(st.ts)+(st.from?' leaving '+st.from:'')); }).join('\n')+'\nClears when the cap is recharged (sold + bought back, or handed one in a trade) \u00b7 Settings \u2192 Checks & reminders';
+      chips.push('<div style="'+RED+'" title="'+esc(tip)+'"><span style="font-size:.78rem;line-height:1">🧢</span><span style="flex:1;min-width:0;font-size:.76rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b style="color:#b03030">Empty Leatherfoot cap'+(empty.length>1?'s':'')+'</b> \u2014 '+empty.map(n=>'<b>'+esc(n)+'</b>').join(', ')+'</span><button class="btn" style="font-size:.66rem;padding:.1rem .45rem;flex:0 0 auto" onclick="switchTopView(\'parking\')">Parking</button></div>');
+    }
+  }
+  const td=taskDisplay();
+  if(td==='all'||td==='alert'){
+    const wait=tasksOpen().filter(t=>t.ping).sort((a,b)=>b.ping-a.ping);
+    if(wait.length){
+      const tip=wait.map(t=>t.char+': '+t.text).join('\n')+'\nClick to open Tasks \u00b7 \u2715 closes this until the next reminder';
+      chips.push('<div style="'+RED+';cursor:pointer" title="'+esc(tip)+'" onclick="switchTopView(\'tasks\')"><span style="font-size:.78rem;line-height:1">📌</span><span style="flex:1;min-width:0;font-size:.76rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b style="color:#b03030">'+wait.length+' task'+(wait.length>1?'s':'')+' waiting</b> \u2014 '+wait.slice(0,3).map(t=>'<b>'+esc(t.char)+'</b> '+esc(t.text)).join(' \u00b7 ')+(wait.length>3?' \u00b7 +'+(wait.length-3)+' more':'')+'</span><button class="btn" title="Close until the next reminder" style="font-size:.66rem;padding:.1rem .45rem;flex:0 0 auto" onclick="event.stopPropagation();taskPingClear()">\u2715</button></div>');
+    }
+  }
+  wrap.innerHTML=chips.length?'<div style="display:flex;gap:.4rem;flex-wrap:wrap">'+chips.join('')+'</div>':'';
+}
+window.taskPingClear=function(){ for(const t of _tasks) delete t.ping; tasksSave(); };
+setTimeout(pingRender,0);
+function taskNudgeDrop(id){ const d=document.getElementById('taskNudge'); if(!d) return; const r=d.querySelector('[data-task="'+id+'"]'); if(r) r.remove(); if(!d.querySelector('[data-task]')) d.remove(); }
+
 // ── Leatherfoot Raider Skullcap charges (electron/ipc/captrack.js; owner, 2026-10-12) ──
 // charMeta[name].cap = {log:{kind:'use'|'recharge', ts, from, vendor}, man:{s:'charged'|'empty', ts}} — the newer one wins.
 // A use = an instant trip to West Commonlands nobody cast that wasn't a death; a recharge = cap sold + bought back.
@@ -16073,19 +16393,20 @@ function capState(name){
   return L?{s:L.kind==='use'?'empty':'charged',ts:L.ts,src:'log',from:L.from,vendor:L.vendor}:null;
 }
 function capSetLog(key,ev){ const m=charMeta[key]||(charMeta[key]={}), c=m.cap||(m.cap={}); if(c.log&&c.log.ts>=ev.ts) return false; c.log={kind:ev.kind,ts:ev.ts,from:ev.from||null,vendor:ev.vendor||null}; return true; }
-function capRefresh(){ if(typeof renderZoneBar==='function') renderZoneBar(); if(typeof activeTopView!=='undefined'&&activeTopView==='parking'&&typeof renderParkingPanel==='function') renderParkingPanel(); }
+function capRefresh(){ pingRender(); if(typeof renderZoneBar==='function') renderZoneBar(); if(typeof activeTopView!=='undefined'&&activeTopView==='parking'&&typeof renderParkingPanel==='function') renderParkingPanel(); }
 function capOnEvent(msg){
   const key=capKey(msg.charName); if(!key||!capSetLog(key,msg)) return;
   saveState(); capRefresh();
-  if(msg.live&&capHas(key)) showWatcherToast(msg.kind==='use'?'🧢 '+key+' used the Leatherfoot cap'+(msg.from?' leaving '+msg.from:'')+' — it needs a recharge':'🧢 '+key+'\u2019s Leatherfoot cap is recharged');
+  if(msg.live&&capHas(key)&&capDisplay()!=='off') showWatcherToast(msg.kind==='use'?'🧢 '+key+' used the Leatherfoot cap'+(msg.from?' leaving '+msg.from:'')+' — it needs a recharge':'🧢 '+key+'\u2019s Leatherfoot cap is recharged');
 }
 function capOnScan(msg){
   let ch=false; for(const [cn,ev] of Object.entries(msg.results||{})){ const key=ev&&capKey(cn); if(key&&capSetLog(key,ev)) ch=true; }
   if(ch){ saveState(); capRefresh(); }
 }
 const _capFmt=ts=>new Date(ts).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+function capDisplay(){ try{ const v=localStorage.getItem('mp_cap_display'); return v==='badges'||v==='off'?v:'all'; }catch(e){ return 'all'; } }
 function capBadge(name){
-  if(!capHas(name)) return '';
+  if(capDisplay()==='off'||!capHas(name)) return '';
   const s=capState(name), enc=encodeURIComponent(name);
   const [txt,col,tip]=!s?['🧢?','var(--text-muted)','Leatherfoot cap: no use or recharge in your logs yet']
     :s.s==='empty'?['🧢✗','#c03030','Leatherfoot cap EMPTY \u2014 '+(s.src==='manual'?'set by hand '+_capFmt(s.ts):'used '+_capFmt(s.ts)+(s.from?' leaving '+s.from:''))]
@@ -16114,7 +16435,9 @@ window.capSet=function(name,s){
   if(s) c.man={s,ts:Date.now()}; else delete c.man;
   saveState(); capRefresh();
 };
+function capEmptyList(){ return charNames().filter(n=>!isBanker(n)&&!isExcludedChar(n)&&capHas(n)&&(capState(n)||{}).s==='empty'); }
 function capWarnHtml(){
+  if(capDisplay()==='off') return '';
   const empty=charNames().filter(n=>!isBanker(n)&&!isExcludedChar(n)&&capHas(n)&&(capState(n)||{}).s==='empty');
   if(!empty.length) return '';
   return '<div style="margin:.2rem 0 .7rem;padding:.45rem .7rem;border:1px solid #c03030;border-radius:5px;background:rgba(192,48,48,.08);font-size:.82rem"><b style="color:#c03030">🧢 Empty Leatherfoot caps:</b> '
@@ -16214,7 +16537,10 @@ window.stgSetRole=function(n,role){
   renderSettingsPanel();
 };
 window.stgDo=function(what,v){
-  if(what==='corpse'){ stgSet('mp_corpse_mode',v); if(typeof skyRenderWarn==='function') skyRenderWarn(); }
+  if(what==='capdisp'){ stgSet('mp_cap_display',v); capRefresh(); }
+  else if(what==='taskpin'){ stgSet('mp_task_pin',v==='on'?'1':'0'); if(typeof renderZoneBar==='function') renderZoneBar(); }
+  else if(what==='taskdisp'){ stgSet('mp_task_display',v); if(v==='off'||v==='alert'){ const d=document.getElementById('taskNudge'); if(d) d.remove(); } pingRender(); }
+  else if(what==='corpse'){ stgSet('mp_corpse_mode',v); if(typeof skyRenderWarn==='function') skyRenderWarn(); }
   else if(what==='corpseunhide'){ stgSet('mp_skyWarnHide','[]'); if(typeof skyRenderWarn==='function') skyRenderWarn(); if(typeof showWatcherToast==='function') showWatcherToast('Cleared corpses are back on the strip'); }
   else if(what==='auc'){ aucSetEnabled(v==='on'); }
   else if(what==='aucpop'){ aucAutoPop=v==='on'; stgSet('mp_auc_autopop',aucAutoPop?'1':'0'); aucPush(); }
@@ -16449,6 +16775,13 @@ function renderSettingsPanel(){
       pick('rkd',rkdMode(),[['watch','Watch','Lists what it finds; never adds anything'],['active','Active','Adds strong matches to the Raid Kill Tracker, asks about the rest']]))+
     item('Parking alerts','The gold lines under the top bar when a raid target is up or due within 12 hours and nobody is parked there.',pick('parkwarn',btParkWarnOn()?'on':'off',[['on','On'],['off','Off']]))+
     item('Map: spawn timers from kills','Start a spawn timer on the map automatically when a tracked mob dies.',pick('timers',_autoTimersEnabled?'on':'off',[['on','On'],['off','Off — map clicks and /note only']])));
+  h+=card('CHECKS &amp; REMINDERS',
+    item('Leatherfoot cap check','🧢 next to each name in Last Zone Location (charged / empty), the empty-cap list in Raid Parking, and a red alert under the top bar while a cap is empty.',
+      pick('capdisp',capDisplay(),[['all','Badges + red alert'],['badges','Badges only'],['off','Off']]))+
+    item('Task reminders','How your tasks remind you when they come up: the card in the bottom-left corner, a red alert under the top bar until you\u2019re done or close it, or both.',
+      pick('taskdisp',taskDisplay(),[['all','Card + red alert'],['alert','Red alert only'],['card','Card only'],['off','Off']]))+
+    item('Task pins','A red 📌 next to a character’s name in Last Zone Location (beside the 🧢) while it has open tasks — the number is how many. Click it to open Tasks.',
+      pick('taskpin',taskPinOn()?'on':'off',[['on','On'],['off','Off']])));
   const all=Object.keys(chars||{}).sort((a,b)=>a.localeCompare(b));
   h+=card('CHARACTERS',
     item('Character, banker or hidden','<b>Banker</b>: inventory only (Bankers tab, no character tab). <b>Hidden</b>: left out everywhere; its data is kept. Saved to your account.',
@@ -16466,7 +16799,7 @@ function renderSettingsPanel(){
   if(wikiIsOwner()) h+=reviewOwnerCard(card,item);
   h+=card('ABOUT',
     item('Version','MixelParse '+esc(_stgVer&&_stgVer!=='…'?_stgVer:WHATS_NEW.version)+(desk?' · updates install on their own':''),desk?btn('update','Check for updates'):'')+
-    item('Privacy','<b>Your EQ log files never leave your PC unless you choose to submit them</b> (⚙ Admin → Submit logs for review — optional). A submission has <b>every tell removed</b> on your PC first, is stored privately where only you and the MixelParse owner can read it, and you can delete it any time. MixelParse does save your settings, raid sessions and leveling summaries to your account, as it always has.','')+
+    item('Privacy','<b>Your EQ log files never leave your PC unless you choose to submit them</b> (⚙ Admin → Submit logs for review — optional). A submission has <b>every tell removed</b> on your PC first, is stored privately where only you and the MixelParse owner can read it, and you can delete it any time. MixelParse does save your settings, raid sessions and leveling summaries to your account, as it always has \u2014 plus the prices merchants have offered you (item and price only), shared with the guild for the loot value check.','')+
     (desk&&_stgCfg?item('EverQuest folders','Where MixelParse reads logs and inventory exports.',
       '<div style="font-size:.84rem;margin-top:.35rem;line-height:1.6"><b>EverQuest:</b> '+esc(_stgCfg.eqDir||'—')+'<br><b>Logs:</b> '+esc(_stgCfg.logDir||'—')+'</div>'):''));
   h+='</div>';
@@ -17284,7 +17617,7 @@ function renderZoneBar(){
     if(!char) return `<span></span><span></span>`;
     const enc=encodeURIComponent(char);
     const bind=getCharBind(char);
-    const nameCell=`<span class="zone-bar-char zbc-click" onclick="mpZbFlip('${enc}')" oncontextmenu="return mpZbMenu(event,'${enc}')" title="Click: show bind \u00b7 Right-click: set bind">${esc(char)}${capBadge(char)}</span>`;
+    const nameCell=`<span class="zone-bar-char zbc-click" onclick="mpZbFlip('${enc}')" oncontextmenu="return mpZbMenu(event,'${enc}')" title="Click: show bind \u00b7 Right-click: set bind">${esc(char)}${capBadge(char)}${taskBadge(char)}</span>`;
     let zoneCell;
     if(mpBindFlipped(char)&&bind){
       const stale=mpBindStale(bind.ts);
@@ -20022,6 +20355,8 @@ function sessionTickTimer() {
     sessionEndManual('idle');
     return;
   }
+  // keep the live session on this PC every 30 s, so it survives MixelParse closing mid-game (sessionResumeFromSnap)
+  if (!_sess.lastSnap || Date.now() - _sess.lastSnap >= 30000) { _sess.lastSnap = Date.now(); sessionSnapSave(); }
   // Mid-session checkpoint: persist every AUTOSAVE_INTERVAL_MIN so a crash before a
   // clean end doesn't lose the in-progress session. Fire-and-forget; savePlaySession()
   // is id-stable (dedups in place) and guarded internally against empty/no-user saves.
@@ -21251,6 +21586,48 @@ function sessionInitDrag(panel) {
 // the read position and no session ever begins. This catches that: the first XP,
 // kill, loot, or plat event for a character with no active session opens one.
 // Returns true if it started a session for this message's char.
+// ── The live session, kept on this PC (owner, 2026-10-14: sessions didn't come back after MixelParse closed mid-game) ──
+// Saved every 30 s while a session runs, cleared when it ends. On start (after your sessions load, so saving works): last
+// activity within the idle gap → resumed as the same session (same start, kills, loot); older → saved ending at its last
+// activity, the way an idle session closes.
+const SESS_SNAP_KEYS=['charName','startTime','xpTicks','kills','loot','platVendor','platCoin','marks','lastMarkKills','startXpPct','endXpPct','lastActivity','zoneMs','curZone','lastAutoSave'];
+function sessionSnapSave(){
+  try{
+    if(!_sess.active){ localStorage.removeItem('mp_sess_live'); return; }
+    const o={}; for(const k of SESS_SNAP_KEYS) o[k]=_sess[k];
+    const zm=Object.assign({},_sess.zoneMs||{});   // the open zone segment up to now, so nothing is lost if we close here
+    if(_sess.curZone&&_sess.curZoneSince!=null){ const d=Date.now()-_sess.curZoneSince; if(d>0) zm[_sess.curZone]=(zm[_sess.curZone]||0)+d; }
+    o.zoneMs=zm; o.savedAt=Date.now();
+    localStorage.setItem('mp_sess_live',JSON.stringify(o));
+  }catch(e){}
+}
+function sessionSnapClear(){ try{ localStorage.removeItem('mp_sess_live'); }catch(e){} }
+let _sessResumed=false;
+function sessionResumeFromSnap(){
+  if(_sessResumed) return; _sessResumed=true;
+  let o=null; try{ o=JSON.parse(localStorage.getItem('mp_sess_live')||'null'); }catch(e){}
+  if(!o||!o.charName||!o.startTime) return;
+  if(_sess.active){ if(_sess.charName===o.charName&&_sess.startTime!==o.startTime&&sessionTotalKills()===0&&!_sess.xpTicks&&!_sess.loot.length) {} else return; }   // a fresh empty auto-start may be replaced
+  const last=o.lastActivity||o.savedAt||0;
+  sessionStart(o.charName,o.startXpPct);
+  for(const k of SESS_SNAP_KEYS) if(o[k]!==undefined) _sess[k]=o[k];
+  _sess.curZoneSince=Date.now();   // the time MixelParse was closed isn't zone time
+  if(Date.now()-last>SESSION_IDLE_GAP_MIN*60000){
+    clearInterval(_sess.timerInterval); _sess.timerInterval=null;
+    _sess.curZoneSince=last; _sess.endOverride=last;
+    sessionEndManual('idle');      // would have gone idle anyway: saved, ending at its last activity
+  } else {
+    showWatcherToast('\u25b6 Session resumed \u2014 '+o.charName+' (MixelParse was closed mid-session)');
+    sessionSnapSave(); sessionRender();
+  }
+}
+// a zone change (a real one, not the start-up snapshot) on one of your characters = playing → start a session
+function sessionZoneActivity(ch){
+  if(_sess.active||typeof charNames!=='function') return;
+  const key=charNames().find(n=>n.toLowerCase()===String(ch||'').toLowerCase());
+  if(!key||isBanker(key)||isExcludedChar(key)) return;
+  sessionAutoStartFromActivity(key);
+}
 function sessionAutoStartFromActivity(charName) {
   if (_sess.active) return false;
   const c = charName || _lastWatcherChar;
@@ -21476,6 +21853,7 @@ async function loadPlaySessionsFromSupabase() {
   } catch(e) {
     console.warn('[SESSION] Load error', e);
   }
+  sessionResumeFromSnap();   // a session that was running when MixelParse closed — now that saving works
 }
 
 async function sessionEnd(trigger) {
@@ -21498,6 +21876,7 @@ async function sessionEndManual(trigger = 'manual') {
                 ? Math.round((_sess.endXpPct - _sess.startXpPct) * 10) / 10 : null,
   };
   _sess.active = false;
+  sessionSnapClear();
   if (_sess.timerInterval) { clearInterval(_sess.timerInterval); _sess.timerInterval = null; }
   const dot = document.getElementById('sessionDot');
   if (dot) dot.classList.remove('live');
