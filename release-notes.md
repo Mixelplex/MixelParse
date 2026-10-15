@@ -1,4 +1,10 @@
-## 1.7.22
+## 1.7.23
+
+- **👥 New characters** — Settings → Characters → New characters: choose **Exclude until I add them** and a bot, mule or someone else's character whose inventory or log turns up on your PC goes straight to Excluded instead of getting a tab and a line in Last Zone Location. Characters you already have aren't affected; click **Character** next to one in Settings to keep it.
+- **🚫 Exclude or bank from Last Zone Location** — right-click a name in Last Zone Location → Add to excluded or Add to bankers.
+- **Fix:** "Hidden" characters are now called **Excluded** everywhere, so the setting, the right-click menu and Settings → Characters all say the same thing.
+
+Everything from 1.7.22 and earlier is included:
 
 - **📌 Tasks** — a new Tasks tab: jot down things to do on a character ("buy reagents", "turn in a quest item") and get reminded every time you log in on it, when it enters a zone, or at a time. Items you need to buy show who sells them, nearest first. Characters with open tasks get a red 📌 next to their name in Last Zone Location.
 - **⚠ Cap and task alerts** — empty Leatherfoot caps and tasks waiting for you show side by side as red alerts under the top bar. Settings → Checks & reminders picks how each one shows (or turns it off), plus the task pins.
@@ -7,8 +13,6 @@
 - **Fix:** a play session that's running when MixelParse closes now picks up where it left off when you start it again, and zoning on one of your characters starts a session too.
 - **Fix:** clicking empty space in the header no longer switches auctions off (or opens Session / This Week).
 - **Fix:** a Leatherfoot cap you set by hand (right-click the 🧢) is now kept after a restart.
-
-Everything from 1.7.21 and earlier is included:
 
 - **🧢 Leatherfoot cap tracking** — every character holding a Leatherfoot Raider Skullcap gets a cap badge next to its name in Last Zone Location: ✓ charged, ✗ empty or ? unknown — hover for when it was used or recharged. A cap counts as **used** when you land in West Commonlands from a zone that doesn't border it without a death, port or gate of your own, and **recharged** when you sell it and buy it back or someone hands you one in a trade. Your whole log history is read once in the background, so every cap starts with its real state. Right-click the badge to set it by hand.
 - **⚠ Empty caps before raids** — Raid Parking lists every character with an empty cap at the top, and a notice pops up the moment a cap is used or recharged (Settings → Pop-up notices → Leatherfoot cap).

@@ -5609,18 +5609,14 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.22',
+  version:'1.7.23',
   date:'October 2026',
   features:[
-    ['&#128204; Tasks','A new <b>Tasks</b> tab: jot down things to do on a character (&ldquo;buy reagents&rdquo;, &ldquo;turn in a quest item&rdquo;) and get reminded every time you log in on it, when it enters a zone, or at a time. Items you need to buy show who sells them, nearest first. Characters with open tasks get a red &#128204; next to their name in Last Zone Location.'],
-    ['&#9888; Cap and task alerts','Empty Leatherfoot caps and tasks waiting for you show side by side as red alerts under the top bar. Settings &rarr; <b>Checks &amp; reminders</b> picks how each one shows (or turns it off), plus the task pins.'],
-    ['&#128176; Merchant prices (collecting)','MixelParse now notes what merchants offer you for the things you sell (item and price only) and shares it with the guild, like the leveling data &mdash; nothing is shown yet; it will power a &ldquo;worth looting?&rdquo; check once enough members have added theirs.'],
+    ['&#128101; New characters','Settings &rarr; Characters &rarr; <b>New characters</b>: choose <b>Exclude until I add them</b> and a bot, mule or someone else&rsquo;s character whose inventory or log turns up on your PC goes straight to Excluded instead of getting a tab and a line in Last Zone Location. Characters you already have aren&rsquo;t affected; click <b>Character</b> next to one in Settings to keep it.'],
+    ['&#128683; Exclude or bank from Last Zone Location','Right-click a name in Last Zone Location &rarr; <b>Add to excluded</b> or <b>Add to bankers</b>.'],
   ],
   fixes:[
-    ['Coins','Coins are now counted coin by coin the way EQ does it: looted silver and copper are assumed destroyed, and purchases are paid from your smallest coins first (gold before platinum). The Coins chip turns amber when your count looks out of date (the bank isn&rsquo;t in your log), and the weight shows how much of it is coins.'],
-    ['Sessions','A play session that&rsquo;s running when MixelParse closes now picks up where it left off when you start it again, and zoning on one of your characters starts a session too.'],
-    ['Header','Clicking empty space in the header no longer switches auctions off (or opens Session / This Week).'],
-    ['Leatherfoot cap','A cap you set by hand (right-click the &#129506;) is now kept after a restart.'],
+    ['Settings','&ldquo;Hidden&rdquo; characters are now called <b>Excluded</b> everywhere, so the setting, the right-click menu and Settings &rarr; Characters all say the same thing.'],
   ],
 };
 function showWhatsNew(){
@@ -8035,6 +8031,12 @@ window.applyDBToChar    = applyDBToChar;
     const cn = extractCharName(filename);
     if(!cn) return;
     const isNew = !chars[cn];
+    // Settings → Characters → New characters: "Exclude until I add them" — a character this PC has never accepted goes straight
+    // to Hidden (its inventory is still kept); Settings → Characters brings it back
+    if(newCharMode()==='hide'&&!knownCharHas(cn)&&!isExcludedChar(cn)&&!isBanker(cn)){
+      excludedChars.push(cn); if(typeof saveExcludedCharsToSupabase==='function') saveExcludedCharsToSupabase();
+      knownCharAdd(cn); showWatcherToast('📦 Found '+cn+' \u2014 excluded (Settings \u2192 Characters to add it)');
+    } else knownCharAdd(cn);
     const prevItems = chars[cn]; // snapshot BEFORE overwrite — used for pet-retrieval delta
     chars[cn] = parseInventory(content, cn);
     // Session: track items that left inventory (charmed pet candidates)
@@ -16522,10 +16524,23 @@ async function stgRotateLogs(){
     alert('Archived '+r.rotated.length+' log'+(r.rotated.length===1?'':'s')+'.'+(lines.length?'\n\n'+lines.join('\n'):'\n\nNo logs over 50 MB.'));
   }catch(e){ alert('Archiving failed: '+((e&&e.message)||e)); }
 }
+// Characters this PC has accepted (loaded an inventory for, or had when "Exclude until I add them" was turned on) — anything
+// else that shows up is "new". Kept on this PC (mp_known_chars), lower-case.
+function newCharMode(){ try{ return localStorage.getItem('mp_new_chars')==='hide'?'hide':'add'; }catch(e){ return 'add'; } }
+let _knownChars=null;
+function knownCharsGet(){ if(!_knownChars){ try{ _knownChars=new Set(JSON.parse(localStorage.getItem('mp_known_chars')||'[]')); }catch(e){ _knownChars=new Set(); } } return _knownChars; }
+function knownCharsSave(){ try{ localStorage.setItem('mp_known_chars',JSON.stringify([...knownCharsGet()])); }catch(e){} }
+function knownCharHas(n){ return knownCharsGet().has(String(n||'').toLowerCase()); }
+function knownCharAdd(n){ const k=String(n||'').toLowerCase(), S=knownCharsGet(); if(!k||S.has(k)) return; S.add(k); knownCharsSave(); }
+function knownCharsSeed(){   // everything you have now counts as accepted — only characters that turn up later are hidden
+  const S=knownCharsGet();
+  for(const n of [...Object.keys(chars||{}),...(excludedChars||[]),...(bankerRegistry||[]),...Object.keys(typeof charZones!=='undefined'?charZones:{}).filter(c=>chars[c])]) if(n) S.add(String(n).toLowerCase());
+  knownCharsSave();
+}
 // one character's role: 'char' | 'banker' | 'excluded'
 function stgCharRole(n){ return isExcludedChar(n)?'excluded':isBanker(n)?'banker':'char'; }
 window.stgSetRole=function(n,role){
-  const lc=String(n).toLowerCase();
+  const lc=String(n).toLowerCase(); knownCharAdd(n);
   const wasB=isBanker(n), wasX=isExcludedChar(n);
   excludedChars=excludedChars.filter(b=>String(b).toLowerCase()!==lc);
   if(role==='excluded') excludedChars.push(n);
@@ -16537,7 +16552,8 @@ window.stgSetRole=function(n,role){
   renderSettingsPanel();
 };
 window.stgDo=function(what,v){
-  if(what==='capdisp'){ stgSet('mp_cap_display',v); capRefresh(); }
+  if(what==='newchars'){ if(v==='hide') knownCharsSeed(); stgSet('mp_new_chars',v); if(typeof renderZoneBar==='function') renderZoneBar(); }
+  else if(what==='capdisp'){ stgSet('mp_cap_display',v); capRefresh(); }
   else if(what==='taskpin'){ stgSet('mp_task_pin',v==='on'?'1':'0'); if(typeof renderZoneBar==='function') renderZoneBar(); }
   else if(what==='taskdisp'){ stgSet('mp_task_display',v); if(v==='off'||v==='alert'){ const d=document.getElementById('taskNudge'); if(d) d.remove(); } pingRender(); }
   else if(what==='corpse'){ stgSet('mp_corpse_mode',v); if(typeof skyRenderWarn==='function') skyRenderWarn(); }
@@ -16784,10 +16800,12 @@ function renderSettingsPanel(){
       pick('taskpin',taskPinOn()?'on':'off',[['on','On'],['off','Off']])));
   const all=Object.keys(chars||{}).sort((a,b)=>a.localeCompare(b));
   h+=card('CHARACTERS',
-    item('Character, banker or hidden','<b>Banker</b>: inventory only (Bankers tab, no character tab). <b>Hidden</b>: left out everywhere; its data is kept. Saved to your account.',
+    item('New characters','When an inventory file or log shows up for a character you haven\u2019t added \u2014 a bot, a mule, someone else\u2019s character on this PC. <b>Exclude until I add them</b> puts it straight into Excluded below (its data is kept) and keeps it out of Last Zone Location. Characters you already have aren\u2019t affected.',
+      pick('newchars',newCharMode(),[['add','Add automatically'],['hide','Exclude until I add them']]))+
+    item('Character, banker or excluded','<b>Banker</b>: inventory only (Bankers tab, no character tab). <b>Excluded</b>: left out everywhere; its data is kept. Saved to your account.',
       all.length?'<div style="margin-top:.45rem;max-height:340px;overflow-y:auto">'+all.map(n=>{ const r=stgCharRole(n), nE=encodeURIComponent(n);
         const b=(v,lbl)=>'<button onclick="stgSetRole(decodeURIComponent(\''+nE+'\'),\''+v+'\')" style="font-size:.8rem;padding:.12rem .5rem;border-radius:3px;cursor:pointer;border:1px solid '+(r===v?'var(--gold)':'var(--border)')+';background:'+(r===v?'rgba(184,137,43,.16)':'transparent')+';color:var(--text);font-weight:'+(r===v?'700':'400')+'">'+lbl+'</button>';
-        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.25rem 0;border-bottom:1px solid rgba(74,58,26,.12)"><span style="font-size:.92rem'+(r==='excluded'?';color:var(--text-muted);text-decoration:line-through':'')+'">'+esc(n)+'</span><span style="display:flex;gap:.25rem">'+b('char','Character')+b('banker','Banker')+b('excluded','Hidden')+'</span></div>'; }).join('')+'</div>'
+        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.25rem 0;border-bottom:1px solid rgba(74,58,26,.12)"><span style="font-size:.92rem'+(r==='excluded'?';color:var(--text-muted);text-decoration:line-through':'')+'">'+esc(n)+'</span><span style="display:flex;gap:.25rem">'+b('char','Character')+b('banker','Banker')+b('excluded','Excluded')+'</span></div>'; }).join('')+'</div>'
       :'<div style="font-size:.85rem;color:var(--text-muted);margin-top:.35rem">No characters loaded yet.</div>'));
   h+=card('APP',
     item('Open on','The tab MixelParse shows when it starts.',
@@ -17561,6 +17579,10 @@ function mpBindAge(ts){
   return Math.floor(d/365)+'y ago';
 }
 function mpBindStale(ts){ return !ts || (Date.now()-ts) > 30*86400000; }
+window.zbSetRole=function(name,role){
+  bindPopClose(); stgSetRole(name,role); if(typeof renderZoneBar==='function') renderZoneBar();
+  showWatcherToast((role==='banker'?'🏦 '+name+' is now a banker':'🚫 '+name+' is now excluded')+' \u2014 Settings \u2192 Characters to undo');
+};
 function mpZbMenu(ev, enc){ ev.preventDefault(); bindPopOpen(decodeURIComponent(enc), ev.clientX, ev.clientY); return false; }
 function bindPopEnsure(){
   if(document.getElementById('bindPop')) return;
@@ -17590,6 +17612,10 @@ function bindPopOpen(name, x, y){
       (cur?'<button class="btn" style="flex:0 0 auto;color:#a03030;border-color:#a03030" onclick="bindPopClear(decodeURIComponent(\''+nEnc+'\'))">Clear</button>':'')+
       '<button class="btn" style="flex:1" onclick="bindPopClose()">Cancel</button>'+
       '<button class="btn primary" style="flex:1" onclick="bindPopSave(decodeURIComponent(\''+nEnc+'\'))">Save</button>'+
+    '</div>'+
+    '<div style="border-top:1px solid var(--border);margin-top:.6rem;padding-top:.5rem;display:flex;flex-direction:column;gap:.35rem">'+
+      '<button class="btn" style="width:100%;font-size:.8rem;text-align:left" title="Exclude this character everywhere (its data is kept) \u2014 Settings \u2192 Characters to undo" onclick="zbSetRole(decodeURIComponent(\''+nEnc+'\'),\'excluded\')">🚫 Add to excluded</button>'+
+      '<button class="btn" style="width:100%;font-size:.8rem;text-align:left" title="Inventory only: on the Bankers tab, no character tab or zone line \u2014 Settings \u2192 Characters to undo" onclick="zbSetRole(decodeURIComponent(\''+nEnc+'\'),\'banker\')">🏦 Add to bankers</button>'+
     '</div>';
   p.style.display='block';
   const w=p.offsetWidth,h=p.offsetHeight;
@@ -17605,7 +17631,7 @@ function renderZoneBar(){
   if(!el)return;
   // Only show chars that have a loaded inventory OR have been actively reported by the watcher
   // this session. This prevents stale Supabase entries with wrong names from appearing.
-  const entries=Object.entries(charZones).filter(([char])=>!isBanker(char)&&!isExcludedChar(char)&&(chars[char]||knownWatcherChars.has(char)));
+  const entries=Object.entries(charZones).filter(([char])=>!isBanker(char)&&!isExcludedChar(char)&&(chars[char]||knownWatcherChars.has(char))&&(newCharMode()!=='hide'||knownCharHas(char)));
   if(!entries.length){el.innerHTML='';el.style.display='none';return;}
   el.style.display='';
   // Sort alphabetically so layout is stable
