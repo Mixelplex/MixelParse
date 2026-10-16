@@ -1,10 +1,16 @@
-## 1.7.23
+## 1.7.24
+
+- **📌 Tasks: farm, repeat, presets** — **Farm an item**: type the item and how many; Tasks shows where it drops (best chance first), reminds you when you zone into the drop zone, counts your loot and finishes itself when you have enough. Tasks can **repeat** daily, every 3 days or weekly. **Start from a preset**: common chores (restock, recharge the Leatherfoot cap, bank the loot…), the guide's quests (Reaper, Plane of Sky, Dozekar, JBoots), every class epic, the Plane of Mischief flowers and the P99 wiki quest list. Quests, epics and flowers become a checklist that ticks itself when one of your characters holds the items, and reminds you in the next step's zone.
+- **🖱 Right-click a quest or flower** — on the Quests tab, right-click a quest, your epic or a wiki quest (or a flower on the Flowers panel) to make a task with its steps.
+- **🧭 Travel** — new Travel tab: where to port and how long the run takes from there, for 78 zones — typical and best times, the route on foot, and the port landings seen. Search by name or short form (kael, loio, guk).
+- **🧥 Outfitter builds** — Build: Class default, **Proc** (DEX first, HP close behind; your proc weapon keeps its slot) or **Max DEX**. Items: Owned only, or **Owned + buy** with a per-item budget and a shopping list. **Include NO DROP (to farm)** adds drops you'd farm yourself, with where they drop or the quest that gives them; raid drops stay out until the character is level 46. On a character's tab its own worn and NO DROP gear always counts.
+- **Fix:** a farm or checklist task no longer guesses a shop from its name ("Farm Burnt Wood Staff" showed a merchant for "Staff").
+
+Everything from 1.7.23 and earlier is included:
 
 - **👥 New characters** — Settings → Characters → New characters: choose **Exclude until I add them** and a bot, mule or someone else's character whose inventory or log turns up on your PC goes straight to Excluded instead of getting a tab and a line in Last Zone Location. Characters you already have aren't affected; click **Character** next to one in Settings to keep it.
 - **🚫 Exclude or bank from Last Zone Location** — right-click a name in Last Zone Location → Add to excluded or Add to bankers.
 - **Fix:** "Hidden" characters are now called **Excluded** everywhere, so the setting, the right-click menu and Settings → Characters all say the same thing.
-
-Everything from 1.7.22 and earlier is included:
 
 - **📌 Tasks** — a new Tasks tab: jot down things to do on a character ("buy reagents", "turn in a quest item") and get reminded every time you log in on it, when it enters a zone, or at a time. Items you need to buy show who sells them, nearest first. Characters with open tasks get a red 📌 next to their name in Last Zone Location.
 - **⚠ Cap and task alerts** — empty Leatherfoot caps and tasks waiting for you show side by side as red alerts under the top bar. Settings → Checks & reminders picks how each one shows (or turns it off), plus the task pins.
