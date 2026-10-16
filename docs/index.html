@@ -1192,6 +1192,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
     <div class="subtab" data-sub="quests">Quests</div>
     <div class="subtab" data-sub="killcounts">Kills</div>
     <div class="subtab" data-sub="spells">Spells</div>
+    <div class="subtab" data-sub="travel">Travel</div>
   </div>
 
   <div id="subInventory">
@@ -1364,6 +1365,9 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
   </div>
   <div id="subSpells" style="display:none">
     <div id="spellsPanel"></div>
+  </div>
+  <div id="subTravel" style="display:none">
+    <div id="travelPanel"></div>
   </div>
 </div>
 
@@ -2781,7 +2785,7 @@ function _spellClassMap(cls){
 // P99 wiki data files (gen-wiki-data.js), loaded the first time a tab needs them: spells / vendors / quests
 const _wikiLoad={};
 function wikiData(name,redraw){
-  const g={spells:'WIKI_SPELLS',vendors:'WIKI_VENDORS',quests:'WIKI_QUESTS',zones:'ZONE_GRAPH',mobs:'WIKI_MOBS',epics:'WIKI_EPICS',values:'WIKI_VALUES'}[name]; if(window[g]) return window[g];
+  const g={spells:'WIKI_SPELLS',vendors:'WIKI_VENDORS',quests:'WIKI_QUESTS',travel:'PORT_TRAVEL',zones:'ZONE_GRAPH',mobs:'WIKI_MOBS',epics:'WIKI_EPICS',values:'WIKI_VALUES'}[name]; if(window[g]) return window[g];
   if(!_wikiLoad[name]){ _wikiLoad[name]=[]; const s=document.createElement('script'); s.src='wiki-'+name+'.js';
     s.onload=()=>{ const cbs=_wikiLoad[name]; _wikiLoad[name]=true; cbs.forEach(f=>{try{f();}catch(e){}}); }; document.head.appendChild(s); }
   if(Array.isArray(_wikiLoad[name])&&redraw) _wikiLoad[name].push(redraw);
@@ -2809,6 +2813,59 @@ function buildSpellReport(charKey){
   missing.sort((a,b)=>a.lvl-b.lvl || a.act.localeCompare(b.act));
   return {state:'ok', cls, lvl, total:map.size, scribedCount,
           missing, hasBook:!!sb, updatedAt:(sb&&sb.updatedAt)||null};
+}
+// ── Travel: port + run times (owner, 2026-10-16) ──
+// Per destination zone: the port landings to run from, median / best time from landing to zoning in, and the route on foot.
+// Measured from the owner's logs (session-data-2026-10-08/port-travel*.js) and shipped as wiki-travel.js.
+let _travelQ='', _travelCont='All';
+try{ _travelCont=localStorage.getItem('mp_travel_cont')||'All'; }catch(e){}
+const TRAVEL_ABBR={'lake of ill omen':'loio','temple of veeshan':'tov','kael drakkel':'kael','the overthere':'ot','east commonlands':'ec','west commonlands':'wc','sleepers tomb':'st','plane of growth':'pog','temple of solusek ro':'sol b','solusek\'s eye':'sol a','nagafen\'s lair':'sol b naggy','ruins of old guk':'lower guk lguk','guk':'upper guk','the emerald jungle':'ej','cobalt scar':'cs','the wakening lands':'wl','great divide':'gd','western wastes':'ww','skyshrine':'ss','eastern wastelands':'ew','the burning wood':'bw','field of bone':'fob','kurn\'s tower':'kurns','karnor\'s castle':'kc','city of thurgadin':'thurg','tower of frozen shadow':'tofs','velketor\'s labyrinth':'velks','dreadlands':'dl','lost temple of cazic-thule':'ct cazic','old sebilis':'seb','trakanon\'s teeth':'tt','the city of mist':'com'};
+window.travelSet=function(k,v){ if(k==='q') _travelQ=v; else { _travelCont=v; try{ localStorage.setItem('mp_travel_cont',v); }catch(e){} } renderTravelPanel(k==='q'); };
+function renderTravelPanel(keepInput){
+  const panel=document.getElementById('travelPanel'); if(!panel) return;
+  const P=wikiData('travel',()=>{ if(activeSub==='travel') renderTravelPanel(); });
+  if(!P){ panel.innerHTML='<div style="padding:1rem;color:var(--text-muted);font-style:italic">Loading travel times\u2026</div>'; return; }
+  const E=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const mmss=x=>Math.floor(x/60)+':'+String(x%60).padStart(2,'0');
+  const q=_travelQ.trim().toLowerCase(), landBy=Object.fromEntries(P.landings.map(l=>[l.zone,l]));
+  const here=(()=>{ try{ const c=activeTab&&activeTab!=='__all__'?activeTab:''; const z=c&&typeof charZones!=='undefined'&&charZones[c]?charZones[c].zone:''; return String(z||''); }catch(e){ return ''; } })();
+  const rows=[]; let shown=0;
+  for(const r of P.rows){
+    if(_travelCont!=='All'&&r.cont!==_travelCont) continue;
+    const hay=(r.zone+' '+(TRAVEL_ABBR[r.zone.toLowerCase()]||'')+' '+r.opts.map(o=>o.land).join(' ')).toLowerCase();
+    if(q&&!hay.includes(q)) continue;
+    shown++;
+    const zc='<td style="padding:.35rem .5rem;vertical-align:top" rowspan="'+(r.portHere?1:r.opts.length)+'"><b>'+E(r.zone)+'</b><div style="font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)">'+E(r.cont)+'</div></td>';
+    if(r.portHere){ const l=landBy[r.zone];
+      rows.push('<tr style="border-top:1px solid var(--border)">'+zc+'<td colspan="4" style="padding:.35rem .5rem"><span style="font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;color:var(--gold-light);border:1px solid var(--border);border-radius:3px;padding:0 .3rem">Port lands here</span> <span style="color:var(--text-muted);font-size:.78rem">'+(l&&l.spells.length?E(l.spells.slice(0,4).join(', ')):'group ports')+'</span></td></tr>'); continue; }
+    r.opts.forEach((o,i)=>{
+      const w=Math.min(100,Math.round(o.med/1200*100));
+      rows.push('<tr'+(i?'':' style="border-top:1px solid var(--border)"')+'>'+(i?'':zc)
+        +'<td style="padding:.3rem .5rem;vertical-align:top">'+E(o.land)+'</td>'
+        +'<td style="padding:.3rem .5rem;vertical-align:top;white-space:nowrap;font-variant-numeric:tabular-nums">'+mmss(o.med)+(o.n>1?' <span style="color:var(--gold-light);font-size:.78rem">\u00b7 '+mmss(o.best)+'</span>':'')
+          +'<div style="height:4px;border-radius:2px;background:var(--gold);opacity:.55;margin-top:3px;width:'+w+'%" title="'+mmss(o.med)+' on a 0\u201320 min scale"></div></td>'
+        +'<td style="padding:.3rem .5rem;vertical-align:top;color:var(--text-muted);font-size:.8rem">'+(o.path.length?E(o.path.join(' \u2192 ')):'next door')+'</td>'
+        +'<td style="padding:.3rem .5rem;vertical-align:top;text-align:right;color:var(--text-muted);font-size:.78rem'+(o.n===1?';font-style:italic':'')+'">'+o.n+'</td></tr>');
+    });
+  }
+  const conts=['All','Antonica','Faydwer','Odus','Kunark','Velious'];
+  const chip=c=>'<button type="button" onclick="travelSet(\'cont\',\''+c+'\')" style="font-family:\'Cinzel\',serif;font-size:.64rem;letter-spacing:.06em;padding:.25rem .6rem;border-radius:999px;cursor:pointer;border:1px solid '+(c===_travelCont?'var(--gold-light)':'var(--border)')+';background:'+(c===_travelCont?'var(--surface2)':'transparent')+';color:'+(c===_travelCont?'var(--gold-light)':'var(--text-muted)')+'">'+c+'</button>';
+  const table='<div style="overflow-x:auto;border:1px solid var(--border);border-radius:4px"><table style="width:100%;border-collapse:collapse;min-width:640px;font-size:.84rem">'
+    +'<thead><tr style="font-family:\'Cinzel\',serif;font-size:.64rem;letter-spacing:.06em;color:var(--text-muted);text-align:left"><th style="padding:.4rem .5rem">DESTINATION</th><th style="padding:.4rem .5rem">PORT TO</th><th style="padding:.4rem .5rem">RUN \u00b7 <span style="color:var(--gold-light)">BEST</span></th><th style="padding:.4rem .5rem">ROUTE ON FOOT</th><th style="padding:.4rem .5rem;text-align:right">TRIPS</th></tr></thead>'
+    +'<tbody>'+(rows.join('')||'<tr><td colspan="5" style="padding:.8rem;color:var(--text-muted);font-style:italic">No zone matches \u201c'+E(_travelQ)+'\u201d. Try a shorter name, like \u201cguk\u201d or \u201ckael\u201d.</td></tr>')+'</tbody></table></div>';
+  const head='<div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.5rem">'
+    +'<div style="font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.1em;color:var(--text-muted);margin-right:.4rem">PORT &amp; RUN</div>'
+    +'<input id="travelQ" type="search" placeholder="Find a zone (Kael, Guk, LOIO\u2026)" value="'+E(_travelQ)+'" oninput="travelSet(\'q\',this.value)" style="flex:1 1 200px;min-width:0;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .45rem;font-size:.85rem">'
+    +'<div style="display:flex;flex-wrap:wrap;gap:.3rem">'+conts.map(chip).join('')+'</div></div>'
+    +'<div style="font-size:.74rem;color:var(--text-muted);margin-bottom:.5rem">Where to port, and how long the run takes from the landing to zoning in. <b>Run</b> is the typical trip (stops included); <span style="color:var(--gold-light)">best</span> is the fastest one logged. '
+    +shown+' destinations \u00b7 measured from '+P.trips+' port trips in MixelParse logs'+(here?' \u00b7 <span title="This character\u2019s last zone">\ud83d\udccd '+E(activeTab)+' is in '+E(here)+'</span>':'')+'</div>';
+  const lands='<div style="margin-top:.9rem;font-family:\'Cinzel\',serif;font-size:.66rem;letter-spacing:.1em;color:var(--text-muted)">PORT LANDINGS SEEN</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.2rem 1rem;margin-top:.3rem">'
+    +P.landings.map(l=>'<div style="font-size:.78rem;border-bottom:1px solid var(--border);padding:.2rem 0"><b>'+E(l.zone)+'</b> <span style="color:var(--text-muted)">\u00b7 '+E(l.cont)+' \u00b7 '+l.n+(l.spells.length?' \u00b7 '+E(l.spells.slice(0,3).join(', ')):' \u00b7 group ports')+'</span></div>').join('')+'</div>'
+    +'<div style="font-size:.72rem;color:var(--text-muted);margin-top:.7rem;max-width:80ch">A port is counted when you arrive in a zone that doesn\u2019t border the last one, right after a teleport cast, a wizard\u2019s portal or a group member\u2019s cast, with no death, login or Gate. West Commonlands includes Leatherfoot caps (same landing as Ring of Commons). Trips in italics are a single sample. JBoots and SoW give about the same time on the same run.</div>';
+  const sel=keepInput&&document.activeElement&&document.activeElement.id==='travelQ'?[document.activeElement.selectionStart,document.activeElement.selectionEnd]:null;
+  panel.innerHTML='<div style="padding:.6rem .2rem">'+head+table+lands+'</div>';
+  if(sel){ const i=document.getElementById('travelQ'); if(i){ i.focus(); try{ i.setSelectionRange(sel[0],sel[1]); }catch(e){} } }
 }
 function renderSpellsPanel(){
   const panel=document.getElementById('spellsPanel'); if(!panel) return;
@@ -3069,10 +3126,10 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     maybeShowHelp(activeTopView);
   });
 });
-document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();maybeShowHelp('sub_'+activeSub);});});
+document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subTravel').style.display=activeSub==='travel'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='travel')renderTravelPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();maybeShowHelp('sub_'+activeSub);});});
 function refresh(){buildTabs();renderView();saveState();renderNetworthBar();if(typeof activeTopView!=='undefined'&&activeTopView==='parking'&&typeof renderParkingPanel==='function')renderParkingPanel();}
 function renderOnly(){buildTabs();renderView();}
-function renderView(){if(activeTopView&&activeTopView!=='characters')return;const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderCityBars();renderFoodDrinkPanel();applyPanelLayout();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();}
+function renderView(){if(activeTopView&&activeTopView!=='characters')return;const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subTravel').style.display=activeSub==='travel'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderCityBars();renderFoodDrinkPanel();applyPanelLayout();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='travel')renderTravelPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();}
 
 // ─── Inventory Table ──────────────────────────────────────────────────────────
 function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const classFilter=document.getElementById('classFilter').value;const slotFilter=document.getElementById('slotFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.entries(chars).filter(([_cn])=>!isExcludedChar(_cn)).flatMap(([,_it])=>_it):(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;let mc=true;if(classFilter||slotFilter){const db=itemDBGet(item.name);if(!db||(db._slot||'NONE')==='NONE'){mc=false;}else{if(classFilter){const cls=(db._classes||'ALL').toUpperCase();if(cls!=='ALL'&&!cls.split(/\s+/).includes(classFilter))mc=false;}if(slotFilter&&mc){const slots=db._slots||[db._slot];if(!slots.includes(slotFilter))mc=false;}}}return ms&&ml&&mc;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+(lt==='equipped'?'':lootValueTag(item.name))+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=items.reduce((s,i)=>s+i.count,0);const unique=new Set(items.map(i=>i.id)).size;const stacks=items.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span><span class="stat">Bankers <span class="stat-val">'+bankerNames().length+'</span></span>':'');}
@@ -5609,14 +5666,16 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.23',
+  version:'1.7.24',
   date:'October 2026',
   features:[
-    ['&#128101; New characters','Settings &rarr; Characters &rarr; <b>New characters</b>: choose <b>Exclude until I add them</b> and a bot, mule or someone else&rsquo;s character whose inventory or log turns up on your PC goes straight to Excluded instead of getting a tab and a line in Last Zone Location. Characters you already have aren&rsquo;t affected; click <b>Character</b> next to one in Settings to keep it.'],
-    ['&#128683; Exclude or bank from Last Zone Location','Right-click a name in Last Zone Location &rarr; <b>Add to excluded</b> or <b>Add to bankers</b>.'],
+    ['&#128204; Tasks: farm, repeat, presets','<b>Farm an item</b>: type the item and how many &mdash; Tasks shows where it drops (best chance first), reminds you when you zone into the drop zone, counts your loot and finishes itself when you have enough. Tasks can <b>repeat</b> daily, every 3 days or weekly. <b>Start from a preset</b>: common chores (restock, recharge the Leatherfoot cap, bank the loot&hellip;), the guide&rsquo;s quests (Reaper, Plane of Sky, Dozekar, JBoots), every class epic, the Plane of Mischief flowers and the P99 wiki quest list. Quests, epics and flowers become a checklist that ticks itself when one of your characters holds the items, and reminds you in the next step&rsquo;s zone.'],
+    ['&#128433; Right-click a quest or flower','On the <b>Quests</b> tab, right-click a quest, your epic or a wiki quest &mdash; or a flower on the Flowers panel &mdash; to make a task with its steps.'],
+    ['&#129517; Travel','New <b>Travel</b> tab: where to port and how long the run takes from there, for 78 zones &mdash; typical and best times, the route on foot, and the port landings seen. Search by name or short form (kael, loio, guk).'],
+    ['&#129509; Outfitter builds','<b>Build</b>: Class default, <b>Proc</b> (DEX first, HP close behind &mdash; your proc weapon keeps its slot) or <b>Max DEX</b>. <b>Items</b>: Owned only, or <b>Owned + buy</b> with a per-item budget and a shopping list. <b>Include NO DROP (to farm)</b> adds drops you&rsquo;d farm yourself with where they drop or the quest that gives them; raid drops stay out until the character is level 46. On a character&rsquo;s tab its own worn and NO DROP gear always counts.'],
   ],
   fixes:[
-    ['Settings','&ldquo;Hidden&rdquo; characters are now called <b>Excluded</b> everywhere, so the setting, the right-click menu and Settings &rarr; Characters all say the same thing.'],
+    ['Tasks','A farm or checklist task no longer guesses a shop from its name (&ldquo;Farm Burnt Wood Staff&rdquo; showed a merchant for &ldquo;Staff&rdquo;).'],
   ],
 };
 function showWhatsNew(){
@@ -7478,7 +7537,7 @@ function wikiEpicHtml(cls,name){
       +'<td style="padding:.3rem .5rem;vertical-align:top;white-space:nowrap;color:'+(held?'#3a7a3a':'var(--text-muted)')+'">'+(held?'✔':next?'▶':'')+' '+(i+1)+'</td>'
       +'<td style="padding:.3rem .5rem;font-size:.85rem">'+esc(st.x)+(st.i.length?'<div style="font-size:.75rem;margin-top:.15rem;line-height:1.6">'+st.i.map(n=>link(n,has(n))).join(' · ')+'</div>':'')+'</td></tr>'; }).join('');
   return '<div class="quest-section-label">⚔ '+esc(cls)+' Epic — '+esc(epicItem)+'</div>'
-    +'<div style="border:1px solid var(--border);border-radius:4px;padding:.55rem .75rem;margin-bottom:1rem">'
+    +'<div style="border:1px solid var(--border);border-radius:4px;padding:.55rem .75rem;margin-bottom:1rem" data-task="epic:'+esc(cls)+'" data-char="'+esc(name)+'" oncontextmenu="return taskQuestMenu(event,this.dataset.task,this.dataset.char)" title="Right-click to make a task">'
     +'<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">'+status+'<span style="flex:1"></span><a href="'+wikiUrl(e.t)+'" target="_blank" rel="noopener" style="color:var(--gold-light);font-size:.82rem">Full walkthrough on the wiki →</a></div>'
     +'<div style="height:6px;background:var(--surface2);border-radius:3px;margin:.45rem 0;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(done?'#3a7a3a':'var(--gold)')+'"></div></div>'
     +(e.r.length>1?'<div style="font-size:.8rem;margin-bottom:.35rem">Rewards: '+e.r.map(r=>link(r,has(r))).join(' · ')+'</div>':'')
@@ -7497,7 +7556,7 @@ function wikiMoreQuests(cls,name){
   list.sort((a,b)=>(/epic/i.test(b.t)-/epic/i.test(a.t))||(num(a.lvl)-num(b.lvl))||a.t.localeCompare(b.t));
   if(!list.length) return '';
   const rows=list.map(q=>{ const have=(q.r||[]).filter(r=>charHasItem(name,r)), epic=/epic/i.test(q.t), far=myLvl&&num(q.lvl)>myLvl;
-    return '<tr style="'+(epic?'background:rgba(184,137,43,.08);':'')+(far?'opacity:.6':'')+'"><td style="padding:.35rem .5rem"><a href="'+wikiUrl(q.t)+'" target="_blank" rel="noopener" style="color:var(--gold-light);font-weight:'+(epic?'700':'600')+'">'+esc(q.t)+'</a>'+(have.length?' <span style="color:#3a7a3a;font-size:.75rem" title="Has: '+esc(have.join(', '))+'">✔ has reward</span>':'')+'</td>'
+    return '<tr data-task="wiki:'+esc(q.t).replace(/"/g,'&quot;')+'" data-char="'+esc(name)+'" oncontextmenu="return taskQuestMenu(event,this.dataset.task,this.dataset.char)" title="Right-click to make a task" style="'+(epic?'background:rgba(184,137,43,.08);':'')+(far?'opacity:.6':'')+'"><td style="padding:.35rem .5rem"><a href="'+wikiUrl(q.t)+'" target="_blank" rel="noopener" style="color:var(--gold-light);font-weight:'+(epic?'700':'600')+'">'+esc(q.t)+'</a>'+(have.length?' <span style="color:#3a7a3a;font-size:.75rem" title="Has: '+esc(have.join(', '))+'">✔ has reward</span>':'')+'</td>'
       +'<td style="padding:.35rem .5rem;white-space:nowrap">'+esc(q.lvl||'—')+'</td><td style="padding:.35rem .5rem">'+esc(q.z||'')+(q.g?'<div style="font-size:.75rem;color:var(--text-muted)">'+esc(q.g)+'</div>':'')+'</td>'
       +'<td style="padding:.35rem .5rem;font-size:.8rem;line-height:1.5">'+(q.r||[]).map(r=>'<a href="'+wikiUrl(r)+'" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;border-bottom:1px dotted var(--gold);white-space:nowrap">'+esc(r)+'</a>'+(have.includes(r)?' <span style="color:#3a7a3a" title="'+esc(name)+' has this">✔</span>':'')).join(', ')+'</td></tr>'; }).join('');
   return '<div class="quest-section-label">📜 More '+esc(cls)+' Quests — '+list.length+' on the P99 wiki</div>'
@@ -7633,7 +7692,7 @@ function renderQuestsPanel(){
 
     const noteHtml=q.note?`<div class="quest-note">💡 ${esc(q.note)}</div>`:'';
 
-    return `<div class="quest-block ${done?'quest-done':''}">
+    return `<div class="quest-block ${done?'quest-done':''}" data-task="quest:${esc(q.name).replace(/"/g,'&quot;')}" data-char="${esc(name)}" oncontextmenu="return taskQuestMenu(event,this.dataset.task,this.dataset.char)" title="Right-click to make a task">
       <div class="quest-block-header">
         <div class="quest-block-title">
           <a href="${wikiHref}" target="_blank" rel="noopener" style="color:var(--gold-light);text-decoration:none;border-bottom:1px dotted var(--gold)" class="quest-block-name">${esc(q.shortName||q.name)}</a>
@@ -7676,7 +7735,7 @@ function renderQuestsPanel(){
       +esc(c.label)+'</span>';
   }).join('');
   const configRowHtml='<div style="display:'+(_configOpen?'flex':'none')+';gap:.4rem;flex-wrap:wrap;padding:.4rem .75rem .5rem;border-bottom:1px solid var(--border)">'+configChips+'</div>';
-  const filterBarHtml='<div style="display:flex;align-items:center;justify-content:flex-end;padding:.35rem .75rem .1rem"><button class="watchlist-gear-btn" onclick="toggleQuestCatConfig()" title="Filter quest categories">⚙</button></div>';
+  const filterBarHtml='<div style="display:flex;align-items:center;justify-content:space-between;padding:.35rem .75rem .1rem"><span style="font-size:.74rem;color:var(--text-muted)">📌 Right-click a quest to make a task with its steps</span><button class="watchlist-gear-btn" onclick="toggleQuestCatConfig()" title="Filter quest categories">⚙</button></div>';
 
   panel.innerHTML=`
     <div class="quests-wrap" style="padding-top:.1rem">
@@ -8207,7 +8266,7 @@ window.applyDBToChar    = applyDBToChar;
         if(msg.type === 'capEvent'){ capOnEvent(msg); }
         if(msg.type === 'vendorPrices'){ vpOnScan(msg); }
         if(msg.type === 'vendorPrice'){ vpOnQuote(msg); }
-        if(msg.type === 'sessionLoot'&&msg.item){ lootValueToast(msg); }
+        if(msg.type === 'sessionLoot'&&msg.item){ lootValueToast(msg); taskOnLoot(msg); }
         if(msg.type === 'sessionLogin'&&msg.charName){ taskRemind(msg.charName,'login'); }
         if(msg.type === 'zoneUpdate'&&msg.charName&&msg.zone){ taskZoneSeen(msg.charName,msg.zone); }
         if(msg.type === 'capScanResult'){ capOnScan(msg); }
@@ -10308,10 +10367,10 @@ function outfitBuildStock(includeEquipped){
     for(const it of (items||[])){
       const lt=locationType(it.location||'');
       const equipped=lt==='equipped';
-      if(equipped&&!includeEquipped)continue;
+      if(equipped&&!includeEquipped&&cn!==activeTab)continue;   // the character you're on: its own worn gear always counts
       const db=itemDBGet(it.name);
       if(!db)continue;
-      if(db._nodrop){nodropSkipped++;continue;}
+      if(db._nodrop&&cn!==activeTab){nodropSkipped++;continue;}   // …and so does its own NO DROP gear (it can stay on)
       const slots=db._slots||[db._slot];
       if(!slots||!slots[0]||String(slots[0]).toUpperCase()==='NONE')continue;
       rowCount++;
@@ -10336,11 +10395,70 @@ function outfitBuildStock(includeEquipped){
   }
   return {stock,nodropSkipped,rowCount};
 }
+// ── Outfitter build + sources (owner, 2026-10-16) ──
+// build: 'class' = the class's Gear Planner weights (as before) · 'proc' = DEX first, HP close behind (100 HP ≈ 10 DEX)
+//        · 'maxdex' = most DEX, then HP. In proc builds a weapon with a combat proc wins its slot (it's what you proc with).
+// src:   'owned' = items your characters have · 'buy' = also tradeable items from the item database priced under the budget
+//        (pp, per item); owned wins a tie. Kept on this PC.
+function outfitBuildOpts(){
+  let b='class',s='owned',g=5000,nd=false;
+  try{ b=localStorage.getItem('mp_outfit_build')||'class'; s=localStorage.getItem('mp_outfit_src')||'owned'; g=parseInt(localStorage.getItem('mp_outfit_budget')||'5000',10)||5000; nd=localStorage.getItem('mp_outfit_nodrop')==='1'; }catch(e){}
+  return {build:/^(class|proc|maxdex)$/.test(b)?b:'class', src:s==='buy'?'buy':'owned', budget:Math.max(100,g), nodrop:nd};
+}
+window.outfitSetOpt=function(k,v){ try{ localStorage.setItem({build:'mp_outfit_build',src:'mp_outfit_src',budget:'mp_outfit_budget',nodrop:'mp_outfit_nodrop'}[k],String(v)); }catch(e){} renderOutfitterPanel(); };
+const OUTFIT_RAID_LVL=46;   // the guild's raid level: below it, NO DROP raid drops aren't farm candidates
+function outfitIsRaidDrop(db){
+  if(Number(db.dkp)>0) return true;   // priced in DKP = raid loot
+  const mobs=String(db._from||'').split(/[;,]/).map(x=>x.replace(/\s*\([^)]*\)\s*$/,'').replace(/\(\?\)|\?/g,'').trim()).filter(Boolean);
+  if(!mobs.length) return false;
+  const bs=typeof farmBossSet==='function'?farmBossSet():new Set(), ML=window.MOB_LEVELS;
+  for(const m of mobs){
+    if(bs.has(farmNorm(m))) continue;
+    const e=ML&&ML.m?ML.m[m.toLowerCase()]:null; if(!e||!e.length) return false;
+    const raidZone=e.every(r=>FARM_RAID_ZONES.has(farmNorm(ML.z[r[0]]||''))), raidLvl=e.every(r=>Number(r[1])>=55);
+    if(!raidZone&&!raidLvl) return false;
+  }
+  return true;
+}
+let _outfitQuestOf=null;   // reward item (lower case) → "Quest name (zone, lvl N)", from the wiki quest data
+function outfitQuestSrc(name){
+  if(!_outfitQuestOf){ const W=wikiData('quests',()=>{ _outfitQuestOf=null; if(activeSub==='outfitter') renderOutfitterPanel(); }); if(!W) return ''; _outfitQuestOf={};
+    for(const [q,v] of Object.entries(W.q||{})) for(const r of (v.r||[])) _outfitQuestOf[String(r).toLowerCase()]=q+' ('+(v.z||'?')+(v.lvl?', lvl '+v.lvl:'')+')'; }
+  return _outfitQuestOf[String(name||'').toLowerCase()]||'';
+}
+function outfitHpPerSta(o){ try{ return Math.max(0,(calcHP(120,o.cls,o.level)-calcHP(100,o.cls,o.level))/20); }catch(e){ return 1; } }
+function outfitPick(db,slot,o,OB,hpSta,name){
+  const base=outfitScore(db,slot,o.cls,o.level);
+  if(OB.build==='class') return base;
+  const dex=Number(db.dex||0), hp=Number(db.hpbonus||0)+Number(db.sta||0)*hpSta;
+  const isWep=!!(db.dmg&&db.delay);
+  if(slot==='SECONDARY'&&isWep&&!(typeof DW_SKILL_CAP!=='undefined'&&DW_SKILL_CAP[o.cls])) return 0;   // can't dual wield: no weapon in the off-hand
+  // the proc weapon the character already wields stays in its slot (other weapons: their DEX / HP like anything else)
+  const proc=(slot==='PRIMARY'||slot==='SECONDARY')&&isWep&&OB.keep&&OB.keep.has(String(name||'').toLowerCase())&&String(db._effectType||'').toLowerCase().includes('combat');
+  const lead=proc?1e7:0;
+  if(OB.build==='maxdex') return lead+dex*1000+hp+base*0.001;
+  return lead+(dex+hp/10)*100+base*0.001;
+}
 function outfitBuildKit(){
   const o=_outfit;
   const clsAbbr=OUTFIT_CLASS_ABBR[o.cls]||'';
   const raceAbbr=RACE_ABBR_MAP[o.race]||'';
   const {stock,nodropSkipped,rowCount}=outfitBuildStock(o.includeEquipped);
+  const OB=outfitBuildOpts(), hpSta=outfitHpPerSta(o); let buyPool=0, raidHidden=0;
+  OB.keep=new Set((typeof chars!=='undefined'&&activeTab&&chars[activeTab]?chars[activeTab]:[]).filter(i=>/^(primary|secondary)$/i.test(String(i.location||'').trim())).map(i=>String(i.name).toLowerCase()));
+  if(OB.src==='buy'||OB.nodrop){   // tradeable items priced under the budget (Owned + buy) and / or NO DROP drops to farm
+    for(const [nm,db] of Object.entries(typeof itemDB!=='undefined'?itemDB:{})){
+      if(!db||db._nonp99) continue;
+      const nd=!!db._nodrop;
+      if(nd){ if(!OB.nodrop) continue; }
+      if(nd&&Number(o.level||0)<OUTFIT_RAID_LVL&&outfitIsRaidDrop(db)){ raidHidden++; continue; }
+      else if(OB.src!=='buy'||!(db.plat>0)||db.plat*1000>OB.budget) continue;
+      const k=nm.toLowerCase(); if(stock.has(k)) continue;
+      const sl=db._slots||[db._slot]; if(!sl||!sl[0]||String(sl[0]).toUpperCase()==='NONE') continue;
+      if(!window.itemUsableByContext(db,clsAbbr,raceAbbr,o.deity)) continue;
+      stock.set(k,{name:nm,db,holders:[],total:99,rem:99,buy:!nd,farm:nd,price:nd?0:Math.round(db.plat*1000)}); buyPool++;
+    }
+  }
   // Anything in the pool with a worn effect the scorer can't value — surfaced
   // so a future Fungi can never lose silently again.
   const unscoredWorn=[...new Set([...stock.values()].filter(e=>outfitWornEffect(e.db).unscored).map(e=>e.name))].slice(0,15);
@@ -10360,7 +10478,7 @@ function outfitBuildKit(){
         if(!outfitSlotMatch(db,slot,o.cls))continue;
         if(!window.itemUsableByContext(db,clsAbbr,raceAbbr,o.deity))continue;
         if(!outfitWepOk(db,slot,o.cls))continue;
-        const sc=outfitScore(db,slot,o.cls,o.level);
+        const sc=outfitPick(db,slot,o,OB,hpSta,e.name)*(e.farm?0.998:e.buy?0.999:1);   // a tie goes to owned, then buy, then farm
         if(sc>bestScore){bestScore=sc;best=e;}
       }
       if(!best){rows.push({slot:label,empty:true});continue;}
@@ -10372,10 +10490,11 @@ function outfitBuildKit(){
       if(slot==='PRIMARY'&&(sk.includes('2h')||sk.includes('two')))primary2h=true;
       totals.ac+=Number(best.db.ac||0);totals.hpbonus+=Number(best.db.hpbonus||0);totals.manabonus+=Number(best.db.manabonus||0);
       for(const k of STAT_KEYS)totals[k]+=Number(best.db[k]||0);
-      rows.push({slot:label,name:best.name,db:best.db,score:bestScore,holder});
+      rows.push({slot:label,name:best.name,db:best.db,score:bestScore,holder,buy:!!best.buy,farm:!!best.farm,price:best.price||0,
+        disp:OB.build==='class'?bestScore.toFixed(1):(Number(best.db.dex||0)+' DEX \u00b7 '+Math.round(Number(best.db.hpbonus||0)+Number(best.db.sta||0)*hpSta)+' HP')});
     }
   }
-  return {rows,totals,nodropSkipped,rowCount,unscoredWorn};
+  return {rows,totals,nodropSkipped,rowCount,unscoredWorn,OB,buyPool,hpSta,raidHidden};
 }
 function outfitStatStr(db){
   const bits=[];
@@ -11114,11 +11233,13 @@ function renderOutfitterPanel(){
       const _c=_onSelf?'#3a7a3a':'#e05050',_bc=_onSelf?'#2f6a2f':'#a03030';
       badges.push(`<span title="${_onSelf?'Already equipped on this character':'Equipped on another character \u2014 must be stripped'}" style="font-size:.6rem;color:${_c};border:1px solid ${_bc};border-radius:2px;padding:0 .2rem">EQUIPPED</span>`);
     }
-    const from=h?`${h.banker?'\ud83c\udfe6 ':''}${esc(h.char)} \u00b7 <span style="opacity:.7">${esc(h.loc)}</span>`:'?';
+    const from=r.farm?`<span style="color:#6a5acd" title="NO DROP \u2014 ${r.db._from?'drops from: '+esc(r.db._from):outfitQuestSrc(r.name)?'quest: '+esc(outfitQuestSrc(r.name)):'source unknown'}">\u2694 farm \u2014 ${(r.db._from?esc(String(r.db._from).split(/[;,]/)[0].slice(0,28)):outfitQuestSrc(r.name)?'quest: '+esc(outfitQuestSrc(r.name).replace(/ \(.*$/,'').slice(0,24)):'quest / source unknown')}</span>`
+      :r.buy?`<span style="color:#b07020" title="Not owned \u2014 tradeable, price from the item database (rounded to 100 pp)">\ud83d\uded2 buy ~${r.price.toLocaleString()} pp</span>`
+      :h?(h.char===activeTab?(h.equipped?'<span style="color:#3a7a3a">\u2713 worn</span>':'\ud83d\udce6 in your '+esc(h.loc)):`${h.banker?'\ud83c\udfe6 ':''}${esc(h.char)} \u00b7 <span style="opacity:.7">${esc(h.loc)}</span>`):'?';
     return `<tr>
       <td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted);white-space:nowrap">${r.slot}</td>
       <td style="padding:.3rem .5rem;font-size:.86rem">${itemLink(r.name)} ${badges.join(' ')}</td>
-      <td style="padding:.3rem .5rem;text-align:right;font-size:.78rem;color:var(--gold-light)">${r.score.toFixed(1)}</td>
+      <td style="padding:.3rem .5rem;text-align:right;font-size:.78rem;color:var(--gold-light);white-space:nowrap">${r.disp||r.score.toFixed(1)}</td>
       <td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted)">${outfitStatStr(r.db)}</td>
       <td style="padding:.3rem .5rem;font-size:.76rem;white-space:nowrap">${from}</td>
     </tr>`;
@@ -11153,14 +11274,22 @@ function renderOutfitterPanel(){
       <label style="font-size:.74rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;cursor:pointer">
         <input type="checkbox" ${o.includeEquipped?'checked':''} onchange="outfitToggleEq(this)"> include alt-equipped gear
       </label>
-      <span style="font-size:.68rem;color:var(--text-muted);margin-left:auto">${kit.rowCount} owned tradeable rows scanned \u00b7 ${kit.nodropSkipped} NO DROP excluded</span>
+      <label style="font-size:.78rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem" title="Class default: the class's usual stat weights. Proc: DEX first with HP close behind (100 HP \u2248 10 DEX) \u2014 a weapon with a combat proc keeps its slot. Max DEX: the most DEX, then HP.">Build
+        <select style="${selStyle}" onchange="outfitSetOpt('build',this.value)">${[['class','Class default'],['proc','Proc (DEX + HP)'],['maxdex','Max DEX']].map(([v,l])=>'<option value="'+v+'"'+(kit.OB.build===v?' selected':'')+'>'+l+'</option>').join('')}</select></label>
+      <label style="font-size:.74rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;cursor:pointer" title="Also consider NO DROP drops you'd have to farm yourself (shown with where they drop). Raid drops stay out until the character is level 46. NO DROP items on your other characters always stay out \u2014 they can't be moved.">
+        <input type="checkbox" ${kit.OB.nodrop?'checked':''} onchange="outfitSetOpt('nodrop',this.checked?'1':'0')"> include NO DROP (to farm)</label>
+      <label style="font-size:.78rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem" title="Owned + buy also considers tradeable items you don't have yet, priced under the budget (per item). Owned items win a tie.">Items
+        <select style="${selStyle}" onchange="outfitSetOpt('src',this.value)"><option value="owned"${kit.OB.src==='owned'?' selected':''}>Owned only</option><option value="buy"${kit.OB.src==='buy'?' selected':''}>Owned + buy</option></select></label>
+      ${kit.OB.src==='buy'?`<label style="font-size:.78rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem" title="Most you'd pay for one item, in platinum">up to
+        <input type="number" min="100" step="500" value="${kit.OB.budget}" onchange="outfitSetOpt('budget',this.value)" style="width:5rem;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.25rem .35rem;font-size:.85rem"> pp each</label>`:''}
+      <span style="font-size:.68rem;color:var(--text-muted);margin-left:auto">${kit.rowCount} owned rows scanned \u00b7 ${kit.nodropSkipped} NO DROP on other characters left out (can\u2019t be moved)${kit.raidHidden?' \u00b7 '+kit.raidHidden+' raid drops hidden until level '+OUTFIT_RAID_LVL:''}</span>
     </div>
     <div style="font-size:.74rem;margin:-.25rem 0 .55rem;color:var(--text-muted)">${_manual
       ?'<span style="color:#b07020">\u270e Manual for '+esc(_tab||'All Characters')+'</span> \u2014 class / race / deity / level set by hand for this tab. '+(_m?'<a href="#" onclick="outfitReset();return false" style="color:var(--gold-light)">\u21ba Use '+esc(_tab)+'\u2019s</a>':'<a href="#" onclick="outfitReset();return false" style="color:var(--gold-light)">\u21ba Reset</a>')
       :_m?'From <b>'+esc(_tab)+'</b>\u2019s Character Stats \u2014 change any of these to plan for something else (this tab only).'
       :_tab?'Set '+esc(_tab)+'\u2019s class, race and level in Character Stats to fill these in, or pick them here.':'Pick a class, race and level to plan a kit.'}</div>
     <table class="dkp-table" style="width:100%">
-      <thead><tr><th style="width:5.5rem">Slot</th><th>Item</th><th class="dkp-th-right" style="width:4rem">Score</th><th>Stats</th><th style="width:14rem">From</th></tr></thead>
+      <thead><tr><th style="width:5.5rem">Slot</th><th>Item</th><th class="dkp-th-right" style="width:${kit.OB.build==='class'?'4rem':'7.5rem'}">${kit.OB.build==='class'?'Score':'DEX / HP'}</th><th>Stats</th><th style="width:14rem">From</th></tr></thead>
       <tbody>${kitRows}</tbody>
     </table>
     <div style="margin-top:.55rem;font-size:.8rem">Kit totals: ${totalBits.join(' \u00b7 ')||'\u2014'}</div>
@@ -11168,6 +11297,15 @@ function renderOutfitterPanel(){
       <div style="font-size:.68rem;letter-spacing:.08em;color:var(--text-muted)">PICKUP ROUTE</div>
       ${route}
     </div>
+    ${(()=>{ const farms=kit.rows.filter(r=>r.farm); if(!farms.length) return '';
+      return '<div style="border:1px solid var(--border);border-radius:4px;padding:.5rem .7rem;margin-top:.6rem"><div style="font-size:.68rem;letter-spacing:.08em;color:var(--text-muted)">TO FARM (NO DROP)'+(kit.raidHidden?' \u00b7 raid drops hidden until level '+OUTFIT_RAID_LVL:'')+'</div>'
+        +farms.map(r=>'<div style="margin-top:.3rem;font-size:.8rem">\u2694 '+itemLink(r.name)+' <span style="color:var(--text-muted);font-size:.74rem">\u2014 '+esc(r.slot)+' \u00b7 '+(r.db._from?'drops from '+esc(r.db._from):outfitQuestSrc(r.name)?'quest: '+esc(outfitQuestSrc(r.name)):'quest or unknown source')+'</span></div>').join('')+'</div>'; })()}
+    ${(()=>{ const buys=kit.rows.filter(r=>r.buy); if(kit.OB.src!=='buy') return '';
+      const tot=buys.reduce((a,r)=>a+r.price,0);
+      return '<div style="border:1px solid var(--border);border-radius:4px;padding:.5rem .7rem;margin-top:.6rem"><div style="font-size:.68rem;letter-spacing:.08em;color:var(--text-muted)">SHOPPING LIST</div>'
+        +(buys.length?buys.map(r=>'<div style="margin-top:.3rem;font-size:.8rem">\ud83d\uded2 '+itemLink(r.name)+' <span style="color:var(--text-muted);font-size:.74rem">\u2014 '+esc(r.slot)+' \u00b7 ~'+r.price.toLocaleString()+' pp</span></div>').join('')
+          +'<div style="margin-top:.4rem;font-size:.8rem"><b>'+buys.length+' to buy, ~'+tot.toLocaleString()+' pp</b> <span style="color:var(--text-muted);font-size:.72rem">\u2014 prices from the item database, rounded to 100 pp; check Plat Prices before buying</span></div>'
+          :'<div style="font-size:.76rem;color:var(--text-muted);margin-top:.35rem">Nothing to buy \u2014 what you own is already the best under '+kit.OB.budget.toLocaleString()+' pp.</div>')+'</div>'; })()}
     <div style="font-size:.66rem;color:var(--text-muted);margin-top:.5rem;line-height:1.5">
       NO DROP always excluded (unreachable for a new character). Scores = Gear Planner class weights at the chosen level + weapon math (${esc(o.cls)}${o.cls==='Rogue'?': backstab-weighted ratio, piercing/1HS/1HB only, no 2H':''}) + worn-effect values (WORN_EFFECT_DB \u2014 Fungal Regrowth seeded). Haste is scored per item but only your best haste item applies in game. Melee kits are built 1H main+off \u2014 2H comparison is a future pass.${kit.unscoredWorn&&kit.unscoredWorn.length?`<br><span style="color:#e0a030">\u26a0 Worn effects in your pool the scorer can't value yet: ${kit.unscoredWorn.map(esc).join(', ')} \u2014 judge these yourself or ask for them to be added.</span>`:''}
     </div>`;
@@ -16054,7 +16192,7 @@ function renderFlowersPanel(){
       ?'<b style="color:#2f6f2f">\u2714 '+ready.map(esc).join(', ')+' can combine now</b>'+(ready.some(n=>!charHasItem(n,FLOWER_DECK))?' <span style="color:#a07000">(needs the deck)</span>':'')
       :got===4?'<span style="color:#a07000">All 4 on the account \u2014 trade them to one character to combine</span>'
       :'<span style="color:var(--text-muted)">'+(4-got)+' card'+(4-got===1?'':'s')+' still needed</span>';
-    return '<div style="border:1px solid var(--border);border-radius:5px;background:var(--surface);overflow:hidden;display:flex;flex-direction:column">'
+    return '<div style="border:1px solid var(--border);border-radius:5px;background:var(--surface);overflow:hidden;display:flex;flex-direction:column" data-task="flower:'+esc(f.c)+'" data-char="" oncontextmenu="return taskQuestMenu(event,this.dataset.task,this.dataset.char)" title="Right-click to make a task">'
       +'<div style="padding:.55rem .7rem .45rem;border-bottom:1px solid var(--border)">'
         +'<div style="display:flex;align-items:center;gap:.45rem;justify-content:space-between">'
           +'<div style="display:flex;align-items:center;gap:.45rem;min-width:0"><span style="width:.9rem;height:.9rem;border-radius:50%;background:'+f.dot+';border:1px solid var(--border);flex:none"></span>'
@@ -16073,7 +16211,7 @@ function renderFlowersPanel(){
       +'</div>';
   }).join('');
   panel.innerHTML='<div class="rc-title" style="font-family:\'Cinzel\',serif;letter-spacing:.06em;margin-bottom:.3rem">FLOWERS OF FUNCTIONALITY</div>'
-    +'<div style="font-size:.9rem;color:var(--text-muted);margin-bottom:.4rem">'+link('Deck of Spontaneous Generation Quest','Deck of Spontaneous Generation Quest','var(--gold-light)')+' (Plane of Mischief, lvl 46): four cards in the deck make a flower \u2014 a HEAD item (AC 10, NO DROP) with a +50 resist clicky (36 min) that works from inventory, so carry all five. Counts are across every loaded inventory, bankers included (cards are LORE but tradeable: one of each per character). Hover a card for where it drops.</div>'
+    +'<div style="font-size:.9rem;color:var(--text-muted);margin-bottom:.4rem">📌 Right-click a flower to make a task with its cards. '+link('Deck of Spontaneous Generation Quest','Deck of Spontaneous Generation Quest','var(--gold-light)')+' (Plane of Mischief, lvl 46): four cards in the deck make a flower \u2014 a HEAD item (AC 10, NO DROP) with a +50 resist clicky (36 min) that works from inventory, so carry all five. Counts are across every loaded inventory, bankers included (cards are LORE but tradeable: one of each per character). Hover a card for where it drops.</div>'
     +'<div style="font-size:.92rem;margin-bottom:.8rem"><b>Deck:</b> '+(deck.length?flowerWho(deck):'<span style="color:var(--text-muted)">nobody yet \u2014 kill Dinner (Dining Room) for the King Cod Card, or fish the moat for the four cod cards, then hand it to Ferjeneror (hedge maze)</span>')+'</div>'
     +'<div class="flw-grid">'+cards+flowerPriceBox()+'</div>';
 }
@@ -16274,6 +16412,7 @@ function taskWhenText(t){
 let _taskVendIdx=null;
 function taskVendorHint(t){
   const _re=()=>{ if(typeof activeTopView!=='undefined'&&activeTopView==='tasks') renderTasksPanel(); };
+  if(t.kind==='farm'||t.kind==='steps') return '';   // the item / checklist says what to get — no shop guess from the name
   const D=wikiData('vendors',_re); if(!D||!D.i) return '';
   wikiData('zones',_re);   // distances need the zone map — redraw once it's loaded
   if(!_taskVendIdx) _taskVendIdx=Object.keys(D.i).filter(n=>n.length>=4).map(n=>[n,n.toLowerCase()]).sort((a,b)=>b[1].length-a[1].length);
@@ -16291,52 +16430,72 @@ const _TASK_IN="background:var(--surface2);border:1px solid var(--border);border
 function renderTasksPanel(){
   const p=document.getElementById('tasksPanel'); if(!p) return;
   if(typeof mpEnsureZonesDL==='function') mpEnsureZonesDL();
+  taskAutoCheck(true); setTimeout(taskItemsDL,0);
+  const _re=()=>{ if(typeof activeTopView!=='undefined'&&activeTopView==='tasks') renderTasksPanel(); };
+  wikiData('epics',_re); wikiData('quests',_re); wikiData('mobs',_re);   // presets + drop sources
   const chs=taskChars(); let sel=''; try{ sel=localStorage.getItem('mp_task_char')||''; }catch(e){}
   if(!chs.includes(sel)) sel=chs[0]||'';   // the last character you added a task for, else the first
   const open=tasksOpen(), done=_tasks.filter(t=>t.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0)).slice(0,15);
   const by={}; for(const t of open) (by[t.char]=by[t.char]||[]).push(t);
   const row=t=>'<div style="display:flex;gap:.6rem;align-items:flex-start;padding:.5rem 0;border-top:1px solid var(--border)">'
     +'<input type="checkbox" title="Mark done" onclick="taskDone(\''+t.id+'\',true)" style="margin-top:.25rem;cursor:pointer">'
-    +'<div style="flex:1;min-width:0"><div style="font-size:.95rem">'+esc(t.text)+'</div>'
-    +'<div style="font-size:.74rem;color:'+(t.when==='date'&&t.at<=Date.now()?'#c03030':'var(--text-muted)')+'">🔔 '+esc(taskWhenText(t))+'</div>'+taskVendorHint(t)+'</div>'
+    +'<div style="flex:1;min-width:0"><div style="font-size:.95rem">'+esc(t.text)+taskRepeatTag(t)+'</div>'
+    +'<div style="font-size:.74rem;color:'+(t.when==='date'&&t.at<=Date.now()?'#c03030':'var(--text-muted)')+'">🔔 '+esc(taskWhenText(t))+'</div>'+taskVendorHint(t)+taskExtraHtml(t)+'</div>'
     +'<a href="#" onclick="taskDelete(\''+t.id+'\');return false" title="Delete" style="color:var(--text-muted);text-decoration:none;padding:0 .2rem">\u2715</a></div>';
   const groups=Object.keys(by).sort((a,b)=>a.localeCompare(b)).map(c=>'<div style="margin-top:.9rem"><div style="font-family:\'Cinzel\',serif;font-size:.8rem;color:var(--gold);letter-spacing:.05em">'+esc(c)+' <span style="color:var(--text-muted);font-family:\'Crimson Pro\',serif">('+by[c].length+')</span></div>'+by[c].map(row).join('')+'</div>').join('');
   p.innerHTML='<div style="padding:.7rem 1rem 1.2rem;max-width:860px">'
     +'<div style="font-family:\'Cinzel\',serif;font-size:1rem;color:var(--gold)">📌 Tasks</div>'
-    +'<div style="font-size:.8rem;color:var(--text-muted);margin:.2rem 0 .6rem">Things to do on a character. You\u2019re reminded every time you log in on it until it\u2019s done, when it enters a zone, or at a time \u2014 and items you need to buy show who sells them, nearest first. Kept on this PC.</div>'
+    +'<div style="font-size:.8rem;color:var(--text-muted);margin:.2rem 0 .6rem">Things to do on a character. You\u2019re reminded every time you log in on it, when it enters a zone, or at a time. <b>Farm an item</b> shows where it drops, reminds you in that zone and counts your loot. Start from a <b>preset</b> (a quest, your epic, a flower, restocking\u2026) to get a checklist that ticks itself as you collect the items \u2014 or right-click a quest on the Quests tab. Tasks can <b>repeat</b>. Kept on this PC.</div>'
     +'<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.4rem">'
+    +'<input id="taskPreset" list="taskPresetDL" placeholder="Start from a preset \u2014 farm an item, restock, a quest, your epic, a flower\u2026 (optional)" style="'+_TASK_IN+';flex:1 1 100%" onchange="taskPresetPick(this.value)" oninput="if(!this.value)taskPresetPick(\'\')">'
+    +'<datalist id="taskPresetDL">'+taskPresetList().map(x=>'<option value="'+esc(x.label).replace(/"/g,'&quot;')+'"></option>').join('')+'</datalist>'
+    +'<select id="taskKind" onchange="taskKindUi()" title="A plain task, or an item to farm" style="'+_TASK_IN+'"><option value="note">Task</option><option value="farm">Farm an item</option></select>'
+    +'<input id="taskItem" list="mpItemsDL" placeholder="Item to farm" oninput="taskItemInfo()" style="'+_TASK_IN+';display:none;flex:2 1 220px">'
+    +'<input id="taskNeed" type="number" min="1" value="1" title="How many" style="'+_TASK_IN+';display:none;width:4.2rem">'
     +'<input id="taskText" placeholder="What needs doing? e.g. buy reagents \u00b7 turn in a quest item \u00b7 bank the loot" style="'+_TASK_IN+';flex:2 1 280px" onkeydown="if(event.key===\'Enter\')taskAdd()">'
     +'<select id="taskChar" title="Which character it’s for" style="'+_TASK_IN+';flex:0 1 160px">'+(chs.length?chs.map(c=>'<option value="'+esc(c)+'"'+(c===sel?' selected':'')+'>'+esc(c)+'</option>').join(''):'<option value="">No characters loaded</option>')+'</select>'
     +'<select id="taskWhen" onchange="taskWhenUi()" style="'+_TASK_IN+'"><option value="login">every login on it</option><option value="zone">when it enters a zone\u2026</option><option value="date">at a date / time\u2026</option></select>'
     +'<input id="taskZone" list="mpZonesDL" placeholder="Zone" style="'+_TASK_IN+';display:none;flex:0 1 180px">'
     +'<input id="taskAt" type="datetime-local" style="'+_TASK_IN+';display:none">'
+    +'<select id="taskRepeat" title="When it\u2019s done, bring it back after\u2026" style="'+_TASK_IN+'"><option value="0">no repeat</option><option value="24">repeat daily</option><option value="72">every 3 days</option><option value="168">weekly</option></select>'
     +'<button class="btn primary" onclick="taskAdd()">Add task</button></div>'
+    +'<div id="taskInfo" style="font-size:.78rem;color:var(--text-muted);min-height:1em;margin:-.1rem 0 .2rem"></div>'
     +'<div id="taskErr" style="font-size:.78rem;color:#c03030;min-height:1em"></div>'
     +(open.length?groups:'<div style="margin-top:1rem;color:var(--text-muted);font-size:.88rem">No open tasks. Add one above and pick when you want to be reminded.</div>')
     +(done.length?'<details style="margin-top:1.2rem"><summary style="cursor:pointer;color:var(--text-muted);font-size:.82rem">Done ('+done.length+')</summary>'
-      +done.map(t=>'<div style="display:flex;gap:.6rem;padding:.3rem 0;font-size:.85rem;color:var(--text-muted)"><span style="flex:1;text-decoration:line-through">'+esc(t.char)+': '+esc(t.text)+'</span><a href="#" onclick="taskDone(\''+t.id+'\',false);return false" style="color:var(--gold-light)">\u21ba undo</a><a href="#" onclick="taskDelete(\''+t.id+'\');return false" style="color:var(--text-muted);text-decoration:none">\u2715</a></div>').join('')+'</details>':'')
+      +done.map(t=>'<div style="display:flex;gap:.6rem;padding:.3rem 0;font-size:.85rem;color:var(--text-muted)"><span style="flex:1;text-decoration:line-through">'+esc(t.char)+': '+esc(t.text)+'</span>'+(t.backAt?'<span title="Repeating task" style="white-space:nowrap">\u21bb back '+esc(taskFmt(t.backAt))+'</span>':'')+'<a href="#" onclick="taskDone(\''+t.id+'\',false);return false" style="color:var(--gold-light)">\u21ba undo</a><a href="#" onclick="taskDelete(\''+t.id+'\');return false" style="color:var(--text-muted);text-decoration:none">\u2715</a></div>').join('')+'</details>':'')
     +'</div>';
 }
 window.taskWhenUi=function(){ const w=document.getElementById('taskWhen').value; document.getElementById('taskZone').style.display=w==='zone'?'':'none'; document.getElementById('taskAt').style.display=w==='date'?'':'none'; };
 window.taskAdd=function(){
-  const g=id=>document.getElementById(id), err=g('taskErr'), text=g('taskText').value.trim(), ch=g('taskChar').value.trim(), when=g('taskWhen').value;
+  const g=id=>document.getElementById(id), err=g('taskErr'), ch=g('taskChar').value.trim(), when=g('taskWhen').value;
+  let text=g('taskText').value.trim();
   const zone=g('taskZone').value.trim(), atV=g('taskAt').value, at=atV?new Date(atV).getTime():0;
+  const kind=g('taskKind').value, item=g('taskItem').value.trim(), need=Math.max(1,parseInt(g('taskNeed').value,10)||1), rpt=parseInt(g('taskRepeat').value,10)||0;
+  const pend=window._taskPending||null;
+  if(kind==='farm'&&!item){ err.textContent='Type the item to farm.'; return; }
+  if(kind==='farm'&&!text) text='Farm '+(need>1?need+'\u00d7 ':'')+item;
+  if(!text&&pend) text=pend.text;
   if(!text){ err.textContent='Type what needs doing.'; return; }
   if(!ch){ err.textContent='Pick the character it\u2019s for.'; return; }
   if(when==='zone'&&!zone){ err.textContent='Pick the zone.'; return; }
   if(when==='date'&&!at){ err.textContent='Pick the date and time.'; return; }
   const name=taskChars().find(c=>_taskSame(c,ch))||ch.charAt(0).toUpperCase()+ch.slice(1);
-  _tasks.push({id:'t'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),text,char:name,when,zone:when==='zone'?zone:null,at:when==='date'?at:null,created:Date.now(),done:false});
+  const t={id:'t'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),text,char:name,when,zone:when==='zone'?zone:null,at:when==='date'?at:null,created:Date.now(),done:false};
+  if(rpt) t.repeat=rpt;
+  if(kind==='farm'){ t.kind='farm'; t.item=(typeof itemDB!=='undefined'&&Object.keys(itemDB).find(k=>k.toLowerCase()===item.toLowerCase()))||item; t.need=need; t.got=0; t.base=taskHeldBy(t.item,name); }
+  else if(pend&&pend.steps&&pend.steps.length){ t.kind='steps'; t.steps=pend.steps.map(x=>Object.assign({},x,{done:false})); t.src=pend.key; if(pend.wiki) t.wiki=pend.wiki; }
+  _tasks.push(t); window._taskPending=null;
   try{ localStorage.setItem('mp_task_char',name); }catch(e){}
-  tasksSave(); renderTasksPanel();
+  taskAutoCheck(); tasksSave(); renderTasksPanel();
 };
-window.taskDone=function(id,on){ const t=_tasks.find(x=>x.id===id); if(!t) return; t.done=!!on; t.doneAt=on?Date.now():null; if(on) delete t.ping; tasksSave(); if(activeTopView==='tasks') renderTasksPanel(); taskNudgeDrop(id); };
+window.taskDone=function(id,on){ const t=_tasks.find(x=>x.id===id); if(!t) return; if(on) taskFinish(t); else { t.done=false; t.doneAt=null; delete t.backAt; } if(on) delete t.ping; tasksSave(); if(activeTopView==='tasks') renderTasksPanel(); taskNudgeDrop(id); };
 window.taskDelete=function(id){ _tasks=_tasks.filter(x=>x.id!==id); tasksSave(); if(activeTopView==='tasks') renderTasksPanel(); taskNudgeDrop(id); };
 // reminders
 const _taskZoneSeen={};
 function taskZoneSeen(ch,zone){ const k=String(ch).toLowerCase(), prev=_taskZoneSeen[k]; _taskZoneSeen[k]=zone; if(prev!==undefined&&prev!==zone){ taskRemind(ch,'zone',zone); if(typeof sessionZoneActivity==='function') sessionZoneActivity(ch); } }   // only a real zone change, not the startup snapshot
 function taskRemind(ch,why,zone){
-  const list=tasksOpen().filter(t=>_taskSame(t.char,ch)&&(why==='login'?t.when==='login':(t.when==='zone'&&taskZoneMatch(t.zone,zone))));
+  const list=tasksOpen().filter(t=>_taskSame(t.char,ch)&&(why==='login'?t.when==='login':((t.when==='zone'&&taskZoneMatch(t.zone,zone))||(t.when!=='zone'&&taskStepZone(t)&&taskZoneMatch(taskStepZone(t),zone)))));
   if(!list.length) return;
   for(const t of list) t.ping=Date.now(); tasksSave();   // waiting on the red alert until done / closed
   taskNudge(list,why==='login'?ch+' logged in':ch+' is in '+zone);
@@ -16378,6 +16537,169 @@ function pingRender(){
 }
 window.taskPingClear=function(){ for(const t of _tasks) delete t.ping; tasksSave(); };
 setTimeout(pingRender,0);
+// ── Tasks v2 helpers ──
+const taskFmt=ts=>new Date(ts).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+function taskRepeatTag(t){ return t.repeat?' <span title="Comes back '+(t.repeat===24?'a day':t.repeat===168?'a week':Math.round(t.repeat/24)+' days')+' after it\u2019s done" style="font-size:.74rem;color:var(--gold-light)">\u21bb '+(t.repeat===24?'daily':t.repeat===168?'weekly':'every '+Math.round(t.repeat/24)+' days')+'</span>':''; }
+function taskFinish(t){ t.done=true; t.doneAt=Date.now(); delete t.ping; if(t.repeat) t.backAt=Date.now()+t.repeat*3600e3; else delete t.backAt; }
+function taskHeldBy(item,ch){ try{ const h=itemHoldings(item).holders.find(x=>_taskSame(x.char,ch)); return h?h.count:0; }catch(e){ return 0; } }
+function taskHeldAny(item){ try{ return itemHoldings(item).total>0; }catch(e){ return false; } }
+// item → where it drops, best chance first: [{mob, zone, lvl, rate}] from the P99 wiki mob pages (falls back to the item database)
+let _taskDropIx=null;
+function taskDropSources(item){
+  const W=wikiData('mobs'), key=String(item||'').toLowerCase(); let out=[];
+  if(W){ if(!_taskDropIx){ _taskDropIx=new Map(); for(const [mob,ents] of Object.entries(W.m)) for(const e of ents) for(const [ix,rate] of (e.lt||[])){ const n=String(W.it[ix]||'').toLowerCase(); if(!n) continue; let a=_taskDropIx.get(n); if(!a) _taskDropIx.set(n,a=[]); a.push({mob:e.n||mob,zone:e.z||'',lvl:e.l||'',rate:rate==null?null:+rate}); } }
+    out=(_taskDropIx.get(key)||[]).slice().sort((a,b)=>(!!b.zone-!!a.zone)||((b.rate==null?-1:b.rate)-(a.rate==null?-1:a.rate))); }
+  if(!out.length&&typeof itemDB!=='undefined'){ const k=Object.keys(itemDB).find(x=>x.toLowerCase()===key), d=k&&itemDB[k];
+    if(d&&d._from){ const ML=window.MOB_LEVELS; for(const m of String(d._from).split(/[;,]/).map(x=>x.trim()).filter(Boolean).slice(0,6)){ const e=ML&&ML.m?ML.m[m.replace(/\s*\([^)]*\)\s*$/,'').toLowerCase()]:null; out.push({mob:m,zone:e&&e[0]?ML.z[e[0][0]]||'':'',lvl:e&&e[0]?e[0][1]+'-'+e[0][2]:'',rate:null}); } } }
+  const seen=new Set(); return out.filter(x=>{ const k2=x.mob+'|'+x.zone; if(seen.has(k2)) return false; seen.add(k2); return true; });
+}
+function taskSrcText(src,n){ return src.slice(0,n||2).map(x=>esc(x.mob)+(x.zone?' in <b>'+esc(x.zone)+'</b>':'')+(x.rate!=null?' ('+x.rate+'%)':'')).join(' \u00b7 ')+(src.length>(n||2)?' \u00b7 +'+(src.length-(n||2))+' more':''); }
+// zones named in a step's text ("Travel to West Commonlands…")
+let _taskZoneNames=null;
+function taskZoneIn(text){
+  if(!text) return null;
+  if(!_taskZoneNames){ try{ _taskZoneNames=mpZoneList().filter(z=>z&&z.length>=5).map(z=>[z,z.toLowerCase().replace(/\s+-\s+/g,' ')]).sort((a,b)=>b[1].length-a[1].length); }catch(e){ _taskZoneNames=[]; } }
+  const t=String(text).toLowerCase().replace(/\s+-\s+/g,' '); const hit=_taskZoneNames.find(z=>t.includes(z[1])); return hit?hit[0]:null;
+}
+function taskIsZone(n){ try{ return !!(typeof zoneNode==='function'&&zoneNode(n)); }catch(e){ return false; } }
+function taskIsItem(n){ return typeof itemDB!=='undefined'&&Object.prototype.hasOwnProperty.call(itemDB,n)||!!(typeof itemDB!=='undefined'&&itemDB[n]); }
+function taskNextStep(t){ return t.kind==='steps'&&t.steps?t.steps.find(x=>!x.done&&!x.hdr)||null:null; }
+const taskRealSteps=t=>(t.steps||[]).filter(x=>!x.hdr);
+function taskStepZone(t){ if(t.kind==='farm') return t.when==='zone'?null:(t.fzone||null); const st=taskNextStep(t); return st&&st.zone||null; }
+// presets: [{key,label}] — common chores, the guide's quests, epics, flowers, the wiki quest list
+function taskPresetList(){
+  const out=[], add=(key,label)=>out.push({key,label});
+  add('common:farm','Farm an item\u2026'); add('common:restock','Restock / buy\u2026'); add('common:cap','Recharge the Leatherfoot cap');
+  add('common:bank','Bank the loot'); add('common:turnin','Turn in quest items'); add('common:rebind','Rebind');
+  try{ const seen=new Set(); for(const q of [].concat(QUEST_DB.critical||[],...Object.values(QUEST_DB.classes||{}))){ if(!q||!q.name||seen.has(q.name)) continue; seen.add(q.name); add('quest:'+q.name,'Quest: '+(q.shortName||q.name)); } }catch(e){}
+  const E=wikiData('epics'); if(E) for(const c of Object.keys(E).sort()) add('epic:'+c,'Epic: '+c);
+  try{ for(const fl of FLOWERS) add('flower:'+fl.c,'Flower: '+fl.c+' (+50 '+fl.resist+')'); }catch(e){}
+  const Q=wikiData('quests'); if(Q&&Q.q) for(const [t,q] of Object.entries(Q.q).sort((a,b)=>a[0].localeCompare(b[0]))) add('wiki:'+t,'Wiki quest: '+t+(q.z?' \u2014 '+q.z:'')+(q.lvl?' (lvl '+q.lvl+')':''));
+  window._taskPresetMap=Object.fromEntries(out.map(x=>[x.label,x.key]));
+  return out;
+}
+const _taskShort=x=>{ const t=String(x||'').trim(); return t.length>170?t.slice(0,167)+'\u2026':t; };
+function taskPresetBuild(key){
+  const i=key.indexOf(':'), type=key.slice(0,i), id=key.slice(i+1);
+  if(type==='quest'){ const q=[].concat(QUEST_DB.critical||[],...Object.values(QUEST_DB.classes||{})).find(x=>x&&x.name===id); if(!q) return null;
+    const steps=q.steps.filter(x=>x.desc||(x.items&&x.items.length)).map(x=>({x:x.desc||'Get '+x.items.join(', '),items:(x.items||[]).slice(),zone:taskZoneIn(x.desc)}));
+    return {key,text:q.shortName||q.name,steps,wiki:q.wiki||wikiUrl(q.shortName||q.name)}; }
+  if(type==='epic'){ const E=wikiData('epics'), e=E&&E[id]; if(!e) return null;
+    const steps=e.s.map(st=>{ if(!(st.i||[]).length&&String(st.x).length<=48&&!/\b(hail|give|kill|get|go|travel|receive|return|turn|talk|say|combine|loot|find|buy|retrieve|bring|hand|speak|camp|wait|use|put)\b/i.test(st.x)) return {x:st.x,items:[],zone:null,hdr:true};
+      const zs=(st.i||[]).filter(taskIsZone), its=(st.i||[]).filter(n=>!taskIsZone(n)&&taskIsItem(n)); return {x:st.x,items:its,zone:zs[0]||taskZoneIn(st.x)}; });
+    return {key,text:id+' epic \u2014 '+(e.r[e.r.length-1]||''),steps,wiki:wikiUrl(e.t)}; }
+  if(type==='flower'){ const fl=(typeof FLOWERS!=='undefined'?FLOWERS:[]).find(x=>x.c===id); if(!fl) return null;
+    const steps=[{x:'Get the '+FLOWER_DECK,items:[FLOWER_DECK],zone:'Plane of Mischief'}].concat(fl.cards.map(c=>({x:'Get '+c,items:[c],zone:'Plane of Mischief'})),[{x:'Combine the four cards in the deck',items:[],zone:null}]);
+    return {key,text:fl.c+' flower (+50 '+fl.resist+')',steps,wiki:wikiUrl('Deck of Spontaneous Generation Quest')}; }
+  if(type==='wiki'){ const Q=wikiData('quests'), q=Q&&Q.q&&Q.q[id]; if(!q) return null;
+    const steps=[{x:'Start: '+(q.g||'the quest giver')+' in '+(q.z||'?')+(q.lvl?' (lvl '+q.lvl+')':''),items:[],zone:q.z||null},{x:'Reward: '+((q.r||[]).join(', ')||'?'),items:(q.r||[]).slice(0,1),zone:null}];
+    return {key,text:id,steps,wiki:wikiUrl(id)}; }
+  return null;
+}
+window.taskKindUi=function(){ const k=document.getElementById('taskKind').value; document.getElementById('taskItem').style.display=k==='farm'?'':'none'; document.getElementById('taskNeed').style.display=k==='farm'?'':'none';
+  document.getElementById('taskText').placeholder=k==='farm'?'Note (optional) \u2014 e.g. for the ant potion':'What needs doing? e.g. buy reagents \u00b7 turn in a quest item \u00b7 bank the loot';
+  if(k==='farm'){ window._taskPending=null; taskItemInfo(); } else document.getElementById('taskInfo').innerHTML=''; };
+let _taskItemsDL=0;
+function taskItemsDL(){ if(typeof itemDB==='undefined') return; const n=Object.keys(itemDB).length; if(document.getElementById('mpItemsDL')&&_taskItemsDL===n) return;
+  let dl=document.getElementById('mpItemsDL'); if(!dl){ dl=document.createElement('datalist'); dl.id='mpItemsDL'; document.body.appendChild(dl); }
+  dl.innerHTML=Object.keys(itemDB).sort().map(z=>'<option value="'+esc(z).replace(/"/g,'&quot;')+'"></option>').join(''); _taskItemsDL=n; }
+window.taskItemInfo=function(){
+  const g=id=>document.getElementById(id), item=g('taskItem').value.trim(), info=g('taskInfo'); if(!info) return;
+  if(!item){ info.innerHTML=''; return; }
+  const src=taskDropSources(item);
+  if(!src.length){ info.innerHTML='No drop source found for \u201c'+esc(item)+'\u201d yet \u2014 the task still counts your loot.'; return; }
+  info.innerHTML='⚔ Drops from '+taskSrcText(src,3);
+  const cnt={}; for(const x of src) if(x.zone) cnt[x.zone]=(cnt[x.zone]||0)+1;
+  const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0], z=top&&(src.length<=3||top[1]*2>=src.length)?top[0]:null;
+  if(z&&g('taskWhen').value!=='date'){ g('taskWhen').value='zone'; g('taskZone').value=z; taskWhenUi(); }
+  else if(!z&&src.length>3) info.innerHTML+=' <span style="font-style:italic">\u2014 drops in many zones, so no zone reminder is set</span>';
+};
+window.taskPresetPick=function(label){
+  const g=id=>document.getElementById(id), info=g('taskInfo'); window._taskPending=null; if(info) info.innerHTML='';
+  const key=(window._taskPresetMap||{})[label]; if(!key) return;
+  const setWhen=(w,z)=>{ g('taskWhen').value=w; if(z) g('taskZone').value=z; taskWhenUi(); };
+  g('taskKind').value='note'; taskKindUi();
+  if(key==='common:farm'){ g('taskKind').value='farm'; taskKindUi(); g('taskItem').focus(); return; }
+  const common={'common:restock':'Restock ','common:cap':'Recharge the Leatherfoot cap \u2014 sell it to a merchant and buy it back','common:bank':'Bank the loot','common:turnin':'Turn in quest items','common:rebind':'Rebind at '};
+  if(common[key]!=null){ g('taskText').value=common[key]; setWhen('login'); g('taskText').focus(); return; }
+  const P=taskPresetBuild(key); if(!P){ if(info) info.textContent='That preset is still loading \u2014 try again in a moment.'; return; }
+  window._taskPending=P; g('taskText').value=P.text;
+  const z=(P.steps.find(x=>x.zone)||{}).zone; if(z&&/^wiki:/.test(key)) setWhen('zone',z); else setWhen('login');
+  const real=P.steps.filter(x=>!x.hdr), f0=real[0]||{x:''};
+  if(info) info.innerHTML='📋 '+real.length+' step'+(real.length>1?'s':'')+' \u2014 added as a checklist that ticks itself when the items are held, and reminds you when you enter the next step\u2019s zone \u00b7 first: '+esc(_taskShort(f0.x).slice(0,90));
+};
+// one-click: right-click a quest on the Quests tab
+window.taskQuestMenu=function(ev,key,ch){
+  ev.preventDefault(); ev.stopPropagation();
+  let m=document.getElementById('taskQMenu'); if(m) m.remove();
+  m=document.createElement('div'); m.id='taskQMenu';
+  m.style.cssText='position:fixed;z-index:10000;left:'+Math.min(ev.clientX,innerWidth-260)+'px;top:'+Math.min(ev.clientY,innerHeight-(ch?60:320))+'px;background:var(--surface);border:1px solid var(--border-glow);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.25);font-size:.85rem;min-width:220px';
+  // no character (Flowers panel): offer each of yours, ones already holding some of the items first
+  let who=ch?[ch]:taskChars();
+  if(!ch){ const P=taskPresetBuild(key), its=P?[].concat(...P.steps.map(x=>x.items||[])):[]; const n=c=>its.filter(i=>taskHeldBy(i,c)>0).length; who=who.map(c=>[c,n(c)]).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(x=>x[0]); }
+  if(!who.length){ showWatcherToast('📌 Load a character first.'); return false; }
+  m.innerHTML=(ch?'':'<div style="padding:.35rem .7rem;font-size:.72rem;color:var(--text-muted);border-bottom:1px solid var(--border)">📌 Make a task for\u2026</div>')
+    +'<div style="max-height:260px;overflow:auto">'+who.map(c=>'<div data-c="'+esc(c)+'" style="padding:.4rem .7rem;cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'+(ch?'📌 Make a task for ':'')+'<b>'+esc(c)+'</b></div>').join('')+'</div>';
+  m.querySelectorAll('[data-c]').forEach(el=>{ el.onclick=()=>{ m.remove(); taskFromPreset(key,el.dataset.c); }; });
+  document.body.appendChild(m);
+  setTimeout(()=>document.addEventListener('click',function off(){ const x=document.getElementById('taskQMenu'); if(x) x.remove(); document.removeEventListener('click',off); }),0);
+  return false;
+};
+window.taskFromPreset=function(key,ch){
+  const P=taskPresetBuild(key); if(!P){ showWatcherToast('📌 That quest is still loading \u2014 try again in a moment.'); return; }
+  const name=taskChars().find(c=>_taskSame(c,ch))||ch;
+  const z=(P.steps.find(x=>x.zone)||{}).zone;
+  const t={id:'t'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),text:P.text,char:name,when:/^wiki:/.test(key)&&z?'zone':'login',zone:/^wiki:/.test(key)&&z?z:null,at:null,created:Date.now(),done:false,kind:'steps',steps:P.steps.map(x=>Object.assign({},x,{done:false})),src:key,wiki:P.wiki};
+  _tasks.push(t); taskAutoCheck(); tasksSave();
+  const st=taskRealSteps(t).filter(x=>x.done).length;
+  showWatcherToast('📌 Task added for '+name+': '+P.text+' \u2014 '+taskRealSteps(t).length+' steps'+(st?' ('+st+' already done)':'')+'. Open Tasks to see it.');
+};
+window.taskStep=function(id,i,on){ const t=_tasks.find(x=>x.id===id); if(!t||!t.steps||!t.steps[i]) return; const st=t.steps[i]; st.done=!!on; st.off=!on; st.auto=false;
+  if(taskRealSteps(t).every(x=>x.done)) taskFinish(t); tasksSave(); renderTasksPanel(); };
+// farm progress + checklists: ticks from what your characters hold
+function taskAutoCheck(quiet){
+  let ch=false;
+  for(const t of tasksOpen()){
+    if(t.kind==='farm'){ const held=taskHeldBy(t.item,t.char); if(t.base==null){ t.base=held; ch=true; }
+      const prog=Math.max(t.got||0,held-(t.base||0)); if(prog!==(t.prog||0)){ t.prog=prog; ch=true; }
+      if(prog>=(t.need||1)){ taskFinish(t); ch=true; if(!quiet) showWatcherToast('📌 Done: '+t.text+' ('+t.char+')'); } }
+    else if(t.kind==='steps'&&t.steps){ for(const st of t.steps) if(!st.done&&!st.off&&st.items&&st.items.length&&st.items.every(taskHeldAny)){ st.done=true; st.auto=true; ch=true; }
+      if(taskRealSteps(t).every(x=>x.done)){ taskFinish(t); ch=true; } }
+  }
+  if(ch){ try{localStorage.setItem('mp_tasks',JSON.stringify(_tasks));}catch(e){} tasksNavCount(); }
+  return ch;
+}
+function taskOnLoot(msg){
+  const it=String(msg.item||'').toLowerCase(); let hit=null;
+  for(const t of tasksOpen()) if(t.kind==='farm'&&_taskSame(t.char,msg.charName)&&String(t.item||'').toLowerCase()===it){ t.got=(t.got||0)+1; t.prog=Math.max(t.prog||0,t.got); hit=t; }
+  if(!hit) return;
+  if(hit.prog>=(hit.need||1)){ taskFinish(hit); showWatcherToast('📌 Done: '+hit.text+' ('+hit.char+')'); }
+  else showWatcherToast('📌 '+hit.item+' '+hit.prog+'/'+hit.need+' ('+hit.char+')');
+  tasksSave(); if(typeof activeTopView!=='undefined'&&activeTopView==='tasks') renderTasksPanel();
+}
+function taskExtraHtml(t){
+  if(t.kind==='farm'){ const src=taskDropSources(t.item), need=t.need||1, prog=Math.min(need,t.prog||0);
+    return '<div style="font-size:.76rem;margin-top:.2rem"><b style="color:var(--gold-light)">⚔ '+prog+'/'+need+'</b> <a href="'+wikiUrl(t.item)+'" target="_blank" rel="noopener" style="color:var(--text);border-bottom:1px dotted var(--gold);text-decoration:none">'+esc(t.item)+'</a>'
+      +(src.length?' <span style="color:var(--text-muted)">\u00b7 drops from '+taskSrcText(src,2)+'</span>':'')+'</div>'; }
+  if(t.kind==='steps'&&t.steps){ const real=taskRealSteps(t), nd=real.filter(x=>x.done).length, nx=t.steps.findIndex(x=>!x.done&&!x.hdr);
+    const rows=t.steps.map((st,i)=>st.hdr?'<div style="font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.05em;color:var(--gold);margin-top:.35rem">'+esc(st.x)+'</div>':'<div style="display:flex;gap:.45rem;align-items:flex-start;padding:.18rem 0;'+(i===nx?'background:rgba(184,137,43,.10);':'')+(st.done?'opacity:.6;':'')+'">'
+      +'<input type="checkbox" '+(st.done?'checked':'')+' onclick="taskStep(\''+t.id+'\','+i+',this.checked)" style="margin-top:.15rem;cursor:pointer" title="'+(st.auto?'Ticked because one of your characters holds the item':'Tick when done')+'">'
+      +'<div style="flex:1;min-width:0;font-size:.8rem" title="'+esc(st.x).replace(/"/g,'&quot;')+'">'+(i===nx?'\u25b6 ':'')+esc(_taskShort(st.x))
+      +(st.items&&st.items.length?'<div style="font-size:.72rem;color:var(--text-muted)">'+st.items.map(n=>(taskHeldAny(n)?'<span style="color:#3a7a3a">\u2714 ':'<span>')+esc(n)+'</span>').join(' \u00b7 ')+'</div>':'')
+      +(st.zone&&!st.done?'<div style="font-size:.7rem;color:var(--text-muted)">📍 '+esc(st.zone)+'</div>':'')+'</div></div>').join('');
+    return '<details style="margin-top:.25rem"'+(real.length<=8?' open':'')+'><summary style="cursor:pointer;font-size:.76rem;color:var(--text-muted)"><b style="color:var(--gold-light)">'+nd+'/'+real.length+' steps</b>'+(nx>=0?' \u00b7 next: '+esc(_taskShort(t.steps[nx].x).slice(0,70)):'')
+      +(t.wiki?' \u00b7 <a href="'+t.wiki+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--gold-light)">wiki</a>':'')+'</summary><div style="margin-top:.2rem">'+rows+'</div></details>'; }
+  return '';
+}
+// repeating tasks come back; checklists / farm progress refresh from inventories
+setInterval(()=>{
+  const back=_tasks.filter(t=>t.done&&t.backAt&&t.backAt<=Date.now());
+  for(const t of back){ t.done=false; t.doneAt=null; delete t.backAt; t.got=0; t.prog=0; if(t.kind==='farm') t.base=taskHeldBy(t.item,t.char); if(t.steps) for(const st of t.steps){ st.done=false; st.off=false; st.auto=false; } t.ping=Date.now(); }
+  const ch=taskAutoCheck();
+  if(back.length){ tasksSave(); taskNudge(back,'Back again'); }
+  else if(ch) tasksSave();
+  if((back.length||ch)&&typeof activeTopView!=='undefined'&&activeTopView==='tasks') renderTasksPanel();
+},60e3);
 function taskNudgeDrop(id){ const d=document.getElementById('taskNudge'); if(!d) return; const r=d.querySelector('[data-task="'+id+'"]'); if(r) r.remove(); if(!d.querySelector('[data-task]')) d.remove(); }
 
 // ── Leatherfoot Raider Skullcap charges (electron/ipc/captrack.js; owner, 2026-10-12) ──
