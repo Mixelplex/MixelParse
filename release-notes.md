@@ -1,12 +1,20 @@
-## 1.7.24
+## 1.7.25
+
+- **🧥 Outfitter: more builds** — Build now also has **Max HP**, **Max Mana**, **Max HP + Mana**, **Max WIS**, **Max INT** and **Powerlevel**: the fastest weapon you have (one landed hit is all you need), your best haste item counted up to the level's haste cap, and the most HP everywhere else.
+- **👥 Outfitter: Gear from…** — choose which characters the kit may take gear from: their bags and bank, and their worn gear too. Bankers' worn gear counts by default; your playing characters' doesn't.
+- **🖱 Outfitter: right-click a row** — swap for another item you have, pin it to the slot, never use an item on that character, or jump to the Gear Planner for upgrades. Class, race and level you pick by hand now survive a restart.
+- **📝 Class and race from /who** — a /who of any of your characters, typed on any of them, fills in an empty class and race, also from your older logs. The Outfitter asks for a class instead of showing a made-up one.
+- **Fix — Auto-Detect:** the Statue of Rallos Zek and the Avatar of War are only called Strong (auto-added) when a Castle player or one of your characters was fighting it; another guild's kill with everyone collecting the faction hit now comes up as a prompt. Castle roster = guild chat + OpenDKP + your characters.
+- **Fix — Leveling:** levels where the mobs were far above the character (power-levelling) no longer suggest zones like Castle Mistmoore at level 2, and To level 60 estimates the levels with no data instead of counting them as zero.
+- **Fix:** Icicle Circlet is NO DROP.
+
+Everything from 1.7.24 and earlier is included:
 
 - **📌 Tasks: farm, repeat, presets** — **Farm an item**: type the item and how many; Tasks shows where it drops (best chance first), reminds you when you zone into the drop zone, counts your loot and finishes itself when you have enough. Tasks can **repeat** daily, every 3 days or weekly. **Start from a preset**: common chores (restock, recharge the Leatherfoot cap, bank the loot…), the guide's quests (Reaper, Plane of Sky, Dozekar, JBoots), every class epic, the Plane of Mischief flowers and the P99 wiki quest list. Quests, epics and flowers become a checklist that ticks itself when one of your characters holds the items, and reminds you in the next step's zone.
 - **🖱 Right-click a quest or flower** — on the Quests tab, right-click a quest, your epic or a wiki quest (or a flower on the Flowers panel) to make a task with its steps.
 - **🧭 Travel** — new Travel tab: where to port and how long the run takes from there, for 78 zones — typical and best times, the route on foot, and the port landings seen. Search by name or short form (kael, loio, guk).
 - **🧥 Outfitter builds** — Build: Class default, **Proc** (DEX first, HP close behind; your proc weapon keeps its slot) or **Max DEX**. Items: Owned only, or **Owned + buy** with a per-item budget and a shopping list. **Include NO DROP (to farm)** adds drops you'd farm yourself, with where they drop or the quest that gives them; raid drops stay out until the character is level 46. On a character's tab its own worn and NO DROP gear always counts.
 - **Fix:** a farm or checklist task no longer guesses a shop from its name ("Farm Burnt Wood Staff" showed a merchant for "Staff").
-
-Everything from 1.7.23 and earlier is included:
 
 - **👥 New characters** — Settings → Characters → New characters: choose **Exclude until I add them** and a bot, mule or someone else's character whose inventory or log turns up on your PC goes straight to Excluded instead of getting a tab and a line in Last Zone Location. Characters you already have aren't affected; click **Character** next to one in Settings to keep it.
 - **🚫 Exclude or bank from Last Zone Location** — right-click a name in Last Zone Location → Add to excluded or Add to bankers.

@@ -968,7 +968,7 @@ const RE_RT_TICK     = /^\[.+?\] (\w+) (tells the guild|says out of character|te
 const RE_RT_FACTION  = /^\[.+?\] Your faction standing with (.+?) (?:could not possibly get any worse|got worse)\.$/;
 // Boss specials in melee range: rampage / flurry. Low volume, and only roster bosses count, so a
 // long fight with the tick mid-fight (Avatar of War 2026-09-29) still has evidence.
-const RE_RT_FIGHT    = /^\[.+?\] (.+?) (?:goes on a RAMPAGE|executes a FLURRY of attacks on .+)!$/;
+const RE_RT_FIGHT    = /^\[.+?\] (.+?) (?:goes on a RAMPAGE|executes a FLURRY of attacks on (.+))!$/;   // [2] = who the flurry is on
 const RE_RT_ENRAGE   = /^\[.+?\] (.+?) has become ENRAGED\.$/;
 const RE_RT_SLAIN    = /^\[.+?\] (.+?) has been slain by .+!$/;
 const RE_RT_YOUSLAIN = /^\[.+?\] You have slain (.+)!$/;
@@ -1006,7 +1006,7 @@ function raidSignal(line, charName) {
   if ((m = RE_RT_SLAIN.exec(line)) || (m = RE_RT_YOUSLAIN.exec(line))) return _rtGeneric(m[1]) ? null : { type:'raidEvidence', charName, kind:'slain', mob:m[1], ts };
   if ((m = RE_RT_LAND.exec(line)))   return { type:'raidEvidence', charName, kind:'land', sub:RT_LAND_KIND[m[2]], mob:m[1], ts };
   if ((m = RE_RT_FACTION.exec(line))) return { type:'raidEvidence', charName, kind:'faction', mob:m[1], ts };
-  if ((m = RE_RT_FIGHT.exec(line)))  return _rtGeneric(m[1]) ? null : { type:'raidEvidence', charName, kind:'fight', mob:m[1], ts };
+  if ((m = RE_RT_FIGHT.exec(line)))  return _rtGeneric(m[1]) ? null : { type:'raidEvidence', charName, kind:'fight', mob:m[1], target: m[2] || null, ts };
   if ((m = RE_RT_SAY.exec(line)))   return _rtGeneric(m[1]) || RE_RT_AMBIENT.test(m[2]) ? null : { type:'raidEvidence', charName, kind:'say', mob:m[1], ts };
   if ((m = RE_RT_CALL.exec(line)) && RE_RT_CALLKIND.test(m[3])) return { type:'raidEvidence', charName, kind:'call', text:m[3], poster:m[1], channel:m[2], ts };
   return null;
@@ -1396,8 +1396,9 @@ function processLogLine(line, charName) {
     broadcast({ type: 'levelUp', charName, level: parseInt(_lvlUp[1], 10) });
   }
   // /who of yourself → class (from the title) + race for the character sheet; your own death → the sheet reminder
+  if (line.indexOf(' tells the guild, ') > 0) { const _g = RE_GUILD_SPEAKER.exec(line); if (_g) ((_guildSpeakers[charName] = _guildSpeakers[charName] || {})[_g[1]] = Date.now()); }
   const _who = RE_WHO_SELF.exec(line);
-  if (_who && _who[3].toLowerCase() === String(charName).toLowerCase()) broadcast({ type: 'whoSelf', charName, level: +_who[1], title: _who[2].trim(), race: _who[4].trim() });
+  if (_who && (_who[3].toLowerCase() === String(charName).toLowerCase() || ownNames().has(_who[3].toLowerCase()))) broadcast({ type: 'whoSelf', charName: _who[3], level: +_who[1], title: _who[2].trim(), race: _who[4].trim() });   // you, or another of your characters seen from this one
   const _died = RE_SELF_DEATH.exec(line);
   if (_died) broadcast({ type: 'selfDeath', charName, by: _died[1] || null });
   // Leatherfoot Raider Skullcap — a use (instant trip to West Commonlands) or a recharge (sold + bought back)
@@ -2366,20 +2367,39 @@ function _vpAdd(map, e, item) {
   if (!o) { map[item] = { lo: e.lo, hi: e.hi, n: e.n, cp: e.cp, ts: e.ts }; return; }
   o.lo = Math.min(o.lo, e.lo); o.hi = Math.max(o.hi, e.hi); o.n += e.n; if ((e.ts || 0) >= (o.ts || 0)) { o.cp = e.cp; o.ts = e.ts; }
 }
+// guild-chat speakers heard by each of your logs: {logChar: {speaker: lastSeenMs}} (backfill + live) — the "current roster"
+const RE_GUILD_SPEAKER = /^\[[^\]]+\] ([A-Z][a-z]+) tells the guild, /;
+const _guildSpeakers = {};
+function guildRoster(chars, days) {
+  const since = Date.now() - (days || 90) * 864e5, want = new Set((chars || []).map(c => String(c).toLowerCase())), out = new Set();
+  for (const [c, sp] of Object.entries(_guildSpeakers)) { if (want.size && !want.has(c.toLowerCase())) continue; for (const [n, t] of Object.entries(sp)) if (t >= since) out.add(n); }
+  broadcast({ type: 'guildRoster', names: [...out], at: Date.now() });
+}
+// your characters: anyone with a log (eqlog_<Name>_…) or an inventory export (<Name>-Inventory.txt); refreshed every 5 min
+let _ownNames = null, _ownNamesAt = 0;
+function ownNames() {
+  if (_ownNames && Date.now() - _ownNamesAt < 5 * 60e3) return _ownNames;
+  const set = new Set();
+  try { if (_config && _config.logDir) for (const f of fs.readdirSync(_config.logDir)) { const m = f.match(/^eqlog_(.+?)_P1999/i); if (m) set.add(m[1].toLowerCase()); } } catch {}
+  try { if (_config && _config.logDir) for (const f of fs.readdirSync(path.dirname(_config.logDir))) { const m = f.match(/^([A-Za-z]+)-Inventory\.txt$/i); if (m) set.add(m[1].toLowerCase()); } } catch {}
+  _ownNames = set; _ownNamesAt = Date.now(); return set;
+}
+
 async function capBackfill(force) {
   if (_capScanRunning || !_config || !_config.logDir) return;
   _capScanRunning = true;
   try {
     const cacheFp = _logPosPath ? path.join(path.dirname(_logPosPath), 'cap-cache.json') : null;
     let cache = {}; if (cacheFp && !force) { try { cache = JSON.parse(fs.readFileSync(cacheFp, 'utf8')); } catch {} }
-    const results = {}, next = {}, prices = {};
+    const results = {}, next = {}, prices = {}, whos = {};
     for (const d of [_config.logDir, path.join(_config.logDir, 'archive')]) {
       let names = []; try { names = fs.readdirSync(d); } catch { continue; }
       for (const f of names) {
         const c = (f.match(/^eqlog_(.+?)_P1999Green.*\.(?:txt|old)$/i) || [])[1]; if (!c) continue;
         const fp = path.join(d, f); let st; try { st = fs.statSync(fp); } catch { continue; }
         const hit = cache[fp]; let last = null, pr = {};
-        if (hit && hit.size === st.size && hit.mtime === st.mtimeMs && hit.prices) { last = hit.last; pr = hit.prices; }
+        let who = {}, gs = {}; const own = ownNames();
+        if (hit && hit.size === st.size && hit.mtime === st.mtimeMs && hit.prices && hit.whoV === 3) { last = hit.last; pr = hit.prices; who = hit.who || {}; gs = hit.gs || {}; }
         else {
           const tr = capTrack.createTracker();
           await new Promise(resolve => {
@@ -2387,11 +2407,15 @@ async function capBackfill(force) {
             rl.on('line', line => {
               const e = tr.feed(line); if (e && (!last || e.ts >= last.ts)) last = e;
               if (line.indexOf("tells you, 'I'll give you ") > 0) { const q = capTrack.vendorQuote(line); if (q) _vpAdd(pr, { lo: q.cp, hi: q.cp, n: 1, cp: q.cp, ts: q.ts }, q.item); }
+              if (line.indexOf(' tells the guild, ') > 0) { const g = RE_GUILD_SPEAKER.exec(line); if (g) { const gt = capTrack.lineTs(line); if (gt && (!gs[g[1]] || gt > gs[g[1]])) gs[g[1]] = gt; } }
+              if (line.indexOf('] [') > 0) { const w = RE_WHO_SELF.exec(line); if (w && own.has(w[3].toLowerCase())) who[w[3]] = { level: +w[1], title: w[2].trim(), race: w[4].trim(), ts: capTrack.lineTs(line) }; }   // a /who of any of your characters, last one wins
             });
             rl.on('close', resolve); rl.on('error', resolve);
           });
         }
-        next[fp] = { size: st.size, mtime: st.mtimeMs, last, prices: pr };
+        next[fp] = { size: st.size, mtime: st.mtimeMs, last, prices: pr, who, gs, whoV: 3 };
+        { const tgt = _guildSpeakers[c] = _guildSpeakers[c] || {}; for (const [n, t] of Object.entries(gs)) if (!tgt[n] || t > tgt[n]) tgt[n] = t; }
+        for (const [n, w] of Object.entries(who)) if (!whos[n] || (w.ts || 0) >= (whos[n].ts || 0)) whos[n] = w;
         if (last && (!results[c] || last.ts > results[c].ts)) results[c] = last;
         for (const [item, e] of Object.entries(pr)) _vpAdd(prices, e, item);
       }
@@ -2399,6 +2423,7 @@ async function capBackfill(force) {
     if (cacheFp) { try { fs.writeFileSync(cacheFp, JSON.stringify(next), 'utf8'); } catch {} }
     broadcast({ type: 'capScanResult', results, scannedAt: Date.now() });
     broadcast({ type: 'vendorPrices', prices });   // what merchants have offered you, per item (copper): lo / hi / n / last
+    broadcast({ type: 'whoScan', whos });   // the last /who of each of your characters, from any of your logs: class title, race, level
     log(`[CAP] ${Object.keys(results).length} character(s) with a cap use / recharge in the logs`);
   } catch (e) { err('[CAP]', e.message); }
   finally { _capScanRunning = false; }
@@ -2418,6 +2443,8 @@ function command(cmd, args) {
     scanSkillsAllLogs();
   } else if (cmd === 'scanKillCounts') {
     scanKillCountsAllLogs(args && args.chars);
+  } else if (cmd === 'guildRoster') {
+    guildRoster(args && args.chars, args && args.days);
   } else if (cmd === 'scanCaps') {
     capBackfill(true);
   } else if (cmd === 'scanLeveling') {
