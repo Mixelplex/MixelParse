@@ -2669,7 +2669,8 @@ function applyItemStatOverrides(){
 // (P99-verified; user-directed hardcode). Matched by normalized name so
 // backtick/apostrophe and case variants all catch. NO DROP only — LORE left
 // to whatever the CSV carries (e.g. Di'Zok Signet already imports as LORE).
-const _HARDCODE_NODROP=new Set(['dizok signet of service','regal band of bathezid','spirit wracked cord']);
+// Icicle Circlet (Wizard Skyshrine cap): the wiki still calls it droppable (a past P99 mistake) — NO DROP in game (owner, 2026-10-16).
+const _HARDCODE_NODROP=new Set(['dizok signet of service','regal band of bathezid','spirit wracked cord','icicle circlet']);
 function _normItemNm(n){return String(n||'').toLowerCase().replace(/[`'\u2019]/g,'').replace(/\s+/g,' ').trim();}
 function applyPricelessPrimalFlags(){
   for(const name of Object.keys(itemDB)){
@@ -3127,7 +3128,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
   });
 });
 document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subTravel').style.display=activeSub==='travel'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='travel')renderTravelPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();maybeShowHelp('sub_'+activeSub);});});
-function refresh(){buildTabs();renderView();saveState();renderNetworthBar();if(typeof activeTopView!=='undefined'&&activeTopView==='parking'&&typeof renderParkingPanel==='function')renderParkingPanel();}
+function refresh(){if(typeof whoPendingApply==='function')whoPendingApply();buildTabs();renderView();saveState();renderNetworthBar();if(typeof activeTopView!=='undefined'&&activeTopView==='parking'&&typeof renderParkingPanel==='function')renderParkingPanel();}
 function renderOnly(){buildTabs();renderView();}
 function renderView(){if(activeTopView&&activeTopView!=='characters')return;const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subTravel').style.display=activeSub==='travel'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderCityBars();renderFoodDrinkPanel();applyPanelLayout();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='travel')renderTravelPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();}
 
@@ -5666,16 +5667,18 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.24',
+  version:'1.7.25',
   date:'October 2026',
   features:[
-    ['&#128204; Tasks: farm, repeat, presets','<b>Farm an item</b>: type the item and how many &mdash; Tasks shows where it drops (best chance first), reminds you when you zone into the drop zone, counts your loot and finishes itself when you have enough. Tasks can <b>repeat</b> daily, every 3 days or weekly. <b>Start from a preset</b>: common chores (restock, recharge the Leatherfoot cap, bank the loot&hellip;), the guide&rsquo;s quests (Reaper, Plane of Sky, Dozekar, JBoots), every class epic, the Plane of Mischief flowers and the P99 wiki quest list. Quests, epics and flowers become a checklist that ticks itself when one of your characters holds the items, and reminds you in the next step&rsquo;s zone.'],
-    ['&#128433; Right-click a quest or flower','On the <b>Quests</b> tab, right-click a quest, your epic or a wiki quest &mdash; or a flower on the Flowers panel &mdash; to make a task with its steps.'],
-    ['&#129517; Travel','New <b>Travel</b> tab: where to port and how long the run takes from there, for 78 zones &mdash; typical and best times, the route on foot, and the port landings seen. Search by name or short form (kael, loio, guk).'],
-    ['&#129509; Outfitter builds','<b>Build</b>: Class default, <b>Proc</b> (DEX first, HP close behind &mdash; your proc weapon keeps its slot) or <b>Max DEX</b>. <b>Items</b>: Owned only, or <b>Owned + buy</b> with a per-item budget and a shopping list. <b>Include NO DROP (to farm)</b> adds drops you&rsquo;d farm yourself with where they drop or the quest that gives them; raid drops stay out until the character is level 46. On a character&rsquo;s tab its own worn and NO DROP gear always counts.'],
+    ['&#129509; Outfitter: more builds','<b>Build</b> now also has <b>Max HP</b>, <b>Max Mana</b>, <b>Max HP + Mana</b>, <b>Max WIS</b>, <b>Max INT</b> and <b>Powerlevel</b> &mdash; the fastest weapon you have (one landed hit is all you need), your best haste item counted up to the level&rsquo;s haste cap, and the most HP everywhere else.'],
+    ['&#128101; Outfitter: Gear from&hellip;','Choose which characters the kit may take gear from &mdash; their bags and bank, and their worn gear too. Bankers&rsquo; worn gear counts by default; your playing characters&rsquo; doesn&rsquo;t.'],
+    ['&#128433; Outfitter: right-click a row','Swap for another item you have, pin it to the slot, never use an item on that character, or jump to the Gear Planner for upgrades. Class, race and level you pick by hand now survive a restart.'],
+    ['&#128221; Class and race from /who','A /who of any of your characters, typed on any of them, fills in an empty class and race &mdash; also from your older logs. The Outfitter asks for a class instead of showing a made-up one.'],
   ],
   fixes:[
-    ['Tasks','A farm or checklist task no longer guesses a shop from its name (&ldquo;Farm Burnt Wood Staff&rdquo; showed a merchant for &ldquo;Staff&rdquo;).'],
+    ['Auto-Detect','The Statue of Rallos Zek and the Avatar of War are only called Strong (auto-added) when a Castle player or one of your characters was fighting it &mdash; another guild&rsquo;s kill with everyone collecting the faction hit now comes up as a prompt. Castle roster = guild chat + OpenDKP + your characters.'],
+    ['Leveling','Levels where the mobs were far above the character (power-levelling) no longer suggest zones like Castle Mistmoore at level 2, and To level 60 estimates the levels with no data instead of counting them as zero.'],
+    ['Items','Icicle Circlet is NO DROP.'],
   ],
 };
 function showWhatsNew(){
@@ -8263,6 +8266,9 @@ window.applyDBToChar    = applyDBToChar;
           }
         }
         if(msg.type === 'whoSelf'){ sheetFromWho(msg); }
+        if(msg.type === 'guildRoster'&&Array.isArray(msg.names)){ _rkdGuildChat=new Set(msg.names.map(n=>String(n).toLowerCase())); }
+        if(msg.type === 'capScanResult'&&typeof rkdRosterRefresh==='function'){ setTimeout(rkdRosterRefresh,500); }   // the backfill just filled the guild-chat speakers
+        if(msg.type === 'whoScan'&&msg.whos){ for(const [cn,w] of Object.entries(msg.whos)) sheetFromWho(Object.assign({charName:cn,backfill:true},w)); }
         if(msg.type === 'capEvent'){ capOnEvent(msg); }
         if(msg.type === 'vendorPrices'){ vpOnScan(msg); }
         if(msg.type === 'vendorPrice'){ vpOnQuote(msg); }
@@ -10289,7 +10295,8 @@ const OUTFIT_CLASS_ABBR={'Bard':'BRD','Cleric':'CLR','Druid':'DRU','Enchanter':'
 const OUTFIT_SLOT_SEQ=[['PRIMARY',1],['SECONDARY',1],['RANGE',1],['EAR',2],['FINGERS',2],['WRIST',2],['HEAD',1],['FACE',1],['NECK',1],['SHOULDERS',1],['ARMS',1],['BACK',1],['HANDS',1],['CHEST',1],['LEGS',1],['FEET',1],['WAIST',1],['AMMO',1]];
 let _outfit={cls:'Rogue',race:'Dwarf',deity:'',level:1,includeEquipped:false};
 const _OUTFIT_DEFAULT={cls:'Rogue',race:'Dwarf',deity:'',level:1};
-let _outfitOv={};   // per character tab: the fields set by hand (the rest follow Character Stats)
+let _outfitOv=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_outfit_ov')||'{}')||{}; }catch(e){ return {}; } })();
+function outfitOvSave(){ try{ localStorage.setItem('mp_outfit_ov',JSON.stringify(_outfitOv)); }catch(e){} }   // per character tab: the fields set by hand (the rest follow Character Stats)
 
 
 // Worn-effect scoring for the Outfitter (PROC_DB's sibling). Keyed by EFFECT
@@ -10357,6 +10364,31 @@ function outfitSlotMatch(db,slot,cls){
   if(slot==='SECONDARY')return slots.includes('SECONDARY')||slots.includes('ONEHANDER')||slots.includes('SHIELD');
   return slots.includes(slot);
 }
+// which characters the kit may take gear from: {use: items in bags / bank, worn: their equipped gear too}
+let _outfitChars=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_outfit_chars')||'{}')||{}; }catch(e){ return {}; } })();
+function outfitCharSrc(cn){ const v=_outfitChars[String(cn).toLowerCase()]||{}; return {use:v.use!==false, worn:v.worn===true||(v.worn==null&&v.use!==false&&isBanker(cn))}; }   // a banker's worn gear is storage: counts unless unticked
+window.outfitCharSet=function(cn,k,on){
+  const names=cn==='*'?charNames().filter(n=>!isExcludedChar(n)):[cn];
+  for(const n of names){ const key=String(n).toLowerCase(), v=Object.assign(outfitCharSrc(n),_outfitChars[key]||{}); v[k]=!!on; if(k==='worn'&&on) v.use=true; if(k==='use'&&!on) v.worn=false; _outfitChars[key]=v; }
+  try{ localStorage.setItem('mp_outfit_chars',JSON.stringify(_outfitChars)); }catch(e){}
+  window._outfitSrcOpen=true; renderOutfitterPanel();
+};
+function outfitCharSrcHtml(){
+  const names=charNames().filter(n=>!isExcludedChar(n)).sort((a,b)=>(a===activeTab?-1:b===activeTab?1:0)||a.localeCompare(b));
+  const src=names.map(n=>[n,outfitCharSrc(n)]), nUse=src.filter(([n,v])=>v.use||n===activeTab).length, nWorn=src.filter(([n,v])=>v.worn&&n!==activeTab).length;
+  const cb=(n,k,on,dis)=>'<input type="checkbox" '+(on?'checked ':'')+(dis?'disabled ':'')+'onchange="outfitCharSet(\''+esc(n).replace(/\\/g,'\\\\')+'\',\''+k+'\',this.checked)" style="cursor:pointer">';
+  const rows=src.map(([n,v])=>{ const me=n===activeTab;
+    return '<tr><td style="padding:.15rem .4rem;white-space:nowrap">'+(isBanker(n)?'🏦 ':'')+esc(n)+(me?' <span style="color:var(--text-muted);font-size:.72rem">(this tab \u2014 always)</span>':'')+'</td>'
+      +'<td style="text-align:center">'+cb(n,'use',v.use||me,me)+'</td><td style="text-align:center">'+cb(n,'worn',v.worn||me,me)+'</td></tr>'; }).join('');
+  return '<details id="outfitSrcDD" style="position:relative"'+(window._outfitSrcOpen?' open':'')+' ontoggle="window._outfitSrcOpen=this.open">'
+    +'<summary style="list-style:none;cursor:pointer;font-size:.76rem;color:var(--text-muted);border:1px solid var(--border);border-radius:3px;padding:.25rem .45rem;background:var(--surface2);white-space:nowrap" title="Which characters\u2019 gear the kit may use">Gear from: '+nUse+' of '+names.length+' \u00b7 worn from '+nWorn+' \u25be</summary>'
+    +'<div style="position:absolute;z-index:50;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border-glow);border-radius:4px;box-shadow:0 4px 14px rgba(0,0,0,.25);padding:.45rem .5rem;min-width:300px;max-height:380px;overflow:auto">'
+    +'<table style="border-collapse:collapse;font-size:.8rem;width:100%"><thead><tr style="color:var(--text-muted);font-size:.7rem"><th style="text-align:left;padding:.1rem .4rem">Character</th><th style="padding:.1rem .4rem" title="Items in their bags and bank">Items</th><th style="padding:.1rem .4rem" title="What they\u2019re wearing (they\u2019d have to take it off)">Worn too</th></tr>'
+    +'<tr style="font-size:.72rem"><td style="padding:.1rem .4rem;color:var(--text-muted)">All characters</td><td style="text-align:center"><a href="#" onclick="outfitCharSet(\'*\',\'use\',true);return false" style="color:var(--gold-light)">all</a> \u00b7 <a href="#" onclick="outfitCharSet(\'*\',\'use\',false);return false" style="color:var(--gold-light)">none</a></td><td style="text-align:center"><a href="#" onclick="outfitCharSet(\'*\',\'worn\',true);return false" style="color:var(--gold-light)">all</a> \u00b7 <a href="#" onclick="outfitCharSet(\'*\',\'worn\',false);return false" style="color:var(--gold-light)">none</a></td></tr></thead>'
+    +'<tbody>'+rows+'</tbody></table><div style="font-size:.7rem;color:var(--text-muted);margin-top:.3rem">Bankers’ worn gear counts unless you untick it. Excluded characters never count. NO DROP gear only counts on the character on this tab.</div></div></details>';
+}
+// close the list on a click outside it
+document.addEventListener('click',e=>{ const d=document.getElementById('outfitSrcDD'); if(d&&d.open&&e.target.isConnected&&!d.contains(e.target)){ d.open=false; window._outfitSrcOpen=false; } });
 function outfitBuildStock(includeEquipped){
   const stock=new Map();let nodropSkipped=0,rowCount=0;
   for(const [cn,items] of Object.entries(typeof chars!=='undefined'?chars:{})){
@@ -10364,10 +10396,12 @@ function outfitBuildStock(includeEquipped){
     // you have hidden produces a kit you cannot actually assemble. Consistent
     // with the Gear Planner ownership hints, which already skip excluded toons.
     if(isExcludedChar(cn))continue;
+    const _src=outfitCharSrc(cn);
+    if(!_src.use&&cn!==activeTab)continue;   // left out in "Gear from…"
     for(const it of (items||[])){
       const lt=locationType(it.location||'');
       const equipped=lt==='equipped';
-      if(equipped&&!includeEquipped&&cn!==activeTab)continue;   // the character you're on: its own worn gear always counts
+      if(equipped&&!(_src.worn||includeEquipped)&&cn!==activeTab)continue;   // the character you're on: its own worn gear always counts
       const db=itemDBGet(it.name);
       if(!db)continue;
       if(db._nodrop&&cn!==activeTab){nodropSkipped++;continue;}   // …and so does its own NO DROP gear (it can stay on)
@@ -10403,7 +10437,7 @@ function outfitBuildStock(includeEquipped){
 function outfitBuildOpts(){
   let b='class',s='owned',g=5000,nd=false;
   try{ b=localStorage.getItem('mp_outfit_build')||'class'; s=localStorage.getItem('mp_outfit_src')||'owned'; g=parseInt(localStorage.getItem('mp_outfit_budget')||'5000',10)||5000; nd=localStorage.getItem('mp_outfit_nodrop')==='1'; }catch(e){}
-  return {build:/^(class|proc|maxdex)$/.test(b)?b:'class', src:s==='buy'?'buy':'owned', budget:Math.max(100,g), nodrop:nd};
+  return {build:/^(class|proc|maxdex|maxhp|maxmana|hpmana|maxwis|maxint|powerlevel)$/.test(b)?b:'class', src:s==='buy'?'buy':'owned', budget:Math.max(100,g), nodrop:nd};
 }
 window.outfitSetOpt=function(k,v){ try{ localStorage.setItem({build:'mp_outfit_build',src:'mp_outfit_src',budget:'mp_outfit_budget',nodrop:'mp_outfit_nodrop'}[k],String(v)); }catch(e){} renderOutfitterPanel(); };
 const OUTFIT_RAID_LVL=46;   // the guild's raid level: below it, NO DROP raid drops aren't farm candidates
@@ -10426,6 +10460,21 @@ function outfitQuestSrc(name){
     for(const [q,v] of Object.entries(W.q||{})) for(const r of (v.r||[])) _outfitQuestOf[String(r).toLowerCase()]=q+' ('+(v.z||'?')+(v.lvl?', lvl '+v.lvl:'')+')'; }
   return _outfitQuestOf[String(name||'').toLowerCase()]||'';
 }
+// mana from a point of the class's mana stat (WIS for priests, INT for INT casters / hybrids); 0 for classes without mana
+// worn-haste cap by level (EQEmu, which P99 runs on): level + 25 below 51, 85 at 51–59, 100 at 60
+function outfitHasteCap(lvl){ lvl=Number(lvl)||1; return lvl>=60?100:lvl>50?85:lvl+25; }
+// swings per minute for a weapon delay (tenths of a second) with a haste %
+function outfitSwings(delay,haste){ return delay>0?60/(delay/10)*(1+(haste||0)/100):0; }
+function outfitManaStat(cls){ return typeof WIS_CLASSES!=='undefined'&&WIS_CLASSES.has(cls)?'wis':typeof INT_CLASSES!=='undefined'&&INT_CLASSES.has(cls)?'int':''; }
+function outfitManaPer(o){ if(!outfitManaStat(o.cls)) return 0; try{ return Math.max(0,(calcMana(140,o.level||1)-calcMana(120,o.level||1))/20); }catch(e){ return 0; } }
+function outfitDisp(OB,db,hpSta,o,score){
+  if(OB.build==='class') return score.toFixed(1);
+  const hp=Math.round(Number(db.hpbonus||0)+Number(db.sta||0)*hpSta), ms=outfitManaStat(o.cls), mana=Math.round(Number(db.manabonus||0)+(ms?Number(db[ms]||0)*(OB.manaPer||0):0)), dex=Number(db.dex||0), wis=Number(db.wis||0);
+  if(OB.build==='powerlevel'){ const hz=Number(db.haste||0);
+    if(db.dmg&&db.delay&&/PRIMARY|SECONDARY/.test(String(db._slot||'')+String(db._slots||''))) return 'delay '+db.delay+' \u00b7 '+Math.round(outfitSwings(db.delay,Math.min(OB.hasteBest||0,OB.hasteCap)))+' swings/min';
+    return (hz?Math.min(hz,OB.hasteCap)+'% haste'+(hz>OB.hasteCap?' (of '+hz+')':'')+' \u00b7 ':'')+hp+' HP'; }
+  return OB.build==='maxhp'?hp+' HP':OB.build==='maxmana'?mana+' mana \u00b7 '+hp+' HP':OB.build==='hpmana'?hp+' HP \u00b7 '+mana+' mana':OB.build==='maxwis'?wis+' WIS \u00b7 '+mana+' mana':OB.build==='maxint'?Number(db.int||0)+' INT \u00b7 '+mana+' mana':dex+' DEX \u00b7 '+hp+' HP';
+}
 function outfitHpPerSta(o){ try{ return Math.max(0,(calcHP(120,o.cls,o.level)-calcHP(100,o.cls,o.level))/20); }catch(e){ return 1; } }
 function outfitPick(db,slot,o,OB,hpSta,name){
   const base=outfitScore(db,slot,o.cls,o.level);
@@ -10435,16 +10484,68 @@ function outfitPick(db,slot,o,OB,hpSta,name){
   if(slot==='SECONDARY'&&isWep&&!(typeof DW_SKILL_CAP!=='undefined'&&DW_SKILL_CAP[o.cls])) return 0;   // can't dual wield: no weapon in the off-hand
   // the proc weapon the character already wields stays in its slot (other weapons: their DEX / HP like anything else)
   const proc=(slot==='PRIMARY'||slot==='SECONDARY')&&isWep&&OB.keep&&OB.keep.has(String(name||'').toLowerCase())&&String(db._effectType||'').toLowerCase().includes('combat');
+  const ms=outfitManaStat(o.cls), mana=Number(db.manabonus||0)+(ms?Number(db[ms]||0)*(OB.manaPer||0):0), wis=Number(db.wis||0);
+  if(OB.build==='powerlevel'){
+    if(slot==='PRIMARY') return isWep?1e6/Number(db.delay)+hp*0.01:hp*1e-4;   // fastest swing wins; damage doesn't matter
+    if(slot==='SECONDARY'&&isWep) return 0;
+    const hz=OB.hasteItem&&String(name||'').toLowerCase()===OB.hasteItem?Math.min(Number(db.haste||0),OB.hasteCap)*1000:0;   // the one haste item that counts
+    return hz+hp+base*1e-4;
+  }
+  if(OB.build==='maxhp') return hp*1000+mana*0.01+base*0.001;
+  if(OB.build==='maxmana') return mana*1000+hp*0.01+base*0.001;
+  if(OB.build==='hpmana') return (hp+mana)*100+base*0.001;
+  if(OB.build==='maxwis') return wis*1000+mana+hp*0.01+base*0.001;
+  if(OB.build==='maxint') return Number(db.int||0)*1000+mana+hp*0.01+base*0.001;
   const lead=proc?1e7:0;
   if(OB.build==='maxdex') return lead+dex*1000+hp+base*0.001;
   return lead+(dex+hp/10)*100+base*0.001;
 }
+// per tab: slot → pinned item, and items never to use
+const _outfitTabKey=()=>activeTab&&activeTab!=='__all__'?activeTab:'__all__';
+let _outfitPins=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_outfit_pins')||'{}')||{}; }catch(e){ return {}; } })();
+let _outfitBans=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_outfit_bans')||'{}')||{}; }catch(e){ return {}; } })();
+function outfitPinsSave(){ try{ localStorage.setItem('mp_outfit_pins',JSON.stringify(_outfitPins)); localStorage.setItem('mp_outfit_bans',JSON.stringify(_outfitBans)); }catch(e){} }
+window.outfitPin=function(slot,name){ const k=_outfitTabKey(), p=_outfitPins[k]=_outfitPins[k]||{}; if(name) p[slot]=name; else delete p[slot]; if(!Object.keys(p).length) delete _outfitPins[k]; outfitPinsSave(); renderOutfitterPanel(); };
+window.outfitBan=function(name,on){ const k=_outfitTabKey(), b=new Set(_outfitBans[k]||[]), n=String(name).toLowerCase(); if(on) b.add(n); else b.delete(n); if(b.size) _outfitBans[k]=[...b]; else delete _outfitBans[k];
+  if(on){ const p=_outfitPins[k]||{}; for(const sl of Object.keys(p)) if(String(p[sl]).toLowerCase()===n) delete p[sl]; } outfitPinsSave(); renderOutfitterPanel(); };
+window.outfitClearPins=function(){ const k=_outfitTabKey(); delete _outfitPins[k]; delete _outfitBans[k]; outfitPinsSave(); renderOutfitterPanel(); };
+window.outfitRowMenu=function(ev,i){
+  ev.preventDefault(); ev.stopPropagation();
+  const r=(window._outfitKitRows||[])[i]; if(!r) return false;
+  let m=document.getElementById('outfitRowMenu'); if(m) m.remove();
+  m=document.createElement('div'); m.id='outfitRowMenu';
+  m.style.cssText='position:fixed;z-index:10000;left:'+Math.min(ev.clientX,innerWidth-330)+'px;top:'+Math.min(ev.clientY,innerHeight-360)+'px;background:var(--surface);border:1px solid var(--border-glow);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.25);font-size:.84rem;min-width:280px;max-width:330px';
+  const it=(html,fn,title)=>{ const d=document.createElement('div'); d.style.cssText='padding:.38rem .7rem;cursor:pointer'; d.innerHTML=html; if(title) d.title=title; d.onmouseover=()=>d.style.background='var(--surface2)'; d.onmouseout=()=>d.style.background=''; d.onclick=()=>{ m.remove(); fn(); }; m.appendChild(d); };
+  const head=document.createElement('div'); head.style.cssText='padding:.35rem .7rem;font-size:.72rem;color:var(--text-muted);border-bottom:1px solid var(--border)'; head.innerHTML=esc(r.slot)+(r.name?' \u00b7 <b style="color:var(--text)">'+esc(r.name)+'</b>':' \u00b7 empty'); m.appendChild(head);
+  const alts=(r.alts||[]).slice(0,6);
+  if(alts.length){ const h=document.createElement('div'); h.style.cssText='padding:.3rem .7rem .1rem;font-size:.7rem;color:var(--text-muted)'; h.textContent='Swap for\u2026'; m.appendChild(h);
+    for(const a of alts) it('<span style="padding-left:.4rem">'+esc(a.name)+'</span> <span style="color:var(--gold-light);font-size:.74rem">'+esc(a.disp||'')+'</span><div style="padding-left:.4rem;font-size:.7rem;color:var(--text-muted)">'+esc(a.from||'')+'</div>',()=>outfitPin(r.slot,a.name)); }
+  else if(r.name){ const h=document.createElement('div'); h.style.cssText='padding:.3rem .7rem;font-size:.72rem;color:var(--text-muted);font-style:italic'; h.textContent='Nothing else you have fits this slot.'; m.appendChild(h); }
+  const sep=()=>{ const d=document.createElement('div'); d.style.cssText='border-top:1px solid var(--border);margin:.15rem 0'; m.appendChild(d); };
+  sep();
+  if(r.name&&!r.pinned) it('📌 Keep this here',()=>outfitPin(r.slot,r.name),'Always use '+r.name+' in '+r.slot+' on this tab');
+  if(r.pinned) it('📌 Unpin \u2014 let the Outfitter choose',()=>outfitPin(r.slot,null));
+  if(r.name) it('🚫 Never use '+esc(r.name)+(activeTab&&activeTab!=='__all__'?' for '+esc(activeTab):''),()=>outfitBan(r.name,true),'Leave it out of this tab\u2019s kit (undo from the line above the table)');
+  it('🔎 Find upgrades in the Gear Planner',()=>outfitToPlanner(r.slot),'The Gear Planner shows what you could buy or farm for this slot');
+  if(r.name) it('📖 Open on the wiki',()=>{ window.open(wikiUrl(r.name),'_blank'); });
+  document.body.appendChild(m);
+  setTimeout(()=>document.addEventListener('click',function off(e){ const x=document.getElementById('outfitRowMenu'); if(x&&!x.contains(e.target)) x.remove(); document.removeEventListener('click',off); }),0);
+  return false;
+};
+// open the Gear Planner and bring this slot's row into view
+window.outfitToPlanner=function(slotLabel){
+  const base=String(slotLabel).replace(/\s+\d+$/,'').toUpperCase();
+  const t=document.querySelector('.subtab[data-sub="upgrades"]'); if(t) t.click();
+  setTimeout(()=>{ const root=document.getElementById('subUpgrades'); if(!root) return;
+    const el=[...root.querySelectorAll('td,th,div,span,b')].find(x=>x.children.length===0&&String(x.textContent).trim().toUpperCase()===base);
+    if(el){ el.scrollIntoView({block:'center'}); const row=el.closest('tr')||el; const old=row.style.background; row.style.background='rgba(184,137,43,.22)'; setTimeout(()=>row.style.background=old,2200); } },400);
+};
 function outfitBuildKit(){
   const o=_outfit;
   const clsAbbr=OUTFIT_CLASS_ABBR[o.cls]||'';
   const raceAbbr=RACE_ABBR_MAP[o.race]||'';
   const {stock,nodropSkipped,rowCount}=outfitBuildStock(o.includeEquipped);
-  const OB=outfitBuildOpts(), hpSta=outfitHpPerSta(o); let buyPool=0, raidHidden=0;
+  const OB=outfitBuildOpts(), hpSta=outfitHpPerSta(o); OB.manaPer=outfitManaPer(o); OB.hasteCap=outfitHasteCap(o.level); let buyPool=0, raidHidden=0;
   OB.keep=new Set((typeof chars!=='undefined'&&activeTab&&chars[activeTab]?chars[activeTab]:[]).filter(i=>/^(primary|secondary)$/i.test(String(i.location||'').trim())).map(i=>String(i.name).toLowerCase()));
   if(OB.src==='buy'||OB.nodrop){   // tradeable items priced under the budget (Owned + buy) and / or NO DROP drops to farm
     for(const [nm,db] of Object.entries(typeof itemDB!=='undefined'?itemDB:{})){
@@ -10462,6 +10563,13 @@ function outfitBuildKit(){
   // Anything in the pool with a worn effect the scorer can't value — surfaced
   // so a future Fungi can never lose silently again.
   const unscoredWorn=[...new Set([...stock.values()].filter(e=>outfitWornEffect(e.db).unscored).map(e=>e.name))].slice(0,15);
+  if(OB.build==='powerlevel'){   // worn haste doesn't stack: the best one (up to the cap; ties → more HP) is the only haste that counts
+    let bh=null,bv=-1; const _ban=new Set(_outfitBans[_outfitTabKey()]||[]);
+    for(const e of stock.values()){ const db=e.db, hz=Math.min(Number(db.haste||0),OB.hasteCap); if(hz<=0||e.rem<=0||_ban.has(e.name.toLowerCase())) continue;
+      if(!window.itemUsableByContext(db,clsAbbr,raceAbbr,o.deity)) continue;
+      const v=hz*1e4+Number(db.hpbonus||0)+Number(db.sta||0)*hpSta-(e.buy?0.5:0)-(e.farm?1:0); if(v>bv){ bv=v; bh=e; } }
+    OB.hasteItem=bh?bh.name.toLowerCase():null; OB.hasteBest=bh?Number(bh.db.haste||0):0;
+  }
   const loreClaimed=new Set();
   const rows=[];const totals={ac:0,hpbonus:0,manabonus:0};
   for(const k of STAT_KEYS)totals[k]=0;
@@ -10470,18 +10578,26 @@ function outfitBuildKit(){
     for(let i=0;i<copies;i++){
       const label=copies>1?slot+' '+(i+1):slot;
       if(slot==='SECONDARY'&&primary2h){rows.push({slot:label,empty:true,note:'\u2014 (2H in primary)'});continue;}
-      let best=null,bestScore=0;
+      let best=null,bestScore=0; const cands=[];
+      const _pin=((_outfitPins[_outfitTabKey()]||{})[label]||'').toLowerCase(), _ban=new Set(_outfitBans[_outfitTabKey()]||[]);
+      let pinned=null,pinScore=0;
       for(const e of stock.values()){
         if(e.rem<=0)continue;
+        if(_ban.has(e.name.toLowerCase()))continue;
         const db=e.db;
         if(db._lore&&loreClaimed.has(e.name))continue;
         if(!outfitSlotMatch(db,slot,o.cls))continue;
         if(!window.itemUsableByContext(db,clsAbbr,raceAbbr,o.deity))continue;
         if(!outfitWepOk(db,slot,o.cls))continue;
         const sc=outfitPick(db,slot,o,OB,hpSta,e.name)*(e.farm?0.998:e.buy?0.999:1);   // a tie goes to owned, then buy, then farm
+        if(_pin&&e.name.toLowerCase()===_pin){pinned=e;pinScore=sc;}
+        if(sc>0) cands.push([sc,e]);
         if(sc>bestScore){bestScore=sc;best=e;}
       }
-      if(!best){rows.push({slot:label,empty:true});continue;}
+      if(pinned){best=pinned;bestScore=pinScore;}
+      const alts=cands.filter(([,e])=>e!==best).sort((a,b)=>b[0]-a[0]).slice(0,6).map(([sc,e])=>{ const h=e.holders.find(x=>x.rem>0)||e.holders[0];
+        return {name:e.name,disp:outfitDisp(OB,e.db,hpSta,o,sc),from:e.buy?'buy ~'+(e.price||0).toLocaleString()+' pp':e.farm?'farm':h?(h.char===activeTab?(h.equipped?'worn':'in your '+h.loc):h.char+' · '+h.loc):''}; });
+      if(!best){rows.push({slot:label,empty:true,alts});continue;}
       best.rem--;
       const holder=best.holders.find(h=>h.rem>0);
       if(holder)holder.rem--;
@@ -10490,8 +10606,8 @@ function outfitBuildKit(){
       if(slot==='PRIMARY'&&(sk.includes('2h')||sk.includes('two')))primary2h=true;
       totals.ac+=Number(best.db.ac||0);totals.hpbonus+=Number(best.db.hpbonus||0);totals.manabonus+=Number(best.db.manabonus||0);
       for(const k of STAT_KEYS)totals[k]+=Number(best.db[k]||0);
-      rows.push({slot:label,name:best.name,db:best.db,score:bestScore,holder,buy:!!best.buy,farm:!!best.farm,price:best.price||0,
-        disp:OB.build==='class'?bestScore.toFixed(1):(Number(best.db.dex||0)+' DEX \u00b7 '+Math.round(Number(best.db.hpbonus||0)+Number(best.db.sta||0)*hpSta)+' HP')});
+      rows.push({slot:label,name:best.name,db:best.db,score:bestScore,holder,buy:!!best.buy,farm:!!best.farm,price:best.price||0,pinned:!!pinned,alts,
+        disp:outfitDisp(OB,best.db,hpSta,o,bestScore)});
     }
   }
   return {rows,totals,nodropSkipped,rowCount,unscoredWorn,OB,buyPool,hpSta,raidHidden};
@@ -10805,6 +10921,7 @@ function lvldCalibration(){
     const kills=rs.reduce((a,r)=>a+(r.xp_solo||0)+(r.xp_group||0),0), known=rs.reduce((a,r)=>a+(r.xp_known||0),0), r0=rs[0];
     if(kills<10||known<0.6*kills||(r0.level_quest||0)>0.1*(r0.level_xp_total||kills)) continue;
     if(rs.some(r=>LVLD_RAID_ZONES.has(r.zone)&&(r.xp_solo+r.xp_group)>0)) continue;
+    if(rs.some(r=>lvldPowerLevelled(r)&&(r.xp_solo+r.xp_group)>0)) continue;   // power-levelled levels would skew the zone factors
     const z={}; for(const r of rs){ if(!r.xp_est) continue; const zk=lvldZoneKey(r.zone); z[zk]=(z[zk]||0)+r.xp_est; }
     if(!Object.keys(z).length) continue;
     lv.push({need:lvldNeed(r0.level)*lvldMult(r0.class,r0.race),z}); who.add(k.slice(0,k.lastIndexOf('|')));
@@ -10825,12 +10942,16 @@ function lvldCalibration(){
   }
   _lvldCal=out; return out;
 }
+// power-levelled: the kills' average mob level (P99 wiki levels, mob-levels.js) is far above the character's level
+function lvldMobAvg(r){ let sum=0,c=0; for(const [mb,n] of Object.entries(r.mobs||{})){ const ml=lvldMobLevel(mb,r.zone); if(ml==null) continue; sum+=ml*n; c+=n; } return c?sum/c:null; }
+function lvldPowerLevelled(r){ const a=lvldMobAvg(r); return a!=null&&a>r.level+Math.max(6,0.35*r.level); }
 function lvldSamples(rows,myCls,opt){
   opt=opt||lvldF; const out=[], cal=lvldCalibration();
   for(const r of rows){
     const xs=r.xp_solo||0, xg=r.xp_group||0, n=xs+xg;
     if(!n||r.hunt_ms<10*60e3||r.level>=60) continue;
     if(LVLD_RAID_ZONES.has(r.zone)) continue;                   // raid targets, not leveling spots
+    if(lvldPowerLevelled(r)) continue;                           // mobs far above the character: power-levelled, not a spot for that level
     // mob-level XP: needs most kills to have a known mob level — works for partial levels and levels with turn-ins
     const mobXp=r.xp_est>0&&r.xp_known>=0.6*n&&n>=10;
     let share=0;
@@ -11004,10 +11125,19 @@ function lvldSection(meta,myLvl){
   }
   // tiles
   const tile=(lbl,val,sub)=>'<div style="flex:1;min-width:150px;border:1px solid var(--border);border-radius:5px;padding:.5rem .7rem;background:var(--surface)"><div style="font-size:.72rem;color:var(--text-muted);letter-spacing:.04em">'+lbl+'</div><div style="font-size:1.25rem;font-weight:600;margin-top:.1rem">'+val+'</div>'+(sub?'<div style="font-size:.74rem;color:var(--text-muted)">'+sub+'</div>':'')+'</div>';
-  let next='', to60=null, to60Gap=false;
+  let next='', to60=null, to60Gap=false, to60Meas=0, to60N=0;
   if(L&&L<60){
     const est=[]; for(let l=L;l<=59;l++){ const z=lvldZones(samples,l,mult).filter(a=>a.sure)[0]; est.push(z?z.min:null); }
-    to60=est.reduce((a,b)=>a+(b||0),0); to60Gap=est.some(v=>v==null);
+    // levels with no measured spot: XP / minute from the nearest measured levels, scaled by level² (mob XP grows ~ level²)
+    const rate=i=>lvldNeed(L+i)*mult/est[i];   // XP per hunting minute at a measured level
+    const meas=est.map((v,i)=>v!=null?i:-1).filter(i=>i>=0); to60Meas=meas.length; to60N=est.length;
+    if(meas.length){ for(let i=0;i<est.length;i++){ if(est[i]!=null) continue;
+      const lo=meas.filter(j=>j<i).pop(), hi=meas.find(j=>j>i), l=L+i;
+      const at=j=>rate(j)*Math.pow(l/(L+j),2);
+      const r=lo!=null&&hi!=null?Math.exp(Math.log(at(lo))+(Math.log(at(hi))-Math.log(at(lo)))*(i-lo)/(hi-lo)):at(lo!=null?lo:hi);
+      est[i]=-lvldNeed(l)*mult/r; } }   // negative = estimated (kept apart from measured until summed)
+    to60Gap=est.some(v=>v==null);
+    for(let i=0;i<est.length;i++) if(est[i]!=null&&est[i]<0) est[i]=-est[i];
     const done=lvldXpGet(name,L)/100;
     if(est[0]!=null){ est[0]*=1-done; }
     to60=est.reduce((a,b)=>a+(b||0),0);
@@ -11018,7 +11148,7 @@ function lvldSection(meta,myLvl){
     (L&&L<60?tile('NEXT LEVEL ('+L+' → '+(L+1)+')',next!=null?'≈ '+lvldFmt(next):'—',
       (next!=null?'hunting at the best measured spot':'no measured spot near level '+L)+
       '<div style="margin-top:.35rem;display:flex;align-items:center;gap:.35rem;color:var(--text)">Current XP <input type="number" min="0" max="99.9" step="1" value="'+(lvldXpGet(name,L)||'')+'" placeholder="0" title="How far into level '+L+' this character is (the XP bar in game)" onchange="lvldXpSet(decodeURIComponent(\''+encodeURIComponent(name)+'\'),'+L+',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()" style="width:3.6rem;font-size:.85rem;padding:.1rem .3rem;border:1px solid var(--border);border-radius:3px;background:var(--surface);color:var(--text)">% into level '+L+'</div>'):tile('LEVEL','60','max level'))+
-    (L&&L<60?tile('TO LEVEL 60',to60?(to60Gap?'≥ ':'≈ ')+lvldFmt(to60):'—',to60Gap?'some levels have no data yet':'best measured spot each level'):'')+
+    (L&&L<60?tile('TO LEVEL 60',to60?(to60Gap?'≥ ':'≈ ')+lvldFmt(to60):'—',(to60Meas<to60N?to60Meas+' of '+to60N+' levels measured, the rest estimated from nearby levels':'best measured spot each level')+' \u00b7 hunting time only \u2014 add medding, travel and corpse runs'):'')+
     '</div>';
   // where people level near this level
   if(L&&L<60){
@@ -11202,10 +11332,11 @@ function renderOutfitterPanel(){
   const _tab=activeTab&&activeTab!=='__all__'?activeTab:null;
   const _m=(typeof charMeta!=='undefined'&&_tab)?charMeta[_tab]:null;
   Object.assign(_outfit,_OUTFIT_DEFAULT);
+  let _ck=null,_rk=null;
   if(_m){
-    const _ck=Object.keys(CLASS_STAT_WEIGHTS).find(c=>c.toUpperCase()===String(_m.class||'').toUpperCase()||(OUTFIT_CLASS_ABBR[c]||'')===String(_m.class||'').toUpperCase());
+    _ck=Object.keys(CLASS_STAT_WEIGHTS).find(c=>c.toUpperCase()===String(_m.class||'').toUpperCase()||(OUTFIT_CLASS_ABBR[c]||'')===String(_m.class||'').toUpperCase());
     if(_ck)_outfit.cls=_ck;
-    const _rk=EQ_RACES.find(r=>r.toUpperCase()===String(_m.race||'').toUpperCase());
+    _rk=EQ_RACES.find(r=>r.toUpperCase()===String(_m.race||'').toUpperCase());
     if(_rk)_outfit.race=_rk;
     const _lv=parseInt(_m.level,10);
     if(_lv>=1&&_lv<=60)_outfit.level=_lv;
@@ -11214,15 +11345,19 @@ function renderOutfitterPanel(){
   const _ov=_outfitOv[_tab||'__all__']||{};
   Object.assign(_outfit,_ov);
   const _manual=Object.keys(_ov).length>0;
+  const _noCls=!!_tab&&!_ck&&!_ov.cls, _noRace=!!_tab&&!_rk&&!_ov.race;   // this character's class / race aren't known — don't show a made-up one
   const o=_outfit;
   const kit=outfitBuildKit();
+  if(_noCls) kit.rows=[];
   const selStyle='background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.3rem .45rem;font-family:\'Crimson Pro\',serif;font-size:.85rem;outline:none;cursor:pointer';
-  const clsOpts=Object.keys(CLASS_STAT_WEIGHTS).sort().map(c=>`<option${c===o.cls?' selected':''}>${c}</option>`).join('');
-  const raceOpts=EQ_RACES.map(r=>`<option${r===o.race?' selected':''}>${r}</option>`).join('');
-  const kitRows=kit.rows.map(r=>{
-    if(r.empty)return `<tr><td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted)">${r.slot}</td><td style="padding:.3rem .5rem;color:var(--text-muted);font-size:.8rem" colspan="4">${r.note||'\u2014 nothing usable owned'}</td></tr>`;
+  const clsOpts=(_noCls?'<option value="" selected>\u2014 pick a class \u2014</option>':'')+Object.keys(CLASS_STAT_WEIGHTS).sort().map(c=>`<option${c===o.cls&&!_noCls?' selected':''}>${c}</option>`).join('');
+  const raceOpts=(_noRace?'<option value="" selected>\u2014 race? \u2014</option>':'')+EQ_RACES.map(r=>`<option${r===o.race&&!_noRace?' selected':''}>${r}</option>`).join('');
+  window._outfitKitRows=kit.rows;
+  const kitRows=kit.rows.map((r,ri)=>{
+    if(r.empty)return `<tr oncontextmenu="return outfitRowMenu(event,${ri})" title="Right-click for options"><td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted)">${r.slot}</td><td style="padding:.3rem .5rem;color:var(--text-muted);font-size:.8rem" colspan="4">${r.note||'\u2014 nothing usable owned'}</td></tr>`;
     const h=r.holder;
     const badges=[];
+    if(r.pinned)badges.push('<span title="Pinned to this slot \u2014 right-click to unpin" style="font-size:.7rem">📌</span>');
     if(r.db._lore)badges.push('<span style="font-size:.6rem;color:var(--gold-light);border:1px solid var(--gold-dim);border-radius:2px;padding:0 .2rem">LORE</span>');
     if(outfitWornEffect(r.db).unscored)badges.push('<span title="This item has a worn effect the scorer does not value yet \u2014 judge it yourself" style="font-size:.6rem;color:#e0a030;border:1px solid #a07020;border-radius:2px;padding:0 .2rem">\u26a0 EFFECT NOT SCORED</span>');
     if(h&&h.equipped){
@@ -11236,7 +11371,7 @@ function renderOutfitterPanel(){
     const from=r.farm?`<span style="color:#6a5acd" title="NO DROP \u2014 ${r.db._from?'drops from: '+esc(r.db._from):outfitQuestSrc(r.name)?'quest: '+esc(outfitQuestSrc(r.name)):'source unknown'}">\u2694 farm \u2014 ${(r.db._from?esc(String(r.db._from).split(/[;,]/)[0].slice(0,28)):outfitQuestSrc(r.name)?'quest: '+esc(outfitQuestSrc(r.name).replace(/ \(.*$/,'').slice(0,24)):'quest / source unknown')}</span>`
       :r.buy?`<span style="color:#b07020" title="Not owned \u2014 tradeable, price from the item database (rounded to 100 pp)">\ud83d\uded2 buy ~${r.price.toLocaleString()} pp</span>`
       :h?(h.char===activeTab?(h.equipped?'<span style="color:#3a7a3a">\u2713 worn</span>':'\ud83d\udce6 in your '+esc(h.loc)):`${h.banker?'\ud83c\udfe6 ':''}${esc(h.char)} \u00b7 <span style="opacity:.7">${esc(h.loc)}</span>`):'?';
-    return `<tr>
+    return `<tr oncontextmenu="return outfitRowMenu(event,${ri})" title="Right-click for options">
       <td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted);white-space:nowrap">${r.slot}</td>
       <td style="padding:.3rem .5rem;font-size:.86rem">${itemLink(r.name)} ${badges.join(' ')}</td>
       <td style="padding:.3rem .5rem;text-align:right;font-size:.78rem;color:var(--gold-light);white-space:nowrap">${r.disp||r.score.toFixed(1)}</td>
@@ -11271,11 +11406,9 @@ function renderOutfitterPanel(){
       <label style="font-size:.78rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem">Lv
         <input type="number" min="1" max="60" value="${o.level}" onchange="outfitSet('level',this.value)" style="width:3.2rem;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:.25rem .35rem;font-size:.85rem;outline:none">
       </label>
-      <label style="font-size:.74rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;cursor:pointer">
-        <input type="checkbox" ${o.includeEquipped?'checked':''} onchange="outfitToggleEq(this)"> include alt-equipped gear
-      </label>
-      <label style="font-size:.78rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem" title="Class default: the class's usual stat weights. Proc: DEX first with HP close behind (100 HP \u2248 10 DEX) \u2014 a weapon with a combat proc keeps its slot. Max DEX: the most DEX, then HP.">Build
-        <select style="${selStyle}" onchange="outfitSetOpt('build',this.value)">${[['class','Class default'],['proc','Proc (DEX + HP)'],['maxdex','Max DEX']].map(([v,l])=>'<option value="'+v+'"'+(kit.OB.build===v?' selected':'')+'>'+l+'</option>').join('')}</select></label>
+      ${outfitCharSrcHtml()}
+      <label style="font-size:.78rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem" title="Class default: the class's usual stat weights. Proc: DEX first with HP close behind (100 HP \u2248 10 DEX) \u2014 a weapon with a combat proc keeps its slot. Max DEX: the most DEX, then HP. Max HP / Max Mana / Max HP + Mana: item HP and mana plus what STA and your mana stat (WIS or INT) add at this level. Max WIS / Max INT: the most of that stat, then mana. Powerlevel: the fastest weapon (only one landed hit is needed), the best haste item up to the level\u2019s haste cap, and the most HP everywhere else.">Build
+        <select style="${selStyle}" onchange="outfitSetOpt('build',this.value)">${[['class','Class default'],['proc','Proc (DEX + HP)'],['maxdex','Max DEX'],['maxhp','Max HP'],['maxmana','Max Mana'],['hpmana','Max HP + Mana'],['maxwis','Max WIS'],['maxint','Max INT'],['powerlevel','Powerlevel']].map(([v,l])=>'<option value="'+v+'"'+(kit.OB.build===v?' selected':'')+'>'+l+'</option>').join('')}</select></label>
       <label style="font-size:.74rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;cursor:pointer" title="Also consider NO DROP drops you'd have to farm yourself (shown with where they drop). Raid drops stay out until the character is level 46. NO DROP items on your other characters always stay out \u2014 they can't be moved.">
         <input type="checkbox" ${kit.OB.nodrop?'checked':''} onchange="outfitSetOpt('nodrop',this.checked?'1':'0')"> include NO DROP (to farm)</label>
       <label style="font-size:.78rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem" title="Owned + buy also considers tradeable items you don't have yet, priced under the budget (per item). Owned items win a tie.">Items
@@ -11286,11 +11419,17 @@ function renderOutfitterPanel(){
     </div>
     <div style="font-size:.74rem;margin:-.25rem 0 .55rem;color:var(--text-muted)">${_manual
       ?'<span style="color:#b07020">\u270e Manual for '+esc(_tab||'All Characters')+'</span> \u2014 class / race / deity / level set by hand for this tab. '+(_m?'<a href="#" onclick="outfitReset();return false" style="color:var(--gold-light)">\u21ba Use '+esc(_tab)+'\u2019s</a>':'<a href="#" onclick="outfitReset();return false" style="color:var(--gold-light)">\u21ba Reset</a>')
+      :_noCls||_noRace?'<span style="color:#b07020">'+esc(_tab)+'\u2019s '+(_noCls&&_noRace?'class and race aren\u2019t':_noCls?'class isn\u2019t':'race isn\u2019t')+' known yet</span> \u2014 pick '+(_noCls&&_noRace?'them':'it')+' here, set '+(_noCls&&_noRace?'them':'it')+' in Character Stats, or type <b>/who</b> in game and MixelParse fills '+(_noCls&&_noRace?'them':'it')+' in.'
       :_m?'From <b>'+esc(_tab)+'</b>\u2019s Character Stats \u2014 change any of these to plan for something else (this tab only).'
       :_tab?'Set '+esc(_tab)+'\u2019s class, race and level in Character Stats to fill these in, or pick them here.':'Pick a class, race and level to plan a kit.'}</div>
+    ${(()=>{ const k=_outfitTabKey(), np=Object.keys(_outfitPins[k]||{}).length, bans=_outfitBans[k]||[];
+      return '<div style="font-size:.74rem;color:var(--text-muted);margin:-.2rem 0 .45rem">🖱 Right-click a row to swap, pin or leave an item out'
+        +(np?' \u00b7 📌 '+np+' pinned':'')
+        +(bans.length?' \u00b7 🚫 left out: '+bans.map(b=>'<a href="#" title="Use it again" onclick="outfitBan(decodeURIComponent(\''+encodeURIComponent(b).replace(/'/g,'%27')+'\'),false);return false" style="color:var(--gold-light)">'+esc((typeof _itemDBLower!=='undefined'&&_itemDBLower[b])||b)+' \u21ba</a>').join(', '):'')
+        +(np||bans.length?' \u00b7 <a href="#" onclick="outfitClearPins();return false" style="color:var(--gold-light)">clear all</a>':'')+'</div>'; })()}
     <table class="dkp-table" style="width:100%">
-      <thead><tr><th style="width:5.5rem">Slot</th><th>Item</th><th class="dkp-th-right" style="width:${kit.OB.build==='class'?'4rem':'7.5rem'}">${kit.OB.build==='class'?'Score':'DEX / HP'}</th><th>Stats</th><th style="width:14rem">From</th></tr></thead>
-      <tbody>${kitRows}</tbody>
+      <thead><tr><th style="width:5.5rem">Slot</th><th>Item</th><th class="dkp-th-right" style="width:${kit.OB.build==='class'?'4rem':'7.5rem'}">${({class:'Score',maxhp:'HP',maxmana:'Mana / HP',hpmana:'HP / Mana',maxwis:'WIS / Mana',maxint:'INT / Mana',powerlevel:'Swing / HP'})[kit.OB.build]||'DEX / HP'}</th><th>Stats</th><th style="width:14rem">From</th></tr></thead>
+      <tbody>${_noCls?'<tr><td colspan="5" style="padding:.8rem;color:var(--text-muted);font-style:italic">Pick a class to see a kit.</td></tr>':kitRows}</tbody>
     </table>
     <div style="margin-top:.55rem;font-size:.8rem">Kit totals: ${totalBits.join(' \u00b7 ')||'\u2014'}</div>
     <div style="border:1px solid var(--border);border-radius:4px;padding:.5rem .7rem;margin-top:.6rem">
@@ -11312,10 +11451,11 @@ function renderOutfitterPanel(){
 }
 window.outfitSet=function(k,v){
   const key=activeTab&&activeTab!=='__all__'?activeTab:'__all__';
+  if(v===''&&k!=='deity') return;   // the "pick a class" placeholder
   (_outfitOv[key]=_outfitOv[key]||{})[k]=k==='level'?Math.max(1,Math.min(60,parseInt(v,10)||1)):v;   // this tab only
-  renderOutfitterPanel();
+  outfitOvSave(); renderOutfitterPanel();
 };
-window.outfitReset=function(){ delete _outfitOv[activeTab&&activeTab!=='__all__'?activeTab:'__all__']; renderOutfitterPanel(); };
+window.outfitReset=function(){ delete _outfitOv[activeTab&&activeTab!=='__all__'?activeTab:'__all__']; outfitOvSave(); renderOutfitterPanel(); };
 window.outfitToggleEq=function(cb){
   _outfit.includeEquipped=!!cb.checked;
   renderOutfitterPanel();
@@ -13528,7 +13668,7 @@ function rkdOnEvidence(msg){
   const b=msg.kind==='call'?_rkdBossInText(msg.text):_rkdBossByMob(msg.mob);
   if(!b&&msg.kind!=='faction'&&msg.kind!=='slain')return;   // boss-less faction hits mark a death; named trash kills explain some of them
   const raw=_rkdRaw(msg);
-  _rkdEvidence.push({ts:msg.ts||Date.now(),kind:msg.kind,sub:msg.sub||null,boss:b?b.target:null,raw,char:msg.charName,zone:msg.zone||null,channel:msg.channel||null});
+  _rkdEvidence.push({ts:msg.ts||Date.now(),kind:msg.kind,sub:msg.sub||null,boss:b?b.target:null,raw,char:msg.charName,zone:msg.zone||null,channel:msg.channel||null,target:msg.target||null});
   // Prune by the event's own time, not the wall clock — backfilled evidence from hours ago
   // must survive long enough to be matched to its tick.
   const cut=(msg.ts||Date.now())-RKD_EVIDENCE_KEEP; _rkdEvidence=_rkdEvidence.filter(e=>e.ts>=cut);
@@ -13571,7 +13711,32 @@ function _rkdEvInZone(e,t){
   const tl=_rkdLocOfZone(t.zone),bl=typeof BT_PARK_LOC!=='undefined'?BT_PARK_LOC[e.boss]:null;
   return !(tl&&bl&&bl!==tl);
 }
-function rkdAttribute(t){
+// ── Current Castle roster (Auto-Detect's "who's fighting it" check) ──
+// guild-chat speakers your characters' logs heard in the last 90 days (watcher) ∪ Castle's OpenDKP characters (a day's
+// cache) ∪ your characters. Lower-case names; empty until something has loaded (then the check stays off).
+let _rkdGuildChat=new Set(), _rkdOdkpChars=(()=>{ try{ const o=JSON.parse(localStorage.getItem('mp_odkp_roster')||'null'); return o&&o.names?o:{at:0,names:[]}; }catch(e){ return {at:0,names:[]}; } })();
+function rkdRoster(){ const s=new Set(_rkdGuildChat); for(const n of _rkdOdkpChars.names||[]) s.add(String(n).toLowerCase()); try{ for(const n of charNames()) s.add(String(n).toLowerCase()); }catch(e){} return s; }
+async function rkdRosterRefresh(){
+  try{ if(window.MixelParseApp&&window.MixelParseApp.watcherCommand) window.MixelParseApp.watcherCommand('guildRoster',{chars:charNames(),days:90}); }catch(e){}
+  if(Date.now()-(_rkdOdkpChars.at||0)<24*3600e3) return;
+  const r=await odkpGet('/clients/castle/characters'); if(!r.ok||!Array.isArray(r.data)) return;
+  _rkdOdkpChars={at:Date.now(),names:r.data.filter(c=>!c.Deleted).map(c=>c.Name).filter(Boolean)};
+  try{ localStorage.setItem('mp_odkp_roster',JSON.stringify(_rkdOdkpChars)); }catch(e){}
+}
+setTimeout(rkdRosterRefresh,25e3); setInterval(rkdRosterRefresh,30*60e3);
+// The Statue of Rallos Zek and the Avatar of War sit in Kael with other guilds on them all night and everyone nearby gets the
+// kill-faction message — so a Strong call for those two needs a Castle player (or one of yours) among the flurry targets.
+const RKD_FOREIGN_CHECK=new Set(['Statue','Avatar of War']);
+function rkdForeignCheck(a){
+  if(!a||a.tier!=='strong'||!RKD_FOREIGN_CHECK.has(a.boss)) return a;
+  const tg=(a.events||[]).filter(e=>e.kind==='fight'&&e.target&&e.boss===a.boss).map(e=>e.target);
+  const ros=rkdRoster(); if(tg.length<2||ros.size<50) return a;   // too little to judge, or the roster hasn't loaded
+  if(tg.some(n=>ros.has(String(n).toLowerCase()))) return a;
+  const who=[...new Set(tg)];
+  return Object.assign({},a,{tier:'weak',foreign:who,basis:(a.basis||'')+' \u00b7 only non-Castle players on it ('+who.slice(0,3).join(', ')+(who.length>3?'\u2026':'')+') \u2014 another guild\u2019s kill?'});
+}
+function rkdAttribute(t){ return rkdForeignCheck(_rkdAttributeBase(t)); }
+function _rkdAttributeBase(t){
   const _rw=_rkdRingWar(t); if(_rw&&_rw.ctx==='npc') return _rw;
   const from=Math.max(t.ts-RKD_WIN_BEFORE,t.prevTickTs!=null?t.prevTickTs+1:-Infinity);
   // The previous tick's boss: its lines in the 2 minutes after that tick are the tail of its own fight and belong
@@ -16779,17 +16944,24 @@ const WHO_TITLES={Champion:'Warrior',Myrmidon:'Warrior',Warlord:'Warrior',Vicar:
 const SHEET_RAID_ZONES=new Set(['Temple of Veeshan',"Veeshan's Peak","Sleeper's Tomb",'Plane of Fear','Plane of Hate','Plane of Air','Plane of Growth','Kael Drakkel','Dragon Necropolis','Icewell Keep','Western Wastes']);
 function sheetKey(cn){ return charNames().find(c=>c.toLowerCase()===String(cn||'').toLowerCase())||null; }
 function sheetFromWho(msg){
-  const key=sheetKey(msg.charName); if(!key) return;
+  const key=sheetKey(msg.charName);
+  if(!key){ try{ const p=JSON.parse(localStorage.getItem('mp_who_pending')||'{}'), k=String(msg.charName||'').toLowerCase(); if(k&&(!p[k]||(msg.ts||Date.now())>=(p[k].ts||0))){ p[k]=Object.assign({},msg,{ts:msg.ts||Date.now()}); localStorage.setItem('mp_who_pending',JSON.stringify(p)); } }catch(e){} return; }   // no tab yet: kept until it has one
   const m=charMeta[key]||(charMeta[key]={}); const set=[]; let changed=false;
   const cls=EQ_CLASSES.includes(msg.title)?msg.title:WHO_TITLES[msg.title];
   const race=EQ_RACES.find(r=>r.toLowerCase()===String(msg.race||'').toLowerCase());
   if(cls&&!m.class){ m.class=cls; set.push(cls); changed=true; }
   if(race&&!m.race){ m.race=race; set.push(race); changed=true; }
-  if(msg.level>=1&&msg.level<=60&&m.level!==msg.level){ m.level=msg.level; changed=true; }
+  if(msg.level>=1&&msg.level<=60&&m.level!==msg.level&&!(msg.backfill&&m.level&&msg.level<m.level)){ m.level=msg.level; changed=true; }   // an old /who from the logs never lowers the level
   if(!changed) return;
   saveState(); if(set.length) sheetNudgeHide(key);
   if(activeTab===key&&typeof refresh==='function') refresh();
   if(set.length) showWatcherToast('📝 '+key+': '+set.join(' · ')+' filled in from /who');
+}
+// a /who seen before the character had a tab — applied once it does
+function whoPendingApply(){
+  let p; try{ p=JSON.parse(localStorage.getItem('mp_who_pending')||'{}'); }catch(e){ return; }
+  const ks=Object.keys(p); if(!ks.length) return;
+  for(const k of ks){ if(!sheetKey(k)) continue; const w=p[k]; delete p[k]; try{ localStorage.setItem('mp_who_pending',JSON.stringify(p)); }catch(e){} sheetFromWho(Object.assign({},w,{backfill:true})); }
 }
 function sheetNudgeState(){ try{ return JSON.parse(localStorage.getItem('mp_sheet_nudge')||'{}'); }catch(e){ return {}; } }
 function sheetNudgeMark(key,v){ const s=sheetNudgeState(); s[key]=v; try{ localStorage.setItem('mp_sheet_nudge',JSON.stringify(s)); }catch(e){} }
