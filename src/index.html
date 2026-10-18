@@ -910,6 +910,8 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
     <button id="sessionTitleBtn" onclick="sessionToggleOverlay()" title="Active Session" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.25rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#9711; Session</button>
     <button id="aucOpenBtn" onclick="aucToggleWindow()" title="Live DKP auctions from /auction — current bids with each bidder's DKP" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#9878; Auctions</button>
     <label id="aucEnLbl" title="Off: auctions are switched off completely — no auction window, no pop-up, no outbid / grats toasts" style="font-size:.62rem;cursor:pointer;font-family:monospace;user-select:none;margin:.05rem auto 0;display:flex;width:max-content;align-items:center;justify-content:center;gap:.3rem;pointer-events:all"><input type="checkbox" id="aucEnChk" onchange="aucSetEnabled(this.checked)" style="margin:0;width:.7rem;height:.7rem;cursor:pointer;accent-color:#8a7a4a"><span id="aucEnTxt">Auction enabled</span></label>
+    <button id="tmrOpenBtn" onclick="spellTimersWindowToggle()" title="Spell timers — your roots, charms, mezzes and DoTs counting down (a pop-up window)" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#9203; Timers</button>
+<button id="chOpenBtn" onclick="chChainToggle()" title="Live Complete Heal chain — who called which number, and which numbers are free" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#9877; CH chain</button>
     <button id="twnOpenBtn" onclick="openThisWeek()" title="This Week in Norrath — weekly digest" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#128240; This Week</button>
   </div>
   <div class="version-badge" id="versionBadge"></div>
@@ -983,6 +985,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
   <div class="top-nav-item" data-view="flowers">Flowers</div>
   <div class="top-nav-item" data-view="farm">Farm Targets</div>
   <div class="top-nav-item" data-view="bankers">Bankers</div>
+  <div class="top-nav-item" data-view="tells">Tells</div>
   <div class="top-nav-item" data-view="tasks">Tasks</div>
   <div class="top-nav-item" data-view="settings" style="display:none">Settings</div>
   <div id="syncIndicator" title="Click to save now" onclick="forceSaveNow()" style="margin-left:auto;cursor:pointer;font-size:.65rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:4px;transition:background .15s">
@@ -1035,6 +1038,10 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
 
 <div id="tasksView" style="display:none">
   <div class="rc-panel" id="tasksPanel"></div>
+</div>
+
+<div id="tellsView" style="display:none">
+  <div class="rc-panel" id="tellsPanel"></div>
 </div>
 
 <div id="settingsView" style="display:none">
@@ -2786,7 +2793,7 @@ function _spellClassMap(cls){
 // P99 wiki data files (gen-wiki-data.js), loaded the first time a tab needs them: spells / vendors / quests
 const _wikiLoad={};
 function wikiData(name,redraw){
-  const g={spells:'WIKI_SPELLS',vendors:'WIKI_VENDORS',quests:'WIKI_QUESTS',travel:'PORT_TRAVEL',zones:'ZONE_GRAPH',mobs:'WIKI_MOBS',epics:'WIKI_EPICS',values:'WIKI_VALUES'}[name]; if(window[g]) return window[g];
+  const g={spells:'WIKI_SPELLS',vendors:'WIKI_VENDORS',quests:'WIKI_QUESTS',travel:'PORT_TRAVEL',durations:'WIKI_DURATIONS',zones:'ZONE_GRAPH',mobs:'WIKI_MOBS',epics:'WIKI_EPICS',values:'WIKI_VALUES'}[name]; if(window[g]) return window[g];
   if(!_wikiLoad[name]){ _wikiLoad[name]=[]; const s=document.createElement('script'); s.src='wiki-'+name+'.js';
     s.onload=()=>{ const cbs=_wikiLoad[name]; _wikiLoad[name]=true; cbs.forEach(f=>{try{f();}catch(e){}}); }; document.head.appendChild(s); }
   if(Array.isArray(_wikiLoad[name])&&redraw) _wikiLoad[name].push(redraw);
@@ -3086,6 +3093,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     const isKeys=activeTopView==='keys';
     const isFlowers=activeTopView==='flowers';
     const isTasks=activeTopView==='tasks';
+    const isTells=activeTopView==='tells';
     const isSettings=activeTopView==='settings';
     try{localStorage.setItem('mp_last_view',activeTopView);}catch(e){}
     const isTimers=activeTopView==='timers';
@@ -3107,6 +3115,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     document.getElementById('keysView').style.display=isKeys?'block':'none';
     document.getElementById('flowersView').style.display=isFlowers?'block':'none';
     document.getElementById('tasksView').style.display=isTasks?'block':'none';
+    document.getElementById('tellsView').style.display=isTells?'block':'none';
     document.getElementById('settingsView').style.display=isSettings?'block':'none';
     document.getElementById('timersView').style.display=isTimers?'block':'none';
     document.getElementById('gearReportsView').style.display=isGearReports?'block':'none';
@@ -3119,6 +3128,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     else if(isKeys){renderKeysPanel();}
     else if(isFlowers){renderFlowersPanel();}
     else if(isTasks){renderTasksPanel();}
+    else if(isTells){renderTellsPanel();}
     else if(isSettings){renderSettingsPanel();}
     else if(isTimers){renderTimersPanel();}
     else if(isGearReports){renderGearReportsPanel();}
@@ -5667,18 +5677,17 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.25',
+  version:'1.7.26',
   date:'October 2026',
   features:[
-    ['&#129509; Outfitter: more builds','<b>Build</b> now also has <b>Max HP</b>, <b>Max Mana</b>, <b>Max HP + Mana</b>, <b>Max WIS</b>, <b>Max INT</b> and <b>Powerlevel</b> &mdash; the fastest weapon you have (one landed hit is all you need), your best haste item counted up to the level&rsquo;s haste cap, and the most HP everywhere else.'],
-    ['&#128101; Outfitter: Gear from&hellip;','Choose which characters the kit may take gear from &mdash; their bags and bank, and their worn gear too. Bankers&rsquo; worn gear counts by default; your playing characters&rsquo; doesn&rsquo;t.'],
-    ['&#128433; Outfitter: right-click a row','Swap for another item you have, pin it to the slot, never use an item on that character, or jump to the Gear Planner for upgrades. Class, race and level you pick by hand now survive a restart.'],
-    ['&#128221; Class and race from /who','A /who of any of your characters, typed on any of them, fills in an empty class and race &mdash; also from your older logs. The Outfitter asks for a class instead of showing a made-up one.'],
+    ['&#9203; Spell timers','A <b>⏳ Spell Timers</b> window (stays on top of EverQuest) counts down your roots, charms, mezzes, slows and DoTs &mdash; the full duration from the P99 wiki at your level, starting when the spell lands, one row per cast with the mob&rsquo;s name. It says <b>&ldquo;Charm break&rdquo;</b>, <b>&ldquo;Enstill worn off&rdquo;</b> or <b>&ldquo;Tepid Deeds resisted&rdquo;</b>. Settings &rarr; Spell timers: what to track and say per kind of spell, voice or beep, volume.'],
+    ['&#9877; CH chain window','A live window built from the &ldquo;CA 007 CH -- Tank&rdquo; calls: the last call (<b>Name &gt; 007</b>), who&rsquo;s next, the <b>free numbers</b> to take, and a red warning when two healers call the same number. On automatically if you have a Cleric (Settings &rarr; CH chain).'],
+    ['&#128202; Kill parses','Click <b>📊</b> on a kill in Auto-Detect (or <b>📊 Parse kills</b>): damage and DPS per player, the boss&rsquo;s hits, who tanked, and a <b>Complete Heal chain report</b> &mdash; cadence chart (hover a red bar to see whose turn it was), missed turns and late calls per healer, doubled numbers and number changes. Each boss builds a hit profile across kills.'],
+    ['&#128232; Tells','A new <b>Tells</b> tab keeps tells to and from your characters, and a pop-up plus a spoken &ldquo;Player sent a tell&rdquo; tells you when one arrives on any character. Settings &rarr; Tells (or turn it off and the tab hides).'],
   ],
   fixes:[
-    ['Auto-Detect','The Statue of Rallos Zek and the Avatar of War are only called Strong (auto-added) when a Castle player or one of your characters was fighting it &mdash; another guild&rsquo;s kill with everyone collecting the faction hit now comes up as a prompt. Castle roster = guild chat + OpenDKP + your characters.'],
-    ['Leveling','Levels where the mobs were far above the character (power-levelling) no longer suggest zones like Castle Mistmoore at level 2, and To level 60 estimates the levels with no data instead of counting them as zero.'],
-    ['Items','Icicle Circlet is NO DROP.'],
+    ['Speed','Your logs are read 8 times a second instead of every 2 seconds, so timers, tells, chain calls and Auto-Detect react right away.'],
+    ['Top bar','Tasks stays at the end of the top bar.'],
   ],
 };
 function showWhatsNew(){
@@ -8266,6 +8275,11 @@ window.applyDBToChar    = applyDBToChar;
           }
         }
         if(msg.type === 'whoSelf'){ sheetFromWho(msg); }
+        if(msg.type === 'tell'){ tellOnMsg(msg); }
+        if(msg.type === 'chCall'){ chChainOnCall(msg); }
+        if(msg.type === 'timerStart'||msg.type === 'timerCancel'||msg.type === 'timerEnd'||msg.type === 'timerTarget'||msg.type === 'timerResist'){ spellTimerOnMsg(msg); }
+        if(msg.type === 'spellDurations'){ _spellDurKnown=msg.d||{}; }
+        if(msg.type === 'fightParse'){ fightParseOnMsg(msg); }
         if(msg.type === 'guildRoster'&&Array.isArray(msg.names)){ _rkdGuildChat=new Set(msg.names.map(n=>String(n).toLowerCase())); }
         if(msg.type === 'capScanResult'&&typeof rkdRosterRefresh==='function'){ setTimeout(rkdRosterRefresh,500); }   // the backfill just filled the guild-chat speakers
         if(msg.type === 'whoScan'&&msg.whos){ for(const [cn,w] of Object.entries(msg.whos)) sheetFromWho(Object.assign({charName:cn,backfill:true},w)); }
@@ -14393,7 +14407,7 @@ function renderAutoDetectPanel(){
       <td style="padding:.3rem .5rem;font-weight:600">${who}${r.boss&&(r.tier==='strong'||r.tier==='weak'||r.confirm==='auto'||r.confirm==='added')?lootLineHtml(lootForKill(r),r.boss,'rkd|'+r.id):''}</td>
       <td style="padding:.3rem .5rem;font-size:.74rem;color:var(--text-muted)" title="Up in ${esc(r.zone||'this zone')} at the tick, per the spawn timers">${Array.isArray(r.upZone)?(r.upZone.length?'<div style="display:grid;grid-template-columns:repeat(2,max-content);column-gap:.9rem;row-gap:.05rem">'+r.upZone.map(b=>'<span style="white-space:nowrap">'+esc(btLabel(b))+'</span>').join('')+'</div>':'<span style="font-size:.7rem">none on the timers</span>')+(r.upStale?`<div style="font-size:.66rem;opacity:.75;margin-top:.15rem" title="Up on the spawn timers for more than a day at the tick — almost always a kill nobody recorded, so not offered. Search for them in the right-click menu if needed.">+${r.upStale} stale (up 1 day+)</div>`:''):'—'}</td>
       <td style="padding:.3rem .5rem;color:${tc};white-space:nowrap">${(()=>{const x=_rkdLaterSameFight(r);return x?'<div style="font-size:.7rem;color:var(--text-muted);white-space:normal" title="A tick taken during the fight — the boss died later">mid-fight tick: killed '+(x.tod?fmt(x.tod).split(', ').pop():'later')+' ('+fmt(x.ts).split(', ').pop()+' tick)</div>':'';})()}${tl}${r.basis?` <span style="font-size:.7rem;color:var(--text-muted)">(${esc(r.basis)})</span>`:''}</td>
-      <td style="padding:.3rem .5rem;white-space:nowrap">${r.tod?fmt(r.tod).split(', ').pop()+` <span style="font-size:.68rem;color:var(--text-muted)">${esc(r.todSource||'')}</span>`:'—'}</td>
+      <td style="padding:.3rem .5rem;white-space:nowrap">${r.tod?fmt(r.tod).split(', ').pop()+` <span style="font-size:.68rem;color:var(--text-muted)">${esc(r.todSource||'')}</span>`:'—'}${r.boss&&(r.tod||r.ts)?`<a href="#" onclick="rkdParse('${esc(r.id)}');return false" title="Damage parse, Complete Heals and the boss's hits for this kill" style="margin-left:.35rem;text-decoration:none">📊${fightParseGet(r.id)?'':'<span style="font-size:.62rem;color:var(--text-muted)"> parse</span>'}</a>`:''}</td>
       <td style="padding:.3rem .5rem;font-size:.72rem;color:var(--text-muted)"><span title="Where the tick was heard">${r.sameZone?'OOC (in zone)':'guild chat'}</span><div style="font-size:.68rem">${ev}</div>${r.qAfter?`<div style="font-size:.68rem;color:#c48a3a" title="A character logged in ${Math.max(1,Math.round((r.qAfter-r.ts)/60e3))} min after this tick (/q to another character, or a relog) and no kill line was seen — if you left before the kill, the log can't show it">${fmt(r.qAfter).split(', ').pop()} /q or relog after the tick — kill not seen</div>`:''}</td>
       <td style="padding:.3rem .5rem;white-space:nowrap;font-size:.75rem">${rec}</td>
       <td style="padding:.3rem .5rem;font-size:.75rem">${odkp}</td>
@@ -14401,7 +14415,7 @@ function renderAutoDetectPanel(){
   }).join('');
   const scanBtn=_rkdScan&&_rkdScan.state==='running'
     ?`<span id="rkdScanStatus" style="font-size:.72rem;color:var(--gold-light)">scanning${_rkdScan.total?' '+_rkdScan.file+'/'+_rkdScan.total:''}…</span>`
-    :`<button class="kt-undo-btn" onclick="rkdScanLogs()" title="Replay every RAIDTICK from your logs (last 6 months) so past raid nights can be checked">⛏ Scan logs</button>`
+    :`<button class="kt-undo-btn" onclick="rkdScanLogs()" title="Replay every RAIDTICK from your logs (last 6 months) so past raid nights can be checked">⛏ Scan logs</button><button class="kt-undo-btn" onclick="rkdParseRecent()" title="Parse the damage, Complete Heals and boss hits of the latest kills (builds each boss's hit profile)">📊 Parse kills</button>`
      +(_rkdScan&&_rkdScan.msg?`<span id="rkdScanStatus" style="font-size:.7rem;color:${_rkdScan.state==='error'?'#c03030':'var(--text-muted)'}">${esc(_rkdScan.msg)}</span>`:'');
   const odkpSum=hasOdkp
     ?`<span style="font-size:.75rem">ODKP: <span style="color:#4caf7d">✓ ${nOk} credited</span> · <span style="color:${nMiss?'#c03030':'var(--text-muted)'}">✗ ${nMiss} not credited</span>${nNewer?` · <span style="color:var(--text-muted)">${nNewer} after upload</span>`:''}</span>`
@@ -16416,6 +16430,8 @@ const TOAST_KINDS=[
   ['cap','Leatherfoot cap','A cap used (it needs a recharge) or recharged',/^🧢/],
   ['tasks','Task reminders','Your tasks, when you log in on that character, enter its zone or the time comes',/^📌/],
   ['sheet','Character sheet reminders','After a death outside a raid when a character has no class or race, and class / race filled in from /who',/^📝/],
+  ['tells','Tells','A tell to one of your characters from someone else',/^📨/],
+  ['spelltimers','Spell timers','Your roots, charms, mezzes and DoTs wearing off',/^⏳/],
   ['other','Everything else','Imports, scans, saves and other confirmations',null],
 ];
 // cap state loaded from the cloud vs. what the log scan already set this session — the newer of each part wins
@@ -16963,6 +16979,313 @@ function whoPendingApply(){
   const ks=Object.keys(p); if(!ks.length) return;
   for(const k of ks){ if(!sheetKey(k)) continue; const w=p[k]; delete p[k]; try{ localStorage.setItem('mp_who_pending',JSON.stringify(p)); }catch(e){} sheetFromWho(Object.assign({},w,{backfill:true})); }
 }
+// ══ Live CH chain (2026-10-18): "NAME > CH#" and the free numbers, in its own window (like Auctions) ══
+function chChainMode(){ try{ const v=localStorage.getItem('mp_ch_mode'); return v==='on'||v==='off'?v:'auto'; }catch(e){ return 'auto'; } }
+function chChainOn(){ const m=chChainMode(); if(m!=='auto') return m==='on'; try{ return charNames().some(n=>/^cleric$/i.test(String((charMeta[n]||{}).class||''))); }catch(e){ return false; } }   // Auto: on when one of your characters is a Cleric
+const _chChains={};   // target → {slots:{slot:{who:{name:{n,last}}}}, last:{slot,by,ts}, times:[]}
+function chChainOnCall(msg){
+  if(!chChainOn()) return;
+  const now=msg.ts||Date.now();
+  for(const k of Object.keys(_chChains)) if(now-_chChains[k].last.ts>180e3) delete _chChains[k];   // a chain quiet for 3 minutes is over
+  const c=_chChains[msg.target]||(_chChains[msg.target]={slots:{},last:null,times:[]});
+  for(const [n,x] of Object.entries(c.slots)) if(+n!==msg.slot&&x.who[msg.by]){ delete x.who[msg.by]; if(!Object.keys(x.who).length) delete c.slots[n]; }   // moved to a new number: they leave the old one
+  const o=c.slots[msg.slot]||(c.slots[msg.slot]={who:{}}); const w=o.who[msg.by]||(o.who[msg.by]={n:0,last:0}); w.n++; w.last=now;   // a number can hold two healers — that's a clash to show
+  c.last={slot:msg.slot,by:msg.by,ts:now}; c.times.push(now); if(c.times.length>40) c.times.shift();
+  chChainPush();
+  if(window.MixelParseApp&&window.MixelParseApp.popChChain) try{ window.MixelParseApp.popChChain(); }catch(e){}
+}
+function chChainState(){
+  const ts=Object.entries(_chChains).sort((a,b)=>b[1].last.ts-a[1].last.ts)[0]; if(!ts) return null;
+  const [target,c]=ts, now=Date.now(), g=[]; for(let i=1;i<c.times.length;i++) g.push((c.times[i]-c.times[i-1])/1000);
+  const sg=g.filter(x=>x<30).sort((a,b)=>a-b), every=sg.length?sg[Math.floor(sg.length/2)]:0;
+  const nums=Object.keys(c.slots).map(Number).sort((a,b)=>a-b);
+  const window_=Math.max(45e3,(every||3)*Math.max(nums.length,4)*2.2*1000);   // a healer not heard in about two rounds has dropped out
+  const live=n=>Object.entries(c.slots[n].who).filter(([,w])=>now-w.last<=window_).sort((a,b)=>b[1].last-a[1].last).map(([nm,w])=>({name:nm,n:w.n}));
+  const lastHeard=n=>Math.max(...Object.values(c.slots[n].who).map(w=>w.last));
+  const active=nums.filter(n=>live(n).length), max=active.length?Math.max(...active):0;
+  const free=[]; for(let n=1;n<=max;n++) if(!active.includes(n)) free.push(n);
+  const li=active.indexOf(c.last.slot), next=active.length?active[(li+1)%active.length]:null;
+  const dups=active.filter(n=>live(n).length>1).map(n=>({slot:n,names:live(n).map(x=>x.name)}));
+  const slots=[]; for(let n=1;n<=Math.max(max,...nums.filter(x=>now-lastHeard(x)<=window_*2));n++){ const o=c.slots[n];
+    if(o&&active.includes(n)){ const L=live(n); slots.push({slot:n,by:L.map(x=>x.name).join(' / '),n:L.reduce((a,x)=>a+x.n,0),dup:L.length>1}); }
+    else if(n<=max) slots.push({slot:n,open:true});
+    else if(o) slots.push({slot:n,by:Object.keys(o.who).join(' / '),idle:true}); }
+  const nl=next!=null?live(next):[];
+  return {target,last:c.last,every,active:active.length,max,free:free.slice(0,6),next,nextBy:nl.map(x=>x.name).join(' / '),slots,dups};
+}
+function chChainPush(){ if(window.MixelParseApp&&window.MixelParseApp.pushChChainState) try{ window.MixelParseApp.pushChChainState(chChainState()); }catch(e){} }
+setInterval(()=>{ if(Object.keys(_chChains).length) chChainPush(); },3000);
+if(window.MixelParseApp&&window.MixelParseApp.onChChainWindowReady) window.MixelParseApp.onChChainWindowReady(()=>chChainPush());
+window.chChainToggle=function(){ if(window.MixelParseApp&&window.MixelParseApp.toggleChChain){ window.MixelParseApp.toggleChChain(); setTimeout(chChainPush,350); } else alert('The CH chain window is in the desktop app.'); };
+
+// ══ Tells (log review, 2026-10-18): a tell to any of your characters ══
+let _tells=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_tells')||'[]')||[]; }catch(e){ return []; } })();
+function tellsSave(){ if(_tells.length>300) _tells=_tells.slice(-300); try{ localStorage.setItem('mp_tells',JSON.stringify(_tells)); }catch(e){} tellsNavCount(); }
+function tellsOn(){ try{ return localStorage.getItem('mp_tells_on')!=='0'; }catch(e){ return true; } }
+function tellSoundOn(){ try{ return localStorage.getItem('mp_tells_snd')!=='0'; }catch(e){ return true; } }
+function tellVolume(){ try{ const v=parseFloat(localStorage.getItem('mp_tells_vol')); return isFinite(v)?Math.max(0,Math.min(1,v)):0.6; }catch(e){ return 0.6; } }
+let _tellAudio=null;
+function tellChime(){   // a soft rising two-note chime (Web Audio, no file)
+  try{
+    _tellAudio=_tellAudio||new (window.AudioContext||window.webkitAudioContext)(); const ctx=_tellAudio; if(ctx.state==='suspended') ctx.resume();
+    const vol=tellVolume(); if(!vol) return;
+    const tone=(t0,freq,len)=>{ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='triangle'; o.frequency.value=freq; g.gain.setValueAtTime(0.0001,ctx.currentTime+t0); g.gain.exponentialRampToValueAtTime(0.3*vol,ctx.currentTime+t0+0.02); g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+t0+len); o.connect(g); g.connect(ctx.destination); o.start(ctx.currentTime+t0); o.stop(ctx.currentTime+t0+len+0.02); };
+    tone(0,784,0.22); tone(0.16,1175,0.34);
+  }catch(e){}
+}
+function tellVoiceOn(){ try{ return localStorage.getItem('mp_tells_voice')!=='0'; }catch(e){ return true; } }   // Voice (default) or Chime
+function tellAlert(who){
+  if(tellVoiceOn()&&window.speechSynthesis&&typeof SpeechSynthesisUtterance!=='undefined'){
+    try{ const u=new SpeechSynthesisUtterance(String(who||'Someone')+' sent a tell'); u.volume=tellVolume(); u.rate=1.1; window.speechSynthesis.speak(u); return; }catch(e){}
+  }
+  tellChime();
+}
+function tellsUnread(){ return _tells.filter(t=>t.dir==='in'&&!t.read).length; }
+function tellsNavCount(){ const el=document.querySelector('.top-nav-item[data-view="tells"]'); if(el){ el.style.display=tellsOn()?'':'none'; if(!tellsOn()&&typeof activeTopView!=='undefined'&&activeTopView==='tells'&&typeof switchTopView==='function') setTimeout(()=>switchTopView('characters'),0); const n=tellsUnread(); el.innerHTML='Tells'+(n?' <b style="color:#b03030">('+n+')</b>':''); } }
+setTimeout(tellsNavCount,0);
+function tellOnMsg(msg){
+  if(!tellsOn()) return;   // Settings → Tells: tracking off
+  const own=new Set(charNames().map(n=>n.toLowerCase())), fromOwn=own.has(String(msg.who||'').toLowerCase());
+  if(fromOwn) return;   // box-to-box tells aren't worth a history line
+  const viewing=typeof activeTopView!=='undefined'&&activeTopView==='tells';
+  _tells.push({c:msg.charName,dir:msg.dir,who:msg.who,text:String(msg.text||'').slice(0,400),ts:msg.ts||Date.now(),read:msg.dir!=='in'||viewing});
+  tellsSave();
+  if(msg.dir==='in'){ showWatcherToast('📨 '+msg.charName+' \u2190 '+msg.who+': '+String(msg.text||'').slice(0,120)); if(tellSoundOn()) tellAlert(msg.who); }
+  if(viewing) renderTellsPanel();
+}
+window.tellsClear=function(){ _tells=[]; tellsSave(); renderTellsPanel(); };
+function renderTellsPanel(){
+  const p=document.getElementById('tellsPanel'); if(!p) return;
+  let ch=false; for(const t of _tells) if(!t.read){ t.read=true; ch=true; } if(ch) tellsSave();
+  const by={}; for(const t of _tells) (by[t.c+'|'+t.who]=by[t.c+'|'+t.who]||[]).push(t);
+  const convs=Object.values(by).sort((a,b)=>b[b.length-1].ts-a[a.length-1].ts);
+  const fmtT=ts=>new Date(ts).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  p.innerHTML='<div style="padding:.7rem 1rem 1.2rem;max-width:860px">'
+    +'<div style="display:flex;align-items:center;gap:.6rem"><div style="font-family:\'Cinzel\',serif;font-size:1rem;color:var(--gold)">📨 Tells</div><span style="flex:1"></span>'+(_tells.length?'<a href="#" onclick="tellsClear();return false" style="font-size:.78rem;color:var(--gold-light)">Clear history</a>':'')+'</div>'
+    +'<div style="font-size:.8rem;color:var(--text-muted);margin:.2rem 0 .7rem">Tells to and from your characters, newest conversation first \u2014 so a tell to a character in the background isn\u2019t missed. A tell gets a 📨 pop-up (Settings \u2192 Pop-up notices \u2192 Tells). Tells between your own characters are left out. Kept on this PC.</div>'
+    +(convs.length?convs.map(cv=>{ const last=cv[cv.length-1];
+      return '<div style="border:1px solid var(--border);border-radius:5px;padding:.45rem .65rem;margin-bottom:.55rem;background:var(--surface)"><div style="font-size:.84rem;margin-bottom:.25rem"><b>'+esc(last.c)+'</b> \u2194 <b>'+esc(last.who)+'</b> <span style="color:var(--text-muted);font-size:.74rem">\u00b7 '+cv.length+' \u00b7 '+fmtT(last.ts)+'</span></div>'
+        +cv.slice(-12).map(t=>'<div style="font-size:.84rem;padding:.08rem 0'+(t.dir==='out'?';color:var(--text-muted)':'')+'"><span style="font-size:.7rem;color:var(--text-muted);margin-right:.35rem">'+new Date(t.ts).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+'</span>'+(t.dir==='in'?'<b>'+esc(t.who)+':</b> ':'<b>'+esc(t.c)+':</b> ')+esc(t.text)+'</div>').join('')+'</div>'; }).join('')
+      :'<div style="color:var(--text-muted);font-size:.88rem">No tells yet. They show here as they arrive.</div>')+'</div>';
+}
+
+// ══ Spell timers (log review, 2026-10-18): roots, charms, mezzes, DoTs — durations learned from your own logs ══
+let _spellDurKnown={}, _spellTimers=new Map(), _spellTimerTick=null, _spellTimerSeq=0;
+// full duration from the P99 wiki at the caster's level (linear between the wiki's two levels); 0 = not on the wiki
+// spell → type, from its name and the wiki's landing text
+const SPELL_CATS=[['charm','Charm'],['mez','Mez'],['root','Root / snare'],['slow','Slow'],['fear','Fear'],['debuff','Tash / Malo / Cripple'],['other','DoTs &amp; other']];
+const SPELL_CAT_DEF={charm:{t:1,b:1,r:1},mez:{t:1,b:1,r:1},root:{t:1,b:1,r:1},slow:{t:1,b:1,r:1},fear:{t:1,b:1,r:1},debuff:{t:1,b:0,r:1},other:{t:1,b:0,r:0}};
+function spellCat(spell){
+  const n=String(spell||'').toLowerCase(), W=wikiData('durations'), land=W&&W[n]?String(W[n][4]||'').toLowerCase():'';
+  if(/charm|dominat|allure|beguile|cajol|befriend|enslave|thrall|captivat|boltran|call of karana|tunare's request|command of druzzil/.test(n)) return 'charm';
+  if(/mesmeriz/.test(land)||/mesmeriz|dazzle|entrance|glamour of kintaz|rapture|enthrall|sleep|lull|soothe|mesmerization|fascination/.test(n)) return 'mez';
+  if(/feet (adhere|become entangled)|rooted|ensnared|snared|movement slows/.test(land)||/root|snare|bonds|tangl|immobiliz|paralyzing earth|enstill|grasping|engorging|earthbind|shackle|clinging darkness/.test(n)) return 'root';
+  if(/yawns|slows down|very tired|lethargic/.test(land)||/deeds|languid|drowsy|walking sleep|insects|slow|sloth|dull/.test(n)) return 'slow';
+  if(/fear|panic|scare|terror|dread|spook|chase the moon|cower|flee/.test(n)) return 'fear';
+  if(/tash|malo|cripple|weaken|disempower|vulnerab|incapacitat|listless|enfeeble/.test(n)) return 'debuff';
+  return 'other';
+}
+function spellCatCfg(){ let c={}; try{ c=JSON.parse(localStorage.getItem('mp_timers_cats2')||'{}')||{}; }catch(e){} const o={}; for(const [k] of SPELL_CATS) o[k]=Object.assign({},SPELL_CAT_DEF[k],c[k]||{}); return o; }
+window.spellCatSet=function(cat,what,on){ const c=spellCatCfg(); c[cat][what]=on?1:0; try{ localStorage.setItem('mp_timers_cats2',JSON.stringify(c)); }catch(e){} };
+function spellWikiDur(spell,ch){
+  const W=wikiData('durations'); if(!W) return 0; const w=W[String(spell||'').toLowerCase()]; if(!w) return 0;
+  const L=+((charMeta[ch]||{}).level)||w[3];
+  if(L<=w[1]) return w[0]; if(L>=w[3]) return w[2]; return Math.round(w[0]+(w[2]-w[0])*(L-w[1])/Math.max(1,w[3]-w[1]));
+}
+setTimeout(()=>{ try{ wikiData('durations'); }catch(e){} },3000);
+function spellTimersOn(){ try{ return localStorage.getItem('mp_timers_on')!=='0'; }catch(e){ return true; } }
+function spellTimerSound(kind){ try{ const v=localStorage.getItem(kind==='charm'?'mp_timers_snd_charm':'mp_timers_snd_off'); return kind==='charm'?v!=='0':v==='1'; }catch(e){ return kind==='charm'; } }   // charm break: on by default; other wear-offs: off
+function spellTimerVolume(){ try{ const v=parseFloat(localStorage.getItem('mp_timers_vol')); return isFinite(v)?Math.max(0,Math.min(1,v)):0.6; }catch(e){ return 0.6; } }
+let _tmrAudio=null;
+function spellTimerBeep(kind){
+  try{
+    _tmrAudio=_tmrAudio||new (window.AudioContext||window.webkitAudioContext)(); const ctx=_tmrAudio; if(ctx.state==='suspended') ctx.resume();
+    const vol=spellTimerVolume(); if(!vol) return;
+    const tone=(t0,freq,len,type)=>{ const o=ctx.createOscillator(), g=ctx.createGain(); o.type=type; o.frequency.value=freq; g.gain.setValueAtTime(0.0001,ctx.currentTime+t0); g.gain.exponentialRampToValueAtTime(0.35*vol,ctx.currentTime+t0+0.015); g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+t0+len); o.connect(g); g.connect(ctx.destination); o.start(ctx.currentTime+t0); o.stop(ctx.currentTime+t0+len+0.02); };
+    if(kind==='charm'){ tone(0,1180,0.14,'square'); tone(0.18,1180,0.14,'square'); tone(0.36,880,0.22,'square'); }   // charm broke: sharp, urgent
+    else tone(0,660,0.35,'sine');   // something wore off: one soft tone
+  }catch(e){}
+}
+function spellTimerVoice(){ try{ return localStorage.getItem('mp_timers_voice')!=='0'; }catch(e){ return true; } }   // Voice (default) or Beep
+// the alert: spoken "Charm break" / "<spell> worn off", or the beep tones
+function spellTimerAlert(kind,spell){
+  if(spellTimerVoice()&&window.speechSynthesis&&typeof SpeechSynthesisUtterance!=='undefined'){
+    try{ const u=new SpeechSynthesisUtterance(kind==='charm'?'Charm break':kind==='charmresist'?'Charm resisted':kind==='resist'?String(spell||'Spell')+' resisted':String(spell||'Spell')+' worn off'); u.volume=spellTimerVolume(); u.rate=1.1;
+      if(kind==='charm') window.speechSynthesis.cancel();   // a charm break cuts in front
+      window.speechSynthesis.speak(u); return; }catch(e){}
+  }
+  spellTimerBeep(kind==='charm'||kind==='charmresist'?'charm':'off');
+}
+function spellTimersCollapsed(){ try{ return localStorage.getItem('mp_timers_collapsed')==='1'; }catch(e){ return false; } }
+window.spellTimersToggle=function(){ try{ localStorage.setItem('mp_timers_collapsed',spellTimersCollapsed()?'0':'1'); }catch(e){} spellTimersRender(); };
+function spellTimerOnMsg(msg){
+  if(!spellTimersOn()) return;   // Settings → Spell timers: Off
+  const same=t=>t.c===msg.charName&&t.sp===msg.spell&&!t.ended, live=[..._spellTimers.values()].filter(same).sort((a,b)=>a.start-b.start);
+  const cat=spellCat(msg.spell), cfg=spellCatCfg()[cat];
+  if(msg.type==='timerResist'){   // remove the newest cast of it and say so
+    const t=live.filter(x=>x.pending).pop()||live.pop(); if(t) for(const [k,v] of _spellTimers) if(v===t) _spellTimers.delete(k);
+    if(cfg.r){ showWatcherToast('⏳ '+(cat==='charm'?'Charm':msg.spell)+' resisted \u2014 '+msg.charName); spellTimerAlert(cat==='charm'?'charmresist':'resist',msg.spell); }
+    spellTimersRender(); return; }
+  if(msg.type==='timerStart'&&!cfg.t) return;   // this type isn't tracked (Settings → Spell timers)
+  if(msg.type==='timerStart'){ const wd=spellWikiDur(msg.spell,msg.charName), W=wikiData('durations'), w=W&&W[String(msg.spell).toLowerCase()];
+    const t={c:msg.charName,sp:msg.spell,start:msg.ts||Date.now(),castAt:msg.ts||Date.now(),dur:wd||msg.dur||0,wiki:!!wd,target:'',pending:true,land:!!(w&&w[4])};
+    _spellTimers.set('t'+(++_spellTimerSeq),t);
+    if(!t.land) setTimeout(()=>{ if(t.pending&&!t.ended){ t.pending=false; t.start=t.castAt+3500; spellTimersRender(); } },3500);   // no landing text known: assume it landed
+    if(_tmrWin()&&spellTimersAutoOpen()) try{ window.MixelParseApp.popTimers(); }catch(e){} }
+  else if(msg.type==='timerTarget'){ const t=live.filter(x=>x.pending).pop()||live.filter(x=>!x.target).pop(); if(t){ t.target=msg.target; if(t.pending){ t.pending=false; t.start=msg.ts||Date.now(); } } }   // landed: the countdown starts now
+  else if(msg.type==='timerCancel'){ const t=live.filter(x=>x.pending).pop()||live.pop(); if(t) for(const [k,v] of _spellTimers) if(v===t) _spellTimers.delete(k); }   // the newest cast fizzled / was interrupted
+  else if(msg.type==='timerEnd'){
+    if(!cfg.t&&!cfg.b){ spellTimersRender(); return; }
+    let t=live.filter(x=>!x.pending)[0]||live[0];   // the oldest one still running — a wear-off doesn't say which mob
+    if(!t){ t={c:msg.charName,sp:msg.spell,start:0,dur:0,target:''}; _spellTimers.set('t'+(++_spellTimerSeq),t); }
+    t.ended=Date.now(); t.charm=!!msg.charm;
+    showWatcherToast(msg.charm?'⏳ Charm broke \u2014 '+msg.charName+' ('+msg.spell+')':'⏳ '+msg.spell+' wore off \u2014 '+msg.charName);
+    if(cfg.b) spellTimerAlert(msg.charm||cat==='charm'?'charm':'off',msg.spell);
+  }
+  spellTimersRender();
+}
+// desktop: the list lives in its own pop-up window (timers.html); it opens on a timed cast unless that's switched off
+const _tmrWin=()=>!!(window.MixelParseApp&&window.MixelParseApp.pushTimersState);
+function spellTimersAutoOpen(){ try{ return localStorage.getItem('mp_timers_popup')!=='0'; }catch(e){ return true; } }
+window.spellTimersWindowToggle=function(){ if(_tmrWin()){ window.MixelParseApp.toggleTimers(); setTimeout(spellTimersPush,350); } else { try{ localStorage.setItem('mp_timers_collapsed',spellTimersCollapsed()?'0':'1'); }catch(e){} spellTimersRender(); } };
+function spellTimersPush(){ if(!_tmrWin()) return; try{ window.MixelParseApp.pushTimersState([..._spellTimers.values()].map(t=>({c:t.c,sp:t.sp,start:t.start,dur:t.dur,ended:t.ended||0,charm:!!t.charm,target:t.target||'',wiki:!!t.wiki,pending:!!t.pending}))); }catch(e){} }
+if(window.MixelParseApp&&window.MixelParseApp.onTimersWindowReady) window.MixelParseApp.onTimersWindowReady(()=>spellTimersPush());
+function spellTimersRender(){
+  const now=Date.now();
+  for(const [k,t] of _spellTimers) if((t.ended&&now-t.ended>7000)||(t.pending&&now-t.castAt>12e3)||(!t.ended&&!t.pending&&t.dur&&now-t.start>(t.wiki?t.dur*1000+20e3:Math.max(t.dur*3*1000,t.dur*1000+300e3)))) _spellTimers.delete(k);
+  if(_tmrWin()){ const old=document.getElementById('spellTimersBox'); if(old) old.remove(); spellTimersPush();
+    if(!_spellTimers.size){ if(_spellTimerTick){ clearInterval(_spellTimerTick); _spellTimerTick=null; } } else if(!_spellTimerTick) _spellTimerTick=setInterval(spellTimersRender,2000);   // drop finished rows / casts that never landed
+    return; }
+  let d=document.getElementById('spellTimersBox');
+  if(!_spellTimers.size){ if(d) d.remove(); if(_spellTimerTick){ clearInterval(_spellTimerTick); _spellTimerTick=null; } return; }
+  if(!d){ d=document.createElement('div'); d.id='spellTimersBox'; d.style.cssText='position:fixed;bottom:4.6rem;right:1.2rem;width:270px;max-width:calc(100vw - 2.4rem);background:var(--surface);border:1px solid var(--border-glow);border-radius:6px;padding:.4rem .55rem;z-index:9997;box-shadow:0 4px 14px rgba(0,0,0,.25);font-size:.8rem;color:var(--text)'; document.body.appendChild(d); }
+  if(!_spellTimerTick) _spellTimerTick=setInterval(spellTimersRender,1000);
+  const rows=[..._spellTimers.values()].sort((a,b)=>(a.ended?0:1)-(b.ended?0:1)||((a.start+a.dur*1000)-(b.start+b.dur*1000)));
+  const mmss=x=>{ x=Math.max(0,Math.round(x)); return Math.floor(x/60)+':'+String(x%60).padStart(2,'0'); };
+  if(spellTimersCollapsed()){ d.style.width='auto'; d.innerHTML='<a href="#" onclick="spellTimersToggle();return false" style="text-decoration:none;color:var(--text)" title="Show spell timers">⏳ '+rows.length+(rows.some(t=>t.ended)?' <b style="color:#b03030">!</b>':'')+'</a>'; return; }
+  d.style.width='270px';
+  d.innerHTML='<div style="display:flex;align-items:center;margin-bottom:.2rem"><b style="flex:1;font-size:.78rem">⏳ Spell timers</b><a href="#" onclick="spellTimersToggle();return false" title="Shrink" style="color:var(--text-muted);text-decoration:none">\u2013</a></div>'
+    +rows.map(t=>{ if(t.pending) return '<div style="padding:.15rem 0;color:var(--text-muted)">'+esc(t.sp)+' <span>\u2014 '+esc(t.c)+'</span> \u00b7 casting\u2026</div>'; if(t.ended) return '<div style="padding:.15rem 0;color:#b03030;font-weight:700">'+esc(t.sp)+' <span style="font-weight:400">\u2014 '+esc(t.c)+'</span> \u00b7 wore off</div>';
+      const el=(now-t.start)/1000, left=t.dur-el, pct=t.dur?Math.max(0,Math.min(100,100*left/t.dur)):0;
+      return '<div style="padding:.15rem 0" title="Typical duration from your logs: '+mmss(t.dur)+' \u2014 roots, charms and mezzes can break sooner; you\u2019re alerted when it really wears off"><div style="display:flex;gap:.3rem"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.sp)+' <span style="color:var(--text-muted)">\u2014 '+esc(t.c)+'</span></span><span style="font-variant-numeric:tabular-nums;color:'+(left<10?'#b03030':'var(--gold-light)')+'">'+(left>0?'~'+mmss(left):'due')+'</span></div>'
+        +'<div style="height:3px;border-radius:2px;background:var(--surface2);overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(left<10?'#b03030':'var(--gold)')+'"></div></div></div>'; }).join('');
+}
+
+// ══ Fight parse per raid kill + CH chain report + boss hit profile (log review, 2026-10-18) ══
+let _fightParses=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_parses')||'{}')||{}; }catch(e){ return {}; } })();
+const _fightPending={}; let _fightQueue=[], _fightBatch=null;   // _fightBatch = {total, done} while "Parse kills" runs
+function fightParseGet(id){ return _fightParses[id]||null; }
+function fightParseSave(){ const ks=Object.keys(_fightParses); if(ks.length>250){ ks.sort((a,b)=>(_fightParses[a].at||0)-(_fightParses[b].at||0)); for(const k of ks.slice(0,ks.length-250)) delete _fightParses[k]; } try{ localStorage.setItem('mp_parses',JSON.stringify(_fightParses)); }catch(e){} }
+function fightBossNames(boss){ const b=(typeof BOSS_ROSTER!=='undefined'?BOSS_ROSTER:[]).find(x=>x.target===boss); return [...new Set([boss,b&&b.full].filter(Boolean))]; }
+window.rkdParse=function(id,quiet){
+  const r=rkdLog.find(x=>x.id===id); if(!r||!r.boss) return;
+  if(!quiet&&_fightParses[id]&&_fightParses[id].ok){ fightParseShow(id); return; }
+  if(!(window.MixelParseApp&&window.MixelParseApp.watcherCommand)){ if(!quiet) showWatcherToast('Parsing reads your logs \u2014 desktop app only'); return; }
+  const tod=r.tod||r.ts, sure=/slain|faction/i.test(r.todSource||''); _fightPending[id]={quiet:!!quiet};   // a tick-time ToD: the boss can die well after the tick
+  window.MixelParseApp.watcherCommand('parseFight',{id,names:fightBossNames(r.boss),from:tod-45*60e3,to:tod+(sure?90e3:20*60e3)});
+  if(!quiet) showWatcherToast('📊 Parsing '+(typeof btLabel==='function'?btLabel(r.boss):r.boss)+'\u2026');
+};
+window.rkdParseRecent=function(){
+  const since=Date.now()-60*864e5;
+  if(_fightBatch){ showWatcherToast('📊 Already parsing \u2014 '+_fightBatch.done+' / '+_fightBatch.total); return; }
+  _fightQueue=rkdLog.filter(r=>r.boss&&(r.tod||r.ts)>=since&&!(_fightParses[r.id]&&_fightParses[r.id].ok&&(_fightParses[r.id].v||0)>=3)&&(r.tier==='strong'||r.confirm==='auto'||r.confirm==='added')).sort((a,b)=>(b.tod||b.ts)-(a.tod||a.ts)).slice(0,40).map(r=>r.id);
+  if(!_fightQueue.length){ showWatcherToast('📊 Every recent kill is already parsed'); return; }
+  _fightBatch={total:_fightQueue.length,done:0}; fightBatchLine(); rkdParse(_fightQueue.shift(),true);
+};
+function fightParseOnMsg(msg){
+  const id=msg.id, pend=_fightPending[id]||{}; delete _fightPending[id];
+  const r=rkdLog.find(x=>x.id===id), res=msg.result||{ok:false,error:'no result'};
+  if(res.ok){ delete res.ch.timeline; if(res.attackers&&res.attackers.length>60) res.attackers=res.attackers.slice(0,60); _fightParses[id]=Object.assign({},res,{bossName:r&&r.boss,tod:r&&(r.tod||r.ts),at:Date.now()}); }
+  else if(r&&pend.quiet){ _fightParses[id]={bossName:r.boss,tod:r.tod||r.ts,at:Date.now(),ok:false,error:res.error}; }
+  const redraw=()=>{ if(typeof activeTopView!=='undefined'&&activeTopView==='kills'&&typeof renderKillsPanel==='function') renderKillsPanel(); };
+  if(!pend.quiet){ fightParseSave(); if(res.ok) fightParseShow(id); else showWatcherToast('📊 '+(res.error||'Parse failed')); redraw(); return; }
+  // batch ("Parse kills"): no redraw per kill — one at the end; save every 10
+  if(_fightBatch){ _fightBatch.done++; if(_fightBatch.done%10===0) fightParseSave(); fightBatchLine(); }
+  if(_fightQueue.length){ setTimeout(()=>rkdParse(_fightQueue.shift(),true),150); return; }
+  const n=_fightBatch?_fightBatch.done:0; _fightBatch=null; fightParseSave(); fightBatchLine(); redraw();
+  showWatcherToast('📊 '+n+' kills parsed \u2014 click 📊 on a kill to see it');
+}
+// one small progress line while "Parse kills" runs (no redraw of the tracker until it's done)
+// Complete Heal chain report: summary, gap chart, healer table by slot (missed turns / late calls), landings only when logged
+function fightChainHtml(p){
+  const ch=p.ch||{}, c=ch.chain, mmss=x=>{ x=Math.round(x); return Math.floor(x/60)+':'+String(x%60).padStart(2,'0'); };
+  if(!c){ return ch.calls?'<div style="font-size:.82rem;color:var(--text-muted)">'+ch.calls+' chain calls, too few on one target to read a rotation.</div>':'<div style="font-size:.82rem;color:var(--text-muted)">No Complete Heal chain in this fight.</div>'; }
+  // gap chart (SVG): one bar per call-to-call gap, a line at the usual gap, red where the chain stalled (> 2 × usual)
+  const g=c.gaps, W=640, H=56, mx=Math.max(c.med*3,...g.map(x=>Math.min(x,30)),1), bw=W/Math.max(g.length,1);
+  const nm={}; for(const x of c.slots) nm[+x.slot]=x.name; const P=n=>'#'+String(n).padStart(3,'0')+(nm[n]?' '+nm[n]:'');
+  const tip=(x,i)=>{ const a=(c.gapAt||[])[i]; if(!a) return x+' s'; const [t,ps,cs2,exp]=a, when=t<0?'before the pull':'at '+mmss(t);
+    return x+' s '+when+' \u2014 after '+P(ps)+': '+(exp===cs2?P(cs2)+' called'+(x>c.med*1.5?' late':''):P(exp)+'\u2019s turn, '+P(cs2)+' called'); };
+  const bars=g.map((x,i)=>{ const v=Math.min(x,mx), h=Math.max(1,(v/mx)*(H-6)); const bad=x>c.med*2, a=(c.gapAt||[])[i], who=a?(a[3]!==a[2]?a[3]:a[2]):0;
+    return '<rect x="'+(i*bw).toFixed(1)+'" y="'+(H-h).toFixed(1)+'" width="'+Math.max(bw-0.4,0.6).toFixed(1)+'" height="'+h.toFixed(1)+'" fill="'+(bad?'#c0392b':'var(--gold)')+'" opacity="'+(bad?'1':'.55')+'"'+(bad&&who?' style="cursor:pointer" onclick="fightChainMark('+who+')"':'')+'><title>'+esc(tip(x,i))+(bad&&who?' \u00b7 click to find them in the table':'')+'</title></rect>'; }).join('');
+  const my=(H-(c.med/mx)*(H-6)).toFixed(1);
+  const stalls=g.filter(x=>x>c.med*2).length;
+  const chart='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:56px;display:block;margin:.35rem 0 .1rem;background:var(--surface2);border-radius:3px">'+bars+'<line x1="0" x2="'+W+'" y1="'+my+'" y2="'+my+'" stroke="var(--text-muted)" stroke-dasharray="4 3" stroke-width="1"/></svg>'
+    +'<div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--text-muted)"><span>start</span><span>dashed = the usual '+c.med.toFixed(1)+' s \u00b7 red = a gap over '+(c.med*2).toFixed(1)+' s ('+stalls+')</span><span>'+mmss(c.span)+'</span></div>';
+  const worst=Math.max(1,...c.slots.map(x=>x.missed+x.late));
+  const rows=c.slots.map(x=>{ const bad=x.missed+x.late, hot=bad>=Math.max(3,worst*0.6);
+    return '<tr data-chslot="'+(+x.slot)+'" style="border-top:1px solid var(--border)'+(hot?';background:rgba(192,57,43,.08)':'')+'"><td style="padding:.2rem .5rem;color:var(--text-muted);font-variant-numeric:tabular-nums">#'+esc(x.slot)+'</td><td style="padding:.2rem .5rem">'+esc(x.name)+(x.also.length?' <span style="font-size:.72rem;color:var(--text-muted)">(also '+esc(x.also.join(', '))+')</span>':'')+((x.from>c.med*c.healers*1.5)||(c.span-x.to>c.med*c.healers*1.5)?' <span style="font-size:.72rem;color:var(--text-muted)">\u00b7 '+(x.from>c.med*c.healers*1.5?'joined '+mmss(x.from):'')+(x.from>c.med*c.healers*1.5&&c.span-x.to>c.med*c.healers*1.5?', ':'')+(c.span-x.to>c.med*c.healers*1.5?'left '+mmss(x.to):'')+'</span>':'')+'</td>'
+      +'<td style="padding:.2rem .5rem;text-align:right;font-variant-numeric:tabular-nums">'+x.n+'</td>'
+      +'<td style="padding:.2rem .5rem;text-align:right;font-variant-numeric:tabular-nums;'+(x.missed?'color:#c0392b;font-weight:700':'color:var(--text-muted)')+'">'+(x.missed||'\u2014')+'</td>'
+      +'<td style="padding:.2rem .5rem;text-align:right;font-variant-numeric:tabular-nums;'+(x.late?'color:#b07020;font-weight:600':'color:var(--text-muted)')+'">'+(x.late||'\u2014')+'</td></tr>'; }).join('');
+  const landOk=ch.landed&&ch.landed>=c.calls*0.5;
+  return '<div style="font-size:.88rem"><b>'+esc(c.target)+'</b> \u00b7 '+c.calls+' calls over '+mmss(c.span)+' \u00b7 '+c.healers+' healers \u00b7 one every <b>'+c.med.toFixed(1)+' s</b> \u00b7 longest gap <b style="color:'+(c.maxGap>c.med*3?'#c0392b':'var(--text)')+'">'+c.maxGap.toFixed(1)+' s</b></div>'
+    +chart
+    +'<div style="overflow-x:auto;margin-top:.45rem"><table style="border-collapse:collapse;font-size:.82rem;min-width:420px"><thead><tr style="font-size:.68rem;color:var(--text-muted);text-align:left"><th style="padding:.2rem .5rem">Slot</th><th style="padding:.2rem .5rem">Healer</th><th style="padding:.2rem .5rem;text-align:right">Calls</th><th style="padding:.2rem .5rem;text-align:right" title="The chain went from the slot before yours straight to the one after">Missed turns</th><th style="padding:.2rem .5rem;text-align:right" title="Your call came more than 1.5 × the usual gap after the previous one">Late</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +((c.dups&&c.dups.length)||(c.moves&&c.moves.length)?'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.4rem 1rem;margin-top:.55rem">'
+      +'<div><div style="font-size:.72rem;letter-spacing:.06em;color:#c0392b;font-weight:700">\u26a0 DOUBLED NUMBERS ('+(c.dups||[]).length+')</div>'+((c.dups||[]).length?c.dups.map(d=>'<div style="font-size:.8rem"><span style="color:var(--text-muted);font-variant-numeric:tabular-nums">'+(d.t<0?'before pull':mmss(d.t))+'</span> \u00b7 <b>#'+String(d.slot).padStart(3,'0')+'</b> '+d.names.map(esc).join(' + ')+'</div>').join(''):'<div style="font-size:.8rem;color:var(--text-muted)">none</div>')+'</div>'
+      +'<div><div style="font-size:.72rem;letter-spacing:.06em;color:var(--gold);font-weight:700">\u21c4 NUMBER CHANGES ('+(c.moves||[]).length+')</div>'+((c.moves||[]).length?c.moves.map(m=>'<div style="font-size:.8rem"><span style="color:var(--text-muted);font-variant-numeric:tabular-nums">'+(m.t<0?'before pull':mmss(m.t))+'</span> \u00b7 '+esc(m.by)+' '+String(m.from).padStart(3,'0')+' \u2192 <b>'+String(m.to).padStart(3,'0')+'</b></div>').join(''):'<div style="font-size:.8rem;color:var(--text-muted)">none</div>')+'</div></div>':'')
+    +'<div style="font-size:.7rem;color:var(--text-muted);margin-top:.3rem">Times are from the pull. From the \u201cCA ### CH -- target\u201d calls. <b>Missed turn</b>: the chain jumped from the slot before to the slot after. <b>Late</b>: more than 1.5 \u00d7 the usual gap after the call before.'+(ch.landed?(landOk?' '+ch.landed+' Complete Heal landings were also logged.':' Only '+ch.landed+' Complete Heal landings were in your logs (most aren\u2019t logged), so they\u2019re not used.'):'')+'</div>';
+}
+// a red bar in the chain chart was clicked: flash that healer's row
+window.fightChainMark=function(slot){
+  const m=document.getElementById('fightParseModal'); if(!m) return; const tr=m.querySelector('tr[data-chslot="'+slot+'"]'); if(!tr) return;
+  tr.scrollIntoView({block:'center',behavior:'smooth'}); const old=tr.style.outline; tr.style.outline='2px solid #c0392b'; tr.style.outlineOffset='-2px'; setTimeout(()=>{ tr.style.outline=old; },2500);
+};
+function fightBatchLine(){
+  let d=document.getElementById('fightBatchLine');
+  if(!_fightBatch){ if(d) d.remove(); return; }
+  if(!d){ d=document.createElement('div'); d.id='fightBatchLine'; d.style.cssText='position:fixed;top:.6rem;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border-glow);border-radius:4px;padding:.3rem .7rem;font-size:.8rem;z-index:10000;box-shadow:0 2px 8px rgba(0,0,0,.2)'; document.body.appendChild(d); }
+  d.textContent='📊 Parsing kills \u2014 '+_fightBatch.done+' / '+_fightBatch.total+'\u2026';
+}
+function fightBossProfile(boss){
+  const ps=Object.values(_fightParses).filter(p=>p.ok&&p.bossName===boss&&p.boss);
+  if(!ps.length) return null;
+  const n=ps.length, max=Math.max(...ps.map(p=>p.boss.max||0)), hits=ps.reduce((a,p)=>a+(p.boss.hits||0),0), sum=ps.reduce((a,p)=>a+(p.boss.avg||0)*(p.boss.hits||0),0), mins=ps.reduce((a,p)=>a+p.dur/60,0);
+  return {n, max, avg:hits?sum/hits:0, ramp:ps.reduce((a,p)=>a+(p.boss.rampage||0),0)/Math.max(mins,0.1), flurry:ps.reduce((a,p)=>a+(p.boss.flurry||0),0)/Math.max(mins,0.1), enr:ps.filter(p=>p.boss.enrage).length, dur:ps.reduce((a,p)=>a+p.dur,0)/n, dps:ps.reduce((a,p)=>a+p.total/p.dur,0)/n};
+}
+window.fightParseShow=function(id){
+  const p=_fightParses[id]; if(!p||!p.ok){ showWatcherToast('📊 '+((p&&p.error)||'Not parsed yet')); return; }
+  if((p.v||0)<3){ delete _fightParses[id]; rkdParse(id,false); showWatcherToast('📊 Updating this parse to the new report\u2026'); return; }   // made before the chain report — read the logs again
+  let o=document.getElementById('fightParseModal'); if(o) o.remove();
+  o=document.createElement('div'); o.id='fightParseModal'; o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10001;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:4vh 1rem';
+  o.onclick=e=>{ if(e.target===o) o.remove(); };
+  const mmss=x=>{ x=Math.round(x); return Math.floor(x/60)+':'+String(x%60).padStart(2,'0'); }, K=n=>Math.round(n).toLocaleString();
+  const name=typeof btLabel==='function'?btLabel(p.bossName):p.bossName, own=new Set(charNames().map(n=>n.toLowerCase()));
+  const top=p.attackers.slice(0,40), mx=top.length?top[0].dmg:1;
+  const rows=top.map((a,i)=>'<tr style="border-top:1px solid var(--border)'+(own.has(a.name.toLowerCase())?';background:rgba(184,137,43,.10)':'')+'"><td style="padding:.2rem .4rem;color:var(--text-muted)">'+(i+1)+'</td><td style="padding:.2rem .4rem">'+esc(a.name)+'</td>'
+    +'<td style="padding:.2rem .4rem;text-align:right;font-variant-numeric:tabular-nums">'+K(a.dmg)+'<div style="height:3px;background:var(--gold);opacity:.55;border-radius:2px;width:'+Math.round(100*a.dmg/mx)+'%;margin-left:auto"></div></td>'
+    +'<td style="padding:.2rem .4rem;text-align:right;color:var(--text-muted)">'+(p.total?Math.round(100*a.dmg/p.total):0)+'%</td><td style="padding:.2rem .4rem;text-align:right;font-variant-numeric:tabular-nums">'+a.dps.toFixed(1)+'</td>'
+    +'<td style="padding:.2rem .4rem;text-align:right;color:var(--text-muted)">'+a.hits+' / '+(a.hits+a.miss?Math.round(100*a.hits/(a.hits+a.miss)):0)+'%</td><td style="padding:.2rem .4rem;text-align:right;color:var(--text-muted)">'+a.max+'</td><td style="padding:.2rem .4rem;text-align:right;color:var(--text-muted)">'+(a.crits?a.crits+' (max '+a.critMax+')':'')+'</td></tr>').join('');
+  const B=p.boss||{}, prof=fightBossProfile(p.bossName);
+  const chT=(p.ch&&p.ch.targets||[]).slice(0,8).map(t=>'<tr style="border-top:1px solid var(--border)"><td style="padding:.15rem .4rem">'+esc(t.name)+'</td><td style="padding:.15rem .4rem;text-align:right">'+t.n+'</td><td style="padding:.15rem .4rem;text-align:right">'+(t.n>1?mmss(t.avgGap/1000):'\u2014')+'</td><td style="padding:.15rem .4rem;text-align:right;color:'+(t.maxGap>12e3?'#b03030':'var(--text)')+'">'+(t.n>1?mmss(t.maxGap/1000):'\u2014')+'</td></tr>').join('');
+  const callers=(p.ch&&p.ch.callers||[]).slice(0,16).map(c=>'<span style="white-space:nowrap">#'+esc(c.slot)+' '+esc(c.name)+' \u00d7'+c.n+'</span>').join(' \u00b7 ');
+  const sec=t=>'<div style="font-family:\'Cinzel\',serif;font-size:.74rem;letter-spacing:.08em;color:var(--gold);margin:.9rem 0 .3rem">'+t+'</div>';
+  o.innerHTML='<div style="background:var(--surface);border:1px solid var(--border-glow);border-radius:6px;max-width:900px;width:100%;padding:.9rem 1.1rem;box-shadow:0 8px 30px rgba(0,0,0,.35)">'
+    +'<div style="display:flex;align-items:flex-start;gap:.6rem"><div style="flex:1"><div style="font-family:\'Cinzel\',serif;font-size:1.1rem;color:var(--gold)">📊 '+esc(name)+'</div><div style="font-size:.8rem;color:var(--text-muted)">'+new Date(p.start).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' \u00b7 fight '+mmss(p.dur)+' \u00b7 '+K(p.total)+' melee damage seen'+(p.total?' \u00b7 '+K(p.total/p.dur)+' DPS':'')+(p.slainBy?' \u00b7 killing blow '+esc(p.slainBy):'')+'</div></div>'
+    +'<a href="#" onclick="delete _fightParses[\''+esc(id)+'\'];rkdParse(\''+esc(id)+'\',false);return false" title="Read the logs again" style="font-size:.78rem;color:var(--gold-light)">\u21bb re-parse</a><a href="#" onclick="document.getElementById(\'fightParseModal\').remove();return false" style="color:var(--text-muted);text-decoration:none;font-size:1.1rem;margin-left:.6rem">\u2715</a></div>'
+    +sec('DAMAGE ON '+esc(String(name).toUpperCase()))
+    +(!p.total?'<div style="font-size:.82rem;padding:.4rem .55rem;border:1px dashed var(--border);border-radius:4px;color:var(--text-muted)">No melee damage on '+esc(name)+' in your logs for this fight. EverQuest only writes other players\u2019 hits when the <b>Hits by others</b> chat filter is on and you\u2019re close enough \u2014 turn it on in a chat window\u2019s filters on the character that logs raids to get a damage parse next time.</div>':'')
+    +'<div style="overflow-x:auto'+(p.total?'':';display:none')+'"><table style="width:100%;border-collapse:collapse;font-size:.82rem;min-width:600px"><thead><tr style="font-size:.68rem;color:var(--text-muted);text-align:right"><th></th><th style="text-align:left;padding:.2rem .4rem">Attacker</th><th style="padding:.2rem .4rem">Damage</th><th style="padding:.2rem .4rem">Share</th><th style="padding:.2rem .4rem">DPS</th><th style="padding:.2rem .4rem">Hits / hit %</th><th style="padding:.2rem .4rem">Max</th><th style="padding:.2rem .4rem">Crits</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +'<div style="font-size:.72rem;color:var(--text-muted);margin-top:.3rem">Melee your characters saw (people far away are missed) plus your own hits. '+(p.nonMelee?K(p.nonMelee)+' more non-melee damage (spells, procs, damage shields) can\u2019t be credited to anyone \u2014 the log doesn\u2019t say whose it was. ':'')+'Your characters are highlighted. Read from '+esc((p.logs||[]).join(', '))+'.</div>'
+    +sec('THE BOSS\u2019S HITS')
+    +'<div style="font-size:.84rem">'+(B.hits?B.hits+' hits landed, '+B.misses+' missed \u00b7 <b>max '+K(B.max)+'</b> \u00b7 average '+K(B.avg):'No hits by the boss in your logs (same filter).')+(B.rampage?' \u00b7 '+B.rampage+' rampages':'')+(B.flurry?' \u00b7 '+B.flurry+' flurries':'')+(B.enrage?' \u00b7 enraged':'')+'</div>'
+    +(B.flurryOn&&Object.keys(B.flurryOn).length?'<div style="font-size:.78rem;color:var(--text-muted);margin-top:.2rem">Flurried (tanking): '+Object.entries(B.flurryOn).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([n,c])=>esc(n)+' \u00d7'+c).join(' \u00b7 ')+'</div>':'')
+    +((B.targets||[]).length?'<div style="font-size:.78rem;color:var(--text-muted);margin-top:.2rem">Took the most: '+B.targets.slice(0,8).map(t=>esc(t.name)+' '+K(t.dmg)+' ('+t.n+' hits, max '+t.max+')').join(' \u00b7 ')+'</div>':'')
+    +(prof&&prof.n>1?'<div style="font-size:.78rem;margin-top:.35rem;padding:.35rem .5rem;border:1px solid var(--border);border-radius:4px"><b>'+esc(name)+' across '+prof.n+' parsed kills:</b> '+[prof.max?'max hit '+K(prof.max):'',prof.avg?'average hit '+K(prof.avg):'','fight '+mmss(prof.dur)+' on average',prof.dps>=50?K(prof.dps)+' raid DPS seen':'',prof.ramp>=0.05?prof.ramp.toFixed(1)+' rampages / min':'',prof.flurry>=0.05?prof.flurry.toFixed(1)+' flurries / min':'',prof.enr?'enraged in '+prof.enr+' of '+prof.n:''].filter(Boolean).join(' \u00b7 ')+'</div>':'<div style="font-size:.74rem;color:var(--text-muted);margin-top:.3rem">Parse more '+esc(name)+' kills (📊 Parse kills) to build its hit profile.</div>')
+    +sec('COMPLETE HEAL CHAIN')+fightChainHtml(p)
+    +'</div>';
+  document.body.appendChild(o);
+};
 function sheetNudgeState(){ try{ return JSON.parse(localStorage.getItem('mp_sheet_nudge')||'{}'); }catch(e){ return {}; } }
 function sheetNudgeMark(key,v){ const s=sheetNudgeState(); s[key]=v; try{ localStorage.setItem('mp_sheet_nudge',JSON.stringify(s)); }catch(e){} }
 const _sheetNudgeLast={};
@@ -17048,6 +17371,17 @@ window.stgSetRole=function(n,role){
 window.stgDo=function(what,v){
   if(what==='newchars'){ if(v==='hide') knownCharsSeed(); stgSet('mp_new_chars',v); if(typeof renderZoneBar==='function') renderZoneBar(); }
   else if(what==='capdisp'){ stgSet('mp_cap_display',v); capRefresh(); }
+  else if(what==='chmode'){ stgSet('mp_ch_mode',v); if(!chChainOn()&&window.MixelParseApp&&window.MixelParseApp.closeChChain) window.MixelParseApp.closeChChain(); }
+  else if(what==='tellson'){ stgSet('mp_tells_on',v==='on'?'1':'0'); tellsNavCount(); }
+  else if(what==='tellvoice'){ stgSet('mp_tells_voice',v==='voice'?'1':'0'); }
+  else if(what==='tellsnd'){ stgSet('mp_tells_snd',v==='on'?'1':'0'); }
+  else if(what==='tellvol'){ stgSet('mp_tells_vol',String((+v||0)/100)); return; }
+  else if(what==='tmron'){ stgSet('mp_timers_on',v==='on'?'1':'0'); if(v!=='on'){ _spellTimers.clear(); spellTimersRender(); if(window.MixelParseApp&&window.MixelParseApp.closeTimers) window.MixelParseApp.closeTimers(); } }
+  else if(what==='tmrpop'){ stgSet('mp_timers_popup',v==='on'?'1':'0'); }
+  else if(what==='tmrvoice'){ stgSet('mp_timers_voice',v==='voice'?'1':'0'); }
+  else if(what==='tmrsndc'){ stgSet('mp_timers_snd_charm',v==='on'?'1':'0'); }
+  else if(what==='tmrsndo'){ stgSet('mp_timers_snd_off',v==='on'?'1':'0'); }
+  else if(what==='tmrvol'){ stgSet('mp_timers_vol',String((+v||0)/100)); return; }
   else if(what==='taskpin'){ stgSet('mp_task_pin',v==='on'?'1':'0'); if(typeof renderZoneBar==='function') renderZoneBar(); }
   else if(what==='taskdisp'){ stgSet('mp_task_display',v); if(v==='off'||v==='alert'){ const d=document.getElementById('taskNudge'); if(d) d.remove(); } pingRender(); }
   else if(what==='corpse'){ stgSet('mp_corpse_mode',v); if(typeof skyRenderWarn==='function') skyRenderWarn(); }
@@ -17285,6 +17619,29 @@ function renderSettingsPanel(){
       pick('rkd',rkdMode(),[['watch','Watch','Lists what it finds; never adds anything'],['active','Active','Adds strong matches to the Raid Kill Tracker, asks about the rest']]))+
     item('Parking alerts','The gold lines under the top bar when a raid target is up or due within 12 hours and nobody is parked there.',pick('parkwarn',btParkWarnOn()?'on':'off',[['on','On'],['off','Off']]))+
     item('Map: spawn timers from kills','Start a spawn timer on the map automatically when a tracked mob dies.',pick('timers',_autoTimersEnabled?'on':'off',[['on','On'],['off','Off — map clicks and /note only']])));
+  h+=card('CH CHAIN',
+    item('CH chain window','A live window (like Auctions) built from the \u201cCA 007 CH -- Tank\u201d calls: who called which number, the last call (\u201cContrax > 001\u201d), who\u2019s next, and the <b>free numbers</b> you could take. It opens on its own when a chain starts. <b>Auto</b>: on when one of your characters is a Cleric.',
+      pick('chmode',chChainMode(),[['auto','Auto'+(chChainMode()==='auto'?(chChainOn()?' (on \u2014 you have a Cleric)':' (off \u2014 no Cleric)'):'')],['on','On'],['off','Off']])));
+  h+=card('TELLS',
+    item('Tell tracking','Tells to and from your characters in the Tells tab, with a 📨 pop-up when one arrives. Off: tells are ignored and the Tells tab is hidden.',
+      pick('tellson',tellsOn()?'on':'off',[['on','On'],['off','Off \u2014 hide the Tells tab']]))+
+    item('Sound on a tell','When someone sends one of your characters a tell (not tells between your own characters).',
+      pick('tellsnd',tellSoundOn()?'on':'off',[['on','On'],['off','Off']]))+
+    item('Tell sound','<b>Voice</b> says \u201cPlayer sent a tell\u201d, with the sender\u2019s name. <b>Chime</b> plays a soft two-note chime.',
+      pick('tellvoice',tellVoiceOn()?'voice':'chime',[['voice','Voice'],['chime','Chime']]))+
+    item('Volume','How loud the tell chime is.','<div style="display:flex;align-items:center;gap:.6rem;margin-top:.35rem"><input type="range" min="0" max="100" step="5" value="'+Math.round(tellVolume()*100)+'" oninput="stgDo(\'tellvol\',this.value)" style="flex:1;max-width:220px"><button onclick="tellAlert(\'Player\')" style="font-size:.8rem;padding:.15rem .55rem;border-radius:3px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text)">Test</button></div>'));
+  h+=card('SPELL TIMERS',
+    item('Spell timers','Your roots, charms, mezzes and DoTs counting down, with an alert when one wears off or breaks. How long each lasts is learned from your own logs.',
+      pick('tmron',spellTimersOn()?'on':'off',[['on','On'],['off','Off \u2014 no timers, alerts or window']]))+
+    item('Timers window','The ⏳ Timers pop-up window stays on top of EverQuest. Open it on your first timed cast, or only when you click ⏳ Timers under the title.',
+      pick('tmrpop',spellTimersAutoOpen()?'on':'off',[['on','Open on a timed cast'],['off','Only from ⏳ Timers']]))+
+    item('Alert sound','<b>Voice</b> says \u201cCharm break\u201d or \u201cEngorging Roots worn off\u201d (the spell\u2019s name). <b>Beep</b> plays a sharp double beep for a charm break and one soft tone for anything else.',
+      pick('tmrvoice',spellTimerVoice()?'voice':'beep',[['voice','Voice'],['beep','Beep']]))+
+    item('What to track and say','Per kind of spell: show its timer, speak when it breaks or ends, speak when it\u2019s resisted. Spoken as \u201cCharm break\u201d, \u201cEnstill worn off\u201d, \u201cTepid Deeds resisted\u201d.',
+      (()=>{ const c=spellCatCfg(), cb=(k,w)=>'<input type="checkbox" '+(c[k][w]?'checked ':'')+'onchange="spellCatSet(\''+k+'\',\''+w+'\',this.checked)" style="cursor:pointer">';
+        return '<table style="border-collapse:collapse;margin-top:.4rem;font-size:.86rem"><thead><tr style="font-size:.72rem;color:var(--text-muted)"><th style="text-align:left;padding:.2rem .6rem .2rem 0">Spell</th><th style="padding:.2rem .5rem">Track</th><th style="padding:.2rem .5rem">Say when it breaks / ends</th><th style="padding:.2rem .5rem">Say when resisted</th></tr></thead><tbody>'
+          +SPELL_CATS.map(([k,l])=>'<tr style="border-top:1px solid rgba(74,58,26,.12)"><td style="padding:.25rem .6rem .25rem 0">'+l+'</td><td style="text-align:center">'+cb(k,'t')+'</td><td style="text-align:center">'+cb(k,'b')+'</td><td style="text-align:center">'+cb(k,'r')+'</td></tr>').join('')+'</tbody></table>'; })())+
+    item('Volume','How loud the timer sounds are.','<div style="display:flex;align-items:center;gap:.6rem;margin-top:.35rem"><input type="range" min="0" max="100" step="5" value="'+Math.round(spellTimerVolume()*100)+'" oninput="stgDo(\'tmrvol\',this.value)" style="flex:1;max-width:220px"><button onclick="spellTimerAlert(\'charm\',\'Allure\')" style="font-size:.8rem;padding:.15rem .55rem;border-radius:3px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text)">Test charm break</button><button onclick="spellTimerAlert(\'off\',\'Engorging Roots\')" style="font-size:.8rem;padding:.15rem .55rem;border-radius:3px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text)">Test wear-off</button></div>'));
   h+=card('CHECKS &amp; REMINDERS',
     item('Leatherfoot cap check','🧢 next to each name in Last Zone Location (charged / empty), the empty-cap list in Raid Parking, and a red alert under the top bar while a cap is empty.',
       pick('capdisp',capDisplay(),[['all','Badges + red alert'],['badges','Badges only'],['off','Off']]))+

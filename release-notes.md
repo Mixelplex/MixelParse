@@ -1,4 +1,13 @@
-## 1.7.25
+## 1.7.26
+
+- **⏳ Spell timers** — a Spell Timers window (stays on top of EverQuest) counts down your roots, charms, mezzes, slows and DoTs: the full duration from the P99 wiki at your level, starting when the spell lands, one row per cast with the mob's name. It says "Charm break", "Enstill worn off" or "Tepid Deeds resisted". Settings → Spell timers: what to track and say per kind of spell, voice or beep, volume.
+- **⚕ CH chain window** — a live window built from the "CA 007 CH -- Tank" calls: the last call (Name > 007), who's next, the free numbers to take, and a red warning when two healers call the same number. On automatically if you have a Cleric (Settings → CH chain).
+- **📊 Kill parses** — click 📊 on a kill in Auto-Detect (or 📊 Parse kills): damage and DPS per player, the boss's hits, who tanked, and a Complete Heal chain report — cadence chart (hover a red bar to see whose turn it was), missed turns and late calls per healer, doubled numbers and number changes. Each boss builds a hit profile across kills.
+- **📨 Tells** — a new Tells tab keeps tells to and from your characters, and a pop-up plus a spoken "Player sent a tell" tells you when one arrives on any character. Settings → Tells (or turn it off and the tab hides).
+- **Speed:** your logs are read 8 times a second instead of every 2 seconds, so timers, tells, chain calls and Auto-Detect react right away.
+- **Fix:** Tasks stays at the end of the top bar.
+
+Everything from 1.7.25 and earlier is included:
 
 - **🧥 Outfitter: more builds** — Build now also has **Max HP**, **Max Mana**, **Max HP + Mana**, **Max WIS**, **Max INT** and **Powerlevel**: the fastest weapon you have (one landed hit is all you need), your best haste item counted up to the level's haste cap, and the most HP everywhere else.
 - **👥 Outfitter: Gear from…** — choose which characters the kit may take gear from: their bags and bank, and their worn gear too. Bankers' worn gear counts by default; your playing characters' doesn't.
@@ -7,8 +16,6 @@
 - **Fix — Auto-Detect:** the Statue of Rallos Zek and the Avatar of War are only called Strong (auto-added) when a Castle player or one of your characters was fighting it; another guild's kill with everyone collecting the faction hit now comes up as a prompt. Castle roster = guild chat + OpenDKP + your characters.
 - **Fix — Leveling:** levels where the mobs were far above the character (power-levelling) no longer suggest zones like Castle Mistmoore at level 2, and To level 60 estimates the levels with no data instead of counting them as zero.
 - **Fix:** Icicle Circlet is NO DROP.
-
-Everything from 1.7.24 and earlier is included:
 
 - **📌 Tasks: farm, repeat, presets** — **Farm an item**: type the item and how many; Tasks shows where it drops (best chance first), reminds you when you zone into the drop zone, counts your loot and finishes itself when you have enough. Tasks can **repeat** daily, every 3 days or weekly. **Start from a preset**: common chores (restock, recharge the Leatherfoot cap, bank the loot…), the guide's quests (Reaper, Plane of Sky, Dozekar, JBoots), every class epic, the Plane of Mischief flowers and the P99 wiki quest list. Quests, epics and flowers become a checklist that ticks itself when one of your characters holds the items, and reminds you in the next step's zone.
 - **🖱 Right-click a quest or flower** — on the Quests tab, right-click a quest, your epic or a wiki quest (or a flower on the Flowers panel) to make a task with its steps.

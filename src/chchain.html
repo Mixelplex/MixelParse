@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CH Chain — MixelParse</title>
+<style>
+/* Live Complete Heal chain (owner, 2026-10-18: "active CH tracking … similar to our auction … NAME > CH# … helpful for
+   taking a free number"). Built from the "CA ### CH -- Target" calls in your logs. Frameless, always on top. Read-only. */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#17161f;--card:#24232f;--card2:#2c2b39;--line:#353445;--line2:#45435a;--text:#ece6da;--dim:#b9b2a5;--muted:#8a8597;--gold:#e0b552;--gold2:#f3d58a;--golddk:#8a6a24;--live:#55c47f;--warn:#e8a33d;--danger:#ef6650;--fs:15}
+html{font-size:calc(var(--fs) * 1px)}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Inter,sans-serif;overflow:hidden;user-select:none}
+.win{display:flex;flex-direction:column;height:100vh;border:1px solid var(--line2);border-radius:12px;overflow:hidden}
+.tb{display:flex;align-items:center;gap:.4rem;padding:0 .4rem 0 .7rem;height:2.2rem;flex-shrink:0;-webkit-app-region:drag;background:linear-gradient(180deg,#2b2738 0%,#211f2c 100%);border-bottom:1px solid var(--golddk)}
+.tb-title{font-weight:700;font-size:.82rem;letter-spacing:.06em;color:var(--gold2);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-sp{flex:1}.nd{-webkit-app-region:no-drag}
+.tb-btn{background:none;border:1px solid transparent;color:var(--dim);font-size:.8rem;font-weight:600;cursor:pointer;padding:.1rem .4rem;border-radius:6px}
+.tb-btn:hover{background:var(--card);border-color:var(--line2);color:var(--text)}
+.tb-x:hover{background:rgba(239,102,80,.2);border-color:rgba(239,102,80,.5);color:#fff}
+.body{flex:1;overflow-y:auto;padding:.5rem .6rem .7rem}
+.empty{color:var(--muted);font-size:.85rem;text-align:center;padding:1.8rem .8rem;line-height:1.6}
+.last{display:flex;align-items:baseline;gap:.5rem;padding:.35rem .5rem;background:var(--card);border:1px solid var(--line2);border-radius:8px}
+.last .who{font-size:1.25rem;font-weight:700}
+.last .slot{font-size:1.25rem;font-weight:800;color:var(--gold2);font-variant-numeric:tabular-nums}
+.last .ago{margin-left:auto;font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.meta{display:flex;flex-wrap:wrap;gap:.3rem .8rem;font-size:.78rem;color:var(--dim);margin:.4rem .1rem}
+.meta b{color:var(--text)}
+.free{font-size:.9rem;margin:.2rem .1rem .45rem;color:var(--dim)}
+.free b{color:var(--live);font-variant-numeric:tabular-nums;font-size:1rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(7.2rem,1fr));gap:.3rem}
+.t{border:1px solid var(--line);border-radius:6px;padding:.22rem .4rem;background:var(--card);min-width:0}
+.t .n{font-weight:800;font-variant-numeric:tabular-nums;color:var(--gold);font-size:.85rem}
+.t .h{font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t.now{border-color:var(--gold);background:var(--card2);box-shadow:0 0 0 1px var(--gold) inset}
+.t.next{border-color:var(--live)}
+.t.idle{opacity:.4}
+.t.dup{border-color:var(--danger);background:rgba(239,102,80,.14)}.t.dup .n,.t.dup .h{color:var(--danger)}
+.dupw{color:var(--danger);font-size:.88rem;font-weight:600;margin:.1rem .1rem .45rem}
+.t.open{border-style:dashed;border-color:var(--live);background:transparent}.t.open .n{color:var(--live)}.t.open .h{color:var(--live)}
+.stale{color:var(--warn);font-size:.78rem;margin:.3rem .1rem}
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="tb">
+    <span class="tb-title" id="title">⚕ CH CHAIN</span><span class="tb-sp"></span>
+    <button class="tb-btn nd" title="Smaller text" onclick="zoom(-1)">A−</button>
+    <button class="tb-btn nd" title="Bigger text" onclick="zoom(1)">A+</button>
+    <button class="tb-btn nd" title="Minimize" onclick="window.MixelParseApp&&window.MixelParseApp.minimizeChChain()">–</button>
+    <button class="tb-btn tb-x nd" title="Close (it opens again on the next chain call — Settings → CH chain)" onclick="window.MixelParseApp&&window.MixelParseApp.closeChChain()">✕</button>
+  </div>
+  <div class="body" id="body"><div class="empty">Waiting for a chain call like<br><b>CA 007 CH -- Tankname</b></div></div>
+</div>
+<script>
+let st=null;
+let fs=15; try{ fs=+localStorage.getItem('mp_ch_fs')||15; }catch(e){}
+function zoom(d){ fs=Math.max(11,Math.min(24,fs+d)); document.documentElement.style.setProperty('--fs',fs); try{ localStorage.setItem('mp_ch_fs',fs); }catch(e){} }
+document.documentElement.style.setProperty('--fs',fs);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pad=n=>String(n).padStart(3,'0');
+function render(){
+  const b=document.getElementById('body'), t=document.getElementById('title');
+  if(!st||!st.target){ t.textContent='⚕ CH CHAIN'; b.innerHTML='<div class="empty">Waiting for a chain call like<br><b>CA 007 CH -- Tankname</b></div>'; return; }
+  const now=Date.now(), ago=Math.max(0,Math.round((now-st.last.ts)/1000));
+  t.textContent='⚕ CH CHAIN — '+st.target;
+  const stale=ago>Math.max(20,(st.every||3)*6);
+  const tiles=st.slots.map(x=>{ const cls=(x.dup?'dup ':'')+(x.open?'open':x.slot===st.last.slot?'now':x.slot===st.next?'next':x.idle?'idle':'');
+    return '<div class="t '+cls+'" title="'+(x.open?'Nobody has called '+pad(x.slot)+' lately — free':x.dup?'Two healers are calling '+pad(x.slot)+': '+esc(x.by):esc(x.by)+' · '+x.n+' calls')+'"><div class="n">'+pad(x.slot)+'</div><div class="h">'+(x.open?'free':esc(x.by))+'</div></div>'; }).join('');
+  b.innerHTML='<div class="last"><span class="who">'+esc(st.last.by)+'</span><span style="color:var(--muted)">&gt;</span><span class="slot">'+pad(st.last.slot)+'</span><span class="ago">'+ago+' s ago</span></div>'
+    +'<div class="meta"><span>next up <b>'+(st.next?pad(st.next)+' '+esc(st.nextBy||''):'—')+'</b></span><span>one every <b>'+(st.every?st.every.toFixed(1):'—')+' s</b></span><span><b>'+st.active+'</b> healers</span></div>'
+    +'<div class="free">Free: '+(st.free.length?st.free.map(n=>'<b>'+pad(n)+'</b>').join(' · '):'<span style="color:var(--muted)">none — take '+pad(st.max+1)+'</span>')+'</div>'
+    +((st.dups||[]).length?'<div class="dupw">⚠ Doubled: '+st.dups.map(d=>pad(d.slot)+' ('+d.names.map(esc).join(', ')+')').join(' · ')+'</div>':'')
+    +(stale?'<div class="stale">No calls for '+ago+' s — the chain may have stopped.</div>':'')
+    +'<div class="grid">'+tiles+'</div>';
+}
+if(window.MixelParseApp&&window.MixelParseApp.onChChainState) window.MixelParseApp.onChChainState(s=>{ st=s; render(); });
+setInterval(render,1000);
+</script>
+</body>
+</html>

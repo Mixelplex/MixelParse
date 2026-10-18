@@ -14,7 +14,12 @@ const crypto   = require('crypto');
 const chokidar = require('chokidar');
 const resistWatch = require('./resistwatch');   // silent resist data recorder (watch-only)
 const skyCorpse   = require('./skycorpse');     // Plane of Sky corpses + the keys on them
-const capTrack    = require('./captrack');      // Leatherfoot Raider Skullcap: used / recharged
+const capTrack    = require('./captrack');
+const fightParse  = require('./fightparse');    // one raid kill's damage / CH / boss-hit parse
+let _fpWorker = null, _fpNoWorker = false;        // fight parses run in a worker thread (direct if it can't start)
+const _fpPending = new Map();
+function _fpDirect(job) { let result; try { result = fightParse.parseFight(job); } catch (e) { result = { ok: false, error: e.message }; } broadcast({ type: 'fightParse', id: job.id, result }); }
+function _fpFail(why) { if (why) err('[PARSE] worker', why); _fpWorker = null; _fpNoWorker = true; const jobs = [..._fpPending.values()]; _fpPending.clear(); for (const j of jobs) _fpDirect(j); }      // Leatherfoot Raider Skullcap: used / recharged
 
 let _onMessage = null;   // set by start()
 let _config    = null;   // MixelParse app config (eqDir, logDir, notesFile)
@@ -85,9 +90,12 @@ function levelFromValue(v) {
 function clamp(v) { return Math.max(FACTION_MIN, Math.min(FACTION_MAX, v)); }
 
 // ── Persist helpers ───────────────────────────────────────────────────────────
-function saveLogPositions() {
-  if (!_logPosPath) return;
-  try { fs.writeFileSync(_logPosPath, JSON.stringify(logPositions), 'utf8'); } catch {}
+const _hotLogs = new Map();   // log file → character, for the 250 ms read
+let _logPosT = null;
+function saveLogPositionsNow() { clearTimeout(_logPosT); _logPosT = null; if (!_logPosPath) return; try { fs.writeFileSync(_logPosPath, JSON.stringify(logPositions), 'utf8'); } catch {} }
+function saveLogPositions() {   // at most every 2 s — the logs are read every 250 ms now
+  if (!_logPosPath || _logPosT) return;
+  _logPosT = setTimeout(saveLogPositionsNow, 2000);
 }
 
 function saveFactionState() {
@@ -293,6 +301,7 @@ function startLogWatcher() {
           // Every log present at startup was seeded to EOF below, so an unknown key
           // here is a log created after startup (new toon) — read it from the top.
           const pos  = logPositions[key] || 0;
+          if (Date.now() - stat.mtimeMs < 10 * 60e3) _hotLogs.set(fp, charName); else _hotLogs.delete(fp);   // being written: read it fast
           if (stat.size > pos) tailLogFile(fp, charName);
         } catch {}
       }
@@ -301,6 +310,11 @@ function startLogWatcher() {
     }
   }, 2000);
   _timers.push(t);
+  // the logs being written right now: every 250 ms, so spell timers / tells / chain calls show up at once
+  const tHot = setInterval(() => {
+    for (const [fp, charName] of _hotLogs) { try { const pos = logPositions[resolveCharKey(charName)] || 0; if (fs.statSync(fp).size > pos) tailLogFile(fp, charName); } catch {} }
+  }, 250);
+  _timers.push(tHot);
 
   // Startup: seed EVERY live log to EOF (live-only — no backlog replay), then
   // zone-scan just the inventory-file characters.
@@ -1396,6 +1410,26 @@ function processLogLine(line, charName) {
     broadcast({ type: 'levelUp', charName, level: parseInt(_lvlUp[1], 10) });
   }
   // /who of yourself → class (from the title) + race for the character sheet; your own death → the sheet reminder
+  { const _t = line.indexOf(' -> ') > 0 ? RE_TELL_ARROW.exec(line) : null;
+    if (_t && (_t[2] === charName || _t[1] === charName)) broadcast({ type: 'tell', charName, dir: _t[2] === charName ? 'in' : 'out', who: _t[2] === charName ? _t[1] : _t[2], text: _t[3], ts: Date.now() }); }
+  { let _m;
+    if ((_m = RE_CAST_YOU.exec(line))) { const sp = _m[1]; _castNow[charName] = { spell: sp, ts: Date.now() }; if (RE_CHARM_NAME.test(sp)) _lastCharm[charName] = sp; if (RE_FEAR_NAME.test(sp)) _lastFear[charName] = sp;
+      const d = _spellDur[sp], w = _wikiDur[sp.toLowerCase()];
+      if (w || (d && d.n >= 2)) { broadcast({ type: 'timerStart', charName, spell: sp, dur: d ? d.med : 0, ts: Date.now() });
+        if (w && w[4]) (_landWait[charName] = (_landWait[charName] || []).filter(x => x.until > Date.now())).push({ spell: sp, suffix: w[4], until: Date.now() + 12e3 }); } }
+    else if (RE_CAST_FAIL.test(line)) { const c = _castNow[charName], rs = /Your target resisted the (.+?) spell\./.exec(line);
+      if (rs) { broadcast({ type: 'timerResist', charName, spell: rs[1], ts: Date.now() }); if (c && c.spell === rs[1]) _castNow[charName] = null; }   // a resist names the spell
+      else if (c && Date.now() - c.ts < 20e3) { broadcast({ type: 'timerCancel', charName, spell: c.spell }); _castNow[charName] = null; } }
+    else if ((_m = RE_WORN_OFF.exec(line))) { const charm = _m[1] === 'charm', fear = _m[1] === 'fear', sp = charm ? (_lastCharm[charName] || 'Charm') : fear ? (_lastFear[charName] || 'Fear') : _m[1];
+      broadcast({ type: 'timerEnd', charName, spell: sp, charm, ts: Date.now() }); } }
+  if (line.indexOf(' CH ') > 0 || line.indexOf(' CH-') > 0) { const _c = RE_CH_CALL.exec(line);
+    if (_c) { const by = _c[1] || charName, k = Math.floor(Date.now() / 1000) + '|' + by + '|' + _c[2]; if (!_chSeen.has(k)) { _chSeen.set(k, Date.now()); if (_chSeen.size > 400) for (const [kk, t] of _chSeen) if (Date.now() - t > 30e3) _chSeen.delete(kk);
+      broadcast({ type: 'chCall', charName, by, slot: +_c[2], target: _c[3], ts: Date.now() }); } } }
+  { const _lw = _landWait[charName];
+    if (_lw && _lw.length) { const txt = line.slice(line.indexOf('] ') + 2), now = Date.now();
+      for (let i = 0; i < _lw.length; i++) { const w = _lw[i]; if (w.until < now) continue;
+        if (txt.endsWith(w.suffix) && txt.length > w.suffix.length) { const tg = txt.slice(0, txt.length - w.suffix.length).trim(); if (tg && tg.length < 60 && !/^You$/.test(tg)) broadcast({ type: 'timerTarget', charName, spell: w.spell, target: tg, ts: now }); _lw.splice(i, 1); break; } }
+      if (_lw.length && _lw.every(x => x.until < now)) _landWait[charName] = []; } }
   if (line.indexOf(' tells the guild, ') > 0) { const _g = RE_GUILD_SPEAKER.exec(line); if (_g) ((_guildSpeakers[charName] = _guildSpeakers[charName] || {})[_g[1]] = Date.now()); }
   const _who = RE_WHO_SELF.exec(line);
   if (_who && (_who[3].toLowerCase() === String(charName).toLowerCase() || ownNames().has(_who[3].toLowerCase()))) broadcast({ type: 'whoSelf', charName: _who[3], level: +_who[1], title: _who[2].trim(), race: _who[4].trim() });   // you, or another of your characters seen from this one
@@ -1666,6 +1700,7 @@ function start({ config, logPosPath, factionPath, onMessage }) {
 }
 
 function stop() {
+  if (_logPosT) saveLogPositionsNow();
   for (const w of _watchers) { try { w.close(); } catch {} }
   for (const t of _timers)   { clearInterval(t); }
   _watchers = [];
@@ -2367,6 +2402,24 @@ function _vpAdd(map, e, item) {
   if (!o) { map[item] = { lo: e.lo, hi: e.hi, n: e.n, cp: e.cp, ts: e.ts }; return; }
   o.lo = Math.min(o.lo, e.lo); o.hi = Math.max(o.hi, e.hi); o.n += e.n; if ((e.ts || 0) >= (o.ts || 0)) { o.cp = e.cp; o.ts = e.ts; }
 }
+// ── tells + spell timers (log-review features, 2026-10-18) ──
+const RE_TELL_ARROW = /^\[[^\]]+\] ([A-Z][a-z]+) -> ([A-Z][a-z]+): (.*)$/;        // P99: "Figure -> Mixelmez: text"
+const RE_CAST_YOU   = /^\[[^\]]+\] You begin casting (.+?)\.$/;
+const RE_WORN_OFF   = /^\[[^\]]+\] Your (.+?) spell has worn off\.$/;
+const RE_CAST_FAIL  = /^\[[^\]]+\] (?:Your spell fizzles!|Your spell is interrupted\.|Your target resisted the .+? spell\.|Your spell did not take hold\.|Your target is immune to .+|Your target cannot be .+|You must first select a target for this spell!|Your target is out of range, get closer!)/;
+const RE_CHARM_NAME = /charm|dominat|allure|beguile|cajol|befriend|enslave|thrall|captivat|boltran|call of karana|tunare's request|command of druzzil/i;
+let _spellDur = {};                 // spell → {list:[seconds…], med, n} learned from your logs
+let _wikiDur = {}; try { _wikiDur = require('../../src/wiki-durations.js') || {}; } catch {}   // P99 wiki: duration by level + landing text
+const RE_FEAR_NAME = /fear|panic|scare|terror|dread|spook|chase the moon|cower|flee/i;
+const _lastFear = {};
+const _landWait = {};
+// CH chain calls ("CA 007 CH -- Concuss"), live, once per call across all your logs
+const RE_CH_CALL = /^\[[^\]]+\] (?:([A-Z][a-z]+) (?:says out of character|says|shouts|tells the raid|tells the group)|You (?:say out of character|say|shout|tell your raid|tell your party)), '(?:CA\s*)?(\d{1,3})\s*CH\s*-+>?\s*([A-Z][A-Za-z`']+)[^']*'$/;
+const _chSeen = new Map();               // charName → [{spell, suffix, until}] casts waiting for their landing line (→ target)
+const _castNow = {};                // charName → {spell, ts} last cast
+const _lastCharm = {};              // charName → last charm-type spell cast
+function _durAdd(map, spell, sec) { const e = map[spell] || (map[spell] = []); e.push(Math.round(sec)); if (e.length > 60) e.shift(); }
+function _durSummary(map) { const out = {}; for (const [sp, l] of Object.entries(map)) { if (!l.length) continue; const s2 = l.slice().sort((a, b) => a - b); out[sp] = { med: s2[Math.floor(s2.length / 2)], n: l.length }; } return out; }
 // guild-chat speakers heard by each of your logs: {logChar: {speaker: lastSeenMs}} (backfill + live) — the "current roster"
 const RE_GUILD_SPEAKER = /^\[[^\]]+\] ([A-Z][a-z]+) tells the guild, /;
 const _guildSpeakers = {};
@@ -2391,15 +2444,15 @@ async function capBackfill(force) {
   try {
     const cacheFp = _logPosPath ? path.join(path.dirname(_logPosPath), 'cap-cache.json') : null;
     let cache = {}; if (cacheFp && !force) { try { cache = JSON.parse(fs.readFileSync(cacheFp, 'utf8')); } catch {} }
-    const results = {}, next = {}, prices = {}, whos = {};
+    const results = {}, next = {}, prices = {}, whos = {}, sdAll = {};
     for (const d of [_config.logDir, path.join(_config.logDir, 'archive')]) {
       let names = []; try { names = fs.readdirSync(d); } catch { continue; }
       for (const f of names) {
         const c = (f.match(/^eqlog_(.+?)_P1999Green.*\.(?:txt|old)$/i) || [])[1]; if (!c) continue;
         const fp = path.join(d, f); let st; try { st = fs.statSync(fp); } catch { continue; }
         const hit = cache[fp]; let last = null, pr = {};
-        let who = {}, gs = {}; const own = ownNames();
-        if (hit && hit.size === st.size && hit.mtime === st.mtimeMs && hit.prices && hit.whoV === 3) { last = hit.last; pr = hit.prices; who = hit.who || {}; gs = hit.gs || {}; }
+        let who = {}, gs = {}, sd = {}; const own = ownNames(); const lc = {}; let lcCharm = null;
+        if (hit && hit.size === st.size && hit.mtime === st.mtimeMs && hit.prices && hit.whoV === 4) { last = hit.last; pr = hit.prices; who = hit.who || {}; gs = hit.gs || {}; sd = hit.sd || {}; }
         else {
           const tr = capTrack.createTracker();
           await new Promise(resolve => {
@@ -2407,13 +2460,17 @@ async function capBackfill(force) {
             rl.on('line', line => {
               const e = tr.feed(line); if (e && (!last || e.ts >= last.ts)) last = e;
               if (line.indexOf("tells you, 'I'll give you ") > 0) { const q = capTrack.vendorQuote(line); if (q) _vpAdd(pr, { lo: q.cp, hi: q.cp, n: 1, cp: q.cp, ts: q.ts }, q.item); }
+              if (line.indexOf('You begin casting ') > 0) { const cm = RE_CAST_YOU.exec(line); if (cm) { const ct = capTrack.lineTs(line); lc[cm[1]] = ct; if (RE_CHARM_NAME.test(cm[1])) lcCharm = { sp: cm[1], t: ct }; } }
+              else if (line.indexOf(' spell has worn off.') > 0) { const wm = RE_WORN_OFF.exec(line); if (wm) { const wt = capTrack.lineTs(line), sp = wm[1] === 'charm' ? (lcCharm && lcCharm.sp) : wm[1], t0 = wm[1] === 'charm' ? (lcCharm && lcCharm.t) : lc[wm[1]];
+                if (sp && t0 && wt - t0 > 3e3 && wt - t0 < 3600e3) _durAdd(sd, sp, (wt - t0) / 1000); } }
               if (line.indexOf(' tells the guild, ') > 0) { const g = RE_GUILD_SPEAKER.exec(line); if (g) { const gt = capTrack.lineTs(line); if (gt && (!gs[g[1]] || gt > gs[g[1]])) gs[g[1]] = gt; } }
               if (line.indexOf('] [') > 0) { const w = RE_WHO_SELF.exec(line); if (w && own.has(w[3].toLowerCase())) who[w[3]] = { level: +w[1], title: w[2].trim(), race: w[4].trim(), ts: capTrack.lineTs(line) }; }   // a /who of any of your characters, last one wins
             });
             rl.on('close', resolve); rl.on('error', resolve);
           });
         }
-        next[fp] = { size: st.size, mtime: st.mtimeMs, last, prices: pr, who, gs, whoV: 3 };
+        next[fp] = { size: st.size, mtime: st.mtimeMs, last, prices: pr, who, gs, sd, whoV: 4 };
+        for (const [sp, l] of Object.entries(sd)) for (const v of l) _durAdd(sdAll, sp, v);
         { const tgt = _guildSpeakers[c] = _guildSpeakers[c] || {}; for (const [n, t] of Object.entries(gs)) if (!tgt[n] || t > tgt[n]) tgt[n] = t; }
         for (const [n, w] of Object.entries(who)) if (!whos[n] || (w.ts || 0) >= (whos[n].ts || 0)) whos[n] = w;
         if (last && (!results[c] || last.ts > results[c].ts)) results[c] = last;
@@ -2423,7 +2480,8 @@ async function capBackfill(force) {
     if (cacheFp) { try { fs.writeFileSync(cacheFp, JSON.stringify(next), 'utf8'); } catch {} }
     broadcast({ type: 'capScanResult', results, scannedAt: Date.now() });
     broadcast({ type: 'vendorPrices', prices });   // what merchants have offered you, per item (copper): lo / hi / n / last
-    broadcast({ type: 'whoScan', whos });   // the last /who of each of your characters, from any of your logs: class title, race, level
+    broadcast({ type: 'whoScan', whos });
+    _spellDur = _durSummary(sdAll); broadcast({ type: 'spellDurations', d: _spellDur });   // how long your roots / charms / DoTs last, from your logs   // the last /who of each of your characters, from any of your logs: class title, race, level
     log(`[CAP] ${Object.keys(results).length} character(s) with a cap use / recharge in the logs`);
   } catch (e) { err('[CAP]', e.message); }
   finally { _capScanRunning = false; }
@@ -2443,6 +2501,16 @@ function command(cmd, args) {
     scanSkillsAllLogs();
   } else if (cmd === 'scanKillCounts') {
     scanKillCountsAllLogs(args && args.chars);
+  } else if (cmd === 'parseFight') {
+    const job = { id: args && args.id, logDir: _config && _config.logDir, names: args && args.names, from: args && args.from, to: args && args.to };
+    if (_fpNoWorker) { _fpDirect(job); return; }
+    try {
+      if (!_fpWorker) { const { Worker } = require('worker_threads'); _fpWorker = new Worker(require.resolve('./fightparse'), { workerData: { fightParseWorker: true } });
+        _fpWorker.on('message', m => { _fpPending.delete(m.id); broadcast({ type: 'fightParse', id: m.id, result: m.result }); });
+        _fpWorker.on('error', e => _fpFail(e.message));
+        _fpWorker.on('exit', () => { if (_fpPending.size) _fpFail('exited'); else _fpWorker = null; }); }
+      _fpPending.set(job.id, job); _fpWorker.postMessage(job);
+    } catch (e) { _fpPending.delete(job.id); _fpNoWorker = true; _fpDirect(job); }
   } else if (cmd === 'guildRoster') {
     guildRoster(args && args.chars, args && args.days);
   } else if (cmd === 'scanCaps') {

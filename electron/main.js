@@ -38,6 +38,8 @@ let adminWindow   = null;
 let setupWindow   = null;
 let sessionWindow = null;
 let auctionWindow = null;   // live DKP auction board (2026-10-05)
+let timersWindow = null;    // spell timers pop-up (2026-10-18)
+let chChainWindow = null;   // live CH chain (2026-10-18)
 let reportWindow  = null;
 let mapWindow     = null;
 let tray          = null;
@@ -181,6 +183,65 @@ function createAdminWindow() {
   });
   adminWindow.loadFile(path.join(ROOT, 'src', 'admin.html'));
   adminWindow.on('closed', () => { adminWindow = null; });
+}
+
+// ─── Spell Timers window (2026-10-18) — same kind of overlay as the Auctions window ───
+function _tmrBoundsFile() { return path.join(app.getPath('userData'), 'timers-window.json'); }
+function _tmrLoadBounds() {
+  try {
+    const b = JSON.parse(fs.readFileSync(_tmrBoundsFile(), 'utf8'));
+    if (!b || !(b.width > 150) || !(b.height > 80)) return null;
+    const { screen } = require('electron');
+    const onScreen = screen.getAllDisplays().some(d => { const a = d.workArea; return b.x + 60 > a.x && b.x < a.x + a.width - 60 && b.y >= a.y - 10 && b.y < a.y + a.height - 40; });
+    return onScreen ? b : { width: b.width, height: b.height };
+  } catch (e) { return null; }
+}
+let _tmrSaveT = null;
+function _tmrSaveBounds() { clearTimeout(_tmrSaveT); _tmrSaveT = setTimeout(() => { try { if (timersWindow && !timersWindow.isDestroyed() && !timersWindow.isMinimized()) fs.writeFileSync(_tmrBoundsFile(), JSON.stringify(timersWindow.getBounds())); } catch (e) {} }, 500); }
+function createTimersWindow(focus) {
+  if (timersWindow && !timersWindow.isDestroyed()) {
+    if (timersWindow.isMinimized()) timersWindow.restore();
+    if (focus) timersWindow.show(); else timersWindow.showInactive();
+    timersWindow.setAlwaysOnTop(true, 'screen-saver');
+    return;
+  }
+  const _b = _tmrLoadBounds() || {};
+  timersWindow = new BrowserWindow({
+    width: _b.width || 300, height: _b.height || 260, ...(_b.x != null ? { x: _b.x, y: _b.y } : {}), minWidth: 200, minHeight: 110, resizable: true, frame: false, alwaysOnTop: true,
+    skipTaskbar: false, show: false, title: 'Spell Timers — MixelParse', icon: ICON_PATH, backgroundColor: '#17161f',
+    webPreferences: { nodeIntegration: false, contextIsolation: true, preload: path.join(__dirname, 'preload.js') },
+  });
+  timersWindow.setAlwaysOnTop(true, 'screen-saver');
+  timersWindow.on('restore', () => { if (timersWindow && !timersWindow.isDestroyed()) timersWindow.setAlwaysOnTop(true, 'screen-saver'); });
+  timersWindow.loadFile(path.join(ROOT, 'src', 'timers.html'));
+  timersWindow.once('ready-to-show', () => { if (!timersWindow || timersWindow.isDestroyed()) return; if (focus) timersWindow.show(); else timersWindow.showInactive(); });
+  timersWindow.webContents.once('dom-ready', () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('timers-window-ready'); });
+  timersWindow.on('resize', _tmrSaveBounds);
+  timersWindow.on('move', _tmrSaveBounds);
+  timersWindow.on('closed', () => { timersWindow = null; });
+}
+
+// ─── CH Chain window (2026-10-18) — same kind of overlay as the Timers window ───
+function _chBoundsFile() { return path.join(app.getPath('userData'), 'chchain-window.json'); }
+function _chLoadBounds() { try { const b = JSON.parse(fs.readFileSync(_chBoundsFile(), 'utf8')); if (!b || !(b.width > 150) || !(b.height > 80)) return null;
+  const { screen } = require('electron'); const on = screen.getAllDisplays().some(d => { const a = d.workArea; return b.x + 60 > a.x && b.x < a.x + a.width - 60 && b.y >= a.y - 10 && b.y < a.y + a.height - 40; }); return on ? b : { width: b.width, height: b.height }; } catch (e) { return null; } }
+let _chSaveT = null;
+function _chSaveBounds() { clearTimeout(_chSaveT); _chSaveT = setTimeout(() => { try { if (chChainWindow && !chChainWindow.isDestroyed() && !chChainWindow.isMinimized()) fs.writeFileSync(_chBoundsFile(), JSON.stringify(chChainWindow.getBounds())); } catch (e) {} }, 500); }
+function createChChainWindow(focus) {
+  if (chChainWindow && !chChainWindow.isDestroyed()) { if (chChainWindow.isMinimized()) chChainWindow.restore(); if (focus) chChainWindow.show(); else chChainWindow.showInactive(); chChainWindow.setAlwaysOnTop(true, 'screen-saver'); return; }
+  const _b = _chLoadBounds() || {};
+  chChainWindow = new BrowserWindow({
+    width: _b.width || 380, height: _b.height || 340, ...(_b.x != null ? { x: _b.x, y: _b.y } : {}), minWidth: 240, minHeight: 150, resizable: true, frame: false, alwaysOnTop: true,
+    skipTaskbar: false, show: false, title: 'CH Chain — MixelParse', icon: ICON_PATH, backgroundColor: '#17161f',
+    webPreferences: { nodeIntegration: false, contextIsolation: true, preload: path.join(__dirname, 'preload.js') },
+  });
+  chChainWindow.setAlwaysOnTop(true, 'screen-saver');
+  chChainWindow.on('restore', () => { if (chChainWindow && !chChainWindow.isDestroyed()) chChainWindow.setAlwaysOnTop(true, 'screen-saver'); });
+  chChainWindow.loadFile(path.join(ROOT, 'src', 'chchain.html'));
+  chChainWindow.once('ready-to-show', () => { if (!chChainWindow || chChainWindow.isDestroyed()) return; if (focus) chChainWindow.show(); else chChainWindow.showInactive(); });
+  chChainWindow.webContents.once('dom-ready', () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('chchain-window-ready'); });
+  chChainWindow.on('resize', _chSaveBounds); chChainWindow.on('move', _chSaveBounds);
+  chChainWindow.on('closed', () => { chChainWindow = null; });
 }
 
 // ─── Auction Window (live DKP auctions, 2026-10-05) ────────────────────────────
@@ -772,6 +833,26 @@ ipcMain.on('session:push-state', (event, state) => {
 });
 
 // ── Auction window IPC ───────────────────────────────────────────────────────
+ipcMain.handle('chchain:toggle', () => {
+  if (chChainWindow && !chChainWindow.isDestroyed() && chChainWindow.isVisible() && !chChainWindow.isMinimized()) { chChainWindow.hide(); return false; }
+  createChChainWindow(true); return true;
+});
+ipcMain.handle('chchain:pop', () => { if (chChainWindow && !chChainWindow.isDestroyed() && chChainWindow.isVisible() && !chChainWindow.isMinimized()) return; createChChainWindow(false); });
+ipcMain.handle('chchain:close', () => { if (chChainWindow && !chChainWindow.isDestroyed()) chChainWindow.close(); });
+ipcMain.handle('chchain:minimize', () => { if (chChainWindow && !chChainWindow.isDestroyed()) chChainWindow.minimize(); });
+ipcMain.on('chchain:push-state', (event, state) => { if (chChainWindow && !chChainWindow.isDestroyed()) chChainWindow.webContents.send('chchain-state', state); });
+ipcMain.handle('timers:toggle', () => {
+  if (timersWindow && !timersWindow.isDestroyed() && timersWindow.isVisible() && !timersWindow.isMinimized()) { timersWindow.hide(); return false; }
+  createTimersWindow(true); return true;
+});
+ipcMain.handle('timers:pop', () => {   // a timed cast — show without stealing focus from EQ
+  if (timersWindow && !timersWindow.isDestroyed() && timersWindow.isVisible() && !timersWindow.isMinimized()) return;
+  createTimersWindow(false);
+});
+ipcMain.handle('timers:close', () => { if (timersWindow && !timersWindow.isDestroyed()) timersWindow.close(); });
+ipcMain.handle('timers:minimize', () => { if (timersWindow && !timersWindow.isDestroyed()) timersWindow.minimize(); });
+ipcMain.handle('timers:is-open', () => !!(timersWindow && !timersWindow.isDestroyed() && timersWindow.isVisible()));
+ipcMain.on('timers:push-state', (event, state) => { if (timersWindow && !timersWindow.isDestroyed()) timersWindow.webContents.send('timers-state', state); });
 ipcMain.handle('auction:toggle', () => {
   if (auctionWindow && !auctionWindow.isDestroyed() && auctionWindow.isVisible()) { auctionWindow.hide(); return; }
   createAuctionWindow(true);

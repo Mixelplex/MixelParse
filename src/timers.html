@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Spell Timers — MixelParse</title>
+<style>
+/* Spell timers pop-up (owner, 2026-10-18: "lets make the timers standalone/popup"). Your roots, charms, mezzes and DoTs
+   counting down — durations learned from your own logs; a row turns red when the spell wears off or breaks.
+   Same kind of frameless, always-on-top overlay as the Auctions window. Read-only. */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#17161f;--card:#24232f;--line:#353445;--line2:#45435a;--text:#ece6da;--dim:#b9b2a5;--muted:#8a8597;--gold:#e0b552;--gold2:#f3d58a;--golddk:#8a6a24;--danger:#ef6650;--fs:15}
+html{font-size:calc(var(--fs) * 1px)}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Inter,sans-serif;overflow:hidden;user-select:none}
+.win{display:flex;flex-direction:column;height:100vh;border:1px solid var(--line2);border-radius:12px;overflow:hidden}
+.tb{display:flex;align-items:center;gap:.4rem;padding:0 .4rem 0 .7rem;height:2.2rem;flex-shrink:0;-webkit-app-region:drag;background:linear-gradient(180deg,#2b2738 0%,#211f2c 100%);border-bottom:1px solid var(--golddk)}
+.tb-title{font-weight:700;font-size:.82rem;letter-spacing:.06em;color:var(--gold2);pointer-events:none}
+.tb-sp{flex:1}
+.nd{-webkit-app-region:no-drag}
+.tb-btn{background:none;border:1px solid transparent;color:var(--dim);font-size:.8rem;font-weight:600;cursor:pointer;padding:.1rem .4rem;border-radius:6px}
+.tb-btn:hover{background:var(--card);border-color:var(--line2);color:var(--text)}
+.tb-x:hover{background:rgba(239,102,80,.2);border-color:rgba(239,102,80,.5);color:#fff}
+.body{flex:1;overflow-y:auto;padding:.4rem .5rem .6rem}
+.body::-webkit-scrollbar{width:6px}.body::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px}
+.empty{color:var(--muted);font-size:.82rem;text-align:center;padding:1.6rem .8rem;line-height:1.6}
+.row{padding:.32rem .1rem;border-bottom:1px solid var(--line)}
+.top{display:flex;gap:.4rem;align-items:baseline}
+.sp{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:.92rem}
+.who{color:var(--muted);font-weight:400;font-size:.78rem}
+.t{font-variant-numeric:tabular-nums;font-weight:700;color:var(--gold);font-size:.95rem}
+.bar{height:4px;border-radius:2px;background:var(--card);overflow:hidden;margin-top:.22rem}
+.bar i{display:block;height:100%;background:var(--gold)}
+.low .t{color:var(--danger)}.low .bar i{background:var(--danger)}
+.off{background:rgba(239,102,80,.12);border-radius:6px;padding-left:.35rem}
+.off .sp,.off .t{color:var(--danger)}
+.note{color:var(--muted);font-size:.68rem;padding:.4rem .2rem 0;line-height:1.45}
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="tb">
+    <span class="tb-title">⏳ SPELL TIMERS</span><span class="tb-sp"></span>
+    <button class="tb-btn nd" title="Smaller text" onclick="zoom(-1)">A−</button>
+    <button class="tb-btn nd" title="Bigger text" onclick="zoom(1)">A+</button>
+    <button class="tb-btn nd" title="Minimize" onclick="window.MixelParseApp&&window.MixelParseApp.minimizeTimers()">–</button>
+    <button class="tb-btn tb-x nd" title="Close (it opens again on your next timed cast — Settings → Checks &amp; reminders)" onclick="window.MixelParseApp&&window.MixelParseApp.closeTimers()">✕</button>
+  </div>
+  <div class="body" id="body"><div class="empty">Cast a root, charm, mez or DoT and it counts down here.<br>Durations come from your own logs.</div></div>
+</div>
+<script>
+let rows=[];
+let fs=15; try{ fs=+localStorage.getItem('mp_timers_fs')||15; }catch(e){}
+function zoom(d){ fs=Math.max(11,Math.min(24,fs+d)); document.documentElement.style.setProperty('--fs',fs); try{ localStorage.setItem('mp_timers_fs',fs); }catch(e){} }
+document.documentElement.style.setProperty('--fs',fs);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mmss=x=>{ x=Math.max(0,Math.round(x)); return Math.floor(x/60)+':'+String(x%60).padStart(2,'0'); };
+function render(){
+  const now=Date.now(), b=document.getElementById('body');
+  const live=rows.filter(t=>!(t.ended&&now-t.ended>8000));
+  if(!live.length){ b.innerHTML='<div class="empty">Cast a root, charm, mez or DoT and it counts down here.<br>Durations come from your own logs.</div>'; return; }
+  live.sort((a,b2)=>(a.ended?0:1)-(b2.ended?0:1)||(a.pending?1:0)-(b2.pending?1:0)||((a.start+a.dur*1000)-(b2.start+b2.dur*1000)));
+  b.innerHTML=live.map(t=>{
+    const who=(t.target?esc(t.target)+' · ':'')+esc(t.c);
+    if(t.pending) return '<div class="row" style="opacity:.6"><div class="top"><span class="sp">'+esc(t.sp)+' <span class="who">— '+who+'</span></span><span class="t" style="color:var(--muted)">casting…</span></div></div>';
+    if(t.ended) return '<div class="row off"><div class="top"><span class="sp">'+esc(t.sp)+' <span class="who">— '+who+'</span></span><span class="t">'+(t.charm?'BROKE':'OFF')+'</span></div></div>';
+    const left=t.dur-(now-t.start)/1000, pct=t.dur?Math.max(0,Math.min(100,100*left/t.dur)):0;
+    return '<div class="row'+(left<10?' low':'')+'" title="'+(t.wiki?'Full duration '+mmss(t.dur)+' (P99 wiki, at this character\u2019s level)':'Typical '+mmss(t.dur)+' from your logs')+' — roots, charms and mezzes can break sooner; the row turns red when it really ends"><div class="top"><span class="sp">'+esc(t.sp)+' <span class="who">— '+who+'</span></span><span class="t">'+(left>0?(t.wiki?'':'~')+mmss(left):'due')+'</span></div><div class="bar"><i style="width:'+pct+'%"></i></div></div>';
+  }).join('')+'<div class="note">Full duration from the P99 wiki (~ = typical, from your logs). Red = wore off or broke.</div>';
+}
+if(window.MixelParseApp&&window.MixelParseApp.onTimersState) window.MixelParseApp.onTimersState(s=>{ rows=Array.isArray(s)?s:[]; render(); });
+setInterval(render,1000);
+</script>
+</body>
+</html>

@@ -56,6 +56,22 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   onSessionWindowReady: (cb)    => ipcRenderer.on('session-window-ready', () => cb()),
   onSessionWindowClosed: (cb)   => ipcRenderer.on('session-window-closed', () => cb()),
 
+  // ── CH chain window ─────────────────────────────────────────────────────────
+  toggleChChain:      ()        => ipcRenderer.invoke('chchain:toggle'),
+  popChChain:         ()        => ipcRenderer.invoke('chchain:pop'),
+  closeChChain:       ()        => ipcRenderer.invoke('chchain:close'),
+  minimizeChChain:    ()        => ipcRenderer.invoke('chchain:minimize'),
+  pushChChainState:   (state)   => ipcRenderer.send('chchain:push-state', state),
+  onChChainState:     (cb)      => ipcRenderer.on('chchain-state', (_, d) => cb(d)),
+  onChChainWindowReady: (cb)    => ipcRenderer.on('chchain-window-ready', () => cb()),
+  // ── Spell timers window ─────────────────────────────────────────────────────
+  toggleTimers:       ()        => ipcRenderer.invoke('timers:toggle'),
+  popTimers:          ()        => ipcRenderer.invoke('timers:pop'),
+  closeTimers:        ()        => ipcRenderer.invoke('timers:close'),
+  minimizeTimers:     ()        => ipcRenderer.invoke('timers:minimize'),
+  pushTimersState:    (state)   => ipcRenderer.send('timers:push-state', state),
+  onTimersState:      (cb)      => ipcRenderer.on('timers-state', (_, d) => cb(d)),
+  onTimersWindowReady: (cb)     => ipcRenderer.on('timers-window-ready', () => cb()),
   // ── Auction window (live DKP auctions) ─────────────────────────────────────
   toggleAuction:      ()        => ipcRenderer.invoke('auction:toggle'),
   popAuction:         ()        => ipcRenderer.invoke('auction:pop'),
