@@ -39,6 +39,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .dupw{color:var(--danger);font-size:.88rem;font-weight:600;margin:.1rem .1rem .45rem}
 .t.open{border-style:dashed;border-color:var(--live);background:transparent}.t.open .n{color:var(--live)}.t.open .h{color:var(--live)}
 .stale{color:var(--warn);font-size:.78rem;margin:.3rem .1rem}
+.t .h{display:flex;gap:.3rem;align-items:baseline}.t .h .nm{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mp{margin-left:auto;flex-shrink:0;font-size:.74rem;font-weight:800;font-variant-numeric:tabular-nums;color:#bfe0ff;background:rgba(90,160,240,.28);border:1px solid rgba(120,180,255,.55);border-radius:4px;padding:0 .3rem;line-height:1.35}
+.mp.lo{color:#ffd28a;background:rgba(232,163,61,.28);border-color:rgba(232,163,61,.7)}.mp.oom{color:#fff;background:rgba(239,102,80,.55);border-color:var(--danger)}.mp.old{opacity:.8;border-style:dashed}
+.turn{border-radius:8px;padding:.35rem .55rem;margin:.1rem 0 .45rem;font-weight:700;display:flex;align-items:baseline;gap:.5rem}
+.turn.wait{background:rgba(232,163,61,.16);border:1px solid rgba(232,163,61,.6);color:#ffd28a}
+.turn.go{background:rgba(85,196,127,.25);border:2px solid var(--live);color:#eafff1;font-size:1.25rem;animation:pulse .7s ease-in-out infinite alternate}
+.turn .s{margin-left:auto;font-size:.78rem;font-weight:600;opacity:.85}
+@keyframes pulse{from{box-shadow:0 0 0 0 rgba(85,196,127,.0)}to{box-shadow:0 0 14px 2px rgba(85,196,127,.55)}}
+.low{color:var(--warn);font-size:.85rem;font-weight:600;margin:.1rem .1rem .45rem}
 </style>
 </head>
 <body>
@@ -59,6 +68,11 @@ function zoom(d){ fs=Math.max(11,Math.min(24,fs+d)); document.documentElement.st
 document.documentElement.style.setProperty('--fs',fs);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const pad=n=>String(n).padStart(3,'0');
+// a healer's last mana call: blue, amber at 30 or under, red at 10 / OOM; faded once it's over 2 minutes old
+function manaTag(nm){ const m=st.mana&&st.mana[nm]; if(!m) return '';
+  const cls=(m.pct<=10?'oom':m.pct<=30?'lo':'')+(m.ago>120?' old':''), ago=m.ago<60?m.ago+' s':Math.round(m.ago/60)+' min';
+  return '<span class="mp '+cls+'" title="'+esc(nm)+' said '+(m.pct===0?'OOM':m.pct+'% mana')+' '+ago+' ago">'+(m.pct===0?'OOM':m.pct+'%')+'</span>'; }
+function names(by){ return String(by||'').split(' / ').map(nm=>'<span class="nm">'+esc(nm)+'</span>'+manaTag(nm)).join(' / '); }
 function render(){
   const b=document.getElementById('body'), t=document.getElementById('title');
   if(!st||!st.target){ t.textContent='⚕ CH CHAIN'; b.innerHTML='<div class="empty">Waiting for a chain call like<br><b>CA 007 CH -- Tankname</b></div>'; return; }
@@ -66,16 +80,22 @@ function render(){
   t.textContent='⚕ CH CHAIN — '+st.target;
   const stale=ago>Math.max(20,(st.every||3)*6);
   const tiles=st.slots.map(x=>{ const cls=(x.dup?'dup ':'')+(x.open?'open':x.slot===st.last.slot?'now':x.slot===st.next?'next':x.idle?'idle':'');
-    return '<div class="t '+cls+'" title="'+(x.open?'Nobody has called '+pad(x.slot)+' lately — free':x.dup?'Two healers are calling '+pad(x.slot)+': '+esc(x.by):esc(x.by)+' · '+x.n+' calls')+'"><div class="n">'+pad(x.slot)+'</div><div class="h">'+(x.open?'free':esc(x.by))+'</div></div>'; }).join('');
+    return '<div class="t '+cls+'" title="'+(x.open?'Nobody has called '+pad(x.slot)+' lately — free':x.dup?'Two healers are calling '+pad(x.slot)+': '+esc(x.by):esc(x.by)+' · '+x.n+' calls')+'"><div class="n">'+pad(x.slot)+'</div><div class="h">'+(x.open?'free':names(x.by))+'</div></div>'; }).join('');
+  const T=st.turn, left=T?(T.due-now)/1000:0, after=T?pad(T.after)+' '+esc(T.afterBy||''):'';
+  const turnHtml=!T?'':(!T.fired&&left>0)?'<div class="turn wait">⏳ Your turn ('+pad(T.slot)+') in '+left.toFixed(1)+' s<span class="s">'+(T.d===1?'after '+after:after+' called \u2014 waiting on the one before you')+'</span></div>'
+    :'<div class="turn go">⚕ HEAL NOW \u2014 '+pad(T.slot)+'<span class="s">'+(T.d===2?'the one before you didn\u2019t call':'after '+after)+'</span></div>';
+  const low=Object.entries(st.mana||{}).filter(([,m])=>m.pct<=20&&m.ago<=120).sort((a,b)=>a[1].pct-b[1].pct);
   b.innerHTML='<div class="last"><span class="who">'+esc(st.last.by)+'</span><span style="color:var(--muted)">&gt;</span><span class="slot">'+pad(st.last.slot)+'</span><span class="ago">'+ago+' s ago</span></div>'
     +'<div class="meta"><span>next up <b>'+(st.next?pad(st.next)+' '+esc(st.nextBy||''):'—')+'</b></span><span>one every <b>'+(st.every?st.every.toFixed(1):'—')+' s</b></span><span><b>'+st.active+'</b> healers</span></div>'
     +'<div class="free">Free: '+(st.free.length?st.free.map(n=>'<b>'+pad(n)+'</b>').join(' · '):'<span style="color:var(--muted)">none — take '+pad(st.max+1)+'</span>')+'</div>'
     +((st.dups||[]).length?'<div class="dupw">⚠ Doubled: '+st.dups.map(d=>pad(d.slot)+' ('+d.names.map(esc).join(', ')+')').join(' · ')+'</div>':'')
+    +turnHtml
+    +(low.length?'<div class="low">🔵 Low mana: '+low.map(([nm,m])=>esc(nm)+' '+(m.pct===0?'OOM':m.pct+'%')).join(' · ')+'</div>':'')
     +(stale?'<div class="stale">No calls for '+ago+' s — the chain may have stopped.</div>':'')
     +'<div class="grid">'+tiles+'</div>';
 }
 if(window.MixelParseApp&&window.MixelParseApp.onChChainState) window.MixelParseApp.onChChainState(s=>{ st=s; render(); });
-setInterval(render,1000);
+setInterval(render,1000); setInterval(()=>{ if(st&&st.turn) render(); },150);   // the countdown runs smooth
 </script>
 </body>
 </html>

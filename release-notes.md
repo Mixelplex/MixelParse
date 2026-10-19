@@ -1,4 +1,13 @@
-## 1.7.26
+## 1.7.27
+
+- **⚕ CH chain: your turn** — when one of your characters is in the chain, the window counts down to your turn and says "Heal" when it's up: one chain interval after the healer before you calls, timed to the chain's running pace (two intervals after the one before them, if they don't call). Settings → CH chain → Your turn: Voice, Chime or Off.
+- **⚕ CH chain: mana** — when a healer in the chain says their mana ("40", "40m", "Cleric - 40m - Low Mana!", "fm", "OOM") it shows on their number — blue, amber at 30% or less, red at 10% / OOM — with a Low mana line for anyone at 20% or less.
+- **⚔ PL helper** — a window for power-levelling: the mobs your druid has snared (Bonds of Tunare / Ensnare) against the hits you've landed, numbered so you can tag each one, every kill with ✓ XP or ✗ missed tag, and a spoken "Missed tag". Off by default — Settings → PL helper.
+- **📌 Watch List tasks** — right-click an item on the Watch List to make a farm task for that character, for as many as the watch rule still wants, with a zone reminder when it drops mostly in one zone.
+- **Fix:** spell timers — a recast on the same mob refreshes its row instead of adding a second one, and a mob's timers end when it dies.
+- **Fix:** the ⚔ PL helper, ⚕ CH chain and ⏳ Timers buttons only show while that feature is on.
+
+Everything from 1.7.26 and earlier is included:
 
 - **⏳ Spell timers** — a Spell Timers window (stays on top of EverQuest) counts down your roots, charms, mezzes, slows and DoTs: the full duration from the P99 wiki at your level, starting when the spell lands, one row per cast with the mob's name. It says "Charm break", "Enstill worn off" or "Tepid Deeds resisted". Settings → Spell timers: what to track and say per kind of spell, voice or beep, volume.
 - **⚕ CH chain window** — a live window built from the "CA 007 CH -- Tank" calls: the last call (Name > 007), who's next, the free numbers to take, and a red warning when two healers call the same number. On automatically if you have a Cleric (Settings → CH chain).
@@ -6,8 +15,6 @@
 - **📨 Tells** — a new Tells tab keeps tells to and from your characters, and a pop-up plus a spoken "Player sent a tell" tells you when one arrives on any character. Settings → Tells (or turn it off and the tab hides).
 - **Speed:** your logs are read 8 times a second instead of every 2 seconds, so timers, tells, chain calls and Auto-Detect react right away.
 - **Fix:** Tasks stays at the end of the top bar.
-
-Everything from 1.7.25 and earlier is included:
 
 - **🧥 Outfitter: more builds** — Build now also has **Max HP**, **Max Mana**, **Max HP + Mana**, **Max WIS**, **Max INT** and **Powerlevel**: the fastest weapon you have (one landed hit is all you need), your best haste item counted up to the level's haste cap, and the most HP everywhere else.
 - **👥 Outfitter: Gear from…** — choose which characters the kit may take gear from: their bags and bank, and their worn gear too. Bankers' worn gear counts by default; your playing characters' doesn't.

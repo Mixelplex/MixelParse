@@ -1333,7 +1333,8 @@ function processLogLine(line, charName) {
 
   // A kill — its faction lines come right after it, in the same second
   const _ks = /^\[.+?\] (?:You have slain (.+?)|(.+?) has been slain by .+?)!$/.exec(line);
-  if (_ks) _lastKillFac[charName] = { mob: (_ks[1] || _ks[2]).trim(), ts: _rtLineTs(line) };
+  if (_ks) { const mob = (_ks[1] || _ks[2]).trim(); _lastKillFac[charName] = { mob, ts: _rtLineTs(line) };
+    const k = Math.floor(Date.now() / 1000) + '|k|' + mob.toLowerCase(); if (!_chSeen.has(k)) { _chSeen.set(k, Date.now()); if (_chSeen.size > 400) for (const [kk, t] of _chSeen) if (Date.now() - t > 30e3) _chSeen.delete(kk); broadcast({ type: 'timerKill', charName, mob, ts: Date.now() }); } }   // spell timers on that mob end
 
   // Faction change lines (kill-based): "Your faction standing with X got better/worse."
   const factionBetter = line.match(/Your faction standing with (.+?) got better\./i);
@@ -1425,6 +1426,10 @@ function processLogLine(line, charName) {
   if (line.indexOf(' CH ') > 0 || line.indexOf(' CH-') > 0) { const _c = RE_CH_CALL.exec(line);
     if (_c) { const by = _c[1] || charName, k = Math.floor(Date.now() / 1000) + '|' + by + '|' + _c[2]; if (!_chSeen.has(k)) { _chSeen.set(k, Date.now()); if (_chSeen.size > 400) for (const [kk, t] of _chSeen) if (Date.now() - t > 30e3) _chSeen.delete(kk);
       broadcast({ type: 'chCall', charName, by, slot: +_c[2], target: _c[3], ts: Date.now() }); } } }
+  if (line.indexOf(", '") > 0 && (line.indexOf(' say') > 0 || line.indexOf(' tell') > 0)) { const _mn = RE_CH_MANA_LINE.exec(line);
+    if (_mn) { const pct = _chManaParse(_mn[2]); if (pct != null) { const by = _mn[1] || charName, k = Math.floor(Date.now() / 1000) + '|m|' + by;
+      if (!_chSeen.has(k)) { _chSeen.set(k, Date.now()); broadcast({ type: 'chMana', charName, by, pct, ts: Date.now() }); } } } }
+  if (line.indexOf('dark vines') > 0 || line.indexOf('snared') > 0 || line.indexOf('entwined') > 0 || line.indexOf('slain by') > 0 || line.indexOf('experience') > 0 || line.indexOf(' points of damage') > 0 || line.indexOf(' point of damage') > 0 || line.indexOf(' was ') > 0 || line.indexOf(' tries to ') > 0) _plLine(line, charName);
   { const _lw = _landWait[charName];
     if (_lw && _lw.length) { const txt = line.slice(line.indexOf('] ') + 2), now = Date.now();
       for (let i = 0; i < _lw.length; i++) { const w = _lw[i]; if (w.until < now) continue;
@@ -2415,7 +2420,74 @@ const _lastFear = {};
 const _landWait = {};
 // CH chain calls ("CA 007 CH -- Concuss"), live, once per call across all your logs
 const RE_CH_CALL = /^\[[^\]]+\] (?:([A-Z][a-z]+) (?:says out of character|says|shouts|tells the raid|tells the group)|You (?:say out of character|say|shout|tell your raid|tell your party)), '(?:CA\s*)?(\d{1,3})\s*CH\s*-+>?\s*([A-Z][A-Za-z`']+)[^']*'$/;
-const _chSeen = new Map();               // charName → [{spell, suffix, until}] casts waiting for their landing line (→ target)
+const _chSeen = new Map();
+// a mana call in /say (or group / raid): "40", "40 mana", "Cleric - 40m - Low Mana!", "Full mana", "OOM", "ENC at 20% MANA"
+const RE_CH_MANA_LINE = /^\[[^\]]+\] (?:([A-Z][a-z]+) (?:says|tells the group|tells the raid)|You (?:say|tell your party|tell your raid)), '([^']{1,40})'$/;
+function _chManaParse(t) {
+  t = t.replace(/&PCT;/gi, '%').trim();
+  if (/\?/.test(t)) return null;   // "mana?" is asking, not telling
+  if (/^(?:[a-z]+\s+)?(?:full|fm)(?:\s+mana)?\s*!*$/i.test(t)) return 100;
+  if (/^(?:[a-z]+\s+)?(?:oom|out of mana)(?:\s+[a-z]+)?\s*!*$/i.test(t)) return 0;
+  const m = /^(?:(?:clerics?|clr|cler|druid|dru|shaman|shm|enc|enchanter|chanter|necro|nec|mage|wiz|pal|paladin|im|i'm|was)\s*(?:-|:|at)?\s*(?:at\s+)?)?(0|[1-9]\d{0,2})\s*(?:%|m|mana|pct)?(?:\s*-?\s*(?:low\s+)?(?:mana|%))?\s*!*$/i.exec(t);
+  if (!m) return null; const v = +m[1]; return v <= 100 ? v : null;
+}
+// ── PL helper: per character, the current pull (a pull ends after 45 s with nothing happening) ──
+const RE_PL_SLAIN = /^\[[^\]]+\] (.+?) has been slain by (.+?)!$/;
+const RE_PL_XP    = /^\[[^\]]+\] You gain (?:party )?experience/;
+const RE_PL_HIT   = /^\[[^\]]+\] You (?:hit|slash|pierce|crush|kick|bash|punch|backstab|slice|claw|bite|strike|sting|maul|gore|smash|rend|burn|frenzy on) (.+?) for \d+ points? of damage\.$/;
+const RE_PL_SEEN  = /^\[[^\]]+\] (.+?) (?:was pierced by thorns|was burned|was tormented|was hit by non-melee|hits|pierces|bashes|punches|kicks|slashes|crushes|bites|claws|mauls|stings|tries to \w+) /;
+const _pl = {};   // charName → {start, last, kills:[{t,mob,by,xp}], names:{name:{last,hits,killed,atk:[ts],tagged,peak}}, timer}
+const RE_PL_SNARE_AE = /^\[[^\]]+\] (.+?) is dragged down by dark vines\.$/;   // Bonds of Tunare: every mob in range, one line each
+const RE_PL_SNARE_1  = /^\[[^\]]+\] (.+?)(?: has been ensnared|'s feet become entwined| is snared| has been snared)\.$/;   // single-target snares
+const _plRate = {};   // mob name → attacks per mob per 6 s (learned: a pull's peak ÷ its kills of that name)
+// targets of this name Figure has snared: the last Bonds of Tunare batch + single snares since, minus kills since
+function _plSnared(p, name) {
+  const S = p.snare; if (!S) return null;
+  const after = t => S.one.filter(x => x.n === name && x.t >= t).length - p.kills.filter(k => k.mob === name && k.t >= t).length;
+  let best = S.one.some(x => x.n === name) ? after(S.one.find(x => x.n === name).t) : 0;   // single snares only
+  for (const b of S.batches) if (b.c[name]) best = Math.max(best, b.c[name] + after(b.t));   // the most any cast caught, minus kills since
+  return best;
+}
+function _plAlive(n, now) {   // how many of this name are fighting: the busiest 6 s of attacks in the last 12 s ÷ attacks per mob
+  const a = (n.atk || []).filter(t => now - t <= 12e3); let best = 0;
+  for (let i = 0; i < a.length; i++) { let j = i; while (j < a.length && a[j] - a[i] < 6000) j++; if (j - i > best) best = j - i; }
+  const rate = _plRate[n.key] || 3.6;
+  return best ? Math.max(1, Math.round(best / rate)) : 0;
+}
+function _plState(c) { const p = _pl[c]; if (!p) return null;
+  const k = p.kills, killed = k.length, xp = k.filter(x => x.xp === true).length, missed = k.filter(x => x.xp === false).length;
+  return { char: c, start: p.start, killed, xp, missed, kills: k.slice(-40), quiet: Date.now() - p.last > 45e3,
+    snared: p.snare ? Object.keys(p.names).reduce((a, nm) => a + Math.max(0, _plSnared(p, nm)), 0) : null,
+    names: Object.entries(p.names).map(([name, v]) => { const sn = p.snare ? _plSnared(p, name) : null; const wasSnared = !!(p.snare && (p.snare.ae[name] != null || p.snare.one.some(x => x.n === name))); const alive = wasSnared ? Math.max(0, sn) : _plAlive(v, Date.now()) || (Date.now() - v.last <= 15e3 ? 1 : 0); /* from how often they attack; extra hits do not add mobs */ return { name, last: v.last, hits: v.hits, since: v.since || 0, killed: v.killed, lastKill: v.lastKill || 0, allDead: v.killed > 0 && !v.alive, alive, tagged: Math.min(v.tagged || 0, alive), snared: wasSnared }; }).sort((a, b) => b.last - a.last).slice(0, 20),
+    pl: k.filter(x => x.by !== c && x.xp === true).length };
+}
+setInterval(() => { for (const c of Object.keys(_pl)) if (Date.now() - _pl[c].last < 60e3) _plSend(c); }, 2000);
+function _plSend(c) { const p = _pl[c]; if (!p || p.timer) return; p.timer = setTimeout(() => { p.timer = null; const st = _plState(c); if (st) broadcast({ type: 'plState', state: st }); }, 250); }
+function _plLine(line, c) {
+  const now = Date.now(); let m, p = _pl[c];
+  const touch = () => { if (!p || now - p.last > 45e3) { if (p) for (const [nm, v] of Object.entries(p.names)) if (v.killed && v.peak) _plRate[nm] = Math.max(2, Math.min(8, _plRate[nm] ? (_plRate[nm] * 2 + v.peak / v.killed) / 3 : v.peak / v.killed));   // learn attacks per mob
+      p = _pl[c] = { start: now, last: now, kills: [], names: {}, timer: null }; } p.last = now; };
+  const N = mob => { const n = p.names[mob] || (p.names[mob] = { key: mob, last: now, hits: 0, killed: 0, alive: true, atk: [], tagged: 0, peak: 0 }); if (!n.key) n.key = mob; if (!n.atk) n.atk = []; return n; };
+  if ((m = RE_PL_SLAIN.exec(line))) { const mob = m[1].toLowerCase(); if (/^[A-Z][a-z]+$/.test(m[1])) return;   // a player died, not a mob
+    touch(); const k = { t: now, mob, by: m[2] === 'You' ? c : m[2], xp: null }; p.kills.push(k);
+    const n = N(mob); n.killed++; n.alive = false; n.since = 0; n.lastKill = now;
+    k.n = n; setTimeout(() => { if (k.xp === null) { k.xp = false; _plSend(c); } }, 2500); _plSend(c); return; }   // no XP = an untagged one died
+  if (RE_PL_XP.test(line)) { if (!p) return; const k = p.kills.filter(x => x.xp === null && now - x.t <= 2500).pop() || p.kills.filter(x => x.xp === false && now - x.t <= 3000).pop(); if (k) { k.xp = true; if (k.n && k.n.tagged > 0) k.n.tagged--; _plSend(c); } return; }   // a tagged one died
+  if ((m = RE_PL_HIT.exec(line))) { touch(); const mob = m[1].toLowerCase(); const n = N(mob); n.hits++; n.since = (n.since || 0) + 1; n.last = now; n.alive = true;
+    if (now - (n.lastTag || 0) > 1200) { n.tagged = (n.tagged || 0) + 1; n.lastTag = now; }   // you tab after every hit: each landed hit tags the next one
+    _plSend(c); return; }
+  if ((m = RE_PL_SNARE_AE.exec(line)) || (m = RE_PL_SNARE_1.exec(line))) {
+    touch(); const mob = m[1].toLowerCase(), ae = RE_PL_SNARE_AE.test(line); N(mob).last = now; N(mob).alive = true;
+    const S = p.snare || (p.snare = { ae: {}, aeAt: 0, aeLast: 0, one: [], batches: [] });
+    if (ae) { if (now - S.aeLast > 1500 || !S.batches.length) { S.batches.push({ t: now, c: {} }); if (S.batches.length > 12) S.batches.shift(); } const b = S.batches[S.batches.length - 1]; b.c[mob] = (b.c[mob] || 0) + 1; S.aeLast = now; S.ae[mob] = 1; }   // one Bonds cast = one batch of lines
+    else S.one.push({ t: now, n: mob });
+    _plSend(c); return; }
+  if ((m = RE_PL_SEEN.exec(line))) { const who = m[1]; if (who === 'You' || who === 'YOU' || /^[A-Z][a-z]+$/.test(who)) return;   // a single capitalised word = a player / pet name
+    if (!p || now - p.last > 45e3) return;   // only inside a pull (a kill or one of your hits starts one)
+    const mob = who.toLowerCase(), n = N(mob); n.last = now; n.alive = true; p.last = now;
+    if (!/ was /.test(line)) { n.atk.push(now); if (n.atk.length > 200) n.atk.splice(0, n.atk.length - 200); let j = n.atk.length - 1; while (j > 0 && now - n.atk[j - 1] < 6000) j--; n.peak = Math.max(n.peak || 0, n.atk.length - j); }   // an attack (not a damage-shield line)
+    _plSend(c); }
+}               // charName → [{spell, suffix, until}] casts waiting for their landing line (→ target)
 const _castNow = {};                // charName → {spell, ts} last cast
 const _lastCharm = {};              // charName → last charm-type spell cast
 function _durAdd(map, spell, sec) { const e = map[spell] || (map[spell] = []); e.push(Math.round(sec)); if (e.length > 60) e.shift(); }

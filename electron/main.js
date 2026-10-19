@@ -40,6 +40,7 @@ let sessionWindow = null;
 let auctionWindow = null;   // live DKP auction board (2026-10-05)
 let timersWindow = null;    // spell timers pop-up (2026-10-18)
 let chChainWindow = null;   // live CH chain (2026-10-18)
+let plWindow = null;        // power-levelling helper (2026-10-18)
 let reportWindow  = null;
 let mapWindow     = null;
 let tray          = null;
@@ -219,6 +220,29 @@ function createTimersWindow(focus) {
   timersWindow.on('resize', _tmrSaveBounds);
   timersWindow.on('move', _tmrSaveBounds);
   timersWindow.on('closed', () => { timersWindow = null; });
+}
+
+// ─── PL helper window (2026-10-18) — same kind of overlay ───
+function _plBoundsFile() { return path.join(app.getPath('userData'), 'pl-window.json'); }
+function _plLoadBounds() { try { const b = JSON.parse(fs.readFileSync(_plBoundsFile(), 'utf8')); if (!b || !(b.width > 150) || !(b.height > 80)) return null;
+  const { screen } = require('electron'); const on = screen.getAllDisplays().some(d => { const a = d.workArea; return b.x + 60 > a.x && b.x < a.x + a.width - 60 && b.y >= a.y - 10 && b.y < a.y + a.height - 40; }); return on ? b : { width: b.width, height: b.height }; } catch (e) { return null; } }
+let _plSaveT = null;
+function _plSaveBounds() { clearTimeout(_plSaveT); _plSaveT = setTimeout(() => { try { if (plWindow && !plWindow.isDestroyed() && !plWindow.isMinimized()) fs.writeFileSync(_plBoundsFile(), JSON.stringify(plWindow.getBounds())); } catch (e) {} }, 500); }
+function createPlWindow(focus) {
+  if (plWindow && !plWindow.isDestroyed()) { if (plWindow.isMinimized()) plWindow.restore(); if (focus) plWindow.show(); else plWindow.showInactive(); plWindow.setAlwaysOnTop(true, 'screen-saver'); return; }
+  const _b = _plLoadBounds() || {};
+  plWindow = new BrowserWindow({
+    width: _b.width || 330, height: _b.height || 380, ...(_b.x != null ? { x: _b.x, y: _b.y } : {}), minWidth: 230, minHeight: 160, resizable: true, frame: false, alwaysOnTop: true,
+    skipTaskbar: false, show: false, title: 'PL Helper — MixelParse', icon: ICON_PATH, backgroundColor: '#17161f',
+    webPreferences: { nodeIntegration: false, contextIsolation: true, preload: path.join(__dirname, 'preload.js') },
+  });
+  plWindow.setAlwaysOnTop(true, 'screen-saver');
+  plWindow.on('restore', () => { if (plWindow && !plWindow.isDestroyed()) plWindow.setAlwaysOnTop(true, 'screen-saver'); });
+  plWindow.loadFile(path.join(ROOT, 'src', 'plhelper.html'));
+  plWindow.once('ready-to-show', () => { if (!plWindow || plWindow.isDestroyed()) return; if (focus) plWindow.show(); else plWindow.showInactive(); });
+  plWindow.webContents.once('dom-ready', () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('pl-window-ready'); });
+  plWindow.on('resize', _plSaveBounds); plWindow.on('move', _plSaveBounds);
+  plWindow.on('closed', () => { plWindow = null; });
 }
 
 // ─── CH Chain window (2026-10-18) — same kind of overlay as the Timers window ───
@@ -833,6 +857,14 @@ ipcMain.on('session:push-state', (event, state) => {
 });
 
 // ── Auction window IPC ───────────────────────────────────────────────────────
+ipcMain.handle('pl:toggle', () => {
+  if (plWindow && !plWindow.isDestroyed() && plWindow.isVisible() && !plWindow.isMinimized()) { plWindow.hide(); return false; }
+  createPlWindow(true); return true;
+});
+ipcMain.handle('pl:pop', () => { if (plWindow && !plWindow.isDestroyed() && plWindow.isVisible() && !plWindow.isMinimized()) return; createPlWindow(false); });
+ipcMain.handle('pl:close', () => { if (plWindow && !plWindow.isDestroyed()) plWindow.close(); });
+ipcMain.handle('pl:minimize', () => { if (plWindow && !plWindow.isDestroyed()) plWindow.minimize(); });
+ipcMain.on('pl:push-state', (event, state) => { if (plWindow && !plWindow.isDestroyed()) plWindow.webContents.send('pl-state', state); });
 ipcMain.handle('chchain:toggle', () => {
   if (chChainWindow && !chChainWindow.isDestroyed() && chChainWindow.isVisible() && !chChainWindow.isMinimized()) { chChainWindow.hide(); return false; }
   createChChainWindow(true); return true;

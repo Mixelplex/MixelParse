@@ -56,6 +56,14 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   onSessionWindowReady: (cb)    => ipcRenderer.on('session-window-ready', () => cb()),
   onSessionWindowClosed: (cb)   => ipcRenderer.on('session-window-closed', () => cb()),
 
+  // ── PL helper window ────────────────────────────────────────────────────────
+  togglePl:           ()        => ipcRenderer.invoke('pl:toggle'),
+  popPl:              ()        => ipcRenderer.invoke('pl:pop'),
+  closePl:            ()        => ipcRenderer.invoke('pl:close'),
+  minimizePl:         ()        => ipcRenderer.invoke('pl:minimize'),
+  pushPlState:        (state)   => ipcRenderer.send('pl:push-state', state),
+  onPlState:          (cb)      => ipcRenderer.on('pl-state', (_, d) => cb(d)),
+  onPlWindowReady:    (cb)      => ipcRenderer.on('pl-window-ready', () => cb()),
   // ── CH chain window ─────────────────────────────────────────────────────────
   toggleChChain:      ()        => ipcRenderer.invoke('chchain:toggle'),
   popChChain:         ()        => ipcRenderer.invoke('chchain:pop'),

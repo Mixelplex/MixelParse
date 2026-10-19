@@ -911,7 +911,8 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
     <button id="aucOpenBtn" onclick="aucToggleWindow()" title="Live DKP auctions from /auction — current bids with each bidder's DKP" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#9878; Auctions</button>
     <label id="aucEnLbl" title="Off: auctions are switched off completely — no auction window, no pop-up, no outbid / grats toasts" style="font-size:.62rem;cursor:pointer;font-family:monospace;user-select:none;margin:.05rem auto 0;display:flex;width:max-content;align-items:center;justify-content:center;gap:.3rem;pointer-events:all"><input type="checkbox" id="aucEnChk" onchange="aucSetEnabled(this.checked)" style="margin:0;width:.7rem;height:.7rem;cursor:pointer;accent-color:#8a7a4a"><span id="aucEnTxt">Auction enabled</span></label>
     <button id="tmrOpenBtn" onclick="spellTimersWindowToggle()" title="Spell timers — your roots, charms, mezzes and DoTs counting down (a pop-up window)" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#9203; Timers</button>
-<button id="chOpenBtn" onclick="chChainToggle()" title="Live Complete Heal chain — who called which number, and which numbers are free" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#9877; CH chain</button>
+<button id="plOpenBtn" onclick="plToggle()" title="Power-levelling helper — kills this pull, XP or missed tag, and the mobs you haven't hit yet" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#9876; PL helper</button>
+    <button id="chOpenBtn" onclick="chChainToggle()" title="Live Complete Heal chain — who called which number, and which numbers are free" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#9877; CH chain</button>
     <button id="twnOpenBtn" onclick="openThisWeek()" title="This Week in Norrath — weekly digest" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#128240; This Week</button>
   </div>
   <div class="version-badge" id="versionBadge"></div>
@@ -3138,7 +3139,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
   });
 });
 document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subTravel').style.display=activeSub==='travel'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='travel')renderTravelPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();maybeShowHelp('sub_'+activeSub);});});
-function refresh(){if(typeof whoPendingApply==='function')whoPendingApply();buildTabs();renderView();saveState();renderNetworthBar();if(typeof activeTopView!=='undefined'&&activeTopView==='parking'&&typeof renderParkingPanel==='function')renderParkingPanel();}
+function refresh(){if(typeof whoPendingApply==='function')whoPendingApply();if(typeof headerBtnsSync==='function')headerBtnsSync();buildTabs();renderView();saveState();renderNetworthBar();if(typeof activeTopView!=='undefined'&&activeTopView==='parking'&&typeof renderParkingPanel==='function')renderParkingPanel();}
 function renderOnly(){buildTabs();renderView();}
 function renderView(){if(activeTopView&&activeTopView!=='characters')return;const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subTravel').style.display=activeSub==='travel'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderCityBars();renderFoodDrinkPanel();applyPanelLayout();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='travel')renderTravelPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();}
 
@@ -5677,17 +5678,17 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.26',
+  version:'1.7.27',
   date:'October 2026',
   features:[
-    ['&#9203; Spell timers','A <b>⏳ Spell Timers</b> window (stays on top of EverQuest) counts down your roots, charms, mezzes, slows and DoTs &mdash; the full duration from the P99 wiki at your level, starting when the spell lands, one row per cast with the mob&rsquo;s name. It says <b>&ldquo;Charm break&rdquo;</b>, <b>&ldquo;Enstill worn off&rdquo;</b> or <b>&ldquo;Tepid Deeds resisted&rdquo;</b>. Settings &rarr; Spell timers: what to track and say per kind of spell, voice or beep, volume.'],
-    ['&#9877; CH chain window','A live window built from the &ldquo;CA 007 CH -- Tank&rdquo; calls: the last call (<b>Name &gt; 007</b>), who&rsquo;s next, the <b>free numbers</b> to take, and a red warning when two healers call the same number. On automatically if you have a Cleric (Settings &rarr; CH chain).'],
-    ['&#128202; Kill parses','Click <b>📊</b> on a kill in Auto-Detect (or <b>📊 Parse kills</b>): damage and DPS per player, the boss&rsquo;s hits, who tanked, and a <b>Complete Heal chain report</b> &mdash; cadence chart (hover a red bar to see whose turn it was), missed turns and late calls per healer, doubled numbers and number changes. Each boss builds a hit profile across kills.'],
-    ['&#128232; Tells','A new <b>Tells</b> tab keeps tells to and from your characters, and a pop-up plus a spoken &ldquo;Player sent a tell&rdquo; tells you when one arrives on any character. Settings &rarr; Tells (or turn it off and the tab hides).'],
+    ['&#9877; CH chain: your turn','When one of your characters is in the chain, the window counts down to your turn and says <b>&ldquo;Heal&rdquo;</b> when it&rsquo;s up &mdash; one chain interval after the healer before you calls, timed to the chain&rsquo;s running pace (two intervals after the one before them, if they don&rsquo;t call). Settings &rarr; CH chain &rarr; Your turn: Voice, Chime or Off.'],
+    ['&#9877; CH chain: mana','When a healer in the chain says their mana (&ldquo;40&rdquo;, &ldquo;40m&rdquo;, &ldquo;Cleric - 40m - Low Mana!&rdquo;, &ldquo;fm&rdquo;, &ldquo;OOM&rdquo;) it shows on their number &mdash; blue, amber at 30% or less, red at 10% / OOM &mdash; with a <b>Low mana</b> line for anyone at 20% or less.'],
+    ['&#9876; PL helper','A window for power-levelling: the mobs your druid has snared (Bonds of Tunare / Ensnare) against the hits you&rsquo;ve landed, numbered so you can tag each one, every kill with &#10003; XP or &#10007; missed tag, and a spoken &ldquo;Missed tag&rdquo;. Off by default &mdash; Settings &rarr; PL helper.'],
+    ['&#128204; Watch List tasks','Right-click an item on the Watch List to make a farm task for that character &mdash; for as many as the watch rule still wants, with a zone reminder when it drops mostly in one zone.'],
   ],
   fixes:[
-    ['Speed','Your logs are read 8 times a second instead of every 2 seconds, so timers, tells, chain calls and Auto-Detect react right away.'],
-    ['Top bar','Tasks stays at the end of the top bar.'],
+    ['Spell timers','A recast on the same mob refreshes its row instead of adding a second one, and a mob&rsquo;s timers end when it dies.'],
+    ['Top bar','The &#9876; PL helper, &#9877; CH chain and &#9203; Timers buttons only show while that feature is on.'],
   ],
 };
 function showWhatsNew(){
@@ -8277,7 +8278,10 @@ window.applyDBToChar    = applyDBToChar;
         if(msg.type === 'whoSelf'){ sheetFromWho(msg); }
         if(msg.type === 'tell'){ tellOnMsg(msg); }
         if(msg.type === 'chCall'){ chChainOnCall(msg); }
+        if(msg.type === 'chMana'){ chChainOnMana(msg); }
+        if(msg.type === 'plState'){ plOnState(msg.state); }
         if(msg.type === 'timerStart'||msg.type === 'timerCancel'||msg.type === 'timerEnd'||msg.type === 'timerTarget'||msg.type === 'timerResist'){ spellTimerOnMsg(msg); }
+        if(msg.type === 'timerKill'){ spellTimerOnKill(msg); }
         if(msg.type === 'spellDurations'){ _spellDurKnown=msg.d||{}; }
         if(msg.type === 'fightParse'){ fightParseOnMsg(msg); }
         if(msg.type === 'guildRoster'&&Array.isArray(msg.names)){ _rkdGuildChat=new Set(msg.names.map(n=>String(n).toLowerCase())); }
@@ -16826,6 +16830,33 @@ window.taskQuestMenu=function(ev,key,ch){
   setTimeout(()=>document.addEventListener('click',function off(){ const x=document.getElementById('taskQMenu'); if(x) x.remove(); document.removeEventListener('click',off); }),0);
   return false;
 };
+// right-click a Watch List item: a farm task for that character (the All view's item name offers each character it watches)
+window.taskWatchMenu=function(ev,item,ch,chars){
+  ev.preventDefault(); ev.stopPropagation();
+  let m=document.getElementById('taskQMenu'); if(m) m.remove();
+  let who=ch?[ch]:String(chars||'').split('|').filter(Boolean);
+  if(!who.length){ showWatcherToast('📌 Load a character first.'); return false; }
+  const need=c=>{ try{ const st=watchlistStatus(c,item); return st&&st.target!=null&&st.have!=null?Math.max(0,st.target-st.have):null; }catch(e){ return null; } };
+  if(!ch) who=who.map(c=>[c,need(c)]).sort((a,b)=>(b[1]||0)-(a[1]||0)||a[0].localeCompare(b[0])).map(x=>x[0]);   // the ones short of it first
+  m=document.createElement('div'); m.id='taskQMenu';
+  m.style.cssText='position:fixed;z-index:10000;left:'+Math.min(ev.clientX,innerWidth-280)+'px;top:'+Math.min(ev.clientY,innerHeight-(ch?60:320))+'px;background:var(--surface);border:1px solid var(--border-glow);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.25);font-size:.85rem;min-width:240px';
+  m.innerHTML='<div style="padding:.35rem .7rem;font-size:.72rem;color:var(--text-muted);border-bottom:1px solid var(--border)">📌 Farm task: '+esc(item)+'</div>'
+    +'<div style="max-height:260px;overflow:auto">'+who.map(c=>{ const n=need(c); return '<div data-c="'+esc(c)+'" style="padding:.4rem .7rem;cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'+(ch?'📌 Make a task for ':'')+'<b>'+esc(c)+'</b>'+(n?' <span style="color:var(--text-muted);font-size:.78rem">\u2014 needs '+n+'</span>':'')+'</div>'; }).join('')+'</div>';
+  m.querySelectorAll('[data-c]').forEach(el=>{ el.onclick=()=>{ m.remove(); taskFromWatch(item,el.dataset.c,need(el.dataset.c)); }; });
+  document.body.appendChild(m);
+  setTimeout(()=>document.addEventListener('click',function off(){ const x=document.getElementById('taskQMenu'); if(x) x.remove(); document.removeEventListener('click',off); }),0);
+  return false;
+};
+window.taskFromWatch=function(item,ch,n){
+  const name=taskChars().find(c=>_taskSame(c,ch))||ch, real=(typeof itemDB!=='undefined'&&Object.keys(itemDB).find(k=>k.toLowerCase()===String(item).toLowerCase()))||item;
+  if(tasksOpen().some(t=>t.kind==='farm'&&_taskSame(t.char,name)&&String(t.item).toLowerCase()===String(real).toLowerCase())){ showWatcherToast('📌 '+name+' already has a task for '+real+'.'); return; }
+  const need=Math.max(1,n||1), src=(()=>{ try{ return taskDropSources(real); }catch(e){ return []; } })();
+  const cnt={}; for(const x of src) if(x.zone) cnt[x.zone]=(cnt[x.zone]||0)+1;
+  const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0], z=top&&(src.length<=3||top[1]*2>=src.length)?top[0]:null;
+  const t={id:'t'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),text:'Farm '+(need>1?need+'\u00d7 ':'')+real,char:name,when:z?'zone':'login',zone:z,at:null,created:Date.now(),done:false,kind:'farm',item:real,need,got:0,base:taskHeldBy(real,name),src:'watch'};
+  _tasks.push(t); taskAutoCheck(); tasksSave(); if(activeTopView==='tasks') renderTasksPanel();
+  showWatcherToast('📌 Task added for '+name+': '+t.text+(z?' \u2014 reminds you in '+z:'')+'. Open Tasks to see it.');
+};
 window.taskFromPreset=function(key,ch){
   const P=taskPresetBuild(key); if(!P){ showWatcherToast('📌 That quest is still loading \u2014 try again in a moment.'); return; }
   const name=taskChars().find(c=>_taskSame(c,ch))||ch;
@@ -16979,6 +17010,35 @@ function whoPendingApply(){
   const ks=Object.keys(p); if(!ks.length) return;
   for(const k of ks){ if(!sheetKey(k)) continue; const w=p[k]; delete p[k]; try{ localStorage.setItem('mp_who_pending',JSON.stringify(p)); }catch(e){} sheetFromWho(Object.assign({},w,{backfill:true})); }
 }
+// the window buttons under the title show only while their feature is on
+function headerBtnsSync(){
+  const set=(id,on)=>{ const b=document.getElementById(id); if(b) b.style.display=on?'block':'none'; };
+  try{ set('plOpenBtn',plMode()!=='off'); }catch(e){}
+  try{ set('chOpenBtn',chChainOn()); }catch(e){}
+  try{ set('tmrOpenBtn',spellTimersOn()); }catch(e){}
+}
+setTimeout(headerBtnsSync,0); setTimeout(headerBtnsSync,4000); setTimeout(headerBtnsSync,15000);   // CH chain's Auto depends on your characters loading
+// ══ PL helper (2026-10-18): kills this pull, ✓ XP / ✗ missed tag, mobs not hit yet — its own window ══
+function plMode(){ try{ const v=localStorage.getItem('mp_pl_mode'); return v==='on'||v==='auto'?v:'off'; }catch(e){ return 'off'; } }   // off unless switched on
+function plVoiceOn(){ try{ return localStorage.getItem('mp_pl_voice')!=='0'; }catch(e){ return true; } }
+let _plCur=null, _plMissSeen={};
+function plOnState(st){
+  if(!st||plMode()==='off') return;
+  const pl=st.pl>=2;   // a character getting XP from someone else's kills = being power-levelled
+  const busy=st.killed>0||st.names.some(n=>n.hits>0);
+  if(!busy) return;
+  // keep showing the character being power-levelled; another character only takes over when nobody is
+  if(_plCur&&_plCur.char!==st.char&&_plCur.pl>=1&&!st.pl&&Date.now()-(_plCur.at||0)<120e3) return;
+  _plCur=Object.assign({},st,{at:Date.now()});
+  try{ if(window.MixelParseApp&&window.MixelParseApp.pushPlState) window.MixelParseApp.pushPlState(st); }catch(e){}   // the window updates on every hit / kill
+  if(window.MixelParseApp&&window.MixelParseApp.popPl&&!st.quiet&&(plMode()==='on'||pl)) try{ window.MixelParseApp.popPl(); }catch(e){}   // pops up on its own only when power-levelling (Auto)
+  const key=st.char+'|'+st.start; if((_plMissSeen[key]||0)<st.missed){ if(_plMissSeen[key]!=null&&plVoiceOn()&&window.speechSynthesis&&typeof SpeechSynthesisUtterance!=='undefined') try{ const u=new SpeechSynthesisUtterance('Missed tag'); u.volume=spellTimerVolume(); window.speechSynthesis.speak(u); }catch(e){} }
+  _plMissSeen[key]=st.missed;
+}
+if(window.MixelParseApp&&window.MixelParseApp.onPlWindowReady) window.MixelParseApp.onPlWindowReady(()=>{ if(_plCur) try{ window.MixelParseApp.pushPlState(_plCur); }catch(e){} });
+window.plToggle=function(){ if(plMode()==='off'){ try{ localStorage.setItem('mp_pl_mode','on'); }catch(e){} showWatcherToast('⚔ PL helper turned on \u2014 Settings \u2192 PL helper to change'); }
+  if(window.MixelParseApp&&window.MixelParseApp.togglePl){ window.MixelParseApp.togglePl(); setTimeout(()=>{ if(_plCur) try{ window.MixelParseApp.pushPlState(_plCur); }catch(e){} },350); } else alert('The PL helper is in the desktop app.'); };
+
 // ══ Live CH chain (2026-10-18): "NAME > CH#" and the free numbers, in its own window (like Auctions) ══
 function chChainMode(){ try{ const v=localStorage.getItem('mp_ch_mode'); return v==='on'||v==='off'?v:'auto'; }catch(e){ return 'auto'; } }
 function chChainOn(){ const m=chChainMode(); if(m!=='auto') return m==='on'; try{ return charNames().some(n=>/^cleric$/i.test(String((charMeta[n]||{}).class||''))); }catch(e){ return false; } }   // Auto: on when one of your characters is a Cleric
@@ -16991,8 +17051,42 @@ function chChainOnCall(msg){
   for(const [n,x] of Object.entries(c.slots)) if(+n!==msg.slot&&x.who[msg.by]){ delete x.who[msg.by]; if(!Object.keys(x.who).length) delete c.slots[n]; }   // moved to a new number: they leave the old one
   const o=c.slots[msg.slot]||(c.slots[msg.slot]={who:{}}); const w=o.who[msg.by]||(o.who[msg.by]={n:0,last:0}); w.n++; w.last=now;   // a number can hold two healers — that's a clash to show
   c.last={slot:msg.slot,by:msg.by,ts:now}; c.times.push(now); if(c.times.length>40) c.times.shift();
-  chChainPush();
+  chChainPush(); chTurnOnCall(msg);
   if(window.MixelParseApp&&window.MixelParseApp.popChChain) try{ window.MixelParseApp.popChChain(); }catch(e){}
+}
+// ── your turn: one chain interval after the healer before you calls (two after the one before them, if they don't)
+function chTurnMode(){ try{ const v=localStorage.getItem('mp_ch_turn'); return v==='chime'||v==='off'?v:'voice'; }catch(e){ return 'voice'; } }
+let _chTurn=null;   // {target, slot, d, after, afterBy, due, fired}
+function chTurnClear(){ if(_chTurn){ clearTimeout(_chTurn.timer); clearTimeout(_chTurn.endT); } _chTurn=null; }
+function chTurnOnCall(msg){
+  if(chTurnMode()==='off'&&!_chTurn) return;
+  const mine=new Set(charNames().map(n=>String(n).toLowerCase()));
+  if(mine.has(String(msg.by).toLowerCase())){ if(_chTurn){ chTurnClear(); chChainPush(); } return; }   // you called: you're on it
+  if(chTurnMode()==='off') return;
+  const S=chChainState(); if(!S||S.target!==msg.target) return;
+  const live=S.slots.filter(x=>!x.open&&!x.idle), act=live.map(x=>x.slot);
+  const my=live.filter(x=>String(x.by).split(' / ').some(n=>mine.has(n.toLowerCase()))).map(x=>x.slot);
+  const i=act.indexOf(msg.slot); if(!my.length||i<0||act.length<2) return;
+  let best=null; for(const m of my){ const d=(act.indexOf(m)-i+act.length)%act.length; if(d>=1&&d<=2&&(!best||d<best.d)) best={d,slot:m}; }
+  if(!best) return;
+  const every=S.every||3, due=(msg.ts||Date.now())+best.d*every*1000;
+  chTurnClear(); _chTurn={target:msg.target,slot:best.slot,d:best.d,after:msg.slot,afterBy:msg.by,due,fired:0};
+  _chTurn.timer=setTimeout(chTurnFire,Math.max(0,due-Date.now()-300));   // the voice takes a moment to start
+  chChainPush();
+}
+function chTurnFire(){
+  const t=_chTurn; if(!t) return; t.fired=Date.now(); chChainPush();
+  const vol=(()=>{ try{ return spellTimerVolume(); }catch(e){ return 0.7; } })();
+  if(chTurnMode()==='voice'&&window.speechSynthesis&&typeof SpeechSynthesisUtterance!=='undefined'){ try{ const u=new SpeechSynthesisUtterance('Heal'); u.volume=vol; u.rate=1.2; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }catch(e){ try{ tellChime(); }catch(e2){} } }
+  else try{ tellChime(); }catch(e){}
+  t.endT=setTimeout(()=>{ if(_chTurn===t){ _chTurn=null; chChainPush(); } },Math.max(6000,(t.every||3)*2000));   // gone after a few seconds if you never call
+}
+const _chMana={};   // healer → {pct, ts}: their last mana call in /say
+function chChainOnMana(msg){
+  if(!chChainOn()) return;
+  _chMana[msg.by]={pct:msg.pct,ts:msg.ts||Date.now()};
+  for(const [k,v] of Object.entries(_chMana)) if(Date.now()-v.ts>15*60e3) delete _chMana[k];
+  if(Object.keys(_chChains).length) chChainPush();
 }
 function chChainState(){
   const ts=Object.entries(_chChains).sort((a,b)=>b[1].last.ts-a[1].last.ts)[0]; if(!ts) return null;
@@ -17011,7 +17105,9 @@ function chChainState(){
     else if(n<=max) slots.push({slot:n,open:true});
     else if(o) slots.push({slot:n,by:Object.keys(o.who).join(' / '),idle:true}); }
   const nl=next!=null?live(next):[];
-  return {target,last:c.last,every,active:active.length,max,free:free.slice(0,6),next,nextBy:nl.map(x=>x.name).join(' / '),slots,dups};
+  const mana={}; for(const x of slots) if(x.by) for(const nm of x.by.split(' / ')) if(_chMana[nm]) mana[nm]={pct:_chMana[nm].pct,ago:Math.round((now-_chMana[nm].ts)/1000)};   // only healers in this chain
+  const turn=_chTurn&&_chTurn.target===target?{slot:_chTurn.slot,d:_chTurn.d,after:_chTurn.after,afterBy:_chTurn.afterBy,due:_chTurn.due,fired:_chTurn.fired}:null;
+  return {target,last:c.last,every,active:active.length,max,free:free.slice(0,6),next,nextBy:nl.map(x=>x.name).join(' / '),slots,dups,mana,turn};
 }
 function chChainPush(){ if(window.MixelParseApp&&window.MixelParseApp.pushChChainState) try{ window.MixelParseApp.pushChChainState(chChainState()); }catch(e){} }
 setInterval(()=>{ if(Object.keys(_chChains).length) chChainPush(); },3000);
@@ -17118,6 +17214,11 @@ function spellTimerAlert(kind,spell){
 }
 function spellTimersCollapsed(){ try{ return localStorage.getItem('mp_timers_collapsed')==='1'; }catch(e){ return false; } }
 window.spellTimersToggle=function(){ try{ localStorage.setItem('mp_timers_collapsed',spellTimersCollapsed()?'0':'1'); }catch(e){} spellTimersRender(); };
+function spellTimerOnKill(msg){   // the mob died: its rows go — per character + spell, the oldest one on that name
+  const mob=String(msg.mob||'').toLowerCase(), oldest={};
+  for(const [k,t] of _spellTimers) if(!t.ended&&!t.pending&&String(t.target||'').toLowerCase()===mob){ const g=t.c+'|'+t.sp; if(!oldest[g]||t.start<_spellTimers.get(oldest[g]).start) oldest[g]=k; }
+  const ks=Object.values(oldest); if(!ks.length) return; for(const k of ks) _spellTimers.delete(k); spellTimersRender();
+}
 function spellTimerOnMsg(msg){
   if(!spellTimersOn()) return;   // Settings → Spell timers: Off
   const same=t=>t.c===msg.charName&&t.sp===msg.spell&&!t.ended, live=[..._spellTimers.values()].filter(same).sort((a,b)=>a.start-b.start);
@@ -17132,7 +17233,10 @@ function spellTimerOnMsg(msg){
     _spellTimers.set('t'+(++_spellTimerSeq),t);
     if(!t.land) setTimeout(()=>{ if(t.pending&&!t.ended){ t.pending=false; t.start=t.castAt+3500; spellTimersRender(); } },3500);   // no landing text known: assume it landed
     if(_tmrWin()&&spellTimersAutoOpen()) try{ window.MixelParseApp.popTimers(); }catch(e){} }
-  else if(msg.type==='timerTarget'){ const t=live.filter(x=>x.pending).pop()||live.filter(x=>!x.target).pop(); if(t){ t.target=msg.target; if(t.pending){ t.pending=false; t.start=msg.ts||Date.now(); } } }   // landed: the countdown starts now
+  else if(msg.type==='timerTarget'){ const t=live.filter(x=>x.pending).pop()||live.filter(x=>!x.target).pop(); if(t){ t.target=msg.target; if(t.pending){ t.pending=false; t.start=msg.ts||Date.now(); }   // landed: the countdown starts now
+      const now=Date.now(), left=x=>x.dur?x.start+x.dur*1000-now:Infinity;
+      const old=live.filter(x=>x!==t&&!x.pending&&x.target===t.target).sort((a,b)=>left(a)-left(b))[0];   // a recast on the same mob refreshes its row
+      if(old&&(left(old)<=0||!old.dur||left(old)<old.dur*500)) for(const [k,v] of _spellTimers) if(v===old) _spellTimers.delete(k); } }
   else if(msg.type==='timerCancel'){ const t=live.filter(x=>x.pending).pop()||live.pop(); if(t) for(const [k,v] of _spellTimers) if(v===t) _spellTimers.delete(k); }   // the newest cast fizzled / was interrupted
   else if(msg.type==='timerEnd'){
     if(!cfg.t&&!cfg.b){ spellTimersRender(); return; }
@@ -17371,12 +17475,15 @@ window.stgSetRole=function(n,role){
 window.stgDo=function(what,v){
   if(what==='newchars'){ if(v==='hide') knownCharsSeed(); stgSet('mp_new_chars',v); if(typeof renderZoneBar==='function') renderZoneBar(); }
   else if(what==='capdisp'){ stgSet('mp_cap_display',v); capRefresh(); }
-  else if(what==='chmode'){ stgSet('mp_ch_mode',v); if(!chChainOn()&&window.MixelParseApp&&window.MixelParseApp.closeChChain) window.MixelParseApp.closeChChain(); }
+  else if(what==='plmode'){ setTimeout(headerBtnsSync,0); stgSet('mp_pl_mode',v); if(v==='off'&&window.MixelParseApp&&window.MixelParseApp.closePl) window.MixelParseApp.closePl(); }
+  else if(what==='plvoice'){ stgSet('mp_pl_voice',v==='on'?'1':'0'); }
+  else if(what==='chturn'){ stgSet('mp_ch_turn',v); if(v==='off'){ chTurnClear(); chChainPush(); } }
+  else if(what==='chmode'){ setTimeout(headerBtnsSync,0); stgSet('mp_ch_mode',v); if(!chChainOn()&&window.MixelParseApp&&window.MixelParseApp.closeChChain) window.MixelParseApp.closeChChain(); }
   else if(what==='tellson'){ stgSet('mp_tells_on',v==='on'?'1':'0'); tellsNavCount(); }
   else if(what==='tellvoice'){ stgSet('mp_tells_voice',v==='voice'?'1':'0'); }
   else if(what==='tellsnd'){ stgSet('mp_tells_snd',v==='on'?'1':'0'); }
   else if(what==='tellvol'){ stgSet('mp_tells_vol',String((+v||0)/100)); return; }
-  else if(what==='tmron'){ stgSet('mp_timers_on',v==='on'?'1':'0'); if(v!=='on'){ _spellTimers.clear(); spellTimersRender(); if(window.MixelParseApp&&window.MixelParseApp.closeTimers) window.MixelParseApp.closeTimers(); } }
+  else if(what==='tmron'){ setTimeout(headerBtnsSync,0); stgSet('mp_timers_on',v==='on'?'1':'0'); if(v!=='on'){ _spellTimers.clear(); spellTimersRender(); if(window.MixelParseApp&&window.MixelParseApp.closeTimers) window.MixelParseApp.closeTimers(); } }
   else if(what==='tmrpop'){ stgSet('mp_timers_popup',v==='on'?'1':'0'); }
   else if(what==='tmrvoice'){ stgSet('mp_timers_voice',v==='voice'?'1':'0'); }
   else if(what==='tmrsndc'){ stgSet('mp_timers_snd_charm',v==='on'?'1':'0'); }
@@ -17619,9 +17726,15 @@ function renderSettingsPanel(){
       pick('rkd',rkdMode(),[['watch','Watch','Lists what it finds; never adds anything'],['active','Active','Adds strong matches to the Raid Kill Tracker, asks about the rest']]))+
     item('Parking alerts','The gold lines under the top bar when a raid target is up or due within 12 hours and nobody is parked there.',pick('parkwarn',btParkWarnOn()?'on':'off',[['on','On'],['off','Off']]))+
     item('Map: spawn timers from kills','Start a spawn timer on the map automatically when a tracked mob dies.',pick('timers',_autoTimersEnabled?'on':'off',[['on','On'],['off','Off — map clicks and /note only']])));
+  h+=card('PL HELPER',
+    item('PL helper window','While a character is being power-levelled: each kill this pull with \u2713 XP or \u2717 missed tag, the mob names you haven\u2019t landed a hit on yet, and the totals. <b>Auto</b>: opens when one of your characters starts getting XP from someone else\u2019s kills. Off by default. The \u2694 PL helper button under the title shows only while this is Auto or On.',
+      pick('plmode',plMode(),[['off','Off'],['auto','Auto'],['on','On']]))+
+    item('Say \u201cMissed tag\u201d','Spoken when a kill gives no XP (you hadn\u2019t hit it).',pick('plvoice',plVoiceOn()?'on':'off',[['on','On'],['off','Off']])));
   h+=card('CH CHAIN',
     item('CH chain window','A live window (like Auctions) built from the \u201cCA 007 CH -- Tank\u201d calls: who called which number, the last call (\u201cContrax > 001\u201d), who\u2019s next, and the <b>free numbers</b> you could take. It opens on its own when a chain starts. <b>Auto</b>: on when one of your characters is a Cleric.',
-      pick('chmode',chChainMode(),[['auto','Auto'+(chChainMode()==='auto'?(chChainOn()?' (on \u2014 you have a Cleric)':' (off \u2014 no Cleric)'):'')],['on','On'],['off','Off']])));
+      pick('chmode',chChainMode(),[['auto','Auto'+(chChainMode()==='auto'?(chChainOn()?' (on \u2014 you have a Cleric)':' (off \u2014 no Cleric)'):'')],['on','On'],['off','Off']]))
+    +item('Your turn','When one of your characters is in the chain, the window counts down to your turn and says <b>\u201cHeal\u201d</b> when it\u2019s up: one chain interval after the healer before you calls (two intervals after the one before them, if they don\u2019t call). Your own call clears it.',
+      pick('chturn',chTurnMode(),[['voice','Voice'],['chime','Chime'],['off','Off']])));
   h+=card('TELLS',
     item('Tell tracking','Tells to and from your characters in the Tells tab, with a 📨 pop-up when one arrives. Off: tells are ignored and the Tells tab is hidden.',
       pick('tellson',tellsOn()?'on':'off',[['on','On'],['off','Off \u2014 hide the Tells tab']]))+
@@ -20412,9 +20525,10 @@ function renderWatchlistBar(){
         const tracked=targets.includes(n);
         if(!tracked)return`<td class="rc-check" style="width:120px"><span class="rc-check-na">N/A</span></td>`;
         const st=watchlistStatus(n,item);
-        return`<td class="rc-check" style="width:120px">${_wlBadge(st,true)}</td>`;
+        return`<td class="rc-check" style="width:120px" data-item="${esc(item).replace(/"/g,'&quot;')}" data-char="${esc(n)}" oncontextmenu="return taskWatchMenu(event,this.dataset.item,this.dataset.char)">${_wlBadge(st,true)}</td>`;
       }).join('');
-      return`<tr><td style="padding:.2rem .5rem;white-space:nowrap">${itemLink}</td>${cells}</tr>`;
+      const ia=esc(item).replace(/"/g,'&quot;');
+      return`<tr><td style="padding:.2rem .5rem;white-space:nowrap" data-item="${ia}" data-chars="${esc(targets.join('|'))}" oncontextmenu="return taskWatchMenu(event,this.dataset.item,'',this.dataset.chars)" title="Right-click to make a farm task">${itemLink}</td>${cells}</tr>`;
     }).join('');
     container.innerHTML=`<table style="border-collapse:collapse;width:100%">
       <thead><tr><th style="padding:.25rem .5rem"></th>${headerCells}</tr></thead>
@@ -20437,7 +20551,7 @@ function renderWatchlistBar(){
       } else {
         badge=_wlBadge(watchlistStatus(charName,item),false);
       }
-      return`<div style="display:grid;grid-template-columns:220px auto;align-items:center;padding:.22rem .5rem;border-bottom:1px solid var(--border)">${itemLink}${badge}</div>`;
+      return`<div style="display:grid;grid-template-columns:220px auto;align-items:center;padding:.22rem .5rem;border-bottom:1px solid var(--border)" data-item="${esc(item).replace(/"/g,'&quot;')}" data-char="${esc(charName)}" oncontextmenu="return taskWatchMenu(event,this.dataset.item,this.dataset.char)" title="Right-click to make a farm task for ${esc(charName)}">${itemLink}${badge}</div>`;
     }).join('');
     container.innerHTML=`<div style="display:flex;flex-direction:column;gap:0;padding:.1rem 0">${rows}</div>`;
   }
