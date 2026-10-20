@@ -872,6 +872,7 @@ ipcMain.handle('chchain:toggle', () => {
 ipcMain.handle('chchain:pop', () => { if (chChainWindow && !chChainWindow.isDestroyed() && chChainWindow.isVisible() && !chChainWindow.isMinimized()) return; createChChainWindow(false); });
 ipcMain.handle('chchain:close', () => { if (chChainWindow && !chChainWindow.isDestroyed()) chChainWindow.close(); });
 ipcMain.handle('chchain:minimize', () => { if (chChainWindow && !chChainWindow.isDestroyed()) chChainWindow.minimize(); });
+ipcMain.on('chchain:cfg', (event, cfg) => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('chchain-cfg', cfg); });   // Single / Double / Triple, from the window's top bar
 ipcMain.on('chchain:push-state', (event, state) => { if (chChainWindow && !chChainWindow.isDestroyed()) chChainWindow.webContents.send('chchain-state', state); });
 ipcMain.handle('timers:toggle', () => {
   if (timersWindow && !timersWindow.isDestroyed() && timersWindow.isVisible() && !timersWindow.isMinimized()) { timersWindow.hide(); return false; }

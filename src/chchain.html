@@ -47,6 +47,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .turn.go{background:rgba(85,196,127,.25);border:2px solid var(--live);color:#eafff1;font-size:1.25rem;animation:pulse .7s ease-in-out infinite alternate}
 .turn .s{margin-left:auto;font-size:.78rem;font-weight:600;opacity:.85}
 @keyframes pulse{from{box-shadow:0 0 0 0 rgba(85,196,127,.0)}to{box-shadow:0 0 14px 2px rgba(85,196,127,.55)}}
+.cfg{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .7rem;padding:.35rem .6rem;border-bottom:1px solid var(--line);font-size:.8rem;color:var(--dim);flex-shrink:0}
+.cfg label{display:flex;align-items:center;gap:.25rem;cursor:pointer}.cfg input[type=radio]{accent-color:var(--gold);margin:0}
+.cfg .rg{display:flex;align-items:center;gap:.2rem}.cfg .rg input{width:2.6em;background:var(--card);border:1px solid var(--line2);border-radius:4px;color:var(--text);font:inherit;font-variant-numeric:tabular-nums;padding:.05rem .25rem;text-align:center}
+.ghd{display:flex;align-items:baseline;gap:.5rem;margin:.7rem .1rem .3rem;padding-top:.45rem;border-top:1px solid var(--line);font-size:.82rem;color:var(--dim)}.ghd b{color:var(--gold2)}
+.spd{display:flex;flex-wrap:wrap;gap:.2rem .7rem;align-items:baseline;font-size:.8rem;color:var(--dim);margin:.1rem .1rem .45rem;padding:.3rem .45rem;border:1px solid var(--line);border-radius:6px;background:var(--card)}
+.spd b{color:var(--text)}.spd .on{color:var(--live);font-weight:600}.spd .off{color:var(--warn);font-weight:600}.spd .plan{margin-left:auto;color:var(--gold2);font-weight:800;font-size:.95rem}.spd .slow{color:var(--warn)}
+.oth{margin-top:.55rem;font-size:.78rem;color:var(--dim);line-height:1.5;border-top:1px solid var(--line);padding-top:.4rem}.oth b{color:var(--text)}.oth .n{color:var(--gold);font-weight:700;font-variant-numeric:tabular-nums}
 .low{color:var(--warn);font-size:.85rem;font-weight:600;margin:.1rem .1rem .45rem}
 </style>
 </head>
@@ -59,6 +66,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
     <button class="tb-btn nd" title="Minimize" onclick="window.MixelParseApp&&window.MixelParseApp.minimizeChChain()">–</button>
     <button class="tb-btn tb-x nd" title="Close (it opens again on the next chain call — Settings → CH chain)" onclick="window.MixelParseApp&&window.MixelParseApp.closeChChain()">✕</button>
   </div>
+  <div class="cfg" id="cfg"></div>
   <div class="body" id="body"><div class="empty">Waiting for a chain call like<br><b>CA 007 CH -- Tankname</b></div></div>
 </div>
 <script>
@@ -69,33 +77,65 @@ document.documentElement.style.setProperty('--fs',fs);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const pad=n=>String(n).padStart(3,'0');
 // a healer's last mana call: blue, amber at 30 or under, red at 10 / OOM; faded once it's over 2 minutes old
-function manaTag(nm){ const m=st.mana&&st.mana[nm]; if(!m) return '';
+function manaTag(nm){ const m=G&&G.mana&&G.mana[nm]; if(!m) return '';
   const cls=(m.pct<=10?'oom':m.pct<=30?'lo':'')+(m.ago>120?' old':''), ago=m.ago<60?m.ago+' s':Math.round(m.ago/60)+' min';
   return '<span class="mp '+cls+'" title="'+esc(nm)+' said '+(m.pct===0?'OOM':m.pct+'% mana')+' '+ago+' ago">'+(m.pct===0?'OOM':m.pct+'%')+'</span>'; }
 function names(by){ return String(by||'').split(' / ').map(nm=>'<span class="nm">'+esc(nm)+'</span>'+manaTag(nm)).join(' / '); }
-function render(){
-  const b=document.getElementById('body'), t=document.getElementById('title');
-  if(!st||!st.target){ t.textContent='⚕ CH CHAIN'; b.innerHTML='<div class="empty">Waiting for a chain call like<br><b>CA 007 CH -- Tankname</b></div>'; return; }
-  const now=Date.now(), ago=Math.max(0,Math.round((now-st.last.ts)/1000));
-  t.textContent='⚕ CH CHAIN — '+st.target;
-  const stale=ago>Math.max(20,(st.every||3)*6);
-  const tiles=st.slots.map(x=>{ const cls=(x.dup?'dup ':'')+(x.open?'open':x.slot===st.last.slot?'now':x.slot===st.next?'next':x.idle?'idle':'');
+// top bar: Single (default) / Double / Triple, and each chain's numbers — sent to the main window, which regroups
+let cfgShown='';
+function cfgBar(){
+  const el=document.getElementById('cfg'), c=st&&st.cfg||{mode:1,ranges:[[1,4],[5,8],[9,12]]}, sig=JSON.stringify(c);
+  if(sig===cfgShown||el.contains(document.activeElement)&&document.activeElement.type==='number') return; cfgShown=sig;
+  el.innerHTML='<span class="rg" style="margin-right:.3rem" title="When the Heal alert says your turn is up: the chain\u2019s actual pace, or the CA chart\u2019s target timing for this boss (adjusted for slow / Defensive)">Heal timing: <label><input type="radio" name="tm" value="actual"'+(c.timing!=='chart'?' checked':'')+' onchange="cfgSend()">Actual</label><label><input type="radio" name="tm" value="chart"'+(c.timing==='chart'?' checked':'')+' onchange="cfgSend()">CA chart</label></span><span style="flex-basis:100%;height:0"></span>'+[[1,'Single chain'],[2,'Double'],[3,'Triple']].map(([m,l])=>'<label><input type="radio" name="m" value="'+m+'"'+(c.mode===m?' checked':'')+' onchange="cfgSend()">'+l+'</label>').join('')
+    +(c.mode>1?'<span style="flex-basis:100%;height:0"></span><label title="Each chain is a target, learned from what the calls name"><input type="radio" name="a" value="1"'+(c.auto!==false?' checked':'')+' onchange="cfgSend()">Auto (by target)</label><label><input type="radio" name="a" value="0"'+(c.auto===false?' checked':'')+' onchange="cfgSend()">Set numbers</label>':'')
+    +(c.mode>1&&c.auto===false?'<span style="flex-basis:100%;height:0"></span>'+c.ranges.slice(0,c.mode).map((r,i)=>'<span class="rg">Chain '+(i+1)+': <input type="number" min="1" max="99" value="'+r[0]+'" data-i="'+i+'" data-e="0" onchange="cfgSend()">–<input type="number" min="1" max="99" value="'+r[1]+'" data-i="'+i+'" data-e="1" onchange="cfgSend()"></span>').join(''):'');
+}
+function cfgSend(){
+  const el=document.getElementById('cfg'), m=+(el.querySelector('input[name=m]:checked')||{value:1}).value, au=el.querySelector('input[name=a]:checked'), auto=au?au.value==='1':!(st&&st.cfg&&st.cfg.auto===false), c=st&&st.cfg||{ranges:[[1,4],[5,8],[9,12]]}, rs=c.ranges.map(r=>r.slice());
+  el.querySelectorAll('input[type=number]').forEach(x=>{ rs[+x.dataset.i][+x.dataset.e]=parseInt(x.value,10)||rs[+x.dataset.i][+x.dataset.e]; });
+  if(m>1&&(st&&st.cfg&&st.cfg.mode)===1){ for(let i=0;i<3;i++) rs[i]=[i*4+1,i*4+4]; }   // switching to Double / Triple: start from 1-4, 5-8, 9-12
+  cfgShown=''; if(window.MixelParseApp&&window.MixelParseApp.setChChainCfg) window.MixelParseApp.setChChainCfg({mode:m,auto,ranges:rs,timing:(el.querySelector('input[name=tm]:checked')||{value:'actual'}).value});
+}
+let G=null;   // the chain being drawn (mana tags read it)
+function groupHtml(g,full){
+  const now=Date.now();
+  if(g.empty) return '<div class="ghd"><b>Chain '+g.n+'</b>'+(g.range?' '+pad(g.range[0])+'–'+pad(g.range[1]):'')+' <span>'+(g.auto?'waiting for calls on another target':'no calls yet')+'</span></div>';
+  G=g; const ago=Math.max(0,Math.round((now-g.last.ts)/1000)), stale=ago>Math.max(20,(g.every||3)*6);
+  const tiles=g.slots.map(x=>{ const cls=(x.dup?'dup ':'')+(x.open?'open':x.slot===g.last.slot?'now':x.slot===g.next?'next':'');
     return '<div class="t '+cls+'" title="'+(x.open?'Nobody has called '+pad(x.slot)+' lately — free':x.dup?'Two healers are calling '+pad(x.slot)+': '+esc(x.by):esc(x.by)+' · '+x.n+' calls')+'"><div class="n">'+pad(x.slot)+'</div><div class="h">'+(x.open?'free':names(x.by))+'</div></div>'; }).join('');
-  const T=st.turn, left=T?(T.due-now)/1000:0, after=T?pad(T.after)+' '+esc(T.afterBy||''):'';
+  const T=g.turn, left=T?(T.due-now)/1000:0, after=T?pad(T.after)+' '+esc(T.afterBy||''):'';
   const turnHtml=!T?'':(!T.fired&&left>0)?'<div class="turn wait">⏳ Your turn ('+pad(T.slot)+') in '+left.toFixed(1)+' s<span class="s">'+(T.d===1?'after '+after:after+' called \u2014 waiting on the one before you')+'</span></div>'
     :'<div class="turn go">⚕ HEAL NOW \u2014 '+pad(T.slot)+'<span class="s">'+(T.d===2?'the one before you didn\u2019t call':'after '+after)+'</span></div>';
-  const low=Object.entries(st.mana||{}).filter(([,m])=>m.pct<=20&&m.ago<=120).sort((a,b)=>a[1].pct-b[1].pct);
-  b.innerHTML='<div class="last"><span class="who">'+esc(st.last.by)+'</span><span style="color:var(--muted)">&gt;</span><span class="slot">'+pad(st.last.slot)+'</span><span class="ago">'+ago+' s ago</span></div>'
-    +'<div class="meta"><span>next up <b>'+(st.next?pad(st.next)+' '+esc(st.nextBy||''):'—')+'</b></span><span>one every <b>'+(st.every?st.every.toFixed(1):'—')+' s</b></span><span><b>'+st.active+'</b> healers</span></div>'
-    +'<div class="free">Free: '+(st.free.length?st.free.map(n=>'<b>'+pad(n)+'</b>').join(' · '):'<span style="color:var(--muted)">none — take '+pad(st.max+1)+'</span>')+'</div>'
-    +((st.dups||[]).length?'<div class="dupw">⚠ Doubled: '+st.dups.map(d=>pad(d.slot)+' ('+d.names.map(esc).join(', ')+')').join(' · ')+'</div>':'')
+  const low=Object.entries(g.mana||{}).filter(([,m])=>m.pct<=20&&m.ago<=120).sort((a,b)=>a[1].pct-b[1].pct);
+  const head=st.groups.length>1?'<div class="ghd" style="'+(full?'border-top:0;margin-top:0;padding-top:0':'')+'"><b>Chain '+g.n+(g.target?' — '+esc(g.target):'')+'</b> '+(g.range?pad(g.range[0])+'–'+pad(g.range[1]):'')+(g.auto?' <span style="font-size:.72rem;color:var(--muted)">auto</span>':'')+'</div>':'';
+  return head+'<div class="last"'+(full?'':' style="padding:.2rem .45rem"')+'><span class="who"'+(full?'':' style="font-size:1rem"')+'>'+esc(g.last.by)+'</span><span style="color:var(--muted)">&gt;</span><span class="slot"'+(full?'':' style="font-size:1rem"')+'>'+pad(g.last.slot)+'</span>'+(g.last.stray?'<span style="color:var(--warn);font-size:.75rem;font-weight:600" title="This call named '+esc(g.last.stray)+', not '+esc(g.target)+'">on '+esc(g.last.stray)+'</span>':'')+'<span class="ago">'+ago+' s ago</span></div>'
+    +'<div class="meta"><span>next up <b>'+(g.next?pad(g.next)+' '+esc(g.nextBy||''):'—')+'</b></span><span>one every <b>'+(g.every?g.every.toFixed(1):'—')+' s</b></span><span><b>'+g.active+'</b> healers</span></div>'
+    +'<div class="free">Free: '+(g.free.length?g.free.map(n=>'<b>'+pad(n)+'</b>').join(' · '):'<span style="color:var(--muted)">none'+(g.take?' — take '+pad(g.take):'')+'</span>')+'</div>'
+    +((g.dups||[]).length?'<div class="dupw">⚠ Doubled: '+g.dups.map(d=>pad(d.slot)+' ('+d.names.map(esc).join(', ')+')').join(' · ')+'</div>':'')
+    +speedHtml(g)
     +turnHtml
     +(low.length?'<div class="low">🔵 Low mana: '+low.map(([nm,m])=>esc(nm)+' '+(m.pct===0?'OOM':m.pct+'%')).join(' · ')+'</div>':'')
     +(stale?'<div class="stale">No calls for '+ago+' s — the chain may have stopped.</div>':'')
     +'<div class="grid">'+tiles+'</div>';
 }
+// the boss, its slow, the tank's discipline and the chart's interval for that
+function speedHtml(g){
+  const S=g.speed; if(!S) return '';
+  const mm=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0'), useChart=st&&st.cfg&&st.cfg.timing==='chart';
+  const slow=!S.slowable?'🐌 unslowable':S.slowed?'<span class="on">🐌 slowed '+mm(S.slowLeft)+'</span>':'<span class="off">🐌 not slowed</span>';
+  const disc=S.disc?'<span class="on">🛡 defensive '+mm(S.discLeft)+'</span>':'<span class="off">🛡 no defensive</span>';
+  return '<div class="spd"><span>🐉 <b>'+esc(S.boss)+'</b></span>'+slow+disc+(S.ramp?'<span>'+esc(S.ramp)+'</span>':'')+(S.enrage?'<span>enrages</span>':'')
+    +'<span class="plan" title="CA chart for '+esc(S.boss)+' at this slow / Defensive'+(useChart?' \u2014 the Heal alert uses it':'')+'">Target CH timing = '+(S.planTxt||'—')+(g.every?' <span style="color:var(--muted);font-weight:600;font-size:.78rem">(actual '+g.every.toFixed(1)+' s)</span>':'')+'</span></div>';
+}
+function render(){
+  const b=document.getElementById('body'), t=document.getElementById('title');
+  cfgBar();
+  if(!st||!st.any){ t.textContent='⚕ CH CHAIN'; b.innerHTML='<div class="empty">Waiting for a chain call like<br><b>CA 007 CH -- Tankname</b></div>'; return; }
+  const g0=st.groups[0]; t.textContent='⚕ CH CHAIN'+(g0&&g0.target?' — '+g0.target:'');
+  b.innerHTML=st.groups.map((g,i)=>groupHtml(g,i===0)).join('');
+}
 if(window.MixelParseApp&&window.MixelParseApp.onChChainState) window.MixelParseApp.onChChainState(s=>{ st=s; render(); });
-setInterval(render,1000); setInterval(()=>{ if(st&&st.turn) render(); },150);   // the countdown runs smooth
+setInterval(render,1000); setInterval(()=>{ if(st&&st.groups&&st.groups.some(g=>g.turn)) render(); },150);   // the countdown runs smooth
 </script>
 </body>
 </html>

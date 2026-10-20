@@ -90,6 +90,7 @@ function levelFromValue(v) {
 function clamp(v) { return Math.max(FACTION_MIN, Math.min(FACTION_MAX, v)); }
 
 // ── Persist helpers ───────────────────────────────────────────────────────────
+let _activeSent = null, _activeSentAt = 0;
 const _hotLogs = new Map();   // log file → character, for the 250 ms read
 let _logPosT = null;
 function saveLogPositionsNow() { clearTimeout(_logPosT); _logPosT = null; if (!_logPosPath) return; try { fs.writeFileSync(_logPosPath, JSON.stringify(logPositions), 'utf8'); } catch {} }
@@ -305,6 +306,9 @@ function startLogWatcher() {
           if (stat.size > pos) tailLogFile(fp, charName);
         } catch {}
       }
+      // the characters being played (log written in the last 10 min) — CH chain's Auto
+      const act = [...new Set(_hotLogs.values())].sort().join('|');
+      if (act !== _activeSent || Date.now() - _activeSentAt > 60e3) { _activeSent = act; _activeSentAt = Date.now(); broadcast({ type: 'activeChars', chars: act ? act.split('|') : [] }); }
     } catch (e) {
       err('[LOG] Poll error:', e.message);
     }
@@ -1018,7 +1022,7 @@ function raidSignal(line, charName) {
   // "a dracoliche" / "an undead bard" in-game. Kill lines stay filtered (every trash kill).
   if ((m = RE_RT_ENRAGE.exec(line))) return { type:'raidEvidence', charName, kind:'enrage', mob:m[1], ts };
   if ((m = RE_RT_SLAIN.exec(line)) || (m = RE_RT_YOUSLAIN.exec(line))) return _rtGeneric(m[1]) ? null : { type:'raidEvidence', charName, kind:'slain', mob:m[1], ts };
-  if ((m = RE_RT_LAND.exec(line)))   return { type:'raidEvidence', charName, kind:'land', sub:RT_LAND_KIND[m[2]], mob:m[1], ts };
+  if ((m = RE_RT_LAND.exec(line)))   return { type:'raidEvidence', charName, kind:'land', sub:RT_LAND_KIND[m[2]], verb:m[2], mob:m[1], ts };
   if ((m = RE_RT_FACTION.exec(line))) return { type:'raidEvidence', charName, kind:'faction', mob:m[1], ts };
   if ((m = RE_RT_FIGHT.exec(line)))  return _rtGeneric(m[1]) ? null : { type:'raidEvidence', charName, kind:'fight', mob:m[1], target: m[2] || null, ts };
   if ((m = RE_RT_SAY.exec(line)))   return _rtGeneric(m[1]) || RE_RT_AMBIENT.test(m[2]) ? null : { type:'raidEvidence', charName, kind:'say', mob:m[1], ts };
@@ -1429,6 +1433,11 @@ function processLogLine(line, charName) {
   if (line.indexOf(", '") > 0 && (line.indexOf(' say') > 0 || line.indexOf(' tell') > 0)) { const _mn = RE_CH_MANA_LINE.exec(line);
     if (_mn) { const pct = _chManaParse(_mn[2]); if (pct != null) { const by = _mn[1] || charName, k = Math.floor(Date.now() / 1000) + '|m|' + by;
       if (!_chSeen.has(k)) { _chSeen.set(k, Date.now()); broadcast({ type: 'chMana', charName, by, pct, ts: Date.now() }); } } } }
+  if ((line.indexOf('SLOW') > 0 || /[Ss]haman slowed/.test(line)) && line.indexOf(", '") > 0) { const _sc = RE_CH_SLOWCALL.exec(line);
+    if (_sc && (/\bSLOW(?:ED)?\b/.test(_sc[2]) || /shaman slowed/i.test(_sc[2]))) { const k = Math.floor(Date.now() / 1000) + '|sc|' + _sc[2]; if (!_chSeen.has(k)) { _chSeen.set(k, Date.now()); broadcast({ type: 'chSlowCall', charName, by: _sc[1] || charName, text: _sc[2], ts: Date.now() }); } } }
+  if (line.endsWith('defensive fighting style.')) { const _d = RE_CH_DISC.exec(line); if (_d) { const k = Math.floor(Date.now() / 1000) + '|d|' + _d[1]; if (!_chSeen.has(k)) { _chSeen.set(k, Date.now()); broadcast({ type: 'chDisc', charName, who: _d[1], ts: Date.now() }); } } }
+  else if (line.charCodeAt(27) >= 65 && line.charCodeAt(27) <= 90 && (line.indexOf(' points of damage') > 0 || line.indexOf(' tries to ') > 0)) { const _s = RE_CH_SWING.exec(line);   // a named mob (capitalised, no "a"/"an") on a player
+    if (_s && !/^(You|Your)/.test(_s[1])) { const k = _s[1] + '|' + _s[2], t = _chSwSeen.get(k) || 0, now = Date.now(); if (now - t > 5000) { _chSwSeen.set(k, now); if (_chSwSeen.size > 300) for (const [kk, tt] of _chSwSeen) if (now - tt > 60e3) _chSwSeen.delete(kk); broadcast({ type: 'chSwing', charName, mob: _s[1], target: _s[2], ts: now }); } } }
   if (line.indexOf('dark vines') > 0 || line.indexOf('snared') > 0 || line.indexOf('entwined') > 0 || line.indexOf('slain by') > 0 || line.indexOf('experience') > 0 || line.indexOf(' points of damage') > 0 || line.indexOf(' point of damage') > 0 || line.indexOf(' was ') > 0 || line.indexOf(' tries to ') > 0) _plLine(line, charName);
   { const _lw = _landWait[charName];
     if (_lw && _lw.length) { const txt = line.slice(line.indexOf('] ') + 2), now = Date.now();
@@ -2421,6 +2430,11 @@ const _landWait = {};
 // CH chain calls ("CA 007 CH -- Concuss"), live, once per call across all your logs
 const RE_CH_CALL = /^\[[^\]]+\] (?:([A-Z][a-z]+) (?:says out of character|says|shouts|tells the raid|tells the group)|You (?:say out of character|say|shout|tell your raid|tell your party)), '(?:CA\s*)?(\d{1,3})\s*CH\s*-+>?\s*([A-Z][A-Za-z`']+)[^']*'$/;
 const _chSeen = new Map();
+// CH chain speed: the tank's Defensive Discipline, and named mobs swinging at a player (the renderer keeps the roster bosses)
+const RE_CH_DISC = /^\[[^\]]+\] ([A-Z][a-z]+) assumes a defensive fighting style\.$/;
+const RE_CH_SWING = /^\[[^\]]+\] ([A-Z][^ ]*(?: [^ ]+){0,4}?) (?:hits|slashes|crushes|bashes|kicks|bites|claws|pierces|punches|smashes|mauls|gores|stings|strikes|slices|rends|tries to \w+) ([A-Z][a-z]+)(?: for |, but |!)/;
+const _chSwSeen = new Map();
+const RE_CH_SLOWCALL = /^\[[^\]]+\] (?:([A-Z][a-z]+) (?:says out of character|says|shouts|tells the raid|tells the group)|You (?:say out of character|say|shout|tell your raid|tell your party)), '(.{3,200})'$/;
 // a mana call in /say (or group / raid): "40", "40 mana", "Cleric - 40m - Low Mana!", "Full mana", "OOM", "ENC at 20% MANA"
 const RE_CH_MANA_LINE = /^\[[^\]]+\] (?:([A-Z][a-z]+) (?:says|tells the group|tells the raid)|You (?:say|tell your party|tell your raid)), '([^']{1,40})'$/;
 function _chManaParse(t) {

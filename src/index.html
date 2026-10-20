@@ -5678,17 +5678,16 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.27',
+  version:'1.7.28',
   date:'October 2026',
   features:[
-    ['&#9877; CH chain: your turn','When one of your characters is in the chain, the window counts down to your turn and says <b>&ldquo;Heal&rdquo;</b> when it&rsquo;s up &mdash; one chain interval after the healer before you calls, timed to the chain&rsquo;s running pace (two intervals after the one before them, if they don&rsquo;t call). Settings &rarr; CH chain &rarr; Your turn: Voice, Chime or Off.'],
-    ['&#9877; CH chain: mana','When a healer in the chain says their mana (&ldquo;40&rdquo;, &ldquo;40m&rdquo;, &ldquo;Cleric - 40m - Low Mana!&rdquo;, &ldquo;fm&rdquo;, &ldquo;OOM&rdquo;) it shows on their number &mdash; blue, amber at 30% or less, red at 10% / OOM &mdash; with a <b>Low mana</b> line for anyone at 20% or less.'],
-    ['&#9876; PL helper','A window for power-levelling: the mobs your druid has snared (Bonds of Tunare / Ensnare) against the hits you&rsquo;ve landed, numbered so you can tag each one, every kill with &#10003; XP or &#10007; missed tag, and a spoken &ldquo;Missed tag&rdquo;. Off by default &mdash; Settings &rarr; PL helper.'],
-    ['&#128204; Watch List tasks','Right-click an item on the Watch List to make a farm task for that character &mdash; for as many as the watch rule still wants, with a zone reminder when it drops mostly in one zone.'],
+    ['&#9877; CH chain: Single / Double / Triple','The top of the CH chain window picks <b>Single chain</b> (the default &mdash; every CA call is one chain, whatever target it names) or <b>Double</b> / <b>Triple</b>. Double and Triple learn each chain&rsquo;s target and its numbers by themselves (<b>Auto</b>), or take the numbers you type (<b>Set numbers</b>, e.g. 1&ndash;4 and 5&ndash;8). Your chain is shown on top, the others below it.'],
+    ['&#9877; Target CH timing','The CH chain window shows the boss on the tank and <b>Target CH timing = X s</b> from the CA chart &mdash; it changes as soon as the boss is slowed (the landing message or a &ldquo;&lt;SLOW&gt; Vulak&#96;Aerr&rdquo; call in OOC) or the tank&rsquo;s Defensive Discipline goes up or down. <b>Heal timing</b> at the top: <b>Actual</b> (the chain&rsquo;s pace) or <b>CA chart</b> for when the Heal alert says your turn is up.'],
+    ['&#9876; Projected DKP','Under <b>Your DKP</b>: your ODKP balance plus the Raid History kills of the last 10 days ODKP hasn&rsquo;t credited yet, minus the auction wins it hasn&rsquo;t charged yet. Hover it for the list.'],
+    ['&#127873; Loot from ODKP ticks','Auto-Detect kills show the items ODKP sold on that kill&rsquo;s tick, with winner and DKP &mdash; plus anything you saw drop that ODKP doesn&rsquo;t have.'],
   ],
   fixes:[
-    ['Spell timers','A recast on the same mob refreshes its row instead of adding a second one, and a mob&rsquo;s timers end when it dies.'],
-    ['Top bar','The &#9876; PL helper, &#9877; CH chain and &#9203; Timers buttons only show while that feature is on.'],
+    ['CH chain','Off by default. <b>Auto</b> now means on while you&rsquo;re <i>playing</i> a Cleric (Settings &rarr; CH chain). A call on the wrong target (a macro on yourself) no longer starts its own chain, and a slow chain no longer shows healers&rsquo; numbers as free.'],
   ],
 };
 function showWhatsNew(){
@@ -8279,6 +8278,11 @@ window.applyDBToChar    = applyDBToChar;
         if(msg.type === 'tell'){ tellOnMsg(msg); }
         if(msg.type === 'chCall'){ chChainOnCall(msg); }
         if(msg.type === 'chMana'){ chChainOnMana(msg); }
+        if(msg.type === 'activeChars'){ _activeChars=msg.chars||[]; if(typeof headerBtnsSync==='function') headerBtnsSync(); }
+        if(msg.type === 'chDisc'){ chOnDisc(msg); }
+        if(msg.type === 'chSlowCall'){ chOnSlowCall(msg); }
+        if(msg.type === 'chSwing'){ chOnSwing(msg); }
+        if(msg.type === 'raidEvidence'&&msg.kind==='land'&&msg.sub==='slow'){ chOnSlow(msg); }
         if(msg.type === 'plState'){ plOnState(msg.state); }
         if(msg.type === 'timerStart'||msg.type === 'timerCancel'||msg.type === 'timerEnd'||msg.type === 'timerTarget'||msg.type === 'timerResist'){ spellTimerOnMsg(msg); }
         if(msg.type === 'timerKill'){ spellTimerOnKill(msg); }
@@ -9263,7 +9267,7 @@ window.odkpSyncItems=async function(manual){
   const head=await odkpGet('/clients/castle/items?page=1&ItemsPerPage=1');
   if(!head.ok||!head.data||!Array.isArray(head.data.Items)){odkpSyncState.items={at:Date.now(),err:head.error||'no data'};if(manual)alert('ODKP sync failed: '+(head.error||'no data'));return;}
   const newest=(head.data.Items[0]||{}).TransactionId||0, total=head.data.TotalItems||0;
-  if(!manual&&dkpMeta.src==='odkp'&&dkpMeta.lastTx===newest&&dkpMeta.txCount===total){odkpSyncState.items={at:Date.now(),msg:'no new sales'};return;}
+  if(!manual&&dkpMeta.src==='odkp'&&dkpMeta.lastTx===newest&&dkpMeta.txCount===total&&lootOdkpStored()){odkpSyncState.items={at:Date.now(),msg:'no new sales'};return;}
   const rows=[];let page=1,pages=1;
   do{
     const r=await odkpGet('/clients/castle/items?page='+page+'&ItemsPerPage=5000');
@@ -9274,6 +9278,7 @@ window.odkpSyncItems=async function(manual){
   }while(page<=pages&&page<=50);
   if(rows.length<total*0.95){odkpSyncState.items={at:Date.now(),err:'short read ('+rows.length+' of '+total+')'};return;}   // never replace good data with a partial pull
   const {lookup,txCount}=buildDkpLookup(rows);
+  lootOdkpStore(rows);
   dkpLookup=lookup;dkpMeta={updatedAt:new Date().toISOString(),txCount,src:'odkp',lastTx:newest};dkpCacheKey='';
   saveDkpToSupabase();
   if(typeof activeTopView!=='undefined'&&activeTopView==='dkp')renderDkpPanel();
@@ -9397,13 +9402,38 @@ function odkpMyBalance(){
   }
   return {mainId:id, main:a.main, ids:a.ids, c, bal, asOf, multi:Object.keys(count).length>1};
 }
+// Projected DKP: balance + recent kills ODKP hasn't credited yet − auction wins it hasn't charged yet
+let _projDkp=null;
+function odkpProjected(me){
+  const key=[me.bal,me.asOf,(raidSessions||[]).length,(odkpTicks||[]).length,(typeof aucPending!=='undefined'?aucPending.length:0),ccAcks.size].join('|');
+  if(_projDkp&&_projDkp.key===key&&Date.now()-_projDkp.at<60e3) return _projDkp.v;
+  let v=null;
+  try{
+    const cut=Date.now()-10*864e5, add=[];
+    if(odkpTicks&&odkpTicks.length){
+      const evts=ccCollectSessionEvents().filter(e=>Date.parse(e.date+'T23:59:59')>=cut), M=ccMatchAll(evts,ccBuildTickIndex());
+      evts.forEach((e,i)=>{ const m=M[i]; if(!m||m.status==='strong'||m.status==='valuemismatch'||m.status==='weak'||ccAcks.has(ccEvtKey(e))) return; if(e.expVal>0) add.push({t:e.target+(e.type==='failtick'?' (failtick)':''),d:e.date,v:+e.expVal}); });
+    }
+    const A=typeof aucAvail==='function'?aucAvail():null, wins=A?A.pending:[];
+    const plus=add.reduce((t,x)=>t+x.v,0), minus=wins.reduce((t,p)=>t+p.n,0);
+    v={proj:Math.round((me.bal+plus-minus)*10)/10,plus:Math.round(plus*10)/10,minus,add,wins};
+  }catch(e){ console.warn('[DKP] projected',e); }
+  _projDkp={key,at:Date.now(),v}; return v;
+}
 function odkpHeaderDkp(){
   const me=odkpMyBalance(); if(!me) return '';
   const a={main:me.main, ids:me.ids}, c=me.c, bal=me.bal, asOf=me.asOf, count={length:me.multi?2:1};
   return '<div onclick="event.stopPropagation();odkpOpenGuild(decodeURIComponent(\''+encodeURIComponent(a.main)+'\'))" style="cursor:pointer" title="'+esc(a.main)+'\'s ODKP account ('+a.ids.length+' characters) · '+odkpRaTip(c)+' — click for the Guild DKP list">'
     +'<div class="nw-header-label">&#9876; Your DKP'+(me.multi?' · '+esc(a.main):'')+'</div>'
     +'<div class="nw-header-value">'+bal.toLocaleString()+' DKP</div>'
-    +'<div class="nw-header-note">updated '+new Date(asOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div></div>';
+    +'<div class="nw-header-note">updated '+new Date(asOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div>'
+    +(()=>{ const P=odkpProjected(me); if(!P||(!P.add.length&&!P.wins.length)) return '';
+      const tip='Projected '+P.proj+' DKP = '+bal+' on ODKP'
+        +(P.add.length?'\n+ '+P.plus+' from Raid History not on ODKP yet:\n'+P.add.map(x=>'   '+x.t+' '+x.d.slice(5).replace('-','/')+'  +'+x.v).join('\n'):'')
+        +(P.wins.length?'\n\u2212 '+P.minus+' auction wins ODKP hasn\u2019t charged yet:\n'+P.wins.map(p=>'   '+p.item+' ('+p.who+')  \u2212'+p.n).join('\n'):'')
+        +'\n\nRaid History kills of the last 10 days with no ODKP credit yet (Credit Check \u2717), ODKP can lag up to a week.';
+      return '<div class="nw-header-note" style="margin-top:.15rem;font-style:normal" title="'+esc(tip).replace(/"/g,'&quot;')+'">Projected <b style="color:var(--gold-light);font-size:.95rem">'+P.proj.toLocaleString()+' DKP</b>'+(P.plus?' <span style="color:#3a7a3a">+'+P.plus+'</span>':'')+(P.minus?' <span style="color:#c07050">\u2212'+P.minus+'</span>':'')+'</div>'; })()
+    +'</div>';
 }
 function odkpRenderAcctChip(){ const old=document.getElementById('odkpAcctChip'); if(old) old.remove(); if(typeof renderNetworthBar==='function') renderNetworthBar(); }
 const _odkpBuildTabs=buildTabs;
@@ -9640,11 +9670,18 @@ function lootMerge(list){
 // a kill recorded after its auctions started (tick late, Active-mode add) picks up the loot then
 function lootRematch(){ let n=0; for(const e of lootLog) if(!e.boss&&Date.now()-e.open<6*3600e3){ lootUpdate(e); if(e.boss) n++; } return n; }
 // loot for one kill: this PC's auctions, else ODKP sales from that night for the boss
-function lootForKill(r){
+function lootForKill(r,OM){
   if(_rkdLaterSameFight(r)) return [];   // a mid-fight tick: the loot is on the kill row
   const prior=_rkdSameFightIndex().prev.get(r)||[];
   const t=r.tod||r.ts, mine=lootLog.filter(e=>e.rkdId===r.id||prior.includes(e.rkdId)||(e.boss===r.boss&&(e.killTs===t||(!e.rkdId&&e.open>=t-20*60e3&&e.open<=t+3*3600e3))));
-  if(mine.length) return lootMerge(mine).map(e=>({item:e.item,winners:e.winners,src:e.src||'auction',by:e.by,text:e.text}));
+  const logged=lootMerge(mine).map(e=>({item:e.item,winners:e.winners,src:e.src||'auction',by:e.by,text:e.text}));
+  const od=lootOdkpForKill(r,OM);
+  if(od.length){   // Tick > Loot: ODKP's list (winner + DKP); what you logged that ODKP doesn't have (rot, no grats) is added
+    const left=logged.slice();
+    for(const o of od){ const i=left.findIndex(l=>dkpNorm(l.item)===dkpNorm(o.item)); if(i>=0){ o.src='both'; left.splice(i,1); } }
+    return od.concat(left);
+  }
+  if(logged.length) return logged;
   const out=[], seen=new Set();
   const S=lootOdkpSales(); let lo=0,hi=S.length; while(lo<hi){ const m=(lo+hi)>>1; if(S[m].ts<t-14*3600e3) lo=m+1; else hi=m; }
   for(let j=lo;j<S.length&&S[j].ts<t+14*3600e3;j++){ const h=S[j];
@@ -9682,9 +9719,36 @@ function lootOnChat(msg){
   }
 }
 function lootRaidNames(raid,target){ const bo=BOSS_ROSTER.find(x=>x.target===target); if(!bo) return false; const t=_rkdNorm(raid); return _rkdWordRx(_rkdNorm(bo.full)).test(t)||(bo.target.length>=4&&_rkdWordRx(_rkdNorm(bo.target)).test(t)); }
-// every ODKP sale in one time-sorted list (rebuilt when the ODKP data changes)
+// every ODKP sale of the last 180 days, kept from the items sync: [ts, item, winner, dkp, note (= the tick it sold on)]
+let _lootOdkpAll=null;
+function lootOdkpStored(){ if(_lootOdkpAll) return _lootOdkpAll; try{ const a=JSON.parse(localStorage.getItem('mp_odkp_sales')||'null'); if(Array.isArray(a)&&a.length) return _lootOdkpAll=a; }catch(e){} return null; }
+function lootOdkpStore(rows){
+  const cut=Date.now()-180*864e5, a=[];
+  for(const [name,who,dkp,date,note] of rows){ const ts=Date.parse(date); if(name&&isFinite(ts)&&ts>=cut) a.push([ts,name,who,+dkp||0,String(note||'').slice(0,120)]); }
+  a.sort((x,y)=>x[0]-y[0]); _lootOdkpAll=a; _lootOdkp=null;
+  try{ localStorage.setItem('mp_odkp_sales',JSON.stringify(a)); }catch(e){ console.warn('[ODKP] sales list not saved',e); }
+}
+// a tick label's own key: "10-12 0:31 Phara Dar 3 (Phara Dar kill)" → "10-12 0:31 phara dar 3"
+function lootTickKey(l){ return String(l||'').replace(/https?:\S*/g,'').replace(/\s*\(.*$/,'').replace(/\s+/g,' ').trim().toLowerCase(); }
+// the "M-D H:MM" at the start of a tick label, in the year that puts it nearest ts
+function lootTickTime(l,ts){ const m=/^(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2})\b/.exec(String(l||'').trim()); if(!m) return null;
+  const y=new Date(ts).getFullYear(); let best=null; for(const yy of [y-1,y,y+1]){ const t=new Date(yy,+m[1]-1,+m[2],+m[3],+m[4]).getTime(); if(best==null||Math.abs(t-ts)<Math.abs(best-ts)) best=t; } return best; }
+// Tick > Loot: the ODKP items sold on this kill's tick
+function lootOdkpForKill(r,OM){
+  const S=lootOdkpSales(), t=r.tod||r.ts, out=[];
+  const pair=OM&&OM.byId&&OM.byId[r.id], key=pair?lootTickKey(pair.l):null;
+  let lo=0,hi=S.length; while(lo<hi){ const m=(lo+hi)>>1; if(S[m].ts<t-3*864e5) lo=m+1; else hi=m; }
+  for(let j=lo;j<S.length&&S[j].ts<t+10*864e5;j++){ const h=S[j]; if(!h.raid) continue;
+    if(key){ if(lootTickKey(h.raid)!==key) continue; }   // your credited tick for this kill: exactly its items
+    else { const nt=lootTickTime(h.raid,t); if(nt==null||Math.min(Math.abs(nt-r.ts),Math.abs(nt-t))>20*60e3) continue;   // else: a tick at this time…
+      let tg; try{ tg=odkpTickTargets(h.raid); }catch(e){ tg=new Set(); } if(!tg.has(r.boss)&&!lootRaidNames(h.raid,r.boss)) continue; }   // …for this boss
+    out.push({item:h.name,winners:[{who:h.who,n:h.n}],src:'odkp',tick:h.raid}); }
+  return out;
+}
+// every ODKP sale in one time-sorted list: the stored 180-day list, else the DKP History lookup (10 newest per item)
 let _lootOdkp=null,_lootOdkpSrc=null;
 function lootOdkpSales(){
+  const all=lootOdkpStored(); if(all){ if(_lootOdkpSrc===all&&_lootOdkp) return _lootOdkp; _lootOdkpSrc=all; return _lootOdkp=all.map(x=>({ts:x[0],name:x[1],who:x[2],n:x[3],raid:x[4]})); }
   if(_lootOdkpSrc===dkpLookup&&_lootOdkp) return _lootOdkp;
   const a=[]; for(const [name,d] of Object.entries(dkpLookup||{})) if(Array.isArray(d[4])) for(const h of d[4]){ const ts=Date.parse(h[2]); if(isFinite(ts)) a.push({name,who:h[0],n:+h[1],ts,raid:String(h[3]||'')}); }
   a.sort((x,y)=>x.ts-y.ts); _lootOdkpSrc=dkpLookup; return _lootOdkp=a;
@@ -9697,7 +9761,7 @@ function lootLineHtml(list,boss,key){
   return '<div onclick="event.stopPropagation();lootToggle(this,decodeURIComponent(\''+encodeURIComponent(k).replace(/'/g,'%27')+'\'))" title="'+(open?'Hide':'Show')+' the loot" style="font-size:.72rem;font-weight:400;color:var(--text-muted);cursor:pointer;user-select:none;margin-top:.1rem;white-space:nowrap">🎁 '+list.length+' drop'+(list.length===1?'':'s')+(mine?' <span style="color:#3a7a3a">· yours</span>':'')+' <span class="lt-arrow">'+(open?'▾':'▸')+'</span></div>'
     +'<div style="display:'+(open?'':'none')+';font-size:.72rem;font-weight:400;line-height:1.5;margin-top:.1rem" title="'+esc(hist).replace(/"/g,'&quot;')+'">'+list.map(l=>'🎁 <a href="'+wikiUrl(l.item)+'" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;border-bottom:1px dotted var(--gold)">'+esc(l.item)+'</a>'
     +(l.winners&&l.winners.length?' <span style="color:'+(l.winners.some(w=>aucIsMyAcct(w.who))?'#3a7a3a':'var(--text-muted)')+'">· '+l.winners.map(w=>esc(w.who)+(w.n!=null?' '+w.n:'')).join(', ')+'</span>':l.src==='chat'?'':' <span style="color:var(--text-muted)">· no grats seen</span>')
-    +(l.src==='odkp'?' <span style="color:var(--text-muted)" title="From ODKP — not seen in your logs">(ODKP)</span>':'')
+    +(l.src==='odkp'?' <span style="color:var(--text-muted)" title="'+esc('From ODKP'+(l.tick?' — sold on the tick “'+String(l.tick).replace(/s*https?:S*/g,'')+'”':'')+' (not seen in your logs)').replace(/"/g,'&quot;')+'">(ODKP)</span>':'')
     +(l.src==='chat'?' <span style="color:var(--text-muted)" title="'+esc(l.by+': '+(l.text||'')).replace(/"/g,'&quot;')+'">(mentioned by '+esc(l.by||'?')+' in chat)</span>':'')).join('<br>')+'</div>';
 }
 function lootBossHistory(boss){
@@ -14408,7 +14472,7 @@ function renderAutoDetectPanel(){
     return `<tr data-rkd="${esc(r.id)}" oncontextmenu="return rkdRowMenu(event,this)" title="Right-click: add to the Raid Kill Tracker" style="border-bottom:1px solid var(--border)${o.k==='missing'?';background:rgba(180,40,40,.07)':''}">
       <td style="padding:.3rem .5rem;white-space:nowrap">${fmt(r.ts)}${r.poster?`<div style="font-size:.7rem;color:var(--text-muted)" title="Who took the tick">by <b style="color:var(--text)">${esc(r.poster)}</b></div>`:''}</td>
       <td style="padding:.3rem .5rem">${esc(r.char||'')}${r.zone?`<div style="font-size:.68rem;color:var(--text-muted)" title="Zone the tick was taken in">${esc(r.zone)}</div>`:''}${(()=>{const w=rkdLvlWarn(r);return w?`<div style="font-size:.66rem;color:${w.farmOk?'var(--text-muted)':'#c48a3a'}" title="${esc(w.tip)}">⚠ lvl ${r.lvl} — ${esc(w.short)}</div>`:'';})()}</td>
-      <td style="padding:.3rem .5rem;font-weight:600">${who}${r.boss&&(r.tier==='strong'||r.tier==='weak'||r.confirm==='auto'||r.confirm==='added')?lootLineHtml(lootForKill(r),r.boss,'rkd|'+r.id):''}</td>
+      <td style="padding:.3rem .5rem;font-weight:600">${who}${r.boss&&(r.tier==='strong'||r.tier==='weak'||r.confirm==='auto'||r.confirm==='added')?lootLineHtml(lootForKill(r,OM),r.boss,'rkd|'+r.id):''}</td>
       <td style="padding:.3rem .5rem;font-size:.74rem;color:var(--text-muted)" title="Up in ${esc(r.zone||'this zone')} at the tick, per the spawn timers">${Array.isArray(r.upZone)?(r.upZone.length?'<div style="display:grid;grid-template-columns:repeat(2,max-content);column-gap:.9rem;row-gap:.05rem">'+r.upZone.map(b=>'<span style="white-space:nowrap">'+esc(btLabel(b))+'</span>').join('')+'</div>':'<span style="font-size:.7rem">none on the timers</span>')+(r.upStale?`<div style="font-size:.66rem;opacity:.75;margin-top:.15rem" title="Up on the spawn timers for more than a day at the tick — almost always a kill nobody recorded, so not offered. Search for them in the right-click menu if needed.">+${r.upStale} stale (up 1 day+)</div>`:''):'—'}</td>
       <td style="padding:.3rem .5rem;color:${tc};white-space:nowrap">${(()=>{const x=_rkdLaterSameFight(r);return x?'<div style="font-size:.7rem;color:var(--text-muted);white-space:normal" title="A tick taken during the fight — the boss died later">mid-fight tick: killed '+(x.tod?fmt(x.tod).split(', ').pop():'later')+' ('+fmt(x.ts).split(', ').pop()+' tick)</div>':'';})()}${tl}${r.basis?` <span style="font-size:.7rem;color:var(--text-muted)">(${esc(r.basis)})</span>`:''}</td>
       <td style="padding:.3rem .5rem;white-space:nowrap">${r.tod?fmt(r.tod).split(', ').pop()+` <span style="font-size:.68rem;color:var(--text-muted)">${esc(r.todSource||'')}</span>`:'—'}${r.boss&&(r.tod||r.ts)?`<a href="#" onclick="rkdParse('${esc(r.id)}');return false" title="Damage parse, Complete Heals and the boss's hits for this kill" style="margin-left:.35rem;text-decoration:none">📊${fightParseGet(r.id)?'':'<span style="font-size:.62rem;color:var(--text-muted)"> parse</span>'}</a>`:''}</td>
@@ -17040,20 +17104,61 @@ window.plToggle=function(){ if(plMode()==='off'){ try{ localStorage.setItem('mp_
   if(window.MixelParseApp&&window.MixelParseApp.togglePl){ window.MixelParseApp.togglePl(); setTimeout(()=>{ if(_plCur) try{ window.MixelParseApp.pushPlState(_plCur); }catch(e){} },350); } else alert('The PL helper is in the desktop app.'); };
 
 // ══ Live CH chain (2026-10-18): "NAME > CH#" and the free numbers, in its own window (like Auctions) ══
-function chChainMode(){ try{ const v=localStorage.getItem('mp_ch_mode'); return v==='on'||v==='off'?v:'auto'; }catch(e){ return 'auto'; } }
-function chChainOn(){ const m=chChainMode(); if(m!=='auto') return m==='on'; try{ return charNames().some(n=>/^cleric$/i.test(String((charMeta[n]||{}).class||''))); }catch(e){ return false; } }   // Auto: on when one of your characters is a Cleric
+function chChainMode(){ try{ const v=localStorage.getItem('mp_ch_mode'); return v==='on'||v==='auto'?v:'off'; }catch(e){ return 'off'; } }   // off unless you switch it on
+let _activeChars=[];   // characters being played (log written in the last 10 min), from the watcher
+function chChainOn(){ const m=chChainMode(); if(m!=='auto') return m==='on'; try{ return _activeChars.some(n=>/^cleric$/i.test(String((charMeta[n]||charMeta[String(n).charAt(0).toUpperCase()+String(n).slice(1).toLowerCase()]||{}).class||''))); }catch(e){ return false; } }   // Auto: on while you're playing a Cleric
 const _chChains={};   // target → {slots:{slot:{who:{name:{n,last}}}}, last:{slot,by,ts}, times:[]}
+// Single chain (default): every call is one chain, whatever target it names. Double / Triple: Auto (each chain = a target,
+// learned from what each number's calls name) or Set numbers (typed ranges). One store of every call; chains are views.
+const CH_RANGES_DEF=[[1,4],[5,8],[9,12]];
+function chCfg(){ try{ const c=JSON.parse(localStorage.getItem('mp_ch_cfg')||'null'); if(c&&[1,2,3].includes(c.mode)&&Array.isArray(c.ranges)&&c.ranges.length>=3) return Object.assign({auto:true,timing:'actual'},c); }catch(e){} return {mode:1,auto:true,timing:'actual',ranges:CH_RANGES_DEF.map(r=>r.slice())}; }
+function _chTop(list){ const n={}; for(const t of list||[]) n[t]=(n[t]||0)+1; return Object.entries(n).sort((a,b)=>b[1]-a[1]); }
+function chChainApply(msg,now){
+  const c=_chChains.all||(_chChains.all={slots:{},last:null,times:[]});
+  for(const [n,x] of Object.entries(c.slots)) if(+n!==msg.slot&&x.who[msg.by]){ delete x.who[msg.by]; if(!Object.keys(x.who).length) delete c.slots[n]; }   // a healer holds one number: a new call moves them
+  const o=c.slots[msg.slot]||(c.slots[msg.slot]={who:{},tg:[],ts:[]}); const w=o.who[msg.by]||(o.who[msg.by]={n:0,last:0}); w.n++; w.last=now;   // a number can hold two healers — that's a clash to show
+  if(String(msg.target).toLowerCase()!==String(msg.by).toLowerCase()){ o.tg.push(msg.target); if(o.tg.length>8) o.tg.shift(); }   // a macro on yourself teaches nothing
+  o.lt=msg.target; o.ts.push(now); if(o.ts.length>12) o.ts.shift();
+  c.last={slot:msg.slot,by:msg.by,ts:now,target:msg.target}; c.times.push(now); if(c.times.length>60) c.times.shift();
+}
+// the chains right now: [{n, nums, target, range}]
+function chGroups(){
+  const c=_chChains.all; if(!c) return []; const cfg=chCfg(), now=Date.now();
+  const nums=Object.keys(c.slots).map(Number).filter(n=>Object.values(c.slots[n].who).some(w=>now-w.last<=180e3)).sort((a,b)=>a-b);
+  if(cfg.mode===1) return [{n:1,nums,target:(_chTop(nums.flatMap(n=>c.slots[n].tg))[0]||[''])[0],range:null}];
+  if(!cfg.auto){ const R=cfg.ranges.slice(0,cfg.mode), G=R.map((r,i)=>({n:i+1,nums:[],range:r,target:''}));
+    for(const n of nums){ let b=0,bd=Infinity; R.forEach(([a,z],i)=>{ const d=n<a?a-n:n>z?n-z:0; if(d<bd){ bd=d; b=i; } }); G[b].nums.push(n); }   // outside every range: the nearest
+    for(const g of G) g.target=(_chTop(g.nums.flatMap(n=>c.slots[n].tg))[0]||[''])[0];
+    return G; }
+  // Auto: each number's own target (what most of its calls name); the chains = the targets the most numbers call
+  const own={}; for(const n of nums){ const t4=c.slots[n].tg.slice(-4), top=_chTop(t4); own[n]=top.length?(top.length>1&&top[0][1]===top[1][1]?t4[t4.length-1]:top[0][0]):''; }   // its last 4 calls; a tie → the newest
+  const tops=_chTop(nums.map(n=>own[n]).filter(Boolean)).filter((x,i)=>i===0||x[1]>=2).slice(0,cfg.mode).map(x=>x[0]);   // a 2nd / 3rd chain: a target 2+ numbers call
+  if(!tops.length) tops.push('');
+  const G=tops.map(t=>({target:t,nums:[]}));
+  for(const n of nums){ let i=tops.indexOf(own[n]);
+    if(i<0){ const sc=tops.map(t=>c.slots[n].tg.filter(x=>x===t).length); const m=Math.max(...sc); i=m>0?sc.indexOf(m):-1; }   // its main target isn't a chain's: the chain target it names most…
+    if(i<0){ let bd=Infinity; G.forEach((g,j)=>g.nums.forEach(k=>{ if(Math.abs(k-n)<bd){ bd=Math.abs(k-n); i=j; } })); }   // …else the chain of the nearest number
+    if(i<0) i=0; G[i].nums.push(n); }
+  G.sort((a,b)=>(Math.min(...a.nums,999))-(Math.min(...b.nums,999)));   // chain 1 = the lowest numbers
+  return G.map((g,i)=>Object.assign(g,{n:i+1,range:g.nums.length?[Math.min(...g.nums),Math.max(...g.nums)]:null,auto:true}));
+}
+function chGroupFor(slot){ const G=chGroups(); return G.find(g=>g.nums.includes(slot))||null; }
 function chChainOnCall(msg){
   if(!chChainOn()) return;
   const now=msg.ts||Date.now();
-  for(const k of Object.keys(_chChains)) if(now-_chChains[k].last.ts>180e3) delete _chChains[k];   // a chain quiet for 3 minutes is over
-  const c=_chChains[msg.target]||(_chChains[msg.target]={slots:{},last:null,times:[]});
-  for(const [n,x] of Object.entries(c.slots)) if(+n!==msg.slot&&x.who[msg.by]){ delete x.who[msg.by]; if(!Object.keys(x.who).length) delete c.slots[n]; }   // moved to a new number: they leave the old one
-  const o=c.slots[msg.slot]||(c.slots[msg.slot]={who:{}}); const w=o.who[msg.by]||(o.who[msg.by]={n:0,last:0}); w.n++; w.last=now;   // a number can hold two healers — that's a clash to show
-  c.last={slot:msg.slot,by:msg.by,ts:now}; c.times.push(now); if(c.times.length>40) c.times.shift();
+  if(_chChains.all&&now-_chChains.all.last.ts>180e3) delete _chChains.all;   // quiet for 3 minutes: the chain is over
+  chChainApply(msg,now);
+  const g=chGroupFor(msg.slot); msg.group=g?g.n:1;
   chChainPush(); chTurnOnCall(msg);
   if(window.MixelParseApp&&window.MixelParseApp.popChChain) try{ window.MixelParseApp.popChChain(); }catch(e){}
 }
+// the window's top bar: Single / Double / Triple, Auto or Set numbers (+ the ranges)
+window.chChainSetCfg=function(cfg){
+  const m=[1,2,3].includes(+cfg.mode)?+cfg.mode:1, rs=CH_RANGES_DEF.map((d,i)=>{ const r=(cfg.ranges||[])[i]||d, a=Math.max(1,Math.min(99,parseInt(r[0],10)||d[0])), b=Math.max(a,Math.min(99,parseInt(r[1],10)||d[1])); return [a,b]; });
+  try{ localStorage.setItem('mp_ch_cfg',JSON.stringify({mode:m,auto:cfg.auto!==false,ranges:rs,timing:cfg.timing==='chart'?'chart':'actual'})); }catch(e){}
+  chTurnClear(); chChainPush();
+};
+if(window.MixelParseApp&&window.MixelParseApp.onChChainCfg) window.MixelParseApp.onChChainCfg(c=>window.chChainSetCfg(c||{}));
 // ── your turn: one chain interval after the healer before you calls (two after the one before them, if they don't)
 function chTurnMode(){ try{ const v=localStorage.getItem('mp_ch_turn'); return v==='chime'||v==='off'?v:'voice'; }catch(e){ return 'voice'; } }
 let _chTurn=null;   // {target, slot, d, after, afterBy, due, fired}
@@ -17063,14 +17168,14 @@ function chTurnOnCall(msg){
   const mine=new Set(charNames().map(n=>String(n).toLowerCase()));
   if(mine.has(String(msg.by).toLowerCase())){ if(_chTurn){ chTurnClear(); chChainPush(); } return; }   // you called: you're on it
   if(chTurnMode()==='off') return;
-  const S=chChainState(); if(!S||S.target!==msg.target) return;
+  const S=chGroupState(chGroups().find(g=>g.n===msg.group)); if(!S) return;
   const live=S.slots.filter(x=>!x.open&&!x.idle), act=live.map(x=>x.slot);
   const my=live.filter(x=>String(x.by).split(' / ').some(n=>mine.has(n.toLowerCase()))).map(x=>x.slot);
   const i=act.indexOf(msg.slot); if(!my.length||i<0||act.length<2) return;
   let best=null; for(const m of my){ const d=(act.indexOf(m)-i+act.length)%act.length; if(d>=1&&d<=2&&(!best||d<best.d)) best={d,slot:m}; }
   if(!best) return;
-  const every=S.every||3, due=(msg.ts||Date.now())+best.d*every*1000;
-  chTurnClear(); _chTurn={target:msg.target,slot:best.slot,d:best.d,after:msg.slot,afterBy:msg.by,due,fired:0};
+  const every=chCfg().timing==='chart'&&S.speed&&S.speed.plan!=null?S.speed.plan:(S.every||3), due=(msg.ts||Date.now())+best.d*every*1000;   // Heal timing: the chain's actual pace, or the CA chart's for this boss / slow / disc
+  chTurnClear(); _chTurn={target:msg.group,slot:best.slot,d:best.d,after:msg.slot,afterBy:msg.by,due,fired:0};
   _chTurn.timer=setTimeout(chTurnFire,Math.max(0,due-Date.now()-300));   // the voice takes a moment to start
   chChainPush();
 }
@@ -17081,6 +17186,39 @@ function chTurnFire(){
   else try{ tellChime(); }catch(e){}
   t.endT=setTimeout(()=>{ if(_chTurn===t){ _chTurn=null; chChainPush(); } },Math.max(6000,(t.every||3)*2000));   // gone after a few seconds if you never call
 }
+// ── chain speed: Castle's chart (seconds between CHs) — [disc up unslowed, disc up slowed, disc down unslowed, disc down slowed];
+// null = unslowable, '80' = "<80% hp" (CH as needed under 80%), 0 = instant; then the rampage note and enrage
+const CH_CHART={
+  Aaryonar:[3,6,2,4],Cekenar:[3,6,2,4],Dagarn:[3,6,2,4,'2 clerics on Ramp'],Dozekar:[3,6,2,4],Eashen:[3,null,2,null],Gozzrem:[4,null,3,null],Ikatiar:[3,null,2,null],
+  Jorlleag:[3,6,2,4],Mirenilla:[3,6,2,4],Nevederia:[4,8,3,6],LTK:[3,null,2,null],Feshlak:[3,6,2,4],Koi:[3,6,2,4],Kreizenn:[2.5,null,1.5,null],Vyemm:[2,null,1,null],
+  Sevalak:[3,6,2,4],Telk:[4,null,3,null],Vulak:[1,4,0,3],Zlexak:[3,6,2,4],
+  'Avatar of War':[1,null,0,null,'',1],Tormax:[3,null,2,null,'2 clerics on Ramp'],Statue:[2,4,1,3,'',1],Vindi:[3,null,2,null,'1 cleric on Ramp',1],
+  Dain:[5,null,3,null,'2 clerics on Ramp',1],Yelinak:[4,null,3,null,'2 clerics on Ramp'],Tunare:[1.5,null,1,null],Vaniki:[5,'80',3,6],Velketor:[3,null,2,null],Zlandicar:[7,'80',5,10,'1 cleric on Ramp'],
+  MOTG:[5,'80',3,10,'1 cleric on Ramp'],Prog:[5,null,3,null],TFA:[5,'80',3,10,'1 cleric on Ramp']};
+const _chDisc={}, _chBossSeen={}, _chSlow={};   // tank → disc time · boss → {ts, tank} · boss → {at, until, verb}
+function chOnDisc(msg){ _chDisc[String(msg.who).toLowerCase()]=msg.ts||Date.now(); if(Object.keys(_chChains).length) chChainPush(); }
+function chOnSwing(msg){ let b=null; try{ b=_rkdBossByMob(msg.mob); }catch(e){} if(b&&CH_CHART[b.target]) _chBossSeen[b.target]={ts:msg.ts||Date.now(),tank:String(msg.target||'').toLowerCase()}; }
+function chOnSlow(msg){ let b=null; try{ b=_rkdBossByMob(msg.mob); }catch(e){} if(!b) return; const t=msg.ts||Date.now();
+  _chSlow[b.target]={at:t,until:t+(msg.verb==='yawns'?360e3:180e3),verb:msg.verb}; if(Object.keys(_chChains).length) chChainPush(); }   // Turgur's 6 min · Forlorn / Shiftless 3 min
+// a slow called in chat ("<SLOW> Vulak`Aerr", "SHM SLOW -- …", "<ENC SLOW> …"): the boss named in it; ENC = 3 min, else Turgur's 6 min
+function chOnSlowCall(msg){ let b=null; try{ b=_rkdBossInText(String(msg.text).replace(/&PCT;/g,'%')); }catch(e){} if(!b||!CH_CHART[b.target]) return;
+  const t=msg.ts||Date.now(), enc=/\bENC\b|enchant|forlorn|shiftless/i.test(msg.text);
+  _chSlow[b.target]={at:t,until:t+(enc?180e3:360e3),verb:enc?'slows down':'yawns',call:msg.by}; if(Object.keys(_chChains).length) chChainPush(); }
+// the boss on this tank: a chart boss that swung at / flurried them in the last 2 minutes (else the newest chart boss in the fight)
+function chBossFor(tank){
+  const now=Date.now(), tk=String(tank||'').toLowerCase(), c={};
+  for(const [b,v] of Object.entries(_chBossSeen)) if(now-v.ts<=120e3) c[b]=Math.max(c[b]||0,v.ts+(v.tank===tk?1e9:0));
+  for(const e of (typeof _rkdEvidence!=='undefined'?_rkdEvidence:[])) if(e.boss&&CH_CHART[e.boss]&&now-e.ts<=120e3&&/fight|enrage|say|land/.test(e.kind)) c[e.boss]=Math.max(c[e.boss]||0,e.ts+(String(e.target||'').toLowerCase()===tk?1e9:0));
+  return Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
+}
+function chSpeed(tank){
+  const B=chBossFor(tank); if(!B) return null; const E=CH_CHART[B], now=Date.now(), bo=BOSS_ROSTER.find(x=>x.target===B)||{full:B};
+  const sl=_chSlow[B], slowLand=!!(sl&&sl.until>now), slowable=E[1]!==null, slowed=slowLand&&slowable;
+  const dt=_chDisc[String(tank||'').toLowerCase()], disc=!!(dt&&now-dt<180e3);
+  const v=disc?(slowed?E[1]:E[0]):(slowed?E[3]:E[2]);
+  return {boss:bo.full,slowed,slowLand,slowable,slowLeft:slowLand?Math.round((sl.until-now)/1000):0,slowVerb:sl&&sl.verb,disc,discLeft:disc?Math.round((dt+180e3-now)/1000):0,
+    plan:typeof v==='number'?v:null,planTxt:v==='80'?'CH under 80% HP':typeof v==='number'?(v===0?'instant':v+' s'):'',ramp:E[4]||'',enrage:!!E[5]};
+}
 const _chMana={};   // healer → {pct, ts}: their last mana call in /say
 function chChainOnMana(msg){
   if(!chChainOn()) return;
@@ -17088,26 +17226,37 @@ function chChainOnMana(msg){
   for(const [k,v] of Object.entries(_chMana)) if(Date.now()-v.ts>15*60e3) delete _chMana[k];
   if(Object.keys(_chChains).length) chChainPush();
 }
-function chChainState(){
-  const ts=Object.entries(_chChains).sort((a,b)=>b[1].last.ts-a[1].last.ts)[0]; if(!ts) return null;
-  const [target,c]=ts, now=Date.now(), g=[]; for(let i=1;i<c.times.length;i++) g.push((c.times[i]-c.times[i-1])/1000);
+function chGroupState(G){
+  const c=_chChains.all; if(!c||!G||!G.nums.length) return null;
+  const cfg=chCfg(), now=Date.now(), mineN=new Set(G.nums);
+  const times=G.nums.flatMap(n=>c.slots[n].ts).sort((a,b)=>a-b), g=[]; for(let i=1;i<times.length;i++) g.push((times[i]-times[i-1])/1000);
   const sg=g.filter(x=>x<30).sort((a,b)=>a-b), every=sg.length?sg[Math.floor(sg.length/2)]:0;
-  const nums=Object.keys(c.slots).map(Number).sort((a,b)=>a-b);
-  const window_=Math.max(45e3,(every||3)*Math.max(nums.length,4)*2.2*1000);   // a healer not heard in about two rounds has dropped out
-  const live=n=>Object.entries(c.slots[n].who).filter(([,w])=>now-w.last<=window_).sort((a,b)=>b[1].last-a[1].last).map(([nm,w])=>({name:nm,n:w.n}));
-  const lastHeard=n=>Math.max(...Object.values(c.slots[n].who).map(w=>w.last));
-  const active=nums.filter(n=>live(n).length), max=active.length?Math.max(...active):0;
-  const free=[]; for(let n=1;n<=max;n++) if(!active.includes(n)) free.push(n);
-  const li=active.indexOf(c.last.slot), next=active.length?active[(li+1)%active.length]:null;
+  const N=Math.max(3,new Set(G.nums.flatMap(n=>Object.entries(c.slots[n].who).filter(([,w])=>now-w.last<=180e3).map(([nm])=>nm))).size), since=t=>times.filter(x=>x>t).length;
+  const live=n=>c.slots[n]&&mineN.has(n)?Object.entries(c.slots[n].who).filter(([,w])=>now-w.last<=180e3&&since(w.last)<=2*N).sort((a,b)=>b[1].last-a[1].last).map(([nm,w])=>({name:nm,n:w.n})):[];   // gone after the chain goes round twice without them
+  const active=G.nums.filter(n=>live(n).length), max=active.length?Math.max(...active):0;
+  const others=new Set(chGroups().filter(x=>x.n!==G.n).flatMap(x=>x.nums));   // another chain's numbers aren't free here
+  const lo=G.auto||!G.range?(cfg.mode===1?1:Math.min(...G.nums)):G.range[0], hi=G.auto||!G.range?max:Math.max(G.range[1],max);
+  const free=[]; for(let n=lo;n<=hi;n++) if(!active.includes(n)&&!others.has(n)) free.push(n);
+  const allMax=Math.max(0,...chGroups().flatMap(x=>x.nums)), take=free.length?free[0]:(G.auto||cfg.mode===1||G.n===cfg.mode?Math.max(hi,allMax)+1:null);
+  let L=null; for(const n of G.nums) for(const [nm,w] of Object.entries(c.slots[n].who)) if(!L||w.last>L.ts) L={slot:n,by:nm,ts:w.last,target:c.slots[n].lt};
+  if(!L) return null; L.stray=L.target&&G.target&&L.target!==G.target?L.target:null;
+  const li=active.indexOf(L.slot), next=active.length?active[(li+1)%active.length]:null;
   const dups=active.filter(n=>live(n).length>1).map(n=>({slot:n,names:live(n).map(x=>x.name)}));
-  const slots=[]; for(let n=1;n<=Math.max(max,...nums.filter(x=>now-lastHeard(x)<=window_*2));n++){ const o=c.slots[n];
-    if(o&&active.includes(n)){ const L=live(n); slots.push({slot:n,by:L.map(x=>x.name).join(' / '),n:L.reduce((a,x)=>a+x.n,0),dup:L.length>1}); }
-    else if(n<=max) slots.push({slot:n,open:true});
-    else if(o) slots.push({slot:n,by:Object.keys(o.who).join(' / '),idle:true}); }
+  const slots=[]; for(let n=lo;n<=hi;n++){ if(others.has(n)) continue; if(active.includes(n)){ const Lv=live(n); slots.push({slot:n,by:Lv.map(x=>x.name).join(' / '),n:Lv.reduce((a,x)=>a+x.n,0),dup:Lv.length>1}); } else slots.push({slot:n,open:true}); }
   const nl=next!=null?live(next):[];
   const mana={}; for(const x of slots) if(x.by) for(const nm of x.by.split(' / ')) if(_chMana[nm]) mana[nm]={pct:_chMana[nm].pct,ago:Math.round((now-_chMana[nm].ts)/1000)};   // only healers in this chain
-  const turn=_chTurn&&_chTurn.target===target?{slot:_chTurn.slot,d:_chTurn.d,after:_chTurn.after,afterBy:_chTurn.afterBy,due:_chTurn.due,fired:_chTurn.fired}:null;
-  return {target,last:c.last,every,active:active.length,max,free:free.slice(0,6),next,nextBy:nl.map(x=>x.name).join(' / '),slots,dups,mana,turn};
+  const turn=_chTurn&&_chTurn.target===G.n?{slot:_chTurn.slot,d:_chTurn.d,after:_chTurn.after,afterBy:_chTurn.afterBy,due:_chTurn.due,fired:_chTurn.fired}:null;
+  let speed=null; try{ speed=chSpeed(G.target); }catch(e){}
+  return {key:'g'+G.n,n:G.n,range:G.range,auto:!!G.auto,target:G.target,last:L,every,speed,active:active.length,max,free:free.slice(0,6),take,next,nextBy:nl.map(x=>x.name).join(' / '),slots,dups,mana,turn};
+}
+// the window: every chain (Single = one), yours first
+function chChainState(){
+  const cfg=chCfg(), mine=new Set(charNames().map(n=>String(n).toLowerCase()));
+  const G=chGroups(), groups=G.map(g=>chGroupState(g)).filter(Boolean);
+  for(let i=groups.length;i<(cfg.mode===1?0:cfg.mode);i++) groups.push({key:'e'+i,n:i+1,range:cfg.auto?null:cfg.ranges[i],empty:true,auto:cfg.auto});   // a chain not heard yet
+  const hasMine=g=>!g.empty&&g.slots.some(x=>x.by&&x.by.split(' / ').some(nm=>mine.has(nm.toLowerCase())));
+  const order=groups.slice().sort((a,b)=>(hasMine(b)-hasMine(a))||((b.last?b.last.ts:0)-(a.last?a.last.ts:0)));
+  return {cfg,groups:order,any:groups.some(g=>!g.empty)};
 }
 function chChainPush(){ if(window.MixelParseApp&&window.MixelParseApp.pushChChainState) try{ window.MixelParseApp.pushChChainState(chChainState()); }catch(e){} }
 setInterval(()=>{ if(Object.keys(_chChains).length) chChainPush(); },3000);
@@ -17731,8 +17880,8 @@ function renderSettingsPanel(){
       pick('plmode',plMode(),[['off','Off'],['auto','Auto'],['on','On']]))+
     item('Say \u201cMissed tag\u201d','Spoken when a kill gives no XP (you hadn\u2019t hit it).',pick('plvoice',plVoiceOn()?'on':'off',[['on','On'],['off','Off']])));
   h+=card('CH CHAIN',
-    item('CH chain window','A live window (like Auctions) built from the \u201cCA 007 CH -- Tank\u201d calls: who called which number, the last call (\u201cContrax > 001\u201d), who\u2019s next, and the <b>free numbers</b> you could take. It opens on its own when a chain starts. <b>Auto</b>: on when one of your characters is a Cleric.',
-      pick('chmode',chChainMode(),[['auto','Auto'+(chChainMode()==='auto'?(chChainOn()?' (on \u2014 you have a Cleric)':' (off \u2014 no Cleric)'):'')],['on','On'],['off','Off']]))
+    item('CH chain window','A live window (like Auctions) built from the \u201cCA 007 CH -- Tank\u201d calls: who called which number, the last call (\u201cContrax > 001\u201d), who\u2019s next, and the <b>free numbers</b> you could take. It opens on its own when a chain starts. Off by default. <b>Auto</b>: on while the character you\u2019re playing (or boxing) is a Cleric.',
+      pick('chmode',chChainMode(),[['off','Off'],['auto','Auto'+(chChainMode()==='auto'?(chChainOn()?' (on \u2014 playing a Cleric)':' (off \u2014 not on a Cleric)'):'')],['on','On']]))
     +item('Your turn','When one of your characters is in the chain, the window counts down to your turn and says <b>\u201cHeal\u201d</b> when it\u2019s up: one chain interval after the healer before you calls (two intervals after the one before them, if they don\u2019t call). Your own call clears it.',
       pick('chturn',chTurnMode(),[['voice','Voice'],['chime','Chime'],['off','Off']])));
   h+=card('TELLS',

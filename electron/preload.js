@@ -72,6 +72,8 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   pushChChainState:   (state)   => ipcRenderer.send('chchain:push-state', state),
   onChChainState:     (cb)      => ipcRenderer.on('chchain-state', (_, d) => cb(d)),
   onChChainWindowReady: (cb)    => ipcRenderer.on('chchain-window-ready', () => cb()),
+  setChChainCfg:      (cfg)     => ipcRenderer.send('chchain:cfg', cfg),
+  onChChainCfg:       (cb)      => ipcRenderer.on('chchain-cfg', (_, d) => cb(d)),
   // ── Spell timers window ─────────────────────────────────────────────────────
   toggleTimers:       ()        => ipcRenderer.invoke('timers:toggle'),
   popTimers:          ()        => ipcRenderer.invoke('timers:pop'),

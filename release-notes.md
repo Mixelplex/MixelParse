@@ -1,4 +1,12 @@
-## 1.7.27
+## 1.7.28
+
+- **⚕ CH chain: Single / Double / Triple** — the top of the CH chain window picks Single chain (the default: every CA call is one chain, whatever target it names) or Double / Triple. Double and Triple learn each chain's target and its numbers by themselves (Auto), or take the numbers you type (Set numbers, e.g. 1–4 and 5–8). Your chain is shown on top, the others below it.
+- **⚕ Target CH timing** — the CH chain window shows the boss on the tank and "Target CH timing = X s" from the CA chart. It changes as soon as the boss is slowed (the landing message or a "<SLOW> Vulak`Aerr" call in OOC) or the tank's Defensive Discipline goes up or down. Heal timing at the top: Actual (the chain's pace) or CA chart, for when the Heal alert says your turn is up.
+- **⚔ Projected DKP** — under Your DKP: your ODKP balance plus the Raid History kills of the last 10 days ODKP hasn't credited yet, minus the auction wins it hasn't charged yet. Hover it for the list.
+- **🎁 Loot from ODKP ticks** — Auto-Detect kills show the items ODKP sold on that kill's tick, with winner and DKP, plus anything you saw drop that ODKP doesn't have.
+- **Fix:** CH chain is off by default; Auto now means on while you're playing a Cleric (Settings → CH chain). A call on the wrong target (a macro on yourself) no longer starts its own chain, and a slow chain no longer shows healers' numbers as free.
+
+Everything from 1.7.27 and earlier is included:
 
 - **⚕ CH chain: your turn** — when one of your characters is in the chain, the window counts down to your turn and says "Heal" when it's up: one chain interval after the healer before you calls, timed to the chain's running pace (two intervals after the one before them, if they don't call). Settings → CH chain → Your turn: Voice, Chime or Off.
 - **⚕ CH chain: mana** — when a healer in the chain says their mana ("40", "40m", "Cleric - 40m - Low Mana!", "fm", "OOM") it shows on their number — blue, amber at 30% or less, red at 10% / OOM — with a Low mana line for anyone at 20% or less.
@@ -6,8 +14,6 @@
 - **📌 Watch List tasks** — right-click an item on the Watch List to make a farm task for that character, for as many as the watch rule still wants, with a zone reminder when it drops mostly in one zone.
 - **Fix:** spell timers — a recast on the same mob refreshes its row instead of adding a second one, and a mob's timers end when it dies.
 - **Fix:** the ⚔ PL helper, ⚕ CH chain and ⏳ Timers buttons only show while that feature is on.
-
-Everything from 1.7.26 and earlier is included:
 
 - **⏳ Spell timers** — a Spell Timers window (stays on top of EverQuest) counts down your roots, charms, mezzes, slows and DoTs: the full duration from the P99 wiki at your level, starting when the spell lands, one row per cast with the mob's name. It says "Charm break", "Enstill worn off" or "Tepid Deeds resisted". Settings → Spell timers: what to track and say per kind of spell, voice or beep, volume.
 - **⚕ CH chain window** — a live window built from the "CA 007 CH -- Tank" calls: the last call (Name > 007), who's next, the free numbers to take, and a red warning when two healers call the same number. On automatically if you have a Cleric (Settings → CH chain).
