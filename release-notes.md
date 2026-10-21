@@ -1,9 +1,11 @@
-## 1.8.2
+## 1.8.3
+
+- **⚔ Projected DKP: add, modify, remove** — in the Projected DKP window, right-click for ➕ Add (your own entry: what, DKP (negative for spent), date; it drops out after 10 days like the rest), ✎ Modify and 🗑 Remove. Right-click empty space to add. Your entries are listed under Your entries.
+
+Everything from 1.8.2 and earlier is included:
 
 - **⚔ Projected DKP breakdown** — click Projected under Your DKP for the list behind it: kills and hourlies not on ODKP yet, auction wins not charged yet, and unidentified ticks. Right-click an entry to change its value or remove it from the projection (and restore it later) — Raid History, Credit Check and ODKP aren't touched.
 - **Fix:** the PL helper counts kills that gave you XP but whose "has been slain" line never showed in your log (they died out of range), marked "kill not shown in your log".
-
-Everything from 1.8.1 and earlier is included:
 
 - **Fix:** Spell timers are off by default — switch them on in Settings → Spell timers. If you had turned them on yourself, they stay on.
 
