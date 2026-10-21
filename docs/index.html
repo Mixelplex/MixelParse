@@ -23,6 +23,7 @@
 </script>
 <script src="item-weights.js"></script>
 <script src="mob-levels.js"></script>
+<script src="treasure-guide.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;1,300&display=swap');
   :root{--bg:#f5f0e8;--surface:#ede6d6;--surface2:#e4dbc8;--border:#c8b890;--border-glow:#a08050;--gold:#7a5010;--gold-light:#5a3a08;--gold-dim:#a07030;--text:#1a1008;--text-dim:#4a3a1a;--text-muted:#8a7050}
@@ -1057,9 +1058,11 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
   <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:.5rem">
     <div class="kt-view-tab" data-bsub="bankers" onclick="setBankersSub('bankers')">Bankers</div>
     <div class="kt-view-tab" data-bsub="consolidate" onclick="setBankersSub('consolidate')">Consolidate</div>
+    <div class="kt-view-tab" data-bsub="selling" onclick="setBankersSub('selling')">Selling</div>
   </div>
   <div class="rc-panel" id="bankersPanel"></div>
   <div class="rc-panel" id="consolidatePanel" style="display:none"></div>
+  <div class="rc-panel" id="sellingPanel" style="display:none"></div>
 </div>
 
 <div class="tab-bar" id="tabBar">
@@ -5678,16 +5681,17 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.7.28',
+  version:'1.8.0',
   date:'October 2026',
   features:[
-    ['&#9877; CH chain: Single / Double / Triple','The top of the CH chain window picks <b>Single chain</b> (the default &mdash; every CA call is one chain, whatever target it names) or <b>Double</b> / <b>Triple</b>. Double and Triple learn each chain&rsquo;s target and its numbers by themselves (<b>Auto</b>), or take the numbers you type (<b>Set numbers</b>, e.g. 1&ndash;4 and 5&ndash;8). Your chain is shown on top, the others below it.'],
-    ['&#9877; Target CH timing','The CH chain window shows the boss on the tank and <b>Target CH timing = X s</b> from the CA chart &mdash; it changes as soon as the boss is slowed (the landing message or a &ldquo;&lt;SLOW&gt; Vulak&#96;Aerr&rdquo; call in OOC) or the tank&rsquo;s Defensive Discipline goes up or down. <b>Heal timing</b> at the top: <b>Actual</b> (the chain&rsquo;s pace) or <b>CA chart</b> for when the Heal alert says your turn is up.'],
-    ['&#9876; Projected DKP','Under <b>Your DKP</b>: your ODKP balance plus the Raid History kills of the last 10 days ODKP hasn&rsquo;t credited yet, minus the auction wins it hasn&rsquo;t charged yet. Hover it for the list.'],
-    ['&#127873; Loot from ODKP ticks','Auto-Detect kills show the items ODKP sold on that kill&rsquo;s tick, with winner and DKP &mdash; plus anything you saw drop that ODKP doesn&rsquo;t have.'],
+    ['&#128176; Selling','<b>Bankers &rarr; Selling</b>: check the items you want to sell on your bankers (or any character), set your price (it starts at the PigParse market price, rounded), and copy a ready-made post. <b>&#9876; In-game /auction</b>: paste-ready <b>/auction WTS &hellip;</b> lines, most valuable first, split into more lines when they don&rsquo;t fit. <b>&#128172; Discord</b>: one item per line, &ldquo;Item (wiki link) -- price&rdquo;. &#128203; Copy buttons, &#128190; saved lists, and right-click &rarr; &#128683; Ignore for items you never sell. The app never sends anything to EverQuest &mdash; you paste it yourself.'],
+    ['&#128200; Price checks','In Selling, <b>Market</b> shows how many listings it&rsquo;s based on, when it was last seen and the WTB price, with thin data flagged. Your price warns when it&rsquo;s 25%+ under or over market; <b>&#8635; Update checked to market</b> resets your prices; click a market price to open the item on <b>PigParse</b>; sort by Market or Total.'],
+    ['&#128176; Treasure guide','<b>Farm Targets &rarr; &#128176; Treasure guide</b> ranks the items from the P99 wiki&rsquo;s Treasure Hunting Guide by their PigParse value, and items in the guide carry its notes &mdash; where to farm them, from which mobs, and the level.'],
+    ['&#9201; Hourly ticks','Auto-Detect: once ODKP has the night, ticks it lists as hourlies (ToV &ldquo;pain and suffering&rdquo;, Standard, HoT farm, BnP) show as <b>&#9201; NToV hourly</b> instead of a boss. Live, &ldquo;Which boss?&rdquo; has a <b>&#9201; Hourly</b> button (suggested 55+ minutes after the last tick), and right-click any tick to record or undo an hourly. Projected DKP counts hourlies ODKP hasn&rsquo;t credited yet.'],
   ],
   fixes:[
-    ['CH chain','Off by default. <b>Auto</b> now means on while you&rsquo;re <i>playing</i> a Cleric (Settings &rarr; CH chain). A call on the wrong target (a macro on yourself) no longer starts its own chain, and a slow chain no longer shows healers&rsquo; numbers as free.'],
+    ['Auto-Detect','A kill is no longer auto-added when only another guild&rsquo;s players were fighting the boss &mdash; the check now covers every boss, not just Statue and Avatar of War.'],
+    ['Credit Check','Hourly labels like &ldquo;Two hourlies, much pain&rdquo; and &ldquo;Jorlleag active camp&rdquo; are recognised.'],
   ],
 };
 function showWhatsNew(){
@@ -9405,7 +9409,7 @@ function odkpMyBalance(){
 // Projected DKP: balance + recent kills ODKP hasn't credited yet − auction wins it hasn't charged yet
 let _projDkp=null;
 function odkpProjected(me){
-  const key=[me.bal,me.asOf,(raidSessions||[]).length,(odkpTicks||[]).length,(typeof aucPending!=='undefined'?aucPending.length:0),ccAcks.size].join('|');
+  const key=[me.bal,me.asOf,(raidSessions||[]).length,(odkpTicks||[]).length,(typeof aucPending!=='undefined'?aucPending.length:0),ccAcks.size,typeof _rkdVer!=='undefined'?_rkdVer:0].join('|');
   if(_projDkp&&_projDkp.key===key&&Date.now()-_projDkp.at<60e3) return _projDkp.v;
   let v=null;
   try{
@@ -9414,9 +9418,15 @@ function odkpProjected(me){
       const evts=ccCollectSessionEvents().filter(e=>Date.parse(e.date+'T23:59:59')>=cut), M=ccMatchAll(evts,ccBuildTickIndex());
       evts.forEach((e,i)=>{ const m=M[i]; if(!m||m.status==='strong'||m.status==='valuemismatch'||m.status==='weak'||ccAcks.has(ccEvtKey(e))) return; if(e.expVal>0) add.push({t:e.target+(e.type==='failtick'?' (failtick)':''),d:e.date,v:+e.expVal}); });
     }
+    // ticks you were at in the same 10 days: your recorded hourlies ODKP hasn't credited (+), and ticks that aren't a kill and ODKP hasn't entered (count only — likely hourlies)
+    let unk=0;
+    try{ const OM=rkdOdkpMatches();
+      for(const r of rkdLog){ if(r.ts<cut||OM.byId[r.id]||!_rkdAttended(r)) continue;
+        if(r.confirm==='hourly'&&r.hourly){ if(r.ts>OM.lastTs-RKD_ODKP_WINDOW) add.push({t:'Hourly ('+r.hourly.desc.replace(/^Ticks - | \(hourly\)$/g,'')+')',d:localYmd(new Date(r.ts)),v:r.hourly.value}); }
+        else if(!r.confirm&&r.ts>OM.lastTs+RKD_ODKP_WINDOW&&(r.tier==='none'||r.tier==='ambiguous')&&!_rkdKillNear(r.ts,r.id)) unk++; } }catch(e){}
     const A=typeof aucAvail==='function'?aucAvail():null, wins=A?A.pending:[];
     const plus=add.reduce((t,x)=>t+x.v,0), minus=wins.reduce((t,p)=>t+p.n,0);
-    v={proj:Math.round((me.bal+plus-minus)*10)/10,plus:Math.round(plus*10)/10,minus,add,wins};
+    v={proj:Math.round((me.bal+plus-minus)*10)/10,plus:Math.round(plus*10)/10,minus,add,wins,unk};
   }catch(e){ console.warn('[DKP] projected',e); }
   _projDkp={key,at:Date.now(),v}; return v;
 }
@@ -9427,12 +9437,13 @@ function odkpHeaderDkp(){
     +'<div class="nw-header-label">&#9876; Your DKP'+(me.multi?' · '+esc(a.main):'')+'</div>'
     +'<div class="nw-header-value">'+bal.toLocaleString()+' DKP</div>'
     +'<div class="nw-header-note">updated '+new Date(asOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div>'
-    +(()=>{ const P=odkpProjected(me); if(!P||(!P.add.length&&!P.wins.length)) return '';
+    +(()=>{ const P=odkpProjected(me); if(!P||(!P.add.length&&!P.wins.length&&!P.unk)) return '';
       const tip='Projected '+P.proj+' DKP = '+bal+' on ODKP'
         +(P.add.length?'\n+ '+P.plus+' from Raid History not on ODKP yet:\n'+P.add.map(x=>'   '+x.t+' '+x.d.slice(5).replace('-','/')+'  +'+x.v).join('\n'):'')
         +(P.wins.length?'\n\u2212 '+P.minus+' auction wins ODKP hasn\u2019t charged yet:\n'+P.wins.map(p=>'   '+p.item+' ('+p.who+')  \u2212'+p.n).join('\n'):'')
+        +(P.unk?'\n? '+P.unk+' tick'+(P.unk>1?'s':'')+' you were at that aren\u2019t a kill and ODKP hasn\u2019t entered yet \u2014 likely hourlies (~2 each), not added':'')
         +'\n\nRaid History kills of the last 10 days with no ODKP credit yet (Credit Check \u2717), ODKP can lag up to a week.';
-      return '<div class="nw-header-note" style="margin-top:.15rem;font-style:normal" title="'+esc(tip).replace(/"/g,'&quot;')+'">Projected <b style="color:var(--gold-light);font-size:.95rem">'+P.proj.toLocaleString()+' DKP</b>'+(P.plus?' <span style="color:#3a7a3a">+'+P.plus+'</span>':'')+(P.minus?' <span style="color:#c07050">\u2212'+P.minus+'</span>':'')+'</div>'; })()
+      return '<div class="nw-header-note" style="margin-top:.15rem;font-style:normal" title="'+esc(tip).replace(/"/g,'&quot;')+'">Projected <b style="color:var(--gold-light);font-size:.95rem">'+P.proj.toLocaleString()+' DKP</b>'+(P.plus?' <span style="color:#3a7a3a">+'+P.plus+'</span>':'')+(P.minus?' <span style="color:#c07050">\u2212'+P.minus+'</span>':'')+(P.unk?' <span style="color:var(--text-muted)">+'+P.unk+' tick'+(P.unk>1?'s':'')+'?</span>':'')+'</div>'; })()
     +'</div>';
 }
 function odkpRenderAcctChip(){ const old=document.getElementById('odkpAcctChip'); if(old) old.remove(); if(typeof renderNetworthBar==='function') renderNetworthBar(); }
@@ -9602,7 +9613,7 @@ function _rkdSameFightIndex(){
   const key=_rkdVer+'|'+rkdLog.length+'|'+((rkdLog[rkdLog.length-1]||{}).id||'');
   if(key===_sfKey&&_sfIdx) return _sfIdx;
   const by={}, next=new Map(), prev=new Map();
-  for(const x of rkdLog) if(x.boss&&(x.tier==='strong'||x.tier==='weak')&&!/^(nknc|dismissed|undone)$/.test(x.confirm||'')) (by[x.boss]=by[x.boss]||[]).push(x);
+  for(const x of rkdLog) if(x.boss&&(x.tier==='strong'||x.tier==='weak')&&!/^(nknc|dismissed|undone|hourly)$/.test(x.confirm||'')) (by[x.boss]=by[x.boss]||[]).push(x);
   for(const b in by) by[b].sort((a,c)=>a.ts-c.ts);
   for(const r of rkdLog){
     if(!r.boss||/slain|faction/i.test(r.todSource||'')) continue;
@@ -9621,7 +9632,7 @@ function lootTableHas(target,item){
   if(ix==null) return false;
   return ents.some(e=>(e.lt||[]).some(x=>x[0]===ix));
 }
-function _lootKills(){ return rkdLog.filter(r=>r.boss&&(r.tier==='strong'||r.tier==='weak'||r.confirm==='auto'||r.confirm==='added')&&!/^(nknc|dismissed|undone)$/.test(r.confirm||'')); }
+function _lootKills(){ return rkdLog.filter(r=>r.boss&&(r.tier==='strong'||r.tier==='weak'||r.confirm==='auto'||r.confirm==='added')&&!/^(nknc|dismissed|undone|hourly)$/.test(r.confirm||'')); }
 function lootAttribute(e){
   const ks=_lootKills().map(r=>({r,t:r.tod||r.ts})).filter(k=>k.t<=e.open+60e3&&k.t>=e.open-3*3600e3).sort((a,b)=>b.t-a.t);
   for(const k of ks) if(lootTableHas(k.r.boss,e.item)===true) return k;
@@ -11661,8 +11672,16 @@ function farmIsRaidDrop(it){
   for(const z of it.zones)for(const m of (z.mobs||[])){mobs++;if(!bs.has(farmNorm(m)))return false;}
   return mobs>0;
 }
+// the P99 wiki Treasure Hunting Guide's entries for an item (src/treasure-guide.js)
+function farmTreasure(n){ return (typeof TREASURE_GUIDE!=='undefined'&&TREASURE_GUIDE[String(n).toLowerCase()])||null; }
+function farmTreasureTip(n){ const T=farmTreasure(n); if(!T) return ''; return 'Treasure Hunting Guide (P99 wiki):\n'+T.map(e=>'• '+e.s+(e.l?' · lvl '+e.l+'+':'')+' · '+e.z+(e.a?' ('+e.a+')':'')+(e.m?' — '+e.m:'')+(e.c?' · '+e.c:'')+(e.v?' · ~'+e.v:'')+(e.n?'\n   '+e.n:'')).join('\n'); }
 function farmRankTargets(n){
   const ig=new Set(farmIgnores.map(x=>x.toLowerCase()));
+  if(farmRankBy==='treasure'&&typeof TREASURE_GUIDE!=='undefined'){   // only the guide's items: valued by PigParse, unsold ones last
+    const pig={}; for(const r of platData) if(r.t===0&&r.n) pig[r.n.toLowerCase()]=r;
+    return Object.keys(TREASURE_GUIDE).filter(k=>!ig.has(k)).map(k=>{ const p=pig[k]; return {n:p?p.n:k.replace(/\b\w/g,c=>c.toUpperCase()),fair:p?farmFair(p):0,t30:p?p.t30||0:0,velocity:p?(p.a30||0)*(p.t30||0):0}; })
+      .sort((a,b)=>b.velocity-a.velocity||b.fair-a.fair).slice(0,n);
+  }
   const info=nm=>farmTargetsData&&farmTargetsData.items?farmTargetsData.items[nm]:null;
   const rows=platData.filter(r=>r.t===0)
     .map(s=>({n:s.n,fair:farmFair(s),t30:s.t30||0,velocity:(s.a30||0)*(s.t30||0)}))
@@ -11859,12 +11878,12 @@ function renderFarmTargetsPanel(panel){
       }
       return `<tr>
         <td style="padding:.28rem .5rem;color:var(--text-muted);font-size:.72rem">${i+1}</td>
-        <td style="padding:.28rem .5rem;font-size:.8rem"><a href="https://wiki.project1999.com/${encodeURI(t.n.replace(/ /g,'_'))}" target="_blank" style="color:inherit">${esc(t.n)}</a></td>
-        <td style="padding:.28rem .5rem;text-align:right;font-size:.78rem">${t.fair.toLocaleString()}p</td>
+        <td style="padding:.28rem .5rem;font-size:.8rem"><a href="https://wiki.project1999.com/${encodeURI(t.n.replace(/ /g,'_'))}" target="_blank" style="color:inherit">${esc(t.n)}</a>${farmTreasure(t.n)?' <span title="'+esc(farmTreasureTip(t.n)).replace(/"/g,'&quot;')+'" style="cursor:help">💰</span>':''}</td>
+        <td style="padding:.28rem .5rem;text-align:right;font-size:.78rem">${t.fair?t.fair.toLocaleString()+'p':'<span style="color:var(--text-muted)" title="Fewer than 2 sales in any 30 / 60 / 90-day window">no sales</span>'}</td>
         <td style="padding:.28rem .5rem;text-align:right;font-size:.78rem">${farmVolFmt(t.velocity)} pp/mo</td>
         <td style="padding:.28rem .5rem;text-align:right;font-size:.74rem;color:var(--text-muted)">${t.t30.toLocaleString()}</td>
         <td style="padding:.28rem .5rem;font-size:.74rem">${status}</td>
-        <td style="padding:.28rem .5rem;font-size:.72rem">${src}</td>
+        <td style="padding:.28rem .5rem;font-size:.72rem">${src}${(()=>{ const T=farmTreasure(t.n); return T?'<div style="color:#b08020;font-size:.68rem;margin-top:.1rem" title="'+esc(farmTreasureTip(t.n)).replace(/"/g,'&quot;')+'">💰 guide: '+T.map(e=>esc(e.z)+(e.a?' ('+esc(e.a)+')':'')+(e.l?' · lvl '+e.l+'+':'')).join('; ')+'</div>':''; })()}</td>
         <td style="padding:.28rem .3rem;text-align:center"><button class="plat-fetch-btn" style="font-size:.6rem;padding:.08rem .35rem" title="Ignore — remove from Farm Targets (next item backfills)" data-n="${esc(t.n).replace(/"/g,'&quot;')}" onclick="farmIgnore(this.dataset.n)">🚫</button></td>
       </tr>`;
     }).join('');
@@ -11898,7 +11917,7 @@ function renderFarmTargetsPanel(panel){
   }
   panel.innerHTML=farmSubBarHtml('targets')+`
     <div class="dkp-toolbar">
-      <div style="display:flex;gap:.3rem">${rankBtn('By Market Vol','velocity')}${rankBtn('By Value','value')}</div>
+      <div style="display:flex;gap:.3rem">${rankBtn('By Market Vol','velocity')}${rankBtn('By Value','value')}${rankBtn('💰 Treasure guide','treasure')}</div>
       <button class="plat-fetch-btn" onclick="farmStartCrawl()" ${farmCrawling?'disabled':''}>${farmCrawling?'⏳ Crawling…':'🕷 Crawl Wiki (top 200)'}</button>
       <span class="dkp-meta" id="farmCrawlStatus">${farmCrawling?'Crawling wiki…':meta}</span>
     </div>`+body;
@@ -13810,7 +13829,7 @@ setTimeout(rkdRosterRefresh,25e3); setInterval(rkdRosterRefresh,30*60e3);
 // kill-faction message — so a Strong call for those two needs a Castle player (or one of yours) among the flurry targets.
 const RKD_FOREIGN_CHECK=new Set(['Statue','Avatar of War']);
 function rkdForeignCheck(a){
-  if(!a||a.tier!=='strong'||!RKD_FOREIGN_CHECK.has(a.boss)) return a;
+  if(!a||a.tier!=='strong'||!a.boss) return a;   // every boss (10-20: another guild's Vulak — all 45 flurries on Grendol — was auto-added)
   const tg=(a.events||[]).filter(e=>e.kind==='fight'&&e.target&&e.boss===a.boss).map(e=>e.target);
   const ros=rkdRoster(); if(tg.length<2||ros.size<50) return a;   // too little to judge, or the roster hasn't loaded
   if(tg.some(n=>ros.has(String(n).toLowerCase()))) return a;
@@ -14053,7 +14072,11 @@ window.rkdRowMenu=function(ev,tr){
       +(r.hidden?item('↶ Restore this line',"rkdHideRow(decodeURIComponent('"+idE+"'),false)")
         :item('🗑 Remove this line <span style="color:var(--text-muted);font-size:.78rem">— hide it from Auto-Detect</span>',"rkdHideRow(decodeURIComponent('"+idE+"'),true)"))
     :item('✗ No kill, no credit <span style="color:var(--text-muted);font-size:.78rem">— an attempt, we went again</span>',"rkdSetNknc(decodeURIComponent('"+idE+"'),true)");
-  m.innerHTML=(r.confirm==='auto'?item('↶ Undo auto-add of <b>'+esc(btLabel(r.boss))+'</b>',"rkdUndoAuto(decodeURIComponent('"+idE+"'))"):'')+nkncItem+'<div style="border-top:1px solid var(--border);margin:4px 0"></div>'+(bosses.length
+  const _hk=rkdHourlyKind(r.zone);
+  m.innerHTML=(r.confirm==='auto'?item('↶ Undo auto-add of <b>'+esc(btLabel(r.boss))+'</b>',"rkdUndoAuto(decodeURIComponent('"+idE+"'))"):'')
+    +(r.confirm==='hourly'?item('↶ Undo <b>hourly</b> <span style="color:var(--text-muted);font-size:.78rem">— take it back out of Raid History</span>',"rkdUndoHourly(decodeURIComponent('"+idE+"'))")
+      :!r.confirm?item('⏱ Record as <b>hourly</b> <span style="color:var(--text-muted);font-size:.78rem">— '+esc(_hk.short)+', '+_hk.value+' DKP</span>',"rkdMarkHourly(decodeURIComponent('"+idE+"'))"):'')
+    +nkncItem+'<div style="border-top:1px solid var(--border);margin:4px 0"></div>'+(bosses.length
       ?'<div style="padding:.2rem .8rem;font-size:.66rem;color:var(--text-muted);letter-spacing:.06em">SUGGESTED</div>'+bosses.map(b=>item('⚔ Add <b>'+esc(btLabel(b))+'</b> to Raid Kill Tracker…',pick(b))).join('')
       :item('No boss suggested for this tick',null))+
     (Array.isArray(r.upZone)&&r.upZone.filter(b=>!bosses.includes(b)).length
@@ -14292,7 +14315,7 @@ function rkdActOnTick(r){
     if(_rkdKillNear(r.ts,r.id))return;
     if((r.cands||[]).some(b=>_rkdRecordedCount(b,r.ts)>0))return;
     item={target:null,full:null,noteText:(r.tier==='none'?'No boss':'Pick')+' · tick by '+(r.poster||'?'),timestamp:ts,when,auto:true,pick:true,rkdId:r.id,ev,
-      cands:(r.cands||[]).slice(),up:(r.upZone||[]).filter(b=>!(r.cands||[]).includes(b)),zone:r.zone||null,text:r.text||''};
+      cands:(r.cands||[]).slice(),up:(r.upZone||[]).filter(b=>!(r.cands||[]).includes(b)),zone:r.zone||null,text:r.text||'',gap:rkdGapMin(r)};
   }else return;
   _todQueue.push(item);
   if(typeof showWatcherToast==='function')showWatcherToast((item.target?'⚔ Auto-Detect: confirm '+btLabel(item.target)+' kill':'⚔ Auto-Detect: which boss was the '+hm(r.ts)+' tick?')+(rkdLvlWarn(r)?' · ⚠ '+r.char+' is '+rkdLvlWarn(r).short:''));
@@ -14332,6 +14355,31 @@ window.rkdUndoAuto=function(id){
   renderKillsPanel();
 };
 // Called by the kill dialog for an Auto-Detect prompt: mark the row, count it, and (kills) set the spawn-timer ToD.
+// ── Hourly ticks (ToV "pain and suffering", Hate / Sky / Kael hourlies): no boss died — ODKP's label says which
+function rkdHourlyKind(zone){ return /temple of veeshan|plane of air|plane of sky|veeshan'?s peak/i.test(String(zone||''))?{desc:'Ticks - NToV/Sky/VP (hourly)',value:2,short:'NToV/Sky/VP hourly'}:{desc:'Ticks - Standard (hourly)',value:1,short:'Standard hourly'}; }
+const RKD_HR_CAT={ntov:'NToV/Sky/VP hourly',std:'Standard hourly',hot:'HoT farm',hotbonus:'HoT farm bonus',train:'Training',bnp:'Buff & Park'};
+function rkdOdkpHourly(t){ try{ const k=t&&ccTickLedgerCat(t); return k&&RKD_HR_CAT[k.cat]||null; }catch(e){ return null; } }   // an ODKP tick that's an hourly-type tick, by Credit Check's rules
+function rkdGapMin(r){ let p=null; for(const x of rkdLog) if(x!==r&&x.ts<r.ts-RKD_TICK_DEDUPE&&(!p||x.ts>p.ts)) p=x; return p&&r.ts-p.ts<6*3600e3?Math.round((r.ts-p.ts)/60e3):null; }   // minutes since the tick before
+function rkdRecordHourly(r){   // into the Raid History session covering the tick (a new one dated to it if none), like an auto-add
+  const when=r.tod||r.ts, k=rkdHourlyKind(r.zone); let s=_rkdSessionAt(when);
+  if(!s){ s=newSession(); const d=new Date(when); s.date=localYmd(d); s.startedAt=d.toISOString(); }
+  if(!raidSessions.some(x=>x.id===s.id)) raidSessions.push(s);
+  const saved=raidSessions.find(x=>x.id===s.id); _tickAddRow(saved,k.desc,k.value);
+  if(activeSession&&activeSession!==saved&&activeSession.id===saved.id) _tickAddRow(activeSession,k.desc,k.value);
+  saveSessionsToSupabase();
+  r.confirm='hourly'; r.hourly={desc:k.desc,value:k.value,session:saved.id}; rkdSave();
+  if(typeof showWatcherToast==='function') showWatcherToast('⏱ '+k.short+' ('+k.value+' DKP) added to Raid History \u2014 right-click the tick to undo');
+}
+window.rkdMarkHourly=function(id){ const m=document.getElementById('rkdMenu'); if(m) m.style.display='none'; const r=rkdLog.find(x=>String(x.id)===String(id)); if(!r||r.confirm) return; rkdRecordHourly(r); if(typeof activeTopView!=='undefined'&&activeTopView==='kills') renderKillsPanel(); };
+window.rkdUndoHourly=function(id){
+  const m=document.getElementById('rkdMenu'); if(m) m.style.display='none';
+  const r=rkdLog.find(x=>String(x.id)===String(id)); if(!r||r.confirm!=='hourly'||!r.hourly) return;
+  const dec=s=>{ if(!s||!s.hourly) return; const row=s.hourly.find(x=>x.desc===r.hourly.desc); if(!row) return; row.qty=(+row.qty||1)-1; if(row.qty<=0) s.hourly=s.hourly.filter(x=>x!==row); };
+  const s=raidSessions.find(x=>x.id===r.hourly.session); dec(s); if(activeSession&&activeSession!==s&&activeSession.id===r.hourly.session) dec(activeSession);
+  saveSessionsToSupabase(); delete r.confirm; delete r.hourly; rkdSave();
+  showWatcherToast('↶ Removed that hourly from Raid History'); renderKillsPanel();
+};
+window.rkdPickHourly=function(){ const item=_todQueue[0], r=item&&rkdLog.find(x=>x.id===item.rkdId); if(r&&!r.confirm) rkdRecordHourly(r); _todAdvance(); if(typeof activeTopView!=='undefined'&&activeTopView==='kills') renderKillsPanel(); };
 function rkdAutoResolved(item,how){
   if(!item||!item.auto)return;
   const r=rkdLog.find(x=>x.id===item.rkdId);if(r){r.confirm=how;if(how==='confirmed'&&item.pick)r.picked=item.target;rkdSave();}
@@ -14385,7 +14433,8 @@ function showRkdPickModal(item){
       <div style="font-size:.62rem;color:#999;letter-spacing:.08em;margin:.7rem 0 .3rem">SEARCH ALL BOSSES</div>
       <input id="rkdPickSearch" type="text" placeholder="Type a boss name…" autocomplete="off" oninput="rkdPickFilter(this.value)" onkeydown="if(event.key==='Enter'){const f=document.querySelector('#rkdPickList [data-boss]');if(f)rkdPickBoss(decodeURIComponent(f.getAttribute('data-boss')));}" style="width:100%;box-sizing:border-box;background:#111;border:1px solid #555;color:#e8d5a0;padding:.4rem .5rem;font-size:.8rem;border-radius:3px;font-family:'Crimson Pro',serif">
       <div id="rkdPickList" style="max-height:150px;overflow-y:auto;margin-top:.2rem"></div>
-      <div style="display:flex;gap:.6rem;margin-top:1rem">
+      ${(()=>{ const k=rkdHourlyKind(item.zone), sug=item.gap!=null&&item.gap>=55; return '<button type="button" onclick="rkdPickHourly()" title="No boss died — an hourly tick (ToV \u201cpain and suffering\u201d, Sky, Hate\u2026): adds '+k.short+' ('+k.value+' DKP) to this night in Raid History" style="width:100%;margin-top:.8rem;background:'+(sug?'#1f3a2a':'#1a1f1a')+';border:1px solid '+(sug?'#4caf7d':'#3a5a3a')+';color:'+(sug?'#9fe0b4':'#8fb89a')+';padding:.5rem .8rem;border-radius:3px;font-family:\'Cinzel\',serif;font-size:.76rem;cursor:pointer">⏱ Hourly \u2014 '+k.short+' ('+k.value+' DKP)'+(sug?' <span style="font-size:.66rem;opacity:.85">\u00b7 suggested: '+item.gap+' min since the last tick</span>':'')+'</button>'; })()}
+      <div style="display:flex;gap:.6rem;margin-top:.6rem">
         <button type="button" onclick="todAutoDismiss()" title="Hourly / attendance tick, or not a kill — never ask about this tick again" style="flex:1;background:#2a1a1a;border:1px solid #5a2a2a;color:#a46a6a;padding:.5rem .8rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Not a kill</button>
         ${_todQueue.length>1?`<button type="button" onclick="_todSkipAll()" style="background:#1a1a1a;border:1px solid #444;color:#666;padding:.5rem .8rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Skip All</button>`:''}
       </div>
@@ -14434,7 +14483,7 @@ function renderAutoDetectPanel(){
   let nOk=0,nMiss=0,nNewer=0;
   for(const r of rkdLog){const k=odkpState(r).k;if(k==='ok')nOk++;else if(k==='missing')nMiss++;else if(k==='newer'&&_rkdAttended(r))nNewer++;}
   // repeat kills: the Nth suggestion of a boss in a night needs N recorded (Statue, Statue #2…)
-  const _rk={}; for(const e of rkdLog) if(e.boss&&(e.tier==='strong'||e.tier==='weak')&&!_rkdLaterSameFight(e)&&e.confirm!=='nknc'&&e.confirm!=='dismissed') (_rk[e.boss]=_rk[e.boss]||[]).push(e.ts);
+  const _rk={}; for(const e of rkdLog) if(e.boss&&(e.tier==='strong'||e.tier==='weak')&&!_rkdLaterSameFight(e)&&e.confirm!=='nknc'&&e.confirm!=='dismissed'&&e.confirm!=='hourly') (_rk[e.boss]=_rk[e.boss]||[]).push(e.ts);
   for(const b in _rk) _rk[b].sort((a,c)=>a-c);
   const rankOf=r=>{ let n=0; for(const t of _rk[r.boss]||[]){ if(t>r.ts) break; if(t>=r.ts-12*3600e3) n++; } return n; };
   const rows=rkdLog.slice().reverse().filter(r=>{
@@ -14451,9 +14500,14 @@ function renderAutoDetectPanel(){
     </tr>`).join('');
   const body=pending+rows.map(r=>{
     const [tl,tc]=TIER[r.tier]||TIER.none;
-    const who=r.tier==='ambiguous'?(r.cands||[]).map(esc).join(' / '):r.boss?esc(r.boss):'<span style="color:var(--text-muted)">—</span>';
+    const _o0=odkpState(r), hrO=_o0.k==='ok'?rkdOdkpHourly(_o0.t):null, hrMine=r.confirm==='hourly'&&r.hourly, _gap=!r.boss&&!r.confirm&&_rkdAttended(r)&&(r.tier==='none'||r.tier==='ambiguous')?rkdGapMin(r):null;
+    const who=hrO?'<span title="ODKP lists this tick as '+esc(hrO)+': '+esc(_o0.t.l)+'">⏱ '+esc(hrO)+'</span>'+(r.boss||r.tier==='ambiguous'?'<div style="font-size:.68rem;font-weight:400;color:var(--text-muted)">fought: '+esc(r.boss||(r.cands||[]).join(' / '))+'</div>':'')
+      :hrMine?'⏱ '+esc(rkdHourlyKind(r.zone).short)
+      :r.tier==='ambiguous'?(r.cands||[]).map(esc).join(' / '):r.boss?esc(r.boss):(_gap!=null&&_gap>=55?'<span style="color:var(--text-muted);font-weight:400" title="'+_gap+' min since the tick before, no boss died \u2014 right-click → Record as hourly">⏱ hourly?</span>':'<span style="color:var(--text-muted)">—</span>');
     let rec='';
     if(r.confirm==='nknc'){}   // an attempt: nothing to record
+    else if(hrMine) rec='<span style="color:#4caf7d" title="Added to Raid History as '+esc(r.hourly.desc)+' \u2014 right-click to undo">⏱ in tracker</span>';
+    else if(hrO){}   // ODKP's hourly: nothing to record as a kill
     else if(r.boss){
       const n=(r.tier==='strong'||r.tier==='weak')?rankOf(r):1, have=_rkdRecordedCount(r.boss,r.tod||r.ts);
       rec=have>=n?'<span style="color:#4caf7d" title="Marked in the kill tracker">✓ in tracker'+(n>1?' (#'+n+')':'')+'</span>'
@@ -14472,7 +14526,7 @@ function renderAutoDetectPanel(){
     return `<tr data-rkd="${esc(r.id)}" oncontextmenu="return rkdRowMenu(event,this)" title="Right-click: add to the Raid Kill Tracker" style="border-bottom:1px solid var(--border)${o.k==='missing'?';background:rgba(180,40,40,.07)':''}">
       <td style="padding:.3rem .5rem;white-space:nowrap">${fmt(r.ts)}${r.poster?`<div style="font-size:.7rem;color:var(--text-muted)" title="Who took the tick">by <b style="color:var(--text)">${esc(r.poster)}</b></div>`:''}</td>
       <td style="padding:.3rem .5rem">${esc(r.char||'')}${r.zone?`<div style="font-size:.68rem;color:var(--text-muted)" title="Zone the tick was taken in">${esc(r.zone)}</div>`:''}${(()=>{const w=rkdLvlWarn(r);return w?`<div style="font-size:.66rem;color:${w.farmOk?'var(--text-muted)':'#c48a3a'}" title="${esc(w.tip)}">⚠ lvl ${r.lvl} — ${esc(w.short)}</div>`:'';})()}</td>
-      <td style="padding:.3rem .5rem;font-weight:600">${who}${r.boss&&(r.tier==='strong'||r.tier==='weak'||r.confirm==='auto'||r.confirm==='added')?lootLineHtml(lootForKill(r,OM),r.boss,'rkd|'+r.id):''}</td>
+      <td style="padding:.3rem .5rem;font-weight:600">${who}${!hrO&&!hrMine&&r.boss&&(r.tier==='strong'||r.tier==='weak'||r.confirm==='auto'||r.confirm==='added')?lootLineHtml(lootForKill(r,OM),r.boss,'rkd|'+r.id):''}</td>
       <td style="padding:.3rem .5rem;font-size:.74rem;color:var(--text-muted)" title="Up in ${esc(r.zone||'this zone')} at the tick, per the spawn timers">${Array.isArray(r.upZone)?(r.upZone.length?'<div style="display:grid;grid-template-columns:repeat(2,max-content);column-gap:.9rem;row-gap:.05rem">'+r.upZone.map(b=>'<span style="white-space:nowrap">'+esc(btLabel(b))+'</span>').join('')+'</div>':'<span style="font-size:.7rem">none on the timers</span>')+(r.upStale?`<div style="font-size:.66rem;opacity:.75;margin-top:.15rem" title="Up on the spawn timers for more than a day at the tick — almost always a kill nobody recorded, so not offered. Search for them in the right-click menu if needed.">+${r.upStale} stale (up 1 day+)</div>`:''):'—'}</td>
       <td style="padding:.3rem .5rem;color:${tc};white-space:nowrap">${(()=>{const x=_rkdLaterSameFight(r);return x?'<div style="font-size:.7rem;color:var(--text-muted);white-space:normal" title="A tick taken during the fight — the boss died later">mid-fight tick: killed '+(x.tod?fmt(x.tod).split(', ').pop():'later')+' ('+fmt(x.ts).split(', ').pop()+' tick)</div>':'';})()}${tl}${r.basis?` <span style="font-size:.7rem;color:var(--text-muted)">(${esc(r.basis)})</span>`:''}</td>
       <td style="padding:.3rem .5rem;white-space:nowrap">${r.tod?fmt(r.tod).split(', ').pop()+` <span style="font-size:.68rem;color:var(--text-muted)">${esc(r.todSource||'')}</span>`:'—'}${r.boss&&(r.tod||r.ts)?`<a href="#" onclick="rkdParse('${esc(r.id)}');return false" title="Damage parse, Complete Heals and the boss's hits for this kill" style="margin-left:.35rem;text-decoration:none">📊${fightParseGet(r.id)?'':'<span style="font-size:.62rem;color:var(--text-muted)"> parse</span>'}</a>`:''}</td>
@@ -15149,7 +15203,7 @@ function ccTickLedgerCat(t){
   if(/hot farm/i.test(l))return{cat:/speed bonus|full clear/i.test(l)?'hotbonus':'hot',qty:1};
   if(/training/i.test(l))return{cat:'train',qty:1};
   const targets=odkpTickTargets(l);
-  const hourWord=/\bhour(ly|s)?\b|\bhr\b/i.test(l);
+  const hourWord=/\bhour(ly|s|lies)?\b|\bhr\b|pain and suffering|active camp/i.test(l);   // also "Two hourlies, much pain", "Jorlleag active camp" (ToV hourlies)
   const zoneHourly=!targets.size&&!/kill/i.test(l)&&
     /^(\d{1,2}-\d{1,2}(\s+\d{1,2}:\d{2})?\s+)?(ntov|n tov|plane of sky|sky|vp|veeshan'?s peak)\b/i.test(ccScrubOuter(l));
   if(!hourWord&&!zoneHourly)return null;
@@ -18926,16 +18980,178 @@ async function loadExcludedCharsFromSupabase(){
 
 // ── Bankers tab ──────────────────────────────────────────────────────────────
 // Bankers tab: two sub-tabs — the banker list and Consolidate (moved off the top menu, 1.5.23).
-let bankersSub=(function(){try{return localStorage.getItem('mp_bankersSub')==='consolidate'?'consolidate':'bankers';}catch(e){return 'bankers';}})();
+let bankersSub=(function(){try{const v=localStorage.getItem('mp_bankersSub');return v==='consolidate'||v==='selling'?v:'bankers';}catch(e){return 'bankers';}})();
 function setBankersSub(v){
-  bankersSub=v==='consolidate'?'consolidate':'bankers';
+  bankersSub=v==='consolidate'||v==='selling'?v:'bankers';
   try{localStorage.setItem('mp_bankersSub',bankersSub);}catch(e){}
   document.querySelectorAll('#bankersView [data-bsub]').forEach(t=>t.classList.toggle('active',t.dataset.bsub===bankersSub));
   const bp=document.getElementById('bankersPanel'),cp=document.getElementById('consolidatePanel');
   if(bp)bp.style.display=bankersSub==='bankers'?'':'none';
   if(cp)cp.style.display=bankersSub==='consolidate'?'':'none';
-  if(bankersSub==='consolidate')renderConsolidatePanel();else renderBankersPanel();
+  const sp=document.getElementById('sellingPanel'); if(sp)sp.style.display=bankersSub==='selling'?'':'none';
+  if(bankersSub==='consolidate')renderConsolidatePanel();else if(bankersSub==='selling')renderSellingPanel();else renderBankersPanel();
 }
+// ══ Selling (owner, 2026-10-21): check what to sell on a banker, price it, save the list, copy "/auction WTS …" lines to
+// paste in game — several lines when they don't fit in one. The app never sends anything to EverQuest.
+const _sellLS=(k,d)=>{ try{ const v=JSON.parse(localStorage.getItem(k)||'null'); return v==null?d:v; }catch(e){ return d; } };
+const _sellSet=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
+let sellCfg=Object.assign({who:'__bankers__',prefix:'WTS',sep:' | ',limit:400,prices:true,q:'',onlyPriced:false,out:'game',dNote:''},_sellLS('mp_sell_cfg',{}));
+if(sellCfg.dNote==='PST in game or DM me') sellCfg.dNote='';   // the owner's Discord style is just "WTS:" and the items
+if(sellCfg.limit===250) sellCfg.limit=400;   // a ~400-character /auction went through whole (2026-10-21)
+let sellPick=_sellLS('mp_sell_pick',{});      // item (lowercase) → true: checked
+let sellPrices=_sellLS('mp_sell_prices',{});  // item (lowercase) → your asking price (pp each)
+let sellLists=_sellLS('mp_sell_lists',[]);
+let sellIgnore=new Set(_sellLS('mp_sell_ignore',[]));   // item (lowercase): never offered for sale    // [{name, who, items:[{n,p}], at}]
+let _sellCopied=new Set();
+// market price per unit: the same PigParse rule as Est. Market Value (≥2 sales in a 30/60/90-day window, the lowest of them)
+let _sellMk=null,_sellMkSrc=null;
+function sellMarket(name){
+  if(_sellMkSrc!==platData||!_sellMk){ _sellMk={}; _sellMkSrc=platData;
+    for(const r of platData||[]){ if(r.t!==0||!r.n) continue; const c=[[r.a30??-1,r.t30??0],[r.a60??-1,r.t60??0],[r.a90??-1,r.t90??0]].filter(([p,n])=>p>0&&n>=2).map(([p])=>p); if(!c.length) continue;
+      const p=Math.min(...c)/stackDivFor(r.n), k=r.n.toLowerCase(); if(!_sellMk[k]||p>_sellMk[k]) _sellMk[k]=p; } }
+  const o=priceOverrideFor(name); if(o!=null) return o; return _sellMk[String(name).toLowerCase()]||null;
+}
+// what's behind the market price: the WTS window used (lowest average with ≥2 listings), its listings, last seen; and WTB
+let _sellInf=null,_sellInfSrc=null;
+function sellInfo(name){
+  if(_sellInfSrc!==platData||!_sellInf){ _sellInf={}; _sellInfSrc=platData;
+    for(const r of platData||[]){ if(!r.n) continue; const k=r.n.toLowerCase(), o=_sellInf[k]=_sellInf[k]||{}, div=stackDivFor(r.n), last=Date.parse(r.l||'')||0; if(r.i&&!o.id) o.id=r.i;
+      if(r.t===0){ const w=[['30d',r.a30,r.t30],['60d',r.a60,r.t60],['90d',r.a90,r.t90]].filter(([,p,n])=>p>0&&n>=2).sort((a,b)=>a[1]-b[1])[0];
+        if(w&&(!o.wts||w[1]/div>o.wts.p)) o.wts={p:w[1]/div,win:w[0],n:w[2],last}; }
+      else if(r.t===1){ const w=[['30d',r.a30,r.t30],['60d',r.a60,r.t60],['90d',r.a90,r.t90],['6 mo',r.a6m,r.t6m]].find(([,p,n])=>p>0&&n>=1);
+        if(w&&!o.wtb) o.wtb={p:w[1]/div,win:w[0],n:w[2],last}; } } }
+  return _sellInf[String(name).toLowerCase()]||{};
+}
+function _sellAgo(t){ if(!t) return ''; const d=Math.floor((Date.now()-t)/864e5); return d<=0?'today':d===1?'1 day ago':d<60?d+' days ago':Math.round(d/30)+' mo ago'; }
+function sellNice(p){ if(!(p>0)) return 0; return p<100?Math.max(1,Math.round(p/5)*5):p<1000?Math.round(p/10)*10:p<10000?Math.round(p/100)*100:Math.round(p/500)*500; }   // a round asking price
+function sellFmt(p){ return p>=1000?(p%1000===0?p/1000:(p/1000).toFixed(1).replace(/\.0$/,''))+'k':p+'p'; }
+function sellChars(){ const b=bankerNames(); if(sellCfg.who==='__bankers__') return b; if(sellCfg.who==='__all__') return Object.keys(chars).filter(n=>!isExcludedChar(n)); return chars[sellCfg.who]?[sellCfg.who]:b; }
+// the sellable items held: tradeable (not NO DROP), not worn, summed per item per character
+function sellItems(){
+  const out=new Map();
+  for(const cn of sellChars()) for(const it of chars[cn]||[]){
+    if(!it||!it.name||!it.id||/^empty$/i.test(it.name)) continue;
+    const loc=String(it.location||''); if(loc&&!/^(general|bank|sharedbank)/i.test(loc)) continue;   // worn gear stays
+    const db=itemDBGet(it.name); if(db&&db._nodrop) continue;
+    const k=it.name.toLowerCase(), e=out.get(k)||{name:it.name,q:0,where:new Set(),chars:new Set()};
+    e.q+=(it.count||1); e.where.add(/^bank|^sharedbank/i.test(loc)?'bank':'bags'); e.chars.add(cn); out.set(k,e); }
+  return [...out.values()].map(e=>{ const m=sellMarket(e.name), k=e.name.toLowerCase(), ign=sellIgnore.has(k); return Object.assign(e,{k,market:m,price:sellPrices[k]!=null?sellPrices[k]:sellNice(m||0),on:!!sellPick[k]&&!ign,ign}); });
+}
+// the /auction lines: most valuable first, as many items per line as fit
+function sellLines(items){
+  const head='/auction '+(sellCfg.prefix?sellCfg.prefix+' ':''), lim=Math.max(60,+sellCfg.limit||400), lines=[]; let cur='';
+  const ent=items.slice().sort((a,b)=>(b.price||0)*(b.q||1)-(a.price||0)*(a.q||1)).map(e=>e.name+(e.q>1?' x'+e.q:'')+(sellCfg.prices&&e.price>0?' '+sellFmt(e.price)+(e.q>1?' ea':''):''));
+  for(const t of ent){ if(cur&&(head+cur+sellCfg.sep+t).length>lim){ lines.push(head+cur); cur=t; } else cur=cur?cur+sellCfg.sep+t:t; }
+  if(cur) lines.push(head+cur); return lines;
+}
+// Discord: a header (WTS · who to PST) and an aligned table in a code block, each message under Discord's 2,000 characters
+function sellDiscord(items){
+  const rows=items.slice().sort((a,b)=>(b.price||0)*(b.q||1)-(a.price||0)*(a.q||1));
+  const pr=p=>p>=1000?(p%1000===0?p/1000:(p/1000).toFixed(1).replace(/\.0$/,''))+'k':p+'pp';
+  const line=e=>e.name+(e.q>1?' x'+e.q:'')+' (<'+wikiUrl(e.name)+'>)'+(sellCfg.prices&&e.price>0?' -- '+pr(e.price)+(e.q>1?' ea':''):' -- PST');
+  const head=(sellCfg.prefix||'WTS')+':', foot=sellCfg.dNote?'\n'+sellCfg.dNote:'', msgs=[]; let cur=[];
+  const wrap=rs=>head+'\n'+rs.join('\n')+foot;
+  for(const e of rows){ const l=line(e); if(cur.length&&wrap(cur.concat(l)).length>1900){ msgs.push(wrap(cur)); cur=[]; } cur.push(l); }
+  if(cur.length) msgs.push(wrap(cur)); return msgs;
+}
+function renderSellingPanel(){
+  const p=document.getElementById('sellingPanel'); if(!p) return;
+  const items=sellItems(), q=sellCfg.q.trim().toLowerCase();
+  const nIgn=items.filter(e=>e.ign).length;
+  const so=sellCfg.sort||null, sv=e=>so&&so.col==='market'?(e.market||0):so&&so.col==='total'?(e.price||0)*e.q:0;
+  const shown=items.filter(e=>(!q||e.k.includes(q))&&(!sellCfg.onlyPriced||e.market||e.on)&&(!e.ign||sellCfg.showIgn))
+    .sort(so?((a,b)=>(so.dir==='asc'?sv(a)-sv(b):sv(b)-sv(a))||a.name.localeCompare(b.name)):((a,b)=>(b.on-a.on)||((b.market||0)*b.q-(a.market||0)*a.q)||a.name.localeCompare(b.name)));
+  const sh=(col,label,tip)=>'<th style="text-align:right;cursor:pointer;user-select:none;white-space:nowrap" onclick="sellSort(\''+col+'\')" title="'+tip+' \u2014 click to sort'+(so&&so.col===col?(so.dir==='desc'?' low to high':', then back to checked first'):' high to low')+'">'+label+(so&&so.col===col?(so.dir==='desc'?' \u25BC':' \u25B2'):' <span style="opacity:.35">\u21C5</span>')+'</th>';
+  const picked=items.filter(e=>e.on), dc=sellCfg.out==='discord', lines=dc?sellDiscord(picked):sellLines(picked), total=picked.reduce((t,e)=>t+(e.price||0)*e.q,0);
+  const who=[['__bankers__','All bankers'],['__all__','All characters'],...bankerNames().map(n=>[n,n])];
+  const missing=Object.keys(sellPick).filter(k=>sellPick[k]&&!items.some(e=>e.k===k));
+  p.innerHTML='<div style="padding:.7rem .9rem;display:flex;flex-direction:column;gap:.7rem">'
+    +'<div style="font-size:.8rem;color:var(--text-muted)">Check what to sell, set your price, and copy the <b>/auction</b> lines into EverQuest (Ctrl+V in the chat box). MixelParse never sends anything to the game. NO DROP items and worn gear aren\u2019t listed.</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;font-size:.82rem">'
+      +'<label>Selling from <select onchange="sellSet(\'who\',this.value)">'+who.map(([v,l])=>'<option value="'+esc(v)+'"'+(sellCfg.who===v?' selected':'')+'>'+esc(l)+'</option>').join('')+'</select></label>'
+      +'<input type="search" placeholder="Filter items\u2026" value="'+esc(sellCfg.q)+'" oninput="sellSet(\'q\',this.value,true)" style="width:12rem">'
+      +'<label><input type="checkbox" '+(sellCfg.onlyPriced?'checked':'')+' onchange="sellSet(\'onlyPriced\',this.checked)"> only items with a market price</label>'
+      +(nIgn?'<label title="Items you right-clicked → Ignore"><input type="checkbox" '+(sellCfg.showIgn?'checked':'')+' onchange="sellSet(\'showIgn\',this.checked)"> show ignored ('+nIgn+')</label>':'')
+      +'<span style="margin-left:auto;color:var(--text-muted)">'+items.length+' tradeable items · '+picked.length+' checked'+(total?' · <b style="color:var(--gold-light)">'+total.toLocaleString()+' pp</b> if all sell':'')+'</span></div>'
+    // the lines to paste
+    +'<div style="border:1px solid var(--border-glow);border-radius:6px;padding:.55rem .7rem;background:var(--surface2)">'
+      +'<div style="display:flex;gap:.3rem;margin-bottom:.5rem">'+[['game','⚔ In-game /auction'],['discord','💬 Discord']].map(([v,l])=>'<button class="kt-undo-btn" onclick="sellSet(\'out\',\''+v+'\')" style="'+(sellCfg.out===v||(!sellCfg.out&&v==='game')?'background:rgba(201,168,76,.22);border-color:var(--gold);color:var(--gold-light);font-weight:700':'')+'">'+l+'</button>').join('')+'</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:.4rem 1rem;align-items:center;font-size:.8rem;margin-bottom:.4rem">'
+        +'<label>Start with <input value="'+esc(sellCfg.prefix)+'" onchange="sellSet(\'prefix\',this.value)" style="width:4.5rem"></label>'
+        +(dc?'<label title="Optional last line, e.g. who to contact">Note <input placeholder="optional last line" value="'+esc(sellCfg.dNote||'')+'" onchange="sellSet(\'dNote\',this.value)" style="width:14rem"></label>'
+          :'<label>Between items <input value="'+esc(sellCfg.sep)+'" onchange="sellSet(\'sep\',this.value)" style="width:3rem"></label>'
+          +'<label title="Longest line, counting /auction — a ~400-character line went through whole; lower it if EverQuest cuts your line off">Max length <input type="number" min="60" max="600" value="'+(+sellCfg.limit||400)+'" onchange="sellSet(\'limit\',+this.value)" style="width:4rem"></label>')
+        +'<label><input type="checkbox" '+(sellCfg.prices?'checked':'')+' onchange="sellSet(\'prices\',this.checked)"> show prices</label></div>'
+      +(lines.length?lines.map((l,i)=>'<div style="display:flex;gap:.5rem;align-items:flex-start;margin:.25rem 0"><button class="kt-undo-btn" onclick="sellCopy('+i+')" style="flex-shrink:0;min-width:5.2rem">'+(_sellCopied.has(l)?'✓ Copied':'📋 Copy '+(lines.length>1?(i+1)+'/'+lines.length:''))+'</button>'
+          +(dc?'<pre style="font-size:.76rem;white-space:pre-wrap;word-break:break-word;overflow-x:auto;flex:1;min-width:0;margin:0;padding:.4rem .5rem;background:var(--surface);border:1px solid var(--border);border-radius:4px">'+esc(l)+'</pre>':'<code style="font-size:.78rem;white-space:pre-wrap;word-break:break-word;flex:1;min-width:0">'+esc(l)+'</code>')
+          +'<span style="font-size:.7rem;color:var(--text-muted);flex-shrink:0" title="'+(dc?'Discord allows 2,000 characters per message':'Characters')+'">'+l.length+'</span></div>').join('')
+        :'<div style="font-size:.8rem;color:var(--text-muted)">Check items below to build the '+(dc?'Discord post':'lines')+'.</div>')
+    +'</div>'
+    // saved lists
+    +'<div style="display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;font-size:.8rem"><b>Saved lists:</b>'
+      +(sellLists.length?sellLists.map((L,i)=>'<span style="border:1px solid var(--border);border-radius:12px;padding:.1rem .25rem .1rem .6rem;display:inline-flex;gap:.3rem;align-items:center"><a href="#" onclick="sellLoad('+i+');return false" title="Check these '+L.items.length+' items with their saved prices">'+esc(L.name)+'</a><span style="color:var(--text-muted)">('+L.items.length+')</span><a href="#" onclick="sellDel('+i+');return false" title="Delete this list" style="color:var(--text-muted);text-decoration:none">✕</a></span>').join(''):'<span style="color:var(--text-muted)">none yet</span>')
+      +'<span style="margin-left:auto;display:inline-flex;gap:.3rem"><input id="sellListName" placeholder="List name" style="width:9rem"><button class="kt-undo-btn" onclick="sellSave()"'+(picked.length?'':' disabled')+'>💾 Save checked</button><button class="kt-undo-btn" onclick="sellToMarket()" title="Set every checked item back to today\u2019s rounded PigParse price"'+(picked.some(e=>e.market)?'':' disabled')+'>↻ Update checked to market</button><button class="kt-undo-btn" onclick="sellClear()"'+(picked.length?'':' disabled')+'>Clear checks</button></span></div>'
+    +(missing.length?'<div style="font-size:.76rem;color:#c48a3a">Checked but no longer held here: '+missing.map(esc).join(', ')+' (sold, moved, or another character)</div>':'')
+    // the items
+    +'<div style="overflow-x:auto"><table class="dkp-history-table" style="width:100%;font-size:.82rem"><thead><tr><th style="width:2rem"></th><th>Item</th><th style="text-align:right">Qty</th><th>Where</th>'+sh('market','Market','PigParse WTS average (2+ listings), or your price override')+'<th style="text-align:right">Your price (each)</th>'+sh('total','Total','Your price \u00d7 quantity')+'</tr></thead><tbody>'
+      +(shown.length?shown.slice(0,400).map(e=>{ const kk=encodeURIComponent(e.k).replace(/'/g,'%27');
+        return '<tr oncontextmenu="return sellMenu(event,decodeURIComponent(\''+kk+'\'))" title="Right-click: '+(e.ign?'stop ignoring':'ignore')+' this item" style="'+(e.ign?'opacity:.45':e.on?'background:rgba(201,168,76,.08)':'')+'"><td><input type="checkbox" '+(e.on?'checked':'')+(e.ign?' disabled':'')+' onchange="sellToggle(decodeURIComponent(\''+kk+'\'),this.checked)"></td>'
+          +'<td><a href="'+wikiUrl(e.name)+'" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;border-bottom:1px dotted var(--gold)">'+esc(e.name)+'</a>'+(e.ign?' <span style="font-size:.7rem;color:var(--text-muted)">ignored</span>':'')+'</td>'
+          +'<td style="text-align:right">'+e.q+'</td><td style="color:var(--text-muted)">'+[...e.chars].map(esc).join(', ')+' · '+[...e.where].join('/')+'</td>'
+          +(()=>{ const I=sellInfo(e.name), W=I.wts, B=I.wtb, ov=priceOverrideFor(e.name)!=null, weak=W&&(W.n<5||Date.now()-W.last>45*864e5);
+              const sub=ov?'your price override':W?W.n+' listing'+(W.n===1?'':'s')+'/'+W.win+(W.last?' · seen '+_sellAgo(W.last):''):'';
+              return '<td style="text-align:right;color:var(--text-muted)" title="'+(W?'PigParse WTS: '+Math.round(W.p).toLocaleString()+' pp average over '+W.win+' ('+W.n+' listings) \u2014 the lowest window with 2+ listings. These are asking prices in /auction, not finished sales.':'No WTS price on PigParse with 2+ listings')+(B?'\nWTB: '+Math.round(B.p).toLocaleString()+' pp ('+B.n+' over '+B.win+')':'')+'">'
+                +(e.market?(I.id?'<a href="https://www.pigparse.org/ItemDetails/'+I.id+'" target="_blank" rel="noopener" title="Open '+esc(e.name)+' on PigParse" style="text-decoration:none;border-bottom:1px dotted var(--gold);color:'+(weak?'#c48a3a':'var(--text)')+'">':'<span style="'+(weak?'color:#c48a3a':'')+'">')+Math.round(e.market).toLocaleString()+(weak?' ?':'')+(I.id?'</a>':'</span>'):(I.id?'<a href="https://www.pigparse.org/ItemDetails/'+I.id+'" target="_blank" rel="noopener" style="color:var(--text-muted)">—</a>':'—'))
+                +(sub?'<div style="font-size:.66rem;'+(weak?'color:#c48a3a':'')+'">'+sub+'</div>':'')
+                +(B?'<div style="font-size:.66rem">WTB '+Math.round(B.p).toLocaleString()+'</div>':'')+'</td>'; })()
+          +'<td style="text-align:right"><input type="number" min="0" value="'+(e.price||'')+'" placeholder="PST" onchange="sellPrice(decodeURIComponent(\''+kk+'\'),this.value)" style="width:6rem;text-align:right">'
+            +(()=>{ if(!(e.price>0)||!e.market) return ''; const B=sellInfo(e.name).wtb, d=(e.price-e.market)/e.market;
+                if(B&&B.win!=='6 mo'&&B.p<=e.market&&e.price<B.p) return '<div style="font-size:.68rem;color:#c03030;font-weight:600" title="Buyers have asked '+Math.round(B.p).toLocaleString()+' pp for it ('+B.win+')">⚠ below WTB '+Math.round(B.p).toLocaleString()+'</div>';
+                if(d<=-0.25) return '<div style="font-size:.68rem;color:#c48a3a;font-weight:600" title="Market '+Math.round(e.market).toLocaleString()+' pp">⚠ '+Math.round(-d*100)+'% under market</div>';
+                if(d>=0.25) return '<div style="font-size:.68rem;color:#b08020" title="Market '+Math.round(e.market).toLocaleString()+' pp \u2014 may sit a while">'+Math.round(d*100)+'% over market</div>';
+                return ''; })()+'</td>'
+          +'<td style="text-align:right">'+(e.price?(e.price*e.q).toLocaleString():'')+'</td></tr>'; }).join('')
+        :'<tr><td colspan="7" style="color:var(--text-muted);padding:.8rem">'+(bankerNames().length||sellCfg.who==='__all__'?'Nothing to sell here.':'No bankers set up yet \u2014 add them on the Bankers tab, or pick All characters.')+'</td></tr>')
+      +'</tbody></table></div>'
+    +'</div>';
+}
+window.sellSet=function(k,v,soft){ sellCfg[k]=v; _sellSet('mp_sell_cfg',sellCfg); if(soft){ clearTimeout(window._sellT); window._sellT=setTimeout(()=>{ const a=document.activeElement, pos=a&&a.selectionStart; renderSellingPanel(); const i=document.querySelector('#sellingPanel input[type=search]'); if(i){ i.focus(); try{ i.setSelectionRange(pos,pos); }catch(e){} } },200); } else renderSellingPanel(); };
+window.sellToggle=function(k,on){ if(on) sellPick[k]=true; else delete sellPick[k]; _sellSet('mp_sell_pick',sellPick); _sellCopied.clear(); renderSellingPanel(); };
+window.sellPrice=function(k,v){ const n=Math.max(0,Math.round(+v||0)); if(v===''||!n) sellPrices[k]=0; else sellPrices[k]=n; _sellSet('mp_sell_prices',sellPrices); _sellCopied.clear();
+  clearTimeout(window._sellPT); window._sellPT=setTimeout(renderSellingPanel,250); };   // after the click that took the focus away has landed
+window.sellCopy=async function(i){
+  const pk=sellItems().filter(e=>e.on), dc=sellCfg.out==='discord', lines=dc?sellDiscord(pk):sellLines(pk), t=lines[i]; if(!t) return;
+  let ok=false; try{ await navigator.clipboard.writeText(t); ok=true; }catch(e){}
+  if(!ok){ try{ const ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); ok=document.execCommand('copy'); ta.remove(); }catch(e){} }
+  if(ok){ _sellCopied.add(t); showWatcherToast('📋 Copied '+(dc?'Discord message':'line')+' '+(i+1)+(lines.length>1?' of '+lines.length:'')+' \u2014 paste it '+(dc?'in Discord':'in EverQuest with Ctrl+V')); } else showWatcherToast('Couldn\u2019t reach the clipboard \u2014 select the line and copy it by hand');
+  renderSellingPanel();
+};
+window.sellSave=function(){
+  const el=document.getElementById('sellListName'), name=(el&&el.value.trim())||('List '+new Date().toLocaleDateString());
+  const items=sellItems().filter(e=>e.on).map(e=>({n:e.name,p:e.price||0}));
+  const i=sellLists.findIndex(L=>L.name.toLowerCase()===name.toLowerCase()), L={name,who:sellCfg.who,items,at:Date.now()};
+  if(i>=0) sellLists[i]=L; else sellLists.push(L); _sellSet('mp_sell_lists',sellLists);
+  showWatcherToast('💾 Saved \u201c'+name+'\u201d \u2014 '+items.length+' items'); renderSellingPanel();
+};
+window.sellLoad=function(i){ const L=sellLists[i]; if(!L) return; sellPick={}; for(const it of L.items){ const k=it.n.toLowerCase(); sellPick[k]=true; if(it.p) sellPrices[k]=it.p; }
+  if(L.who) sellCfg.who=L.who; _sellSet('mp_sell_pick',sellPick); _sellSet('mp_sell_prices',sellPrices); _sellSet('mp_sell_cfg',sellCfg); _sellCopied.clear(); renderSellingPanel(); };
+window.sellDel=function(i){ const L=sellLists[i]; if(!L) return; sellLists.splice(i,1); _sellSet('mp_sell_lists',sellLists); showWatcherToast('Deleted \u201c'+L.name+'\u201d'); renderSellingPanel(); };
+window.sellMenu=function(ev,k){
+  ev.preventDefault(); let m=document.getElementById('sellMenu'); if(m) m.remove();
+  const ign=sellIgnore.has(k), name=(sellItems().find(e=>e.k===k)||{name:k}).name;
+  m=document.createElement('div'); m.id='sellMenu';
+  m.style.cssText='position:fixed;z-index:10000;left:'+Math.min(ev.clientX,innerWidth-280)+'px;top:'+Math.min(ev.clientY,innerHeight-80)+'px;background:var(--surface);border:1px solid var(--border-glow);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.25);font-size:.85rem;min-width:240px';
+  m.innerHTML='<div style="padding:.35rem .7rem;font-size:.72rem;color:var(--text-muted);border-bottom:1px solid var(--border)">'+esc(name)+'</div><div data-a="1" style="padding:.45rem .7rem;cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'+(ign?'↶ Stop ignoring':'🚫 Ignore \u2014 never offer it for sale')+'</div>';
+  m.querySelector('[data-a]').onclick=()=>{ m.remove(); if(ign) sellIgnore.delete(k); else { sellIgnore.add(k); delete sellPick[k]; _sellSet('mp_sell_pick',sellPick); } _sellSet('mp_sell_ignore',[...sellIgnore]); _sellCopied.clear();
+    showWatcherToast(ign?'↶ '+name+' is back in Selling':'🚫 Ignoring '+name+' in Selling \u2014 "show ignored" to bring it back'); renderSellingPanel(); };
+  document.body.appendChild(m);
+  setTimeout(()=>document.addEventListener('click',function off(){ const x=document.getElementById('sellMenu'); if(x) x.remove(); document.removeEventListener('click',off); }),0);
+  return false;
+};
+window.sellToMarket=function(){ clearTimeout(window._sellPT); let n=0; for(const e of sellItems()) if(e.on&&e.market){ const np=sellNice(e.market); if(e.price!==np) n++; delete sellPrices[e.k]; }
+  _sellSet('mp_sell_prices',sellPrices); _sellCopied.clear(); showWatcherToast(n?'↻ '+n+' price'+(n===1?'':'s')+' set back to market':'↻ The checked prices already match the market'); renderSellingPanel(); };
+window.sellSort=function(col){ const so=sellCfg.sort; sellCfg.sort=!so||so.col!==col?{col,dir:'desc'}:so.dir==='desc'?{col,dir:'asc'}:null; _sellSet('mp_sell_cfg',sellCfg); renderSellingPanel(); };   // high→low, low→high, back to checked first
+window.sellClear=function(){ sellPick={}; _sellSet('mp_sell_pick',sellPick); _sellCopied.clear(); renderSellingPanel(); };
 function renderBankersPanel(){
   const panel=document.getElementById('bankersPanel');
   if(!panel)return;
