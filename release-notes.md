@@ -1,12 +1,19 @@
-## 1.7.28
+## 1.8.0
+
+- **💰 Selling** — Bankers → Selling: check the items you want to sell on your bankers (or any character), set your price (it starts at the PigParse market price, rounded), and copy a ready-made post. ⚔ In-game /auction: paste-ready "/auction WTS …" lines, most valuable first, split into more lines when they don't fit. 💬 Discord: one item per line, "Item (wiki link) -- price". 📋 Copy buttons, 💾 saved lists, and right-click → 🚫 Ignore for items you never sell. The app never sends anything to EverQuest — you paste it yourself.
+- **📈 Price checks** — in Selling, Market shows how many listings it's based on, when it was last seen and the WTB price, with thin data flagged. Your price warns when it's 25%+ under or over market; ↻ Update checked to market resets your prices; click a market price to open the item on PigParse; sort by Market or Total.
+- **⏱ Hourly ticks** — Auto-Detect: once ODKP has the night, ticks it lists as hourlies (ToV "pain and suffering", Standard, HoT farm, BnP) show as ⏱ NToV hourly instead of a boss. Live, "Which boss?" has a ⏱ Hourly button (suggested 55+ minutes after the last tick), and right-click any tick to record or undo an hourly. Projected DKP counts hourlies ODKP hasn't credited yet.
+- **💰 Treasure guide** — Farm Targets → 💰 Treasure guide ranks the items from the P99 wiki's Treasure Hunting Guide by their PigParse value, and items in the guide carry its notes: where to farm them, from which mobs, and the level.
+- **Fix:** Auto-Detect no longer auto-adds a kill when only another guild's players were fighting the boss — the check now covers every boss, not just Statue and Avatar of War.
+- **Fix:** Credit Check recognises hourly labels like "Two hourlies, much pain" and "Jorlleag active camp".
+
+Everything from 1.7.28 and earlier is included:
 
 - **⚕ CH chain: Single / Double / Triple** — the top of the CH chain window picks Single chain (the default: every CA call is one chain, whatever target it names) or Double / Triple. Double and Triple learn each chain's target and its numbers by themselves (Auto), or take the numbers you type (Set numbers, e.g. 1–4 and 5–8). Your chain is shown on top, the others below it.
 - **⚕ Target CH timing** — the CH chain window shows the boss on the tank and "Target CH timing = X s" from the CA chart. It changes as soon as the boss is slowed (the landing message or a "<SLOW> Vulak`Aerr" call in OOC) or the tank's Defensive Discipline goes up or down. Heal timing at the top: Actual (the chain's pace) or CA chart, for when the Heal alert says your turn is up.
 - **⚔ Projected DKP** — under Your DKP: your ODKP balance plus the Raid History kills of the last 10 days ODKP hasn't credited yet, minus the auction wins it hasn't charged yet. Hover it for the list.
 - **🎁 Loot from ODKP ticks** — Auto-Detect kills show the items ODKP sold on that kill's tick, with winner and DKP, plus anything you saw drop that ODKP doesn't have.
 - **Fix:** CH chain is off by default; Auto now means on while you're playing a Cleric (Settings → CH chain). A call on the wrong target (a macro on yourself) no longer starts its own chain, and a slow chain no longer shows healers' numbers as free.
-
-Everything from 1.7.27 and earlier is included:
 
 - **⚕ CH chain: your turn** — when one of your characters is in the chain, the window counts down to your turn and says "Heal" when it's up: one chain interval after the healer before you calls, timed to the chain's running pace (two intervals after the one before them, if they don't call). Settings → CH chain → Your turn: Voice, Chime or Off.
 - **⚕ CH chain: mana** — when a healer in the chain says their mana ("40", "40m", "Cleric - 40m - Low Mana!", "fm", "OOM") it shows on their number — blue, amber at 30% or less, red at 10% / OOM — with a Low mana line for anyone at 20% or less.
