@@ -5681,17 +5681,11 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.8.0',
+  version:'1.8.1',
   date:'October 2026',
-  features:[
-    ['&#128176; Selling','<b>Bankers &rarr; Selling</b>: check the items you want to sell on your bankers (or any character), set your price (it starts at the PigParse market price, rounded), and copy a ready-made post. <b>&#9876; In-game /auction</b>: paste-ready <b>/auction WTS &hellip;</b> lines, most valuable first, split into more lines when they don&rsquo;t fit. <b>&#128172; Discord</b>: one item per line, &ldquo;Item (wiki link) -- price&rdquo;. &#128203; Copy buttons, &#128190; saved lists, and right-click &rarr; &#128683; Ignore for items you never sell. The app never sends anything to EverQuest &mdash; you paste it yourself.'],
-    ['&#128200; Price checks','In Selling, <b>Market</b> shows how many listings it&rsquo;s based on, when it was last seen and the WTB price, with thin data flagged. Your price warns when it&rsquo;s 25%+ under or over market; <b>&#8635; Update checked to market</b> resets your prices; click a market price to open the item on <b>PigParse</b>; sort by Market or Total.'],
-    ['&#128176; Treasure guide','<b>Farm Targets &rarr; &#128176; Treasure guide</b> ranks the items from the P99 wiki&rsquo;s Treasure Hunting Guide by their PigParse value, and items in the guide carry its notes &mdash; where to farm them, from which mobs, and the level.'],
-    ['&#9201; Hourly ticks','Auto-Detect: once ODKP has the night, ticks it lists as hourlies (ToV &ldquo;pain and suffering&rdquo;, Standard, HoT farm, BnP) show as <b>&#9201; NToV hourly</b> instead of a boss. Live, &ldquo;Which boss?&rdquo; has a <b>&#9201; Hourly</b> button (suggested 55+ minutes after the last tick), and right-click any tick to record or undo an hourly. Projected DKP counts hourlies ODKP hasn&rsquo;t credited yet.'],
-  ],
+  features:[],
   fixes:[
-    ['Auto-Detect','A kill is no longer auto-added when only another guild&rsquo;s players were fighting the boss &mdash; the check now covers every boss, not just Statue and Avatar of War.'],
-    ['Credit Check','Hourly labels like &ldquo;Two hourlies, much pain&rdquo; and &ldquo;Jorlleag active camp&rdquo; are recognised.'],
+    ['Spell timers','Off by default &mdash; switch them on in Settings &rarr; Spell timers. If you had turned them on yourself, they stay on.'],
   ],
 };
 function showWhatsNew(){
@@ -17392,7 +17386,7 @@ function spellWikiDur(spell,ch){
   if(L<=w[1]) return w[0]; if(L>=w[3]) return w[2]; return Math.round(w[0]+(w[2]-w[0])*(L-w[1])/Math.max(1,w[3]-w[1]));
 }
 setTimeout(()=>{ try{ wikiData('durations'); }catch(e){} },3000);
-function spellTimersOn(){ try{ return localStorage.getItem('mp_timers_on')!=='0'; }catch(e){ return true; } }
+function spellTimersOn(){ try{ return localStorage.getItem('mp_timers_on')==='1'; }catch(e){ return false; } }   // off unless switched on (owner, 2026-10-21)
 function spellTimerSound(kind){ try{ const v=localStorage.getItem(kind==='charm'?'mp_timers_snd_charm':'mp_timers_snd_off'); return kind==='charm'?v!=='0':v==='1'; }catch(e){ return kind==='charm'; } }   // charm break: on by default; other wear-offs: off
 function spellTimerVolume(){ try{ const v=parseFloat(localStorage.getItem('mp_timers_vol')); return isFinite(v)?Math.max(0,Math.min(1,v)):0.6; }catch(e){ return 0.6; } }
 let _tmrAudio=null;
@@ -17947,7 +17941,7 @@ function renderSettingsPanel(){
       pick('tellvoice',tellVoiceOn()?'voice':'chime',[['voice','Voice'],['chime','Chime']]))+
     item('Volume','How loud the tell chime is.','<div style="display:flex;align-items:center;gap:.6rem;margin-top:.35rem"><input type="range" min="0" max="100" step="5" value="'+Math.round(tellVolume()*100)+'" oninput="stgDo(\'tellvol\',this.value)" style="flex:1;max-width:220px"><button onclick="tellAlert(\'Player\')" style="font-size:.8rem;padding:.15rem .55rem;border-radius:3px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text)">Test</button></div>'));
   h+=card('SPELL TIMERS',
-    item('Spell timers','Your roots, charms, mezzes and DoTs counting down, with an alert when one wears off or breaks. How long each lasts is learned from your own logs.',
+    item('Spell timers','Your roots, charms, mezzes and DoTs counting down, with an alert when one wears off or breaks. How long each lasts is learned from your own logs. Off by default.',
       pick('tmron',spellTimersOn()?'on':'off',[['on','On'],['off','Off \u2014 no timers, alerts or window']]))+
     item('Timers window','The ⏳ Timers pop-up window stays on top of EverQuest. Open it on your first timed cast, or only when you click ⏳ Timers under the title.',
       pick('tmrpop',spellTimersAutoOpen()?'on':'off',[['on','Open on a timed cast'],['off','Only from ⏳ Timers']]))+
