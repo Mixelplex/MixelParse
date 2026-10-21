@@ -5681,11 +5681,14 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.8.1',
+  version:'1.8.2',
   date:'October 2026',
-  features:[],
+  features:[
+    ['&#9876; Projected DKP breakdown','Click <b>Projected</b> under Your DKP for the list behind it: kills and hourlies not on ODKP yet, auction wins not charged yet, and unidentified ticks. Right-click an entry to change its value or remove it from the projection (and restore it later) &mdash; Raid History, Credit Check and ODKP aren&rsquo;t touched.'],
+  ],
   fixes:[
-    ['Spell timers','Off by default &mdash; switch them on in Settings &rarr; Spell timers. If you had turned them on yourself, they stay on.'],
+    ['PL helper','Kills that gave you XP but whose &ldquo;has been slain&rdquo; line never showed in your log (they died out of range) are counted now &mdash; marked &ldquo;kill not shown in your log&rdquo;.'],
+    ['Spell timers','Off by default &mdash; switch them on in Settings &rarr; Spell timers.'],
   ],
 };
 function showWhatsNew(){
@@ -9402,28 +9405,78 @@ function odkpMyBalance(){
 }
 // Projected DKP: balance + recent kills ODKP hasn't credited yet − auction wins it hasn't charged yet
 let _projDkp=null;
+let projAdj=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_proj_adj')||'{}')||{}; }catch(e){ return {}; } })(), _projAdjVer=0;   // entry key → {v} (your value) | {del:true}
+function projAdjSave(){ _projAdjVer++; _projDkp=null; try{ localStorage.setItem('mp_proj_adj',JSON.stringify(projAdj)); }catch(e){} }
 function odkpProjected(me){
-  const key=[me.bal,me.asOf,(raidSessions||[]).length,(odkpTicks||[]).length,(typeof aucPending!=='undefined'?aucPending.length:0),ccAcks.size,typeof _rkdVer!=='undefined'?_rkdVer:0].join('|');
+  const key=[me.bal,me.asOf,(raidSessions||[]).length,(odkpTicks||[]).length,(typeof aucPending!=='undefined'?aucPending.length:0),ccAcks.size,typeof _rkdVer!=='undefined'?_rkdVer:0,_projAdjVer].join('|');
   if(_projDkp&&_projDkp.key===key&&Date.now()-_projDkp.at<60e3) return _projDkp.v;
   let v=null;
   try{
     const cut=Date.now()-10*864e5, add=[];
     if(odkpTicks&&odkpTicks.length){
       const evts=ccCollectSessionEvents().filter(e=>Date.parse(e.date+'T23:59:59')>=cut), M=ccMatchAll(evts,ccBuildTickIndex());
-      evts.forEach((e,i)=>{ const m=M[i]; if(!m||m.status==='strong'||m.status==='valuemismatch'||m.status==='weak'||ccAcks.has(ccEvtKey(e))) return; if(e.expVal>0) add.push({t:e.target+(e.type==='failtick'?' (failtick)':''),d:e.date,v:+e.expVal}); });
+      evts.forEach((e,i)=>{ const m=M[i]; if(!m||m.status==='strong'||m.status==='valuemismatch'||m.status==='weak'||ccAcks.has(ccEvtKey(e))) return; if(e.expVal>0) add.push({key:'ev|'+ccEvtKey(e),kind:e.type,t:e.target+(e.type==='failtick'?' (failtick)':''),d:e.date,v:+e.expVal}); });
     }
     // ticks you were at in the same 10 days: your recorded hourlies ODKP hasn't credited (+), and ticks that aren't a kill and ODKP hasn't entered (count only — likely hourlies)
     let unk=0;
     try{ const OM=rkdOdkpMatches();
       for(const r of rkdLog){ if(r.ts<cut||OM.byId[r.id]||!_rkdAttended(r)) continue;
-        if(r.confirm==='hourly'&&r.hourly){ if(r.ts>OM.lastTs-RKD_ODKP_WINDOW) add.push({t:'Hourly ('+r.hourly.desc.replace(/^Ticks - | \(hourly\)$/g,'')+')',d:localYmd(new Date(r.ts)),v:r.hourly.value}); }
+        if(r.confirm==='hourly'&&r.hourly){ if(r.ts>OM.lastTs-RKD_ODKP_WINDOW) add.push({key:'hr|'+r.id,kind:'hourly',t:'Hourly ('+r.hourly.desc.replace(/^Ticks - | \(hourly\)$/g,'')+')',d:localYmd(new Date(r.ts)),v:r.hourly.value}); }
         else if(!r.confirm&&r.ts>OM.lastTs+RKD_ODKP_WINDOW&&(r.tier==='none'||r.tier==='ambiguous')&&!_rkdKillNear(r.ts,r.id)) unk++; } }catch(e){}
-    const A=typeof aucAvail==='function'?aucAvail():null, wins=A?A.pending:[];
-    const plus=add.reduce((t,x)=>t+x.v,0), minus=wins.reduce((t,p)=>t+p.n,0);
-    v={proj:Math.round((me.bal+plus-minus)*10)/10,plus:Math.round(plus*10)/10,minus,add,wins,unk};
+    const A=typeof aucAvail==='function'?aucAvail():null, wins0=A?A.pending:[];
+    // your changes: a new value, or removed (kept aside so it can be restored)
+    const removed=[], adj=x=>{ const a=projAdj[x.key]; if(!a) return x; if(a.del){ removed.push(x); return null; } return Object.assign({},x,{orig:x.v,v:+a.v,mod:true}); };
+    const addA=add.map(adj).filter(Boolean);
+    const wins=wins0.map(p=>{ const x=adj({key:'win|'+p.item+'|'+p.ts,kind:'win',t:p.item,who:p.who,d:localYmd(new Date(p.ts)),v:p.n}); return x&&Object.assign({},p,{n:x.v,key:x.key,mod:x.mod,orig:x.orig}); }).filter(Boolean);
+    const plus=addA.reduce((t,x)=>t+x.v,0), minus=wins.reduce((t,p)=>t+p.n,0);
+    v={proj:Math.round((me.bal+plus-minus)*10)/10,plus:Math.round(plus*10)/10,minus:Math.round(minus*10)/10,add:addA,wins,unk,removed,bal:me.bal,asOf:me.asOf};
   }catch(e){ console.warn('[DKP] projected',e); }
   _projDkp={key,at:Date.now(),v}; return v;
 }
+// the breakdown window: every entry in the projection; right-click → change the value / remove / restore
+window.odkpProjModal=function(){
+  const me=odkpMyBalance(); if(!me) return; const P=odkpProjected(me); if(!P) return;
+  let ov=document.getElementById('projOverlay');
+  if(!ov){ ov=document.createElement('div'); ov.id='projOverlay'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10040;display:flex;align-items:center;justify-content:center';
+    ov.addEventListener('mousedown',e=>{ if(e.target===ov) ov.remove(); }); document.body.appendChild(ov); }
+  const fmt=v=>(Math.round(v*10)/10).toLocaleString(), row=(x,sign,extra)=>'<tr data-pk="'+esc(x.key)+'" oncontextmenu="return projMenu(event,this.dataset.pk)" title="Right-click to change or remove" style="cursor:context-menu">'
+      +'<td>'+esc(String(x.d||'').slice(5).replace('-','/'))+'</td><td>'+esc(x.t)+(extra||'')+(x.mod?' <span style="color:#b08020;font-size:.75em" title="Your value \u2014 was '+fmt(x.orig)+'">✎ edited</span>':'')+'</td>'
+      +'<td style="text-align:right;font-weight:600;color:'+(sign>0?'#3a7a3a':'#c07050')+'">'+(sign>0?'+':'\u2212')+fmt(x.v)+'</td></tr>';
+  const kills=P.add, wins=P.wins.map(p=>({key:p.key,t:p.item,who:p.who,d:localYmd(new Date(p.ts)),v:p.n,mod:p.mod,orig:p.orig}));
+  const sect=(title,note,rows)=>'<tr><td colspan="3" style="padding-top:.7rem;font-family:\'Cinzel\',serif;font-size:.72rem;color:var(--gold-light);letter-spacing:.06em">'+title+(note?' <span style="font-family:inherit;color:var(--text-muted);font-size:.9em;letter-spacing:0;text-transform:none">'+note+'</span>':'')+'</td></tr>'+rows;
+  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.5);width:min(620px,94vw);max-height:86vh;overflow:auto;padding:1rem 1.2rem;font-size:.85rem">'
+    +'<div style="display:flex;align-items:flex-start;gap:.6rem"><div style="flex:1"><div style="font-family:\'Cinzel\',serif;color:var(--gold-light);font-size:1rem">Projected DKP \u2014 '+fmt(P.proj)+'</div>'
+    +'<div style="color:var(--text-muted);font-size:.75rem">'+fmt(P.bal)+' on ODKP (as of '+new Date(P.asOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+')'+(P.plus?' <span style="color:#3a7a3a">+'+fmt(P.plus)+'</span>':'')+(P.minus?' <span style="color:#c07050">\u2212'+fmt(P.minus)+'</span>':'')+' \u00b7 right-click an entry to change or remove it</div></div>'
+    +'<button class="dkp-upload-btn" onclick="document.getElementById(\'projOverlay\').remove()">Close</button></div>'
+    +'<table class="dkp-history-table" style="width:100%;margin-top:.4rem"><tbody>'
+    +sect('NOT ON ODKP YET','Raid History kills / failticks / hourlies of the last 10 days with no ODKP credit',kills.length?kills.map(x=>row(x,1)).join(''):'<tr><td colspan="3" style="color:var(--text-muted)">none</td></tr>')
+    +sect('AUCTION WINS NOT CHARGED YET','your grats ODKP doesn\u2019t have yet',wins.length?wins.map(x=>row(x,-1,x.who?' <span style="color:var(--text-muted);font-size:.85em">('+esc(x.who)+')</span>':'')).join(''):'<tr><td colspan="3" style="color:var(--text-muted)">none</td></tr>')
+    +(P.unk?sect('UNIDENTIFIED TICKS','not added',(()=>'<tr><td colspan="3" style="color:var(--text-muted)">'+P.unk+' tick'+(P.unk>1?'s':'')+' you were at that aren\u2019t a recorded kill and ODKP hasn\u2019t entered yet \u2014 likely hourlies (~2 each). Record them on Auto-Detect (right-click → Record as hourly).</td></tr>')()):'')
+    +(P.removed.length?sect('REMOVED','right-click to restore',P.removed.map(x=>'<tr data-pk="'+esc(x.key)+'" oncontextmenu="return projMenu(event,this.dataset.pk)" style="opacity:.55;cursor:context-menu"><td>'+esc(String(x.d||'').slice(5).replace('-','/'))+'</td><td style="text-decoration:line-through">'+esc(x.t)+'</td><td style="text-align:right">'+(x.kind==='win'?'\u2212':'+')+fmt(x.v)+'</td></tr>').join('')):'')
+    +'</tbody></table></div>';
+};
+window.projMenu=function(ev,key){
+  ev.preventDefault(); ev.stopPropagation(); let m=document.getElementById('projMenu'); if(m) m.remove();
+  const me=odkpMyBalance(), P=me&&odkpProjected(me); if(!P) return false;
+  const all=P.add.concat(P.wins.map(p=>({key:p.key,t:p.item,v:p.n,mod:p.mod,orig:p.orig,kind:'win'}))), x=all.find(e=>e.key===key), rm=P.removed.find(e=>e.key===key);
+  m=document.createElement('div'); m.id='projMenu';
+  m.style.cssText='position:fixed;z-index:10050;left:'+Math.min(ev.clientX,innerWidth-260)+'px;top:'+Math.min(ev.clientY,innerHeight-150)+'px;background:var(--surface);border:1px solid var(--border-glow);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.3);font-size:.85rem;min-width:230px;padding:.2rem 0';
+  const it=(html,act)=>'<div data-act="'+act+'" style="padding:.4rem .7rem;cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'+html+'</div>';
+  m.innerHTML='<div style="padding:.3rem .7rem;font-size:.72rem;color:var(--text-muted);border-bottom:1px solid var(--border)">'+esc((x||rm||{t:key}).t)+'</div>'
+    +(rm?it('↶ Restore to the projection','restore')
+      :'<div style="padding:.4rem .7rem;display:flex;gap:.3rem;align-items:center">✎ Value <input id="projVal" type="number" step="0.1" value="'+(x?x.v:'')+'" style="width:5rem"><button class="kt-undo-btn" data-act="save">Save</button></div>'
+       +(x&&x.mod?it('↶ Back to '+(Math.round(x.orig*10)/10),'reset'):'')
+       +it('🗑 Remove from the projection','del'));
+  const done=()=>{ m.remove(); projAdjSave(); odkpRenderAcctChip(); odkpProjModal(); };
+  m.addEventListener('click',e=>{ const a=e.target.closest('[data-act]'); if(!a) return; const act=a.dataset.act;
+    if(act==='save'){ const v=parseFloat(m.querySelector('#projVal').value); if(!isFinite(v)) return; projAdj[key]={v}; done(); }
+    else if(act==='reset'||act==='restore'){ delete projAdj[key]; done(); }
+    else if(act==='del'){ projAdj[key]={del:true}; done(); } });
+  m.querySelector('#projVal')&&m.querySelector('#projVal').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const v=parseFloat(e.target.value); if(isFinite(v)){ projAdj[key]={v}; done(); } } });
+  document.body.appendChild(m);
+  setTimeout(()=>document.addEventListener('mousedown',function off(e){ const y=document.getElementById('projMenu'); if(y&&!y.contains(e.target)){ y.remove(); document.removeEventListener('mousedown',off); } }),0);
+  return false;
+};
 function odkpHeaderDkp(){
   const me=odkpMyBalance(); if(!me) return '';
   const a={main:me.main, ids:me.ids}, c=me.c, bal=me.bal, asOf=me.asOf, count={length:me.multi?2:1};
@@ -9431,13 +9484,13 @@ function odkpHeaderDkp(){
     +'<div class="nw-header-label">&#9876; Your DKP'+(me.multi?' · '+esc(a.main):'')+'</div>'
     +'<div class="nw-header-value">'+bal.toLocaleString()+' DKP</div>'
     +'<div class="nw-header-note">updated '+new Date(asOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div>'
-    +(()=>{ const P=odkpProjected(me); if(!P||(!P.add.length&&!P.wins.length&&!P.unk)) return '';
+    +(()=>{ const P=odkpProjected(me); if(!P||(!P.add.length&&!P.wins.length&&!P.unk&&!(P.removed||[]).length)) return '';
       const tip='Projected '+P.proj+' DKP = '+bal+' on ODKP'
         +(P.add.length?'\n+ '+P.plus+' from Raid History not on ODKP yet:\n'+P.add.map(x=>'   '+x.t+' '+x.d.slice(5).replace('-','/')+'  +'+x.v).join('\n'):'')
         +(P.wins.length?'\n\u2212 '+P.minus+' auction wins ODKP hasn\u2019t charged yet:\n'+P.wins.map(p=>'   '+p.item+' ('+p.who+')  \u2212'+p.n).join('\n'):'')
         +(P.unk?'\n? '+P.unk+' tick'+(P.unk>1?'s':'')+' you were at that aren\u2019t a kill and ODKP hasn\u2019t entered yet \u2014 likely hourlies (~2 each), not added':'')
         +'\n\nRaid History kills of the last 10 days with no ODKP credit yet (Credit Check \u2717), ODKP can lag up to a week.';
-      return '<div class="nw-header-note" style="margin-top:.15rem;font-style:normal" title="'+esc(tip).replace(/"/g,'&quot;')+'">Projected <b style="color:var(--gold-light);font-size:.95rem">'+P.proj.toLocaleString()+' DKP</b>'+(P.plus?' <span style="color:#3a7a3a">+'+P.plus+'</span>':'')+(P.minus?' <span style="color:#c07050">\u2212'+P.minus+'</span>':'')+(P.unk?' <span style="color:var(--text-muted)">+'+P.unk+' tick'+(P.unk>1?'s':'')+'?</span>':'')+'</div>'; })()
+      return '<div class="nw-header-note" onclick="event.stopPropagation();odkpProjModal()" style="margin-top:.15rem;font-style:normal;cursor:pointer" title="'+esc(tip+'\n\nClick for the list \u2014 right-click an entry there to change or remove it').replace(/"/g,'&quot;')+'">Projected <b style="color:var(--gold-light);font-size:.95rem">'+P.proj.toLocaleString()+' DKP</b>'+(P.plus?' <span style="color:#3a7a3a">+'+P.plus+'</span>':'')+(P.minus?' <span style="color:#c07050">\u2212'+P.minus+'</span>':'')+(P.unk?' <span style="color:var(--text-muted)">+'+P.unk+' tick'+(P.unk>1?'s':'')+'?</span>':'')+'</div>'; })()
     +'</div>';
 }
 function odkpRenderAcctChip(){ const old=document.getElementById('odkpAcctChip'); if(old) old.remove(); if(typeof renderNetworthBar==='function') renderNetworthBar(); }

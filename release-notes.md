@@ -1,8 +1,11 @@
-## 1.8.1
+## 1.8.2
+
+- **⚔ Projected DKP breakdown** — click Projected under Your DKP for the list behind it: kills and hourlies not on ODKP yet, auction wins not charged yet, and unidentified ticks. Right-click an entry to change its value or remove it from the projection (and restore it later) — Raid History, Credit Check and ODKP aren't touched.
+- **Fix:** the PL helper counts kills that gave you XP but whose "has been slain" line never showed in your log (they died out of range), marked "kill not shown in your log".
+
+Everything from 1.8.1 and earlier is included:
 
 - **Fix:** Spell timers are off by default — switch them on in Settings → Spell timers. If you had turned them on yourself, they stay on.
-
-Everything from 1.8.0 and earlier is included:
 
 - **💰 Selling** — Bankers → Selling: check the items you want to sell on your bankers (or any character), set your price (it starts at the PigParse market price, rounded), and copy a ready-made post. ⚔ In-game /auction: paste-ready "/auction WTS …" lines, most valuable first, split into more lines when they don't fit. 💬 Discord: one item per line, "Item (wiki link) -- price". 📋 Copy buttons, 💾 saved lists, and right-click → 🚫 Ignore for items you never sell. The app never sends anything to EverQuest — you paste it yourself.
 - **📈 Price checks** — in Selling, Market shows how many listings it's based on, when it was last seen and the WTB price, with thin data flagged. Your price warns when it's 25%+ under or over market; ↻ Update checked to market resets your prices; click a market price to open the item on PigParse; sort by Market or Total.

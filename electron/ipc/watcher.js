@@ -2486,7 +2486,12 @@ function _plLine(line, c) {
     touch(); const k = { t: now, mob, by: m[2] === 'You' ? c : m[2], xp: null }; p.kills.push(k);
     const n = N(mob); n.killed++; n.alive = false; n.since = 0; n.lastKill = now;
     k.n = n; setTimeout(() => { if (k.xp === null) { k.xp = false; _plSend(c); } }, 2500); _plSend(c); return; }   // no XP = an untagged one died
-  if (RE_PL_XP.test(line)) { if (!p) return; const k = p.kills.filter(x => x.xp === null && now - x.t <= 2500).pop() || p.kills.filter(x => x.xp === false && now - x.t <= 3000).pop(); if (k) { k.xp = true; if (k.n && k.n.tagged > 0) k.n.tagged--; _plSend(c); } return; }   // a tagged one died
+  if (RE_PL_XP.test(line)) { if (!p) return; let k = p.kills.filter(x => x.xp === null && now - x.t <= 2500).pop() || p.kills.filter(x => x.xp === false && now - x.t <= 3000).pop();
+    if (!k && now - p.last <= 45e3) {   // XP with no "slain" line (it always comes right before its XP): a kill EverQuest didn't print — still a kill
+      const cand = Object.values(p.names).filter(n => now - (n.last || 0) <= 20e3).sort((a, b) => ((b.tagged > 0) - (a.tagged > 0)) || (b.last - a.last))[0];
+      k = { t: now, mob: cand ? cand.key : 'a mob', by: null, xp: null, unseen: true }; p.kills.push(k); p.last = now;
+      if (cand) { cand.killed++; cand.lastKill = now; k.n = cand; } }
+    if (k) { k.xp = true; if (k.n && k.n.tagged > 0) k.n.tagged--; _plSend(c); } return; }   // a tagged one died
   if ((m = RE_PL_HIT.exec(line))) { touch(); const mob = m[1].toLowerCase(); const n = N(mob); n.hits++; n.since = (n.since || 0) + 1; n.last = now; n.alive = true;
     if (now - (n.lastTag || 0) > 1200) { n.tagged = (n.tagged || 0) + 1; n.lastTag = now; }   // you tab after every hit: each landed hit tags the next one
     _plSend(c); return; }
