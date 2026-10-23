@@ -861,7 +861,7 @@ ipcMain.handle('pl:toggle', () => {
   if (plWindow && !plWindow.isDestroyed() && plWindow.isVisible() && !plWindow.isMinimized()) { plWindow.hide(); return false; }
   createPlWindow(true); return true;
 });
-ipcMain.handle('pl:pop', () => { if (plWindow && !plWindow.isDestroyed() && plWindow.isVisible() && !plWindow.isMinimized()) return; createPlWindow(false); });
+ipcMain.handle('pl:pop', () => { if (plWindow && !plWindow.isDestroyed() && (plWindow.isMinimized() || (plWindow.isVisible() && !plWindow.isMinimized()))) return; createPlWindow(false); });   // minimized by you: it stays minimized (owner, 2026-10-22)
 ipcMain.handle('pl:close', () => { if (plWindow && !plWindow.isDestroyed()) plWindow.close(); });
 ipcMain.handle('pl:minimize', () => { if (plWindow && !plWindow.isDestroyed()) plWindow.minimize(); });
 ipcMain.on('pl:push-state', (event, state) => { if (plWindow && !plWindow.isDestroyed()) plWindow.webContents.send('pl-state', state); });
@@ -869,7 +869,7 @@ ipcMain.handle('chchain:toggle', () => {
   if (chChainWindow && !chChainWindow.isDestroyed() && chChainWindow.isVisible() && !chChainWindow.isMinimized()) { chChainWindow.hide(); return false; }
   createChChainWindow(true); return true;
 });
-ipcMain.handle('chchain:pop', () => { if (chChainWindow && !chChainWindow.isDestroyed() && chChainWindow.isVisible() && !chChainWindow.isMinimized()) return; createChChainWindow(false); });
+ipcMain.handle('chchain:pop', () => { if (chChainWindow && !chChainWindow.isDestroyed() && (chChainWindow.isMinimized() || chChainWindow.isVisible())) return; createChChainWindow(false); });   // minimized by you: it stays minimized
 ipcMain.handle('chchain:close', () => { if (chChainWindow && !chChainWindow.isDestroyed()) chChainWindow.close(); });
 ipcMain.handle('chchain:minimize', () => { if (chChainWindow && !chChainWindow.isDestroyed()) chChainWindow.minimize(); });
 ipcMain.on('chchain:cfg', (event, cfg) => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('chchain-cfg', cfg); });   // Single / Double / Triple, from the window's top bar
@@ -879,7 +879,7 @@ ipcMain.handle('timers:toggle', () => {
   createTimersWindow(true); return true;
 });
 ipcMain.handle('timers:pop', () => {   // a timed cast — show without stealing focus from EQ
-  if (timersWindow && !timersWindow.isDestroyed() && timersWindow.isVisible() && !timersWindow.isMinimized()) return;
+  if (timersWindow && !timersWindow.isDestroyed() && (timersWindow.isMinimized() || timersWindow.isVisible())) return;   // minimized by you: it stays minimized
   createTimersWindow(false);
 });
 ipcMain.handle('timers:close', () => { if (timersWindow && !timersWindow.isDestroyed()) timersWindow.close(); });

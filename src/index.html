@@ -5681,12 +5681,20 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.8.3',
+  version:'1.8.4',
   date:'October 2026',
   features:[
-    ['&#9876; Projected DKP: add, modify, remove','In the Projected DKP window, right-click for <b>&#10133; Add</b> (your own entry &mdash; what, DKP (negative for spent), date; it drops out after 10 days like the rest), <b>&#9998; Modify</b> and <b>&#128465; Remove</b>. Right-click empty space to add. Your entries are listed under <b>Your entries</b>.'],
+    ['&#128200; Leveling path','Leveling tab: a <b>Leveling path</b> from your level to 60 for the selected character, with a <b>Solo / Group</b> toggle &mdash; the fastest measured zone for each stretch of levels (it stays in a zone while it&rsquo;s within 15% of the best), wiki spots where nobody has measured yet, hunting time plus a realistic logged-in time, and an <b>other zone&hellip;</b> pick to pin a zone for a stage.'],
+    ['&#127919; PL helper: confirm your tags','The PL helper now tells you whether the pile is tagged: <b>N NOT TAGGED</b> / <b>~N may be untagged</b> / <b>likely all tagged</b>, counting the mobs in the pile from how often they swing. Cues as you go: <b>TAGGED &mdash; TAB NOW</b>, <b>same mob again &mdash; TAB</b>, missed, too far away, and a tag sound (Settings &rarr; PL helper). Big stacked piles get a tab-after-every-hit tip with your miss rate this session.'],
+    ['&#9201; Hourly ticks in Auto-Detect','In ToV, Sky and VP a tick with no boss seen is marked <b>&#9201; hourly?</b> and the Hourly button is suggested whatever the time since the last tick. If ODKP lists a tick as an hourly but you recorded a kill for it, the row says so with a one-click <b>&rarr; hourly</b>.'],
+    ['&#128263; Mute one boss&rsquo;s parking alert','Right-click a parking alert &rarr; <b>Mute &lt;boss&gt; until I turn it back on</b>. Muted bosses are listed in Settings &rarr; Raids &rarr; Parking alerts with <b>unmute</b>.'],
   ],
-  fixes:[],
+  fixes:[
+    ['Projected DKP','A Raid History session left open over several nights now matches ODKP ticks from every night it covers (kills were shown as &ldquo;not on ODKP yet&rdquo; while already credited). Your own minus entries drop out once ODKP charges them (shown under <b>Now on ODKP</b>). The header shows plus and minus apart, and hovering an entry says where it came from.'],
+    ['Credit Check','An hourly tick ODKP files under a boss&rsquo;s name (&ldquo;Feshlak 1 (Hourly - pain and suffering)&rdquo;) no longer counts as that boss&rsquo;s kill credit; &ldquo;hourly2&rdquo; labels count as hourlies.'],
+    ['Leveling data','Power-levelled levels (most XP from another player&rsquo;s kills) are left out of the zone speeds and not shared &mdash; rescan once.'],
+    ['Overlay windows','The PL helper, CH chain and spell timer windows stay minimized when you minimize them.'],
+  ],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -9306,7 +9314,7 @@ window.odkpSyncLedger=async function(manual){
   const led=await odkpGet('/clients/castle/characters/'+mainId+'/dkp');
   if(!led.ok||!Array.isArray(led.data)||!led.data.length){odkpSyncState.ledger={at:Date.now(),err:led.error||'empty ledger'};_odkpLedgerUi();return;}
   const sig=led.data.length+':'+(led.data[0].SourceId||0);
-  if(!manual&&odkpTicksMeta&&odkpTicksMeta.odkpSig===sig){odkpTicksMeta.checkedAt=Date.now();odkpSyncState.ledger={at:Date.now(),msg:'no change'};_odkpLedgerUi();odkpSyncGuild(false).catch(e=>console.warn('[ODKP] guild',e));return;}
+  if(!manual&&odkpTicksMeta&&odkpTicksMeta.odkpSig===sig&&odkpTicksMeta.items){odkpTicksMeta.checkedAt=Date.now();odkpSyncState.ledger={at:Date.now(),msg:'no change'};_odkpLedgerUi();odkpSyncGuild(false).catch(e=>console.warn('[ODKP] guild',e));return;}
   // same columns as the dkp-details export → the existing parser
   const q=v=>{const s=v==null?'':String(v);return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
   const cols=['Order','Date','SourceType','Source','SourceId','CharacterName','CharacterId','Value','Cumulative','TickId'];
@@ -9314,7 +9322,7 @@ window.odkpSyncLedger=async function(manual){
   const res=parseDkpDetailsCsv(csv);
   if(!res||res==='OLDFORMAT'){odkpSyncState.ledger={at:Date.now(),err:'ledger did not parse'};_odkpLedgerUi();return;}
   odkpTicks=res.ticks;
-  odkpTicksMeta={updatedAt:new Date().toISOString(),updatedBy:'ODKP sync',raidCount:res.raidCount,charNames:res.charNames,dkp:res.dkp,odkpSig:sig,mainName,acctSize};
+  odkpTicksMeta={updatedAt:new Date().toISOString(),updatedBy:'ODKP sync',raidCount:res.raidCount,charNames:res.charNames,dkp:res.dkp,odkpSig:sig,mainName,acctSize,items:res.items||[]};
   saveOdkpTicksToSupabase(res.raidCount);
   odkpSyncState.ledger={at:Date.now(),msg:res.ticks.length+' credited ticks'};
   _odkpLedgerUi();
@@ -9405,6 +9413,14 @@ let _projDkp=null;
 let projAdj=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_proj_adj')||'{}')||{}; }catch(e){ return {}; } })(), _projAdjVer=0;   // entry key → {v} (your value) | {del:true}
 let projManual=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_proj_manual')||'[]')||[]; }catch(e){ return []; } })();   // [{key, t, d:'YYYY-MM-DD', v}] your own entries
 function projAdjSave(){ _projAdjVer++; _projDkp=null; try{ localStorage.setItem('mp_proj_adj',JSON.stringify(projAdj)); localStorage.setItem('mp_proj_manual',JSON.stringify(projManual)); }catch(e){} }
+// one of your minus entries that ODKP has since charged: an item charge of the same value on your account, the day before to a
+// week after it (ledger), or that item in ODKP's history for one of your characters
+function projManualOnOdkp(x){
+  if(!(x.v<0)) return false;
+  const t0=Date.parse(x.d+'T12:00:00'), near=d=>{ const dd=(Date.parse(String(d).slice(0,10)+'T12:00:00')-t0)/864e5; return dd>=-1.5&&dd<=7.5; };
+  if(((odkpTicksMeta&&odkpTicksMeta.items)||[]).some(it=>Math.abs(it.v-x.v)<0.5&&near(it.d))) return true;
+  try{ const d=dkpFind(x.t); return !!(d&&Array.isArray(d[4])&&d[4].some(h=>aucIsMyAcct(h[0])&&Math.abs(Math.abs(+h[1])-Math.abs(x.v))<0.5&&near(h[2]))); }catch(e){ return false; }
+}
 function odkpProjected(me){
   const key=[me.bal,me.asOf,(raidSessions||[]).length,(odkpTicks||[]).length,(typeof aucPending!=='undefined'?aucPending.length:0),ccAcks.size,typeof _rkdVer!=='undefined'?_rkdVer:0,_projAdjVer].join('|');
   if(_projDkp&&_projDkp.key===key&&Date.now()-_projDkp.at<60e3) return _projDkp.v;
@@ -9413,7 +9429,8 @@ function odkpProjected(me){
     const cut=Date.now()-10*864e5, add=[];
     if(odkpTicks&&odkpTicks.length){
       const evts=ccCollectSessionEvents().filter(e=>Date.parse(e.date+'T23:59:59')>=cut), M=ccMatchAll(evts,ccBuildTickIndex());
-      evts.forEach((e,i)=>{ const m=M[i]; if(!m||m.status==='strong'||m.status==='valuemismatch'||m.status==='weak'||ccAcks.has(ccEvtKey(e))) return; if(e.expVal>0) add.push({key:'ev|'+ccEvtKey(e),kind:e.type,t:e.target+(e.type==='failtick'?' (failtick)':''),d:e.date,v:+e.expVal}); });
+      evts.forEach((e,i)=>{ const m=M[i]; if(!m||m.status==='strong'||m.status==='valuemismatch'||m.status==='weak'||ccAcks.has(ccEvtKey(e))) return; if(e.expVal>0){ const ds=(e.days||ccDatesAround(e.date)).slice().sort(); add.push({key:'ev|'+ccEvtKey(e),kind:e.type,t:e.target+(e.type==='failtick'?' (failtick)':''),d:e.date,v:+e.expVal,
+        why:'Raid History session of '+e.date.slice(5).replace('-','/')+': '+e.target+(e.type==='failtick'?' failtick':' kill')+' \u2014 no ODKP tick credited to you for it from '+ds[0].slice(5).replace('-','/')+' to '+ds[ds.length-1].slice(5).replace('-','/')}); } });
     }
     // ticks you were at in the same 10 days: your recorded hourlies ODKP hasn't credited (+), and ticks that aren't a kill and ODKP hasn't entered (count only — likely hourlies)
     let unk=0;
@@ -9425,10 +9442,12 @@ function odkpProjected(me){
     // your changes: a new value, or removed (kept aside so it can be restored)
     const removed=[], adj=x=>{ const a=projAdj[x.key]; if(!a) return x; if(a.del){ removed.push(x); return null; } return Object.assign({},x,{orig:x.v,v:+a.v,mod:true}); };
     const addA=add.map(adj).filter(Boolean);
-    for(const x of projManual) if(Date.parse(x.d+'T23:59:59')>=cut) addA.push({key:x.key,kind:'manual',t:x.t,d:x.d,v:+x.v||0});   // your own entries, 10 days like the rest
+    const charged=[];
+    for(const x of projManual) if(Date.parse(x.d+'T23:59:59')>=cut){ const e={key:x.key,kind:'manual',t:x.t,d:x.d,v:+x.v||0}; if(projManualOnOdkp(e)) charged.push(e); else addA.push(e); }   // your own entries, 10 days like the rest — not once ODKP charges them
     const wins=wins0.map(p=>{ const x=adj({key:'win|'+p.item+'|'+p.ts,kind:'win',t:p.item,who:p.who,d:localYmd(new Date(p.ts)),v:p.n}); return x&&Object.assign({},p,{n:x.v,key:x.key,mod:x.mod,orig:x.orig}); }).filter(Boolean);
     const plus=addA.reduce((t,x)=>t+x.v,0), minus=wins.reduce((t,p)=>t+p.n,0);
-    v={proj:Math.round((me.bal+plus-minus)*10)/10,plus:Math.round(plus*10)/10,minus:Math.round(minus*10)/10,add:addA,wins,unk,removed,bal:me.bal,asOf:me.asOf};
+    const pos=addA.filter(x=>x.v>0).reduce((t,x)=>t+x.v,0), neg=addA.filter(x=>x.v<0).reduce((t,x)=>t+x.v,0);
+    v={proj:Math.round((me.bal+plus-minus)*10)/10,plus:Math.round(plus*10)/10,pos:Math.round(pos*10)/10,neg:Math.round(-neg*10)/10,minus:Math.round(minus*10)/10,add:addA,wins,unk,removed,charged,bal:me.bal,asOf:me.asOf};
   }catch(e){ console.warn('[DKP] projected',e); }
   _projDkp={key,at:Date.now(),v}; return v;
 }
@@ -9439,17 +9458,18 @@ window.odkpProjModal=function(){
   if(!ov){ ov=document.createElement('div'); ov.id='projOverlay'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10040;display:flex;align-items:center;justify-content:center';
     ov.addEventListener('mousedown',e=>{ if(e.target===ov) ov.remove(); }); document.body.appendChild(ov); }
   const fmt=v=>(Math.round(v*10)/10).toLocaleString(), row=(x,sign,extra)=>'<tr data-pk="'+esc(x.key)+'" oncontextmenu="return projMenu(event,this.dataset.pk)" title="Right-click to add, modify or remove" style="cursor:context-menu">'
-      +'<td>'+esc(String(x.d||'').slice(5).replace('-','/'))+'</td><td>'+esc(x.t)+(extra||'')+(x.mod?' <span style="color:#b08020;font-size:.75em" title="Your value \u2014 was '+fmt(x.orig)+'">✎ edited</span>':'')+'</td>'
+      +'<td>'+esc(String(x.d||'').slice(5).replace('-','/'))+'</td><td'+(x.why?' title="'+esc(x.why)+'"':'')+'>'+esc(x.t)+(extra||'')+(x.mod?' <span style="color:#b08020;font-size:.75em" title="Your value \u2014 was '+fmt(x.orig)+'">✎ edited</span>':'')+'</td>'
       +'<td style="text-align:right;font-weight:600;color:'+(sign*(x.v<0?-1:1)>0?'#3a7a3a':'#c07050')+'">'+(sign*(x.v<0?-1:1)>0?'+':'\u2212')+fmt(Math.abs(x.v))+'</td></tr>';
   const kills=P.add.filter(x=>x.kind!=='manual'), mine=P.add.filter(x=>x.kind==='manual'), wins=P.wins.map(p=>({key:p.key,t:p.item,who:p.who,d:localYmd(new Date(p.ts)),v:p.n,mod:p.mod,orig:p.orig}));
   const sect=(title,note,rows)=>'<tr><td colspan="3" style="padding-top:.7rem;font-family:\'Cinzel\',serif;font-size:.72rem;color:var(--gold-light);letter-spacing:.06em">'+title+(note?' <span style="font-family:inherit;color:var(--text-muted);font-size:.9em;letter-spacing:0;text-transform:none">'+note+'</span>':'')+'</td></tr>'+rows;
   ov.innerHTML='<div oncontextmenu="return projMenu(event,null)" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.5);width:min(620px,94vw);max-height:86vh;overflow:auto;padding:1rem 1.2rem;font-size:.85rem">'
     +'<div style="display:flex;align-items:flex-start;gap:.6rem"><div style="flex:1"><div style="font-family:\'Cinzel\',serif;color:var(--gold-light);font-size:1rem">Projected DKP \u2014 '+fmt(P.proj)+'</div>'
-    +'<div style="color:var(--text-muted);font-size:.75rem" oncontextmenu="return projMenu(event,null)">'+fmt(P.bal)+' on ODKP (as of '+new Date(P.asOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+')'+(P.plus?' <span style="color:#3a7a3a">+'+fmt(P.plus)+'</span>':'')+(P.minus?' <span style="color:#c07050">\u2212'+fmt(P.minus)+'</span>':'')+' \u00b7 right-click to add, modify or remove</div></div>'
+    +'<div style="color:var(--text-muted);font-size:.75rem" oncontextmenu="return projMenu(event,null)">'+fmt(P.bal)+' on ODKP (as of '+new Date(P.asOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+')'+(P.pos?' <span style="color:#3a7a3a">+'+fmt(P.pos)+'</span>':'')+((P.neg||0)+P.minus?' <span style="color:#c07050">\u2212'+fmt((P.neg||0)+P.minus)+'</span>':'')+' \u00b7 right-click to add, modify or remove</div></div>'
     +'<button class="dkp-upload-btn" onclick="document.getElementById(\'projOverlay\').remove()">Close</button></div>'
     +'<table class="dkp-history-table" style="width:100%;margin-top:.4rem"><tbody>'
     +sect('NOT ON ODKP YET','Raid History kills / failticks / hourlies of the last 10 days with no ODKP credit',kills.length?kills.map(x=>row(x,1)).join(''):'<tr><td colspan="3" style="color:var(--text-muted)">none</td></tr>')
-    +(mine.length?sect('YOUR ENTRIES','added by you \u2014 they drop out after 10 days',mine.map(x=>row(x,1)).join('')):'')
+    +(mine.length?sect('YOUR ENTRIES','added by you \u2014 they drop out after 10 days, or once ODKP charges them',mine.map(x=>row(x,1)).join('')):'')
+    +((P.charged||[]).length?sect('NOW ON ODKP','your entries ODKP has charged since \u2014 already in the balance, not counted again',P.charged.map(x=>'<tr style="color:var(--text-muted)"><td>'+esc(String(x.d).slice(5).replace('-','/'))+'</td><td>'+esc(x.t)+' <span style="font-size:.85em">\u2713 charged on ODKP</span></td><td style="text-align:right">'+(x.v<0?'\u2212':'+')+Math.abs(x.v)+'</td></tr>').join('')):'')
     +sect('AUCTION WINS NOT CHARGED YET','your grats ODKP doesn\u2019t have yet',wins.length?wins.map(x=>row(x,-1,x.who?' <span style="color:var(--text-muted);font-size:.85em">('+esc(x.who)+')</span>':'')).join(''):'<tr><td colspan="3" style="color:var(--text-muted)">none</td></tr>')
     +(P.unk?sect('UNIDENTIFIED TICKS','not added',(()=>'<tr><td colspan="3" style="color:var(--text-muted)">'+P.unk+' tick'+(P.unk>1?'s':'')+' you were at that aren\u2019t a recorded kill and ODKP hasn\u2019t entered yet \u2014 likely hourlies (~2 each). Record them on Auto-Detect (right-click → Record as hourly).</td></tr>')()):'')
     +(P.removed.length?sect('REMOVED','right-click to restore',P.removed.map(x=>'<tr data-pk="'+esc(x.key)+'" oncontextmenu="return projMenu(event,this.dataset.pk)" style="opacity:.55;cursor:context-menu"><td>'+esc(String(x.d||'').slice(5).replace('-','/'))+'</td><td style="text-decoration:line-through">'+esc(x.t)+'</td><td style="text-align:right">'+(x.kind==='win'?'\u2212':'+')+fmt(x.v)+'</td></tr>').join('')):'')
@@ -9500,7 +9520,7 @@ function odkpHeaderDkp(){
     +'<div class="nw-header-note">updated '+new Date(asOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div>'
     +(()=>{ const P=odkpProjected(me); if(!P||(!P.add.length&&!P.wins.length&&!P.unk&&!(P.removed||[]).length)) return '';
       const tip='Projected '+P.proj+' DKP = '+bal+' on ODKP'
-        +(P.add.length?'\n+ '+P.plus+' from Raid History not on ODKP yet:\n'+P.add.map(x=>'   '+x.t+' '+x.d.slice(5).replace('-','/')+'  '+(x.v<0?'−'+(-x.v):'+'+x.v)).join('\n'):'')
+        +(P.add.length?'\n'+(P.plus<0?'\u2212 '+(-P.plus):'+ '+P.plus)+' from Raid History not on ODKP yet / your entries:\n'+P.add.map(x=>'   '+x.t+' '+x.d.slice(5).replace('-','/')+'  '+(x.v<0?'−'+(-x.v):'+'+x.v)).join('\n'):'')
         +(P.wins.length?'\n\u2212 '+P.minus+' auction wins ODKP hasn\u2019t charged yet:\n'+P.wins.map(p=>'   '+p.item+' ('+p.who+')  \u2212'+p.n).join('\n'):'')
         +(P.unk?'\n? '+P.unk+' tick'+(P.unk>1?'s':'')+' you were at that aren\u2019t a kill and ODKP hasn\u2019t entered yet \u2014 likely hourlies (~2 each), not added':'')
         +'\n\nRaid History kills of the last 10 days with no ODKP credit yet (Credit Check \u2717), ODKP can lag up to a week.';
@@ -10952,7 +10972,7 @@ const LVLD_STYLE={Warrior:'melee',Rogue:'melee',Monk:'monk',Paladin:'melee','Sha
 const LVLD_STYLE_NAME={melee:'melee',monk:'feign-death pulling',charm:'charm',pet:'pet',kite:'caster',priest:'priest'};
 // raid zones are never a leveling recommendation (owner, 2026-10-07) — Sky is 'Plane of Air' in the log
 const LVLD_RAID_ZONES=new Set(['Plane of Hate','Plane of Fear','Plane of Sky','Plane of Air','Plane of Growth']);
-const LVLD_SCAN_V=3;   // 2: quest turn-ins split from kills · 3: per-mob counts for the mob-level XP estimate — older scans are redone
+const LVLD_SCAN_V=4;   // 4: power-levelled rows (solo XP from another player's kills) flagged   // 2: quest turn-ins split from kills · 3: per-mob counts for the mob-level XP estimate — older scans are redone
 // XP per kill ≈ LVLD_XP_K × (mob level)², group kills × LVLD_XP_GROUP (P99 wiki NPC levels, mob-levels.js).
 // Calibrated 2026-10-07 on 123 finished levels from the owner's logs: typical error per level ±51% (counting kills: ±79%).
 // Con colour made no difference once kept monotonic; level² beat 1.5 / 1.75 / 2.5.
@@ -11010,7 +11030,7 @@ async function lvldUpload(){
   const names=Object.keys(lvldMine.chars||{}); if(!names.length) return;
   const rows=[];
   for(const n of names){ const r=lvldMine.chars[n], m=charMeta[n]||{};
-    for(const x of r.rows||[]){ const lv=(r.levels||{})[x.level]||{};
+    for(const x of r.rows||[]){ const lv=(r.levels||{})[x.level]||{}; if(x.pl) continue;   // power-levelled: not a leveling spot for anyone
       rows.push({char_name:n,class:m.class||null,race:m.race||null,level:x.level,zone:x.zone,hunt_ms:x.hunt_ms,played_ms:x.played_ms,xp_solo:x.xp_solo,xp_group:x.xp_group,deaths:x.deaths,xp_quest:x.xp_quest||0,xp_est:x.xp_est||0,xp_known:x.xp_known||0,
         level_xp_total:lv.xp||0,level_quest:lv.quest||0,level_done:!!lv.done,mobs:x.mobs||{},first_at:x.first_at?new Date(x.first_at).toISOString():null,last_at:x.last_at?new Date(x.last_at).toISOString():null}); } }
   try{
@@ -11098,7 +11118,7 @@ function lvldCalibration(){
 }
 // power-levelled: the kills' average mob level (P99 wiki levels, mob-levels.js) is far above the character's level
 function lvldMobAvg(r){ let sum=0,c=0; for(const [mb,n] of Object.entries(r.mobs||{})){ const ml=lvldMobLevel(mb,r.zone); if(ml==null) continue; sum+=ml*n; c+=n; } return c?sum/c:null; }
-function lvldPowerLevelled(r){ const a=lvldMobAvg(r); return a!=null&&a>r.level+Math.max(6,0.35*r.level); }
+function lvldPowerLevelled(r){ if(r.pl) return true; const a=lvldMobAvg(r); return a!=null&&a>r.level+Math.max(6,0.35*r.level); }   // r.pl: 30%+ of its XP from another player's kills (scan v4)
 function lvldSamples(rows,myCls,opt){
   opt=opt||lvldF; const out=[], cal=lvldCalibration();
   for(const r of rows){
@@ -11244,6 +11264,94 @@ function lvldClassGuide(name,cls,race,L){
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;flex-wrap:wrap;margin:.45rem 0 .35rem"><div style="font-size:.78rem;color:var(--text-muted)">Left: what the P99 wiki&rsquo;s Per-Level Hunting Guide suggests for '+esc(cls)+'s. Right: the fastest spots actually measured for '+esc(cls)+'s, time per level estimated for <b>'+esc(name)+'</b>. <span style="color:#2f6f2f;font-weight:700">✓ green</span> = both agree. '+(status?'<b>'+esc(status)+'</b>':'')+'</div>'+chip+'</div>'+
     '<div style="overflow-x:auto">'+t+'</div></details>');
 }
+// ---- leveling path: L → 60 in stages, solo or group ----
+function lvldPins(name,mode){ try{ return ((JSON.parse(localStorage.getItem('mp_lvl_pin')||'{}')[name])||{})[mode]||[]; }catch(e){ return []; } }
+window.lvldPathMode=function(m){ lvldF.path=m; lvldRefresh(); };
+window.lvldPin=function(name,lo,hi,zone){
+  const mode=lvldF.path||'solo';
+  try{ const o=JSON.parse(localStorage.getItem('mp_lvl_pin')||'{}'), c=o[name]||(o[name]={}), p=(c[mode]||[]).filter(x=>x.hi<lo||x.lo>hi);
+    if(zone) p.push({lo,hi,z:decodeURIComponent(zone)}); c[mode]=p; localStorage.setItem('mp_lvl_pin',JSON.stringify(o)); }catch(e){}
+  lvldRefresh();
+};
+// share of logged-in time spent hunting: median over finished levels (this character with 3+ levels, else every character on this PC)
+function lvldHuntShare(name){
+  const per=(rs,lv)=>{ const by={}; for(const x of rs){ if(x.pl||!((lv||{})[x.level]||{}).done||LVLD_RAID_ZONES.has(x.zone)) continue; const b=by[x.level]||(by[x.level]={h:0,p:0}); b.h+=x.hunt_ms||0; b.p+=x.played_ms||0; }
+    return Object.values(by).filter(b=>b.p>=30*60e3&&b.h>0).map(b=>Math.min(1,b.h/b.p)); };
+  const med=a=>{ a=a.slice().sort((x,y)=>x-y); return a[Math.floor(a.length/2)]; };
+  const me=(lvldMine.chars||{})[name]; let a=me?per(me.rows||[],me.levels):[], own=true;
+  if(a.length<3){ own=false; a=[]; for(const c of Object.values(lvldMine.chars||{})) a.push(...per(c.rows||[],c.levels)); }
+  return a.length>=3?{f:Math.max(0.35,Math.min(0.95,med(a))),own,n:a.length}:{f:0.74,own:false,n:0};
+}
+const LVLD_MELEE_TAG=new Set(['WAR','ROG','MNK','PAL','SHD','RNG','BRD','melee']);
+function lvldPath(name,cls,race,L,mode){
+  const mult=lvldMult(cls,race), sm=lvldSamples(lvldRowsAll(),cls,{mode,cls:false}), tags=lvldGuideFor(cls), pins=lvldPins(name,mode), caster=!tags.has('melee');
+  const wikiAt=(l,any)=>LEVELING_SPOTS.filter(sp=>{ const rg=_lvlSpotRange(sp,mode); return rg&&rg[0]<=l&&rg[1]>=l&&(any?!(caster&&sp.t.length&&sp.t.every(x=>LVLD_MELEE_TAG.has(x))):(!sp.t.length||sp.t.some(x=>tags.has(x)))); })
+    .sort((a,b)=>(b.t.some(x=>x!=='ALL'&&tags.has(x))-a.t.some(x=>x!=='ALL'&&tags.has(x)))||(_lvlSpotRange(b,mode)[1]-_lvlSpotRange(a,mode)[1]));   // this class's own spots, then the longest run
+  const lv=[]; let prev=null;
+  for(let l=L;l<=59;l++){
+    const zs=lvldZones(sm,l,mult).filter(a=>a.sure), pin=pins.find(p=>l>=p.lo&&l<=p.hi);
+    let pick=null;
+    if(pin){ const k=lvldZoneKey(pin.z), z=zs.find(a=>lvldZoneKey(a.zone)===k), m=z?null:lvldMeasure(sm,k,l-5,l+5,l,mult);
+      pick=z?{zone:z.zone,min:z.min,src:'meas',chars:z.chars.size,pin:true}:m&&(m.h>=0.75||m.n>=2)?{zone:pin.z,min:m.min,src:'near',chars:m.chars,pin:true}:{zone:pin.z,min:null,src:'wiki',pin:true}; }
+    else if(zs.length){ const best=zs[0], keep=prev&&zs.find(a=>lvldZoneKey(a.zone)===lvldZoneKey(prev)&&a.min<=best.min*1.15), z=keep||best;
+      pick={zone:z.zone,min:z.min,src:'meas',chars:z.chars.size}; }
+    else { let w=wikiAt(l), any=false; if(!w.length){ w=wikiAt(l,true); any=true; }   // nothing listed for this class: the spots other classes use
+      const keep=prev&&w.find(sp=>lvldZoneKey(sp.z)===lvldZoneKey(prev)), sp=keep||w[0];
+      pick=sp?{zone:sp.z,min:null,src:'wiki',where:sp.w,for:any?sp.t.filter(x=>x!=='ALL'):null}:{zone:null,min:null,src:'none'}; }
+    pick.l=l; pick.alts=zs.slice(0,6); lv.push(pick); prev=pick.zone;
+  }
+  // a one-level detour between two levels in the same zone: stay there when it is within 30%
+  for(let i=1;i<lv.length-1;i++){ const a=lv[i-1], b=lv[i+1], x=lv[i]; if(x.pin||!a.zone||lvldZoneKey(a.zone)!==lvldZoneKey(b.zone||'')||lvldZoneKey(a.zone)===lvldZoneKey(x.zone||'')) continue;
+    const z=x.alts.find(q=>lvldZoneKey(q.zone)===lvldZoneKey(a.zone)); if(z&&x.min!=null&&z.min<=x.min*1.3) Object.assign(x,{zone:z.zone,min:z.min,chars:z.chars.size}); }
+  // levels with no measured time: XP / minute from the nearest measured levels, scaled by level² (as the TO LEVEL 60 tile)
+  const meas=lv.map((x,i)=>x.min!=null?i:-1).filter(i=>i>=0), rate=i=>lvldNeed(lv[i].l)*mult/lv[i].min;
+  for(let i=0;i<lv.length;i++){ if(lv[i].min!=null||!meas.length) continue;
+    const lo=meas.filter(j=>j<i).pop(), hi=meas.find(j=>j>i), l=lv[i].l, at=j=>rate(j)*Math.pow(l/lv[j].l,2);
+    const r=lo!=null&&hi!=null?Math.exp(Math.log(at(lo))+(Math.log(at(hi))-Math.log(at(lo)))*(i-lo)/(hi-lo)):at(lo!=null?lo:hi);
+    lv[i].min=lvldNeed(l)*mult/r; lv[i].guess=true; }
+  const done=lvldXpGet(name,L)/100; if(lv.length&&lv[0].min!=null) lv[0].min*=1-done;
+  // stages: consecutive levels in one zone (and the same pin)
+  const st=[];
+  for(const x of lv){ const k=x.zone?lvldZoneKey(x.zone):'?', last=st[st.length-1];
+    if(last&&last.key===k&&!!last.pin===!!x.pin) { last.hi=x.l; last.min+=x.min||0; last.lv.push(x); if(x.min==null) last.gap=true; }
+    else st.push({key:k,zone:x.zone,lo:x.l,hi:x.l,min:x.min||0,gap:x.min==null,pin:!!x.pin,lv:[x]}); }
+  return {st,total:lv.reduce((a,x)=>a+(x.min||0),0),gap:lv.some(x=>x.min==null),nMeas:lv.filter(x=>x.src==='meas').length,n:lv.length,tags};
+}
+function lvldPathCard(name,cls,race,L){
+  if(!L||L>=60) return '';
+  const card=inner=>'<div style="border:1px solid var(--border);border-radius:5px;background:var(--surface);padding:.65rem .8rem;margin-top:.7rem">'+inner+'</div>';
+  const mode=lvldF.path||'solo', P=lvldPath(name,cls,race,L,mode), hs=lvldHuntShare(name), nm=encodeURIComponent(name);
+  const chip=(lbl,on,cb)=>'<button onclick="'+cb+'" style="font-size:.76rem;padding:.12rem .5rem;margin-left:.25rem;border-radius:3px;cursor:pointer;border:1px solid '+(on?'var(--gold)':'var(--border)')+';background:'+(on?'rgba(184,137,43,.14)':'transparent')+';color:var(--text)">'+lbl+'</button>';
+  const th='style="padding:.35rem .5rem;text-align:left;font-family:\'Cinzel\',serif;font-size:.7rem;letter-spacing:.05em;color:var(--text-muted);white-space:nowrap"';
+  const clock=m=>m?'~'+lvldFmt(m/hs.f):'—';
+  let t='<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr style="border-bottom:1px solid var(--border)"><th '+th+'>LEVELS</th><th '+th+'>ZONE</th><th '+th+'>HUNTING</th><th '+th+'>LOGGED IN</th><th '+th+'>BASED ON</th><th '+th+'>CHANGE</th></tr></thead><tbody>';
+  for(const x of P.st){
+    const lvls=x.lo===x.hi?x.lo+' → '+(x.lo+1):x.lo+'–'+x.hi+' → '+(x.hi+1), per=x.lv.length>1&&!x.gap?'<div style="font-size:.74rem;color:var(--text-muted)">~'+lvldFmt(x.min/x.lv.length)+' / level</div>':'';
+    const srcs=new Set(x.lv.map(v=>v.src)), guess=x.lv.some(v=>v.guess), chars=Math.max(0,...x.lv.map(v=>v.chars||0));
+    const based=srcs.has('none')?'<span style="color:var(--text-muted)">no data or wiki spot</span>'
+      :srcs.has('wiki')&&!srcs.has('meas')&&!srcs.has('near')?(function(){ const o=x.lv.find(v=>v.for); return '<span style="color:#a06020" title="'+keysAttr('The P99 wiki leveling guide lists this zone for these levels'+(o?' — for '+(o.for.join(', ')||'other classes')+', none listed for '+(cls||'this class'):'')+'; nobody in the guild has measured it yet.'+(guess?' The time comes from the measured levels around it.':''))+'">wiki'+(o&&o.for.length?' (for '+esc(o.for.join(', '))+')':'')+' — not measured</span>'; })()
+      :'measured'+(chars?' · '+chars+' char'+(chars===1?'':'s'):'')+(srcs.has('near')?' <span style="font-size:.74rem;color:var(--text-muted)">(nearby levels)</span>':'')+(srcs.has('wiki')||guess?' <span style="font-size:.74rem;color:#a06020">+ wiki</span>':'');
+    const where=x.lv.find(v=>v.where);
+    // change: the measured alternatives at the stage's first level plus the wiki spots for it
+    const opts=new Map(); for(const a of x.lv[0].alts) opts.set(lvldZoneKey(a.zone),a.zone+' — '+lvldFmt(a.min)+'/lvl');
+    for(const sp of LEVELING_SPOTS){ const rg=_lvlSpotRange(sp,mode), k=lvldZoneKey(sp.z); if(!rg||rg[1]<x.lo||rg[0]>x.lo||opts.has(k)||(sp.t.length&&!sp.t.some(y=>P.tags.has(y)))) continue; opts.set(k,sp.z+' — wiki'); }
+    const sel='<select style="font-size:.76rem;max-width:12rem" onchange="lvldPin(decodeURIComponent(\''+nm+'\'),'+x.lo+','+x.hi+',this.value)"><option value="">'+(x.pin?'📌 pinned':'other zone…')+'</option>'+
+      [...opts.entries()].filter(([k])=>k!==x.key).map(([k,v])=>'<option value="'+encodeURIComponent(v.replace(/ — .*$/,''))+'">'+esc(v)+'</option>').join('')+'</select>'+
+      (x.pin?' <button title="Unpin — back to the fastest zone" style="font-size:.74rem;padding:0 .35rem;cursor:pointer;background:transparent;border:1px solid var(--border);border-radius:3px;color:var(--text)" onclick="lvldPin(decodeURIComponent(\''+nm+'\'),'+x.lo+','+x.hi+',\'\')">✕</button>':'');
+    t+='<tr style="border-bottom:1px solid rgba(74,58,26,.2);vertical-align:top'+(x.lo===L?';background:rgba(184,137,43,.08)':'')+'"><td style="padding:.4rem .5rem;white-space:nowrap">'+lvls+'</td>'+
+      '<td style="padding:.4rem .5rem">'+(x.pin?'📌 ':'')+(x.zone?'<b>'+esc(x.zone)+'</b>':'<span style="color:var(--text-muted)">—</span>')+(where?'<div style="font-size:.74rem;color:var(--text-muted)">'+esc(where.where)+'</div>':'')+'</td>'+
+      '<td style="padding:.4rem .5rem;white-space:nowrap;font-weight:600">'+(x.min?(x.gap?'≥ ':'')+lvldFmt(x.min):'—')+per+'</td>'+
+      '<td style="padding:.4rem .5rem;white-space:nowrap;color:var(--text-muted)">'+clock(x.min)+'</td>'+
+      '<td style="padding:.4rem .5rem;font-size:.8rem">'+based+'</td><td style="padding:.4rem .5rem;white-space:nowrap">'+sel+'</td></tr>';
+  }
+  t+='<tr style="border-top:1px solid var(--border)"><td style="padding:.45rem .5rem;font-weight:700" colspan="2">To level 60</td><td style="padding:.45rem .5rem;font-weight:700;white-space:nowrap">'+(P.total?(P.gap?'≥ ':'≈ ')+lvldFmt(P.total):'—')+'</td><td style="padding:.45rem .5rem;font-weight:700;white-space:nowrap">'+clock(P.total)+'</td><td colspan="2" style="padding:.45rem .5rem;font-size:.78rem;color:var(--text-muted)">'+P.nMeas+' of '+P.n+' levels measured</td></tr></tbody></table>';
+  const style=mode==='solo'&&LVLD_STYLE[cls]?' Solo spots only count characters that solo like a '+esc(cls)+' ('+LVLD_STYLE_NAME[LVLD_STYLE[cls]]+').':'';
+  const share=Math.round(hs.f*100);
+  return card('<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.3rem;margin-bottom:.3rem"><div style="font-family:\'Cinzel\',serif;font-size:.82rem;letter-spacing:.06em;color:var(--gold-light)">LEVELING PATH — '+esc(name.toUpperCase())+' · '+L+' → 60</div>'+
+    '<div>'+chip('Solo',mode==='solo',"lvldPathMode('solo')")+chip('Group',mode==='group',"lvldPathMode('group')")+'</div></div>'+
+    '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.35rem">The fastest measured '+mode+' zone each level, kept while it stays within 15% of the best so you don&rsquo;t move every level; the P99 wiki&rsquo;s spots for '+(cls?esc(cls)+'s':'this class')+' where nobody has measured yet.'+style+' <b>Logged in</b> adds medding, travel and downtime: '+(hs.n?(hs.own?esc(name)+' hunts':'your characters hunt')+' ~'+share+'% of the time logged in (median of '+hs.n+' levels)':'assumes ~'+share+'% of logged-in time is hunting')+'. Pick another zone to pin it for that stage.</div>'+
+    '<div style="overflow-x:auto">'+t+'</div>');
+}
 function lvldSection(meta,myLvl){
   const name=(typeof activeTab!=='undefined'&&activeTab&&activeTab!=='__all__')?activeTab:null;
   if(!name) return '';
@@ -11304,6 +11412,7 @@ function lvldSection(meta,myLvl){
       '<div style="margin-top:.35rem;display:flex;align-items:center;gap:.35rem;color:var(--text)">Current XP <input type="number" min="0" max="99.9" step="1" value="'+(lvldXpGet(name,L)||'')+'" placeholder="0" title="How far into level '+L+' this character is (the XP bar in game)" onchange="lvldXpSet(decodeURIComponent(\''+encodeURIComponent(name)+'\'),'+L+',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()" style="width:3.6rem;font-size:.85rem;padding:.1rem .3rem;border:1px solid var(--border);border-radius:3px;background:var(--surface);color:var(--text)">% into level '+L+'</div>'):tile('LEVEL','60','max level'))+
     (L&&L<60?tile('TO LEVEL 60',to60?(to60Gap?'≥ ':'≈ ')+lvldFmt(to60):'—',(to60Meas<to60N?to60Meas+' of '+to60N+' levels measured, the rest estimated from nearby levels':'best measured spot each level')+' \u00b7 hunting time only \u2014 add medding, travel and corpse runs'):'')+
     '</div>';
+  html+=lvldPathCard(name,cls,race,L);
   // where people level near this level
   if(L&&L<60){
     const chip=(lbl,on,cb)=>'<button onclick="'+cb+'" style="font-size:.76rem;padding:.12rem .5rem;margin-left:.25rem;border-radius:3px;cursor:pointer;border:1px solid '+(on?'var(--gold)':'var(--border)')+';background:'+(on?'rgba(184,137,43,.14)':'transparent')+';color:var(--text)">'+lbl+'</button>';
@@ -14376,7 +14485,7 @@ function rkdActOnTick(r){
     if(_rkdKillNear(r.ts,r.id))return;
     if((r.cands||[]).some(b=>_rkdRecordedCount(b,r.ts)>0))return;
     item={target:null,full:null,noteText:(r.tier==='none'?'No boss':'Pick')+' · tick by '+(r.poster||'?'),timestamp:ts,when,auto:true,pick:true,rkdId:r.id,ev,
-      cands:(r.cands||[]).slice(),up:(r.upZone||[]).filter(b=>!(r.cands||[]).includes(b)),zone:r.zone||null,text:r.text||'',gap:rkdGapMin(r)};
+      cands:(r.cands||[]).slice(),up:(r.upZone||[]).filter(b=>!(r.cands||[]).includes(b)),zone:r.zone||null,text:r.text||'',gap:rkdGapMin(r),noBoss:r.tier==='none'};
   }else return;
   _todQueue.push(item);
   if(typeof showWatcherToast==='function')showWatcherToast((item.target?'⚔ Auto-Detect: confirm '+btLabel(item.target)+' kill':'⚔ Auto-Detect: which boss was the '+hm(r.ts)+' tick?')+(rkdLvlWarn(r)?' · ⚠ '+r.char+' is '+rkdLvlWarn(r).short:''));
@@ -14419,17 +14528,21 @@ window.rkdUndoAuto=function(id){
 // ── Hourly ticks (ToV "pain and suffering", Hate / Sky / Kael hourlies): no boss died — ODKP's label says which
 function rkdHourlyKind(zone){ return /temple of veeshan|plane of air|plane of sky|veeshan'?s peak/i.test(String(zone||''))?{desc:'Ticks - NToV/Sky/VP (hourly)',value:2,short:'NToV/Sky/VP hourly'}:{desc:'Ticks - Standard (hourly)',value:1,short:'Standard hourly'}; }
 const RKD_HR_CAT={ntov:'NToV/Sky/VP hourly',std:'Standard hourly',hot:'HoT farm',hotbonus:'HoT farm bonus',train:'Training',bnp:'Buff & Park'};
+// a No-boss tick that looks like an hourly: in ToV / Sky / VP always (31 of 38 there were, many 24–25 min after a kill tick),
+// elsewhere 55+ min after the tick before
+function rkdHourlyZone(zone){ return /temple of veeshan|plane of air|plane of sky|veeshan'?s peak/i.test(String(zone||'')); }
+function rkdHourlyLikely(noBoss,zone,gap){ return (noBoss&&rkdHourlyZone(zone))||(gap!=null&&gap>=55); }
 function rkdOdkpHourly(t){ try{ const k=t&&ccTickLedgerCat(t); return k&&RKD_HR_CAT[k.cat]||null; }catch(e){ return null; } }   // an ODKP tick that's an hourly-type tick, by Credit Check's rules
 function rkdGapMin(r){ let p=null; for(const x of rkdLog) if(x!==r&&x.ts<r.ts-RKD_TICK_DEDUPE&&(!p||x.ts>p.ts)) p=x; return p&&r.ts-p.ts<6*3600e3?Math.round((r.ts-p.ts)/60e3):null; }   // minutes since the tick before
-function rkdRecordHourly(r){   // into the Raid History session covering the tick (a new one dated to it if none), like an auto-add
-  const when=r.tod||r.ts, k=rkdHourlyKind(r.zone); let s=_rkdSessionAt(when);
+function rkdRecordHourly(r,kind){   // into the Raid History session covering the tick (a new one dated to it if none), like an auto-add
+  const when=r.tod||r.ts, k=kind||rkdHourlyKind(r.zone); let s=_rkdSessionAt(when);
   if(!s){ s=newSession(); const d=new Date(when); s.date=localYmd(d); s.startedAt=d.toISOString(); }
   if(!raidSessions.some(x=>x.id===s.id)) raidSessions.push(s);
   const saved=raidSessions.find(x=>x.id===s.id); _tickAddRow(saved,k.desc,k.value);
   if(activeSession&&activeSession!==saved&&activeSession.id===saved.id) _tickAddRow(activeSession,k.desc,k.value);
   saveSessionsToSupabase();
   r.confirm='hourly'; r.hourly={desc:k.desc,value:k.value,session:saved.id}; rkdSave();
-  if(typeof showWatcherToast==='function') showWatcherToast('⏱ '+k.short+' ('+k.value+' DKP) added to Raid History \u2014 right-click the tick to undo');
+  if(!kind&&typeof showWatcherToast==='function') showWatcherToast('⏱ '+k.short+' ('+k.value+' DKP) added to Raid History \u2014 right-click the tick to undo');
 }
 window.rkdMarkHourly=function(id){ const m=document.getElementById('rkdMenu'); if(m) m.style.display='none'; const r=rkdLog.find(x=>String(x.id)===String(id)); if(!r||r.confirm) return; rkdRecordHourly(r); if(typeof activeTopView!=='undefined'&&activeTopView==='kills') renderKillsPanel(); };
 window.rkdUndoHourly=function(id){
@@ -14439,6 +14552,17 @@ window.rkdUndoHourly=function(id){
   const s=raidSessions.find(x=>x.id===r.hourly.session); dec(s); if(activeSession&&activeSession!==s&&activeSession.id===r.hourly.session) dec(activeSession);
   saveSessionsToSupabase(); delete r.confirm; delete r.hourly; rkdSave();
   showWatcherToast('↶ Removed that hourly from Raid History'); renderKillsPanel();
+};
+// ODKP says the tick was an hourly but a kill was recorded for it: take the kill out, record the hourly (ODKP's kind)
+window.rkdToHourly=function(id,hrO){
+  const r=rkdLog.find(x=>String(x.id)===String(id)); if(!r) return; const kb=r.picked||r.boss; if(!kb) return;
+  const s=(r.autoSession&&raidSessions.find(x=>x.id===r.autoSession))||_rkdSessionAt(r.tod||r.ts), lbl=r.autoLabel||kb;
+  _rkdUnrecord(s,kb,lbl); if(s&&activeSession&&activeSession!==s&&activeSession.id===s.id) _rkdUnrecord(activeSession,kb,lbl);
+  delete r.confirm; delete r.picked;
+  const kind=/^Standard/.test(hrO||'')?{desc:'Ticks - Standard (hourly)',value:1,short:'Standard hourly'}:/^NToV/.test(hrO||'')?{desc:'Ticks - NToV/Sky/VP (hourly)',value:2,short:'NToV/Sky/VP hourly'}:/^Training/.test(hrO||'')?{desc:'Ticks - Training Events (hourly)',value:3,short:'Training'}:null;
+  rkdRecordHourly(r,kind);
+  showWatcherToast('⏱ '+btLabel(kb)+' kill removed \u2014 recorded as '+(kind?kind.short:rkdHourlyKind(r.zone).short)+' (ODKP: '+(hrO||'hourly')+')');
+  if(typeof activeTopView!=='undefined'&&activeTopView==='kills') renderKillsPanel();
 };
 window.rkdPickHourly=function(){ const item=_todQueue[0], r=item&&rkdLog.find(x=>x.id===item.rkdId); if(r&&!r.confirm) rkdRecordHourly(r); _todAdvance(); if(typeof activeTopView!=='undefined'&&activeTopView==='kills') renderKillsPanel(); };
 function rkdAutoResolved(item,how){
@@ -14494,7 +14618,7 @@ function showRkdPickModal(item){
       <div style="font-size:.62rem;color:#999;letter-spacing:.08em;margin:.7rem 0 .3rem">SEARCH ALL BOSSES</div>
       <input id="rkdPickSearch" type="text" placeholder="Type a boss name…" autocomplete="off" oninput="rkdPickFilter(this.value)" onkeydown="if(event.key==='Enter'){const f=document.querySelector('#rkdPickList [data-boss]');if(f)rkdPickBoss(decodeURIComponent(f.getAttribute('data-boss')));}" style="width:100%;box-sizing:border-box;background:#111;border:1px solid #555;color:#e8d5a0;padding:.4rem .5rem;font-size:.8rem;border-radius:3px;font-family:'Crimson Pro',serif">
       <div id="rkdPickList" style="max-height:150px;overflow-y:auto;margin-top:.2rem"></div>
-      ${(()=>{ const k=rkdHourlyKind(item.zone), sug=item.gap!=null&&item.gap>=55; return '<button type="button" onclick="rkdPickHourly()" title="No boss died — an hourly tick (ToV \u201cpain and suffering\u201d, Sky, Hate\u2026): adds '+k.short+' ('+k.value+' DKP) to this night in Raid History" style="width:100%;margin-top:.8rem;background:'+(sug?'#1f3a2a':'#1a1f1a')+';border:1px solid '+(sug?'#4caf7d':'#3a5a3a')+';color:'+(sug?'#9fe0b4':'#8fb89a')+';padding:.5rem .8rem;border-radius:3px;font-family:\'Cinzel\',serif;font-size:.76rem;cursor:pointer">⏱ Hourly \u2014 '+k.short+' ('+k.value+' DKP)'+(sug?' <span style="font-size:.66rem;opacity:.85">\u00b7 suggested: '+item.gap+' min since the last tick</span>':'')+'</button>'; })()}
+      ${(()=>{ const k=rkdHourlyKind(item.zone), sug=rkdHourlyLikely(item.noBoss,item.zone,item.gap), sugZ=item.noBoss&&rkdHourlyZone(item.zone); return '<button type="button" onclick="rkdPickHourly()" title="No boss died — an hourly tick (ToV \u201cpain and suffering\u201d, Sky, Hate\u2026): adds '+k.short+' ('+k.value+' DKP) to this night in Raid History" style="width:100%;margin-top:.8rem;background:'+(sug?'#1f3a2a':'#1a1f1a')+';border:1px solid '+(sug?'#4caf7d':'#3a5a3a')+';color:'+(sug?'#9fe0b4':'#8fb89a')+';padding:.5rem .8rem;border-radius:3px;font-family:\'Cinzel\',serif;font-size:.76rem;cursor:pointer">⏱ Hourly \u2014 '+k.short+' ('+k.value+' DKP)'+(sug?' <span style="font-size:.66rem;opacity:.85">\u00b7 suggested: '+(sugZ?'no boss seen in '+esc(item.zone):item.gap+' min since the last tick')+'</span>':'')+'</button>'; })()}
       <div style="display:flex;gap:.6rem;margin-top:.6rem">
         <button type="button" onclick="todAutoDismiss()" title="Hourly / attendance tick, or not a kill — never ask about this tick again" style="flex:1;background:#2a1a1a;border:1px solid #5a2a2a;color:#a46a6a;padding:.5rem .8rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Not a kill</button>
         ${_todQueue.length>1?`<button type="button" onclick="_todSkipAll()" style="background:#1a1a1a;border:1px solid #444;color:#666;padding:.5rem .8rem;border-radius:3px;font-family:'Cinzel',serif;font-size:.72rem;cursor:pointer">Skip All</button>`:''}
@@ -14561,14 +14685,18 @@ function renderAutoDetectPanel(){
     </tr>`).join('');
   const body=pending+rows.map(r=>{
     const [tl,tc]=TIER[r.tier]||TIER.none;
-    const _o0=odkpState(r), hrO=_o0.k==='ok'?rkdOdkpHourly(_o0.t):null, hrMine=r.confirm==='hourly'&&r.hourly, _gap=!r.boss&&!r.confirm&&_rkdAttended(r)&&(r.tier==='none'||r.tier==='ambiguous')?rkdGapMin(r):null;
+    const _o0=odkpState(r), hrO=_o0.k==='ok'?rkdOdkpHourly(_o0.t):null, hrMine=r.confirm==='hourly'&&r.hourly, _gap=!r.boss&&!r.confirm&&_rkdAttended(r)&&(r.tier==='none'||r.tier==='ambiguous')?rkdGapMin(r):null, _hrLikely=!r.boss&&!r.confirm&&_rkdAttended(r)&&(r.tier==='none'||r.tier==='ambiguous')&&rkdHourlyLikely(r.tier==='none',r.zone,_gap);
     const who=hrO?'<span title="ODKP lists this tick as '+esc(hrO)+': '+esc(_o0.t.l)+'">⏱ '+esc(hrO)+'</span>'+(r.boss||r.tier==='ambiguous'?'<div style="font-size:.68rem;font-weight:400;color:var(--text-muted)">fought: '+esc(r.boss||(r.cands||[]).join(' / '))+'</div>':'')
       :hrMine?'⏱ '+esc(rkdHourlyKind(r.zone).short)
-      :r.tier==='ambiguous'?(r.cands||[]).map(esc).join(' / '):r.boss?esc(r.boss):(_gap!=null&&_gap>=55?'<span style="color:var(--text-muted);font-weight:400" title="'+_gap+' min since the tick before, no boss died \u2014 right-click → Record as hourly">⏱ hourly?</span>':'<span style="color:var(--text-muted)">—</span>');
+      :r.tier==='ambiguous'?(r.cands||[]).map(esc).join(' / '):r.boss?esc(r.boss):(_hrLikely?'<span style="color:var(--text-muted);font-weight:400" title="'+(r.tier==='none'&&rkdHourlyZone(r.zone)?'No boss seen in '+esc(r.zone)+' \u2014 there that is an hourly most of the time (31 of 38)':_gap+' min since the tick before, no boss died')+' \u2014 right-click → Record as hourly">⏱ hourly?</span>':'<span style="color:var(--text-muted)">—</span>');
     let rec='';
     if(r.confirm==='nknc'){}   // an attempt: nothing to record
     else if(hrMine) rec='<span style="color:#4caf7d" title="Added to Raid History as '+esc(r.hourly.desc)+' \u2014 right-click to undo">⏱ in tracker</span>';
-    else if(hrO){}   // ODKP's hourly: nothing to record as a kill
+    else if(hrO){   // ODKP's hourly: nothing to record as a kill — unless one was recorded for this tick (10-4 Sontalak)
+      const kb=r.picked||r.boss, oth=kb&&rkdLog.some(x=>x!==r&&(x.picked||x.boss)===kb&&Math.abs(x.ts-r.ts)<12*3600e3&&(()=>{ const q=odkpState(x); return q.k==='ok'&&tickPolarity(q.t.l)==='kill'&&!rkdOdkpHourly(q.t); })());
+      if(kb&&!oth&&(r.confirm==='auto'||r.confirm==='confirmed'||r.confirm==='added')&&_rkdRecordedCount(kb,r.tod||r.ts)>0)
+        rec='<span style="color:#c48a3a" title="ODKP lists this tick as '+esc(hrO)+' ('+esc(_o0.t.l)+'), but a '+esc(btLabel(kb))+' kill is in Raid History for it">⚠ ODKP: hourly</span> <a href="#" onclick="rkdToHourly(decodeURIComponent(\''+encodeURIComponent(r.id)+'\'),decodeURIComponent(\''+encodeURIComponent(hrO)+'\'));return false" title="Take the '+esc(btLabel(kb))+' kill out of Raid History and record this tick as '+esc(hrO)+'" style="color:var(--gold-light)">→ hourly</a>';
+    }
     else if(r.boss){
       const n=(r.tier==='strong'||r.tier==='weak')?rankOf(r):1, have=_rkdRecordedCount(r.boss,r.tod||r.ts);
       rec=have>=n?'<span style="color:#4caf7d" title="Marked in the kill tracker">✓ in tracker'+(n>1?' (#'+n+')':'')+'</span>'
@@ -15046,7 +15174,7 @@ function parseDkpDetailsCsv(text){
         iVal=hd.indexOf('Value');
   if(iDate<0||iType<0||iSrc<0||iTick<0)return null;
   const TICK_START=/\d{1,2}-\d{1,2}\s+\d{1,2}:\d{2}\s/g;
-  const ticks=[],seen=new Set(),raidIds=new Set(),charNames=new Set();
+  const ticks=[],seen=new Set(),raidIds=new Set(),charNames=new Set(),items=[],itemCut=localYmd(new Date(Date.now()-45*864e5));
   let dkpEarned=0,dkpSpent=0,dkpAdjust=0;
   for(let r=1;r<rows.length;r++){
     const cols=rows[r];
@@ -15056,7 +15184,7 @@ function parseDkpDetailsCsv(text){
     // one tick credited to two characters of an account counts twice in ODKP too (Frown 8/16 Dozekar: Folic + Fled).
     const val=iVal>=0?(parseFloat(cols[iVal])||0):0;
     if(srcType==='Raid')dkpEarned+=val;
-    else if(srcType==='Item')dkpSpent+=val;
+    else if(srcType==='Item'){ dkpSpent+=val; const di=(cols[iDate]||'').trim().slice(0,10); if(di>=itemCut) items.push({d:di,v:val,c:iChar>=0?(cols[iChar]||'').trim():''}); }   // item charges (Projected DKP: your entries ODKP has since charged)
     else if(srcType==='Adjustment')dkpAdjust+=val;
     if(tid&&tid!=='0'){if(seen.has(tid))continue;seen.add(tid);}
     if(srcType!=='Raid')continue;
@@ -15086,7 +15214,7 @@ function parseDkpDetailsCsv(text){
   }
   const r1=x=>Math.round(x*10)/10;
   const dkp=iVal>=0?{balance:r1(dkpEarned+dkpSpent+dkpAdjust),earned:r1(dkpEarned),spent:r1(dkpSpent),adjust:r1(dkpAdjust)}:null;
-  return{ticks,raidCount:raidIds.size,charNames:[...charNames],dkp};
+  return{ticks,raidCount:raidIds.size,charNames:[...charNames],dkp,items};
 }
 
 // Pull every checkable event out of session history:
@@ -15105,17 +15233,17 @@ function ccExpectedValue(target,date){
 function ccCollectSessionEvents(){
   const evts=[];
   for(const s of [...raidSessions].sort((a,b)=>(b.date||'').localeCompare(a.date||''))){
-    const keyDate=s.date0||s.date;
+    const keyDate=s.date0||s.date, days=ccSessionDays(s);
     for(const[target,st] of Object.entries(s.killState||{})){
       const ev=ccExpectedValue(target,s.date);
-      if(st==='killed')evts.push({date:s.date,keyDate,target,type:'kill',expVal:ev?ev.kill:null});
-      else if(st==='failtick')evts.push({date:s.date,keyDate,target,type:'failtick',expVal:ev?ev.failtick:null});
+      if(st==='killed')evts.push({date:s.date,keyDate,days,target,type:'kill',expVal:ev?ev.kill:null});
+      else if(st==='failtick')evts.push({date:s.date,keyDate,days,target,type:'failtick',expVal:ev?ev.failtick:null});
     }
     for(const es of (s.extraSpawns||[])){
       const ev=ccExpectedValue(es.base,s.date);
       const spawnNum=parseInt(String(es.key||'').split('__')[1],10)||2;
-      if(es.state==='killed')evts.push({date:s.date,keyDate,target:es.base,type:'kill',extra:true,spawnNum,expVal:ev?ev.kill:null});
-      else if(es.state==='failtick')evts.push({date:s.date,keyDate,target:es.base,type:'failtick',extra:true,spawnNum,expVal:ev?ev.failtick:null});
+      if(es.state==='killed')evts.push({date:s.date,keyDate,days,target:es.base,type:'kill',extra:true,spawnNum,expVal:ev?ev.kill:null});
+      else if(es.state==='failtick')evts.push({date:s.date,keyDate,days,target:es.base,type:'failtick',extra:true,spawnNum,expVal:ev?ev.failtick:null});
     }
     // Hourlies / HoT Farm / BnP are reconciled per raid night by ccTickLedger().
   }
@@ -15136,6 +15264,19 @@ function ccDatesAround(d){
   const b=new Date(d+'T12:00:00Z');
   return [0,1,-1].map(off=>new Date(b.getTime()+off*86400000).toISOString().slice(0,10));
 }
+// A session left open over several nights keeps its first date (10/17 session, kills ODKP has on 10-18 / 10-19): its
+// events match ticks from its date ±1 on through the day after its last kill, up to a week. Nearest days still rank first.
+function ccSessionDays(s){
+  const out=ccDatesAround(s.date); if(!s.lastKillAt) return out;
+  const last=localYmd(new Date(s.lastKillAt)); if(!(last>s.date)) return out;
+  const b=new Date(s.date+'T12:00:00Z');
+  for(let off=2;off<=7;off++){ const d=new Date(b.getTime()+off*86400000).toISOString().slice(0,10); if(d>localYmd(new Date(Date.parse(s.lastKillAt)+86400000))) break; out.push(d); }
+  return out;
+}
+// ODKP files hourlies under a nearby boss ("Feshlak 1 (Hourly - pain and suffering)", 2 DKP): a tick that reads as an
+// hourly and pays less than the kill is not that boss's credit ("Zlexak 1 (hourly)" at 4.5 = kill + hour still is)
+function ccHourlyOnly(target,t){ const b=BOSS_ROSTER.find(x=>x.target===target), killV=b?(b.dkp||0)+(b.baseDkp||0):0;
+  return t.pol==='neutral'&&killV>0&&t.v!=null&&t.v<killV-0.3&&!!ccTickLedgerCat(t); }
 
 // Match one event → {status:'strong'|'valuemismatch'|'weak'|'missing', tick, note, creditedVal, expectedVal}
 // Candidate ranking: same-day right-polarity > same-day neutral > adjacent-day,
@@ -15163,10 +15304,11 @@ function ccMatchEvent(evt,byDate){
     if(found>0)return{status:'weak',tick:'only '+found+' of '+evt.qty+' hourly ticks found',note:'hourly count short',creditedVal,expectedVal:evt.expVal};
     return{status:'missing',tick:null};
   }
-  const days=ccDatesAround(evt.date);
+  const days=evt.days||ccDatesAround(evt.date);
   const cands=[];
-  for(let i=0;i<days.length;i++)for(const t of (byDate[days[i]]||[]))if(t.targets.has(evt.target))cands.push({t,dayOff:i});
-  if(!cands.length)return{status:'missing',tick:null};
+  const hrOnly=t=>ccHourlyOnly(evt.target,t), hrSkip=[];
+  for(let i=0;i<days.length;i++)for(const t of (byDate[days[i]]||[]))if(t.targets.has(evt.target)){ if(hrOnly(t)) hrSkip.push(t); else cands.push({t,dayOff:i}); }
+  if(!cands.length)return{status:'missing',tick:null,note:hrSkip.length?'ODKP only has an hourly tick for this boss: '+hrSkip[0].l:undefined};
   const wrongPol=evt.type==='failtick'?'kill':'nokill';
   const rank=c=>(c.t.pol===wrongPol?100:0)+c.dayOff*10+(c.t.pol==='neutral'?1:0);
   cands.sort((a,b)=>rank(a)-rank(b));
@@ -15190,10 +15332,11 @@ function ccMatchAll(evts,byDate){
   const pairs=[];
   evts.forEach((evt,ei)=>{
     if(evt.type==='hourly'){out[ei]=ccMatchEvent(evt,byDate);return;}
-    const days=ccDatesAround(evt.date);
+    const days=evt.days||ccDatesAround(evt.date);
     const wrongPol=evt.type==='failtick'?'kill':'nokill';
     for(let i=0;i<days.length;i++)for(const t of (byDate[days[i]]||[])){
       if(!t.targets.has(evt.target))continue;
+      if(ccHourlyOnly(evt.target,t)){ (evt._hr=evt._hr||t); continue; }   // an hourly named after the boss isn't its kill
       const valOk=evt.expVal==null||t.v==null||Math.abs(t.v-evt.expVal)<=CC_VALUE_TOLERANCE;
       pairs.push({ei,t,dayOff:i,rank:(t.pol===wrongPol?100:0)+i*10+(valOk?0:3)+(t.pol==='neutral'?1:0)});
     }
@@ -15219,7 +15362,7 @@ function ccMatchAll(evts,byDate){
     if(out[ei])return;
     out[ei]=had.has(ei)
       ?{status:'missing',tick:null,note:'every matching tick is already credited to another '+evt.target+' kill'}
-      :{status:'missing',tick:null};
+      :{status:'missing',tick:null,note:evt._hr?'ODKP only has an hourly tick for this boss: '+evt._hr.l:undefined};
   });
   out.claimed=claimed;
   return out;
@@ -15264,7 +15407,7 @@ function ccTickLedgerCat(t){
   if(/hot farm/i.test(l))return{cat:/speed bonus|full clear/i.test(l)?'hotbonus':'hot',qty:1};
   if(/training/i.test(l))return{cat:'train',qty:1};
   const targets=odkpTickTargets(l);
-  const hourWord=/\bhour(ly|s|lies)?\b|\bhr\b|pain and suffering|active camp/i.test(l);   // also "Two hourlies, much pain", "Jorlleag active camp" (ToV hourlies)
+  const hourWord=/\bhour(ly|s|lies)?(\b|(?=\d))|\bhr\b|pain and suffering|active camp/i.test(l);   // "hourly2" too (09-24 NTOV hourly2)   // also "Two hourlies, much pain", "Jorlleag active camp" (ToV hourlies)
   const zoneHourly=!targets.size&&!/kill/i.test(l)&&
     /^(\d{1,2}-\d{1,2}(\s+\d{1,2}:\d{2})?\s+)?(ntov|n tov|plane of sky|sky|vp|veeshan'?s peak)\b/i.test(ccScrubOuter(l));
   if(!hourWord&&!zoneHourly)return null;
@@ -16313,11 +16456,17 @@ function btParkedInLoc(locId, roster){
   return Object.values(roster).some(o => (o.zone && zset.indexOf(parkNormZone(o.zone)) >= 0) || (o.bind && zset.indexOf(parkNormZone(o.bind)) >= 0));
 }
 function btParkCycleEnd(s){ const now = Date.now(); return s && s.close != null ? s.close : Math.max(s && s.open != null ? s.open : now, now) + 24*BT_HR; }   // unknown width: a day
-function btParkMuted(key, open){ const v = btParkAck[key]; return !!v && (typeof v === 'object' ? Date.now() < v.until : v === open); }
-function btParkAckStore(){ const now = Date.now(); for(const k in btParkAck){ const v = btParkAck[k]; if(v && typeof v === 'object' && v.until < now) delete btParkAck[k]; }
+function btParkMuted(key, open){ const v = btParkAck[key]; return !!v && (typeof v === 'object' ? (!!v.forever || Date.now() < v.until) : v === open); }
+function btParkForever(key){ const v = btParkAck[key]; return !!(v && typeof v === 'object' && v.forever); }
+function btParkAckStore(){ const now = Date.now(); for(const k in btParkAck){ const v = btParkAck[k]; if(v && typeof v === 'object' && !v.forever && v.until < now) delete btParkAck[k]; }
   try{ localStorage.setItem('mp_park_ack', JSON.stringify(btParkAck)); }catch(e){} btSave(); btRenderParkWarn(); }
 function btParkAcknowledge(t){ const s = btState[t]; if(s) btParkAck[t] = { until: btParkCycleEnd(s) }; btParkAckStore(); }
 function btParkAckLoc(loc, until){ btParkAck['@'+loc] = { until }; btParkAckStore(); }
+// muted until turned back on (a boss, or '@loc' for a rolled-up group)
+function btParkMuteKey(key){ btParkAck[key] = { forever:true }; btParkAckStore(); if(typeof showWatcherToast==='function') showWatcherToast('🔇 Parking alerts muted for '+btParkKeyLabel(key)+' \u2014 Settings \u2192 Raids to turn them back on'); }
+window.btParkUnmute=function(key){ delete btParkAck[key]; btParkAckStore(); if(typeof activeTopView!=='undefined'&&activeTopView==='settings'&&typeof renderSettingsPanel==='function') renderSettingsPanel(); };
+function btParkKeyLabel(key){ return key.charAt(0)==='@' ? ({ '@wwtov':'Temple of Veeshan' }[key] || key.slice(1)) : btLabel(key); }
+function btParkMutedList(){ return Object.keys(btParkAck).filter(btParkForever); }
 // A parked target is green-covered unless its location's mapped bosses are still on timer ('soon') or their
 // timers are unknown ('unknown': amber, the yellow tier). Up / in-window / no-mapped-boss stay green (see btLocHeat).
 function parkCoveredNow(t, roster){
@@ -16335,7 +16484,7 @@ function btNoteTod(target, ms){
   });
 }
 // Banner: bosses within 12h of window (or in window) mapped to a park loc with nobody parked.
-window.parkMenu=function(ev,ack,label){
+window.parkMenu=function(ev,ack,label,mkey){
   ev.preventDefault();
   let m=document.getElementById('parkMenu');
   if(!m){
@@ -16348,6 +16497,7 @@ window.parkMenu=function(ev,ack,label){
   const row=(txt,js,tip)=>'<div title="'+tip+'" onclick="document.getElementById(\'parkMenu\').style.display=\'none\';'+js+'" onmouseover="this.style.background=\'rgba(201,168,76,.15)\'" onmouseout="this.style.background=\'\'" style="padding:.35rem .8rem;cursor:pointer">'+txt+'</div>';
   m.innerHTML='<div style="padding:.2rem .8rem;font-size:.66rem;color:var(--text-muted);letter-spacing:.06em">'+esc(String(label).toUpperCase())+'</div>'
     +row('🔕 Mute for this cycle',decodeURIComponent(ack),'Hide this alert until the next spawn window')
+    +(mkey?row('🔇 Mute <b>'+esc(label)+'</b> until I turn it back on',"btParkMuteKey(decodeURIComponent('"+encodeURIComponent(mkey).replace(/'/g,'%27')+"'))",'Never warn about this one again until you unmute it (Settings → Raids → Parking alerts)'):'')
     +row('Turn off all parking alerts',"stgDo('parkwarn','off')",'Settings → Raids → Parking alerts');
   m.style.display='block';
   const r=m.getBoundingClientRect();
@@ -16368,6 +16518,7 @@ function btRenderParkWarn(){
   for(const t in btState){
     const loc = BT_PARK_LOC[t]; if(!loc) continue;
     if(btLocIgnored(loc)) continue;              // cogwheel-hidden raid -> no alert
+    if(btParkForever(t)) continue;               // muted until turned back on (also out of the roll-up line)
     const s = btState[t]; const st = btStatusOf(s);
     const imminent = (st.k === 'open') || (st.k === 'soon' && st.inMs <= 12*BT_HR);
     if(!imminent) continue;
@@ -16395,7 +16546,8 @@ function btRenderParkWarn(){
     const ack = w.rollup
       ? "btParkAckLoc('" + w.loc + "'," + w.until + ")"
       : "btParkAcknowledge(decodeURIComponent('" + encodeURIComponent(w.t).replace(/'/g,'%27') + "'))";
-    return '<div oncontextmenu="return parkMenu(event,\'' + encodeURIComponent(ack).replace(/'/g,'%27') + '\',decodeURIComponent(\'' + encodeURIComponent(label).replace(/'/g,'%27') + '\'))" title="Right-click: mute for this cycle" style="display:flex;align-items:center;gap:.4rem;padding:.18rem .5rem;background:rgba(160,120,40,.14);border:1px solid var(--gold);border-radius:4px;margin-bottom:.22rem;white-space:nowrap;cursor:context-menu">' +
+    const mkey = w.rollup ? '@' + w.loc : w.t;
+    return '<div oncontextmenu="return parkMenu(event,\'' + encodeURIComponent(ack).replace(/'/g,'%27') + '\',decodeURIComponent(\'' + encodeURIComponent(label).replace(/'/g,'%27') + '\'),decodeURIComponent(\'' + encodeURIComponent(mkey).replace(/'/g,'%27') + '\'))" title="Right-click: mute for this cycle, or mute this boss until you turn it back on" style="display:flex;align-items:center;gap:.4rem;padding:.18rem .5rem;background:rgba(160,120,40,.14);border:1px solid var(--gold);border-radius:4px;margin-bottom:.22rem;white-space:nowrap;cursor:context-menu">' +
       '<span style="font-size:.72rem;line-height:1">\u26a0\ufe0f</span>' +
       '<span style="flex:1;min-width:0;font-size:.72rem;overflow:hidden;text-overflow:ellipsis"><b>' + esc(label) + '</b> ' + when + ' \u2014 <span style="color:#c98a3a">no toon parked</span></span>' +
       '<button class="btn" style="font-size:.6rem;padding:.1rem .4rem;flex:0 0 auto" onclick="' + ack + '">Ack</button>' +
@@ -17199,6 +17351,11 @@ function headerBtnsSync(){
 setTimeout(headerBtnsSync,0); setTimeout(headerBtnsSync,4000); setTimeout(headerBtnsSync,15000);   // CH chain's Auto depends on your characters loading
 // ══ PL helper (2026-10-18): kills this pull, ✓ XP / ✗ missed tag, mobs not hit yet — its own window ══
 function plMode(){ try{ const v=localStorage.getItem('mp_pl_mode'); return v==='on'||v==='auto'?v:'off'; }catch(e){ return 'off'; } }   // off unless switched on
+function plTagSound(){ try{ const v=localStorage.getItem('mp_pl_tagsnd'); return v==='off'||v==='voice'?v:'click'; }catch(e){ return 'click'; } }   // a sound on each new tag — your cue to tab (on by default)
+function plSameBeep(){ try{ _plClickCtx=_plClickCtx||new (window.AudioContext||window.webkitAudioContext)(); const c=_plClickCtx; for(const d of [0,0.13]){ const o=c.createOscillator(), g=c.createGain(); o.type='square'; o.frequency.value=330; const t0=c.currentTime+d; g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(0.18*(spellTimerVolume()||0.6),t0+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t0+0.09); o.connect(g).connect(c.destination); o.start(t0); o.stop(t0+0.1); } }catch(e){} }
+let _plSameSeen={};
+let _plTagSeen={}, _plClickCtx=null;
+function plTagBeep(){ try{ _plClickCtx=_plClickCtx||new (window.AudioContext||window.webkitAudioContext)(); const c=_plClickCtx, o=c.createOscillator(), g=c.createGain(); o.type='triangle'; o.frequency.value=1320; g.gain.setValueAtTime(0.0001,c.currentTime); g.gain.exponentialRampToValueAtTime(0.25*(spellTimerVolume()||0.6),c.currentTime+0.01); g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+0.09); o.connect(g).connect(c.destination); o.start(); o.stop(c.currentTime+0.1); }catch(e){} }
 function plVoiceOn(){ try{ return localStorage.getItem('mp_pl_voice')!=='0'; }catch(e){ return true; } }
 let _plCur=null, _plMissSeen={};
 function plOnState(st){
@@ -17213,6 +17370,12 @@ function plOnState(st){
   if(window.MixelParseApp&&window.MixelParseApp.popPl&&!st.quiet&&(plMode()==='on'||pl)) try{ window.MixelParseApp.popPl(); }catch(e){}   // pops up on its own only when power-levelling (Auto)
   const key=st.char+'|'+st.start; if((_plMissSeen[key]||0)<st.missed){ if(_plMissSeen[key]!=null&&plVoiceOn()&&window.speechSynthesis&&typeof SpeechSynthesisUtterance!=='undefined') try{ const u=new SpeechSynthesisUtterance('Missed tag'); u.volume=spellTimerVolume(); window.speechSynthesis.speak(u); }catch(e){} }
   _plMissSeen[key]=st.missed;
+  // a sound on each new tag (Settings → PL helper)
+  const tk=st.char+'|'+st.start, mode=plTagSound();
+  if(_plTagSeen[tk]!=null&&(st.tags||0)>_plTagSeen[tk]&&mode!=='off'){ if(mode==='voice'&&window.speechSynthesis&&typeof SpeechSynthesisUtterance!=='undefined'){ try{ const u=new SpeechSynthesisUtterance('Tagged'); u.rate=1.3; u.volume=spellTimerVolume(); window.speechSynthesis.speak(u); }catch(e){} } else plTagBeep(); }
+  _plTagSeen[tk]=st.tags||0;
+  if(_plSameSeen[tk]!=null&&(st.same||0)>_plSameSeen[tk]&&mode!=='off'){ if(mode==='voice'&&window.speechSynthesis&&typeof SpeechSynthesisUtterance!=='undefined'){ try{ const u=new SpeechSynthesisUtterance('Tab'); u.rate=1.3; u.volume=spellTimerVolume(); window.speechSynthesis.speak(u); }catch(e){} } else plSameBeep(); }   // the same one again — tab
+  _plSameSeen[tk]=st.same||0;
 }
 if(window.MixelParseApp&&window.MixelParseApp.onPlWindowReady) window.MixelParseApp.onPlWindowReady(()=>{ if(_plCur) try{ window.MixelParseApp.pushPlState(_plCur); }catch(e){} });
 window.plToggle=function(){ if(plMode()==='off'){ try{ localStorage.setItem('mp_pl_mode','on'); }catch(e){} showWatcherToast('⚔ PL helper turned on \u2014 Settings \u2192 PL helper to change'); }
@@ -17741,6 +17904,7 @@ window.stgDo=function(what,v){
   else if(what==='capdisp'){ stgSet('mp_cap_display',v); capRefresh(); }
   else if(what==='plmode'){ setTimeout(headerBtnsSync,0); stgSet('mp_pl_mode',v); if(v==='off'&&window.MixelParseApp&&window.MixelParseApp.closePl) window.MixelParseApp.closePl(); }
   else if(what==='plvoice'){ stgSet('mp_pl_voice',v==='on'?'1':'0'); }
+  else if(what==='pltagsnd'){ stgSet('mp_pl_tagsnd',v); if(v==='click') plTagBeep(); }
   else if(what==='chturn'){ stgSet('mp_ch_turn',v); if(v==='off'){ chTurnClear(); chChainPush(); } }
   else if(what==='chmode'){ setTimeout(headerBtnsSync,0); stgSet('mp_ch_mode',v); if(!chChainOn()&&window.MixelParseApp&&window.MixelParseApp.closeChChain) window.MixelParseApp.closeChChain(); }
   else if(what==='tellson'){ stgSet('mp_tells_on',v==='on'?'1':'0'); tellsNavCount(); }
@@ -17988,12 +18152,14 @@ function renderSettingsPanel(){
   h+=card('RAIDS',
     item('Auto-Detect','How raid ticks found in your logs are handled.',
       pick('rkd',rkdMode(),[['watch','Watch','Lists what it finds; never adds anything'],['active','Active','Adds strong matches to the Raid Kill Tracker, asks about the rest']]))+
-    item('Parking alerts','The gold lines under the top bar when a raid target is up or due within 12 hours and nobody is parked there.',pick('parkwarn',btParkWarnOn()?'on':'off',[['on','On'],['off','Off']]))+
+    item('Parking alerts','The gold lines under the top bar when a raid target is up or due within 12 hours and nobody is parked there. Right-click an alert to mute just that boss.',pick('parkwarn',btParkWarnOn()?'on':'off',[['on','On'],['off','Off']])+
+      (btParkMutedList().length?'<div style="margin-top:.45rem;font-size:.85rem;display:flex;flex-wrap:wrap;gap:.35rem;align-items:center"><span style="color:var(--text-muted)">🔇 Muted:</span>'+btParkMutedList().map(k=>'<span style="border:1px solid var(--border);border-radius:3px;padding:.05rem .4rem">'+esc(btParkKeyLabel(k))+' <a href="#" onclick="btParkUnmute(decodeURIComponent(\''+encodeURIComponent(k)+'\'));return false" title="Turn its parking alerts back on" style="color:var(--gold-light);text-decoration:none">unmute</a></span>').join('')+'</div>':''))+
     item('Map: spawn timers from kills','Start a spawn timer on the map automatically when a tracked mob dies.',pick('timers',_autoTimersEnabled?'on':'off',[['on','On'],['off','Off — map clicks and /note only']])));
   h+=card('PL HELPER',
     item('PL helper window','While a character is being power-levelled: each kill this pull with \u2713 XP or \u2717 missed tag, the mob names you haven\u2019t landed a hit on yet, and the totals. <b>Auto</b>: opens when one of your characters starts getting XP from someone else\u2019s kills. Off by default. The \u2694 PL helper button under the title shows only while this is Auto or On.',
       pick('plmode',plMode(),[['off','Off'],['auto','Auto'],['on','On']]))+
-    item('Say \u201cMissed tag\u201d','Spoken when a kill gives no XP (you hadn\u2019t hit it).',pick('plvoice',plVoiceOn()?'on':'off',[['on','On'],['off','Off']])));
+    item('Say \u201cMissed tag\u201d','Spoken when a kill gives no XP (you hadn\u2019t hit it).',pick('plvoice',plVoiceOn()?'on':'off',[['on','On'],['off','Off']]))+
+    item('Sound on each tag','A click when one of your hits tags a mob \u2014 your cue to tab \u2014 and a low double beep when you hit the same one again. Voice says \u201cTagged\u201d / \u201cTab\u201d.',pick('pltagsnd',plTagSound(),[['click','Click'],['voice','Voice'],['off','Off']])));
   h+=card('CH CHAIN',
     item('CH chain window','A live window (like Auctions) built from the \u201cCA 007 CH -- Tank\u201d calls: who called which number, the last call (\u201cContrax > 001\u201d), who\u2019s next, and the <b>free numbers</b> you could take. It opens on its own when a chain starts. Off by default. <b>Auto</b>: on while the character you\u2019re playing (or boxing) is a Cleric.',
       pick('chmode',chChainMode(),[['off','Off'],['auto','Auto'+(chChainMode()==='auto'?(chChainOn()?' (on \u2014 playing a Cleric)':' (off \u2014 not on a Cleric)'):'')],['on','On']]))

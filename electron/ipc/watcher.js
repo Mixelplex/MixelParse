@@ -1438,7 +1438,7 @@ function processLogLine(line, charName) {
   if (line.endsWith('defensive fighting style.')) { const _d = RE_CH_DISC.exec(line); if (_d) { const k = Math.floor(Date.now() / 1000) + '|d|' + _d[1]; if (!_chSeen.has(k)) { _chSeen.set(k, Date.now()); broadcast({ type: 'chDisc', charName, who: _d[1], ts: Date.now() }); } } }
   else if (line.charCodeAt(27) >= 65 && line.charCodeAt(27) <= 90 && (line.indexOf(' points of damage') > 0 || line.indexOf(' tries to ') > 0)) { const _s = RE_CH_SWING.exec(line);   // a named mob (capitalised, no "a"/"an") on a player
     if (_s && !/^(You|Your)/.test(_s[1])) { const k = _s[1] + '|' + _s[2], t = _chSwSeen.get(k) || 0, now = Date.now(); if (now - t > 5000) { _chSwSeen.set(k, now); if (_chSwSeen.size > 300) for (const [kk, tt] of _chSwSeen) if (now - tt > 60e3) _chSwSeen.delete(kk); broadcast({ type: 'chSwing', charName, mob: _s[1], target: _s[2], ts: now }); } } }
-  if (line.indexOf('dark vines') > 0 || line.indexOf('snared') > 0 || line.indexOf('entwined') > 0 || line.indexOf('slain by') > 0 || line.indexOf('experience') > 0 || line.indexOf(' points of damage') > 0 || line.indexOf(' point of damage') > 0 || line.indexOf(' was ') > 0 || line.indexOf(' tries to ') > 0) _plLine(line, charName);
+  if (line.indexOf('You try to ') > 0 || line.indexOf('too far away') > 0 || line.indexOf('dark vines') > 0 || line.indexOf('snared') > 0 || line.indexOf('entwined') > 0 || line.indexOf('slain by') > 0 || line.indexOf('experience') > 0 || line.indexOf(' points of damage') > 0 || line.indexOf(' point of damage') > 0 || line.indexOf(' was ') > 0 || line.indexOf(' tries to ') > 0) _plLine(line, charName);
   { const _lw = _landWait[charName];
     if (_lw && _lw.length) { const txt = line.slice(line.indexOf('] ') + 2), now = Date.now();
       for (let i = 0; i < _lw.length; i++) { const w = _lw[i]; if (w.until < now) continue;
@@ -2032,7 +2032,8 @@ async function scanKillCountsAllLogs(charFilter) {
 const RE_LV_GAIN = /(?:You have gained a level! )?Welcome to level (\d+)!$/;
 const RE_LV_LOST = /You LOST a level! You are now level (\d+)!/;
 const RE_LV_XP = /^You gain (party )?experience!!$/;
-const RE_LV_SLAIN = /^(?:You have slain (.+?)|(.+?) has been slain by .+?)!$/;
+const RE_LV_SLAIN = /^(?:You have slain (.+?)|(.+?) has been slain by (.+?))!$/;
+const RE_LV_PET = /^([A-Z][a-z]+) tells you, 'Attacking .+ Master\.'$/;   // your pet's name — its kills are yours, not a power-level
 const RE_LV_ZONE = /^You have entered (.+)\.$/;
 let _lvlScanRunning = false;
 async function scanLeveling(charFilter) {
@@ -2053,9 +2054,9 @@ async function scanLeveling(charFilter) {
     const results = {}; let done = 0;
     for (const [k, files] of byChar) {
       const name = wanted.get(k); files.sort((a, b) => a.mt - b.mt);
-      const st = { level: null, byGain: false, zone: null, lastTs: 0, maxTs: 0, lastXpTs: 0, lastXpZone: null, slain: null };
+      const st = { level: null, byGain: false, zone: null, lastTs: 0, maxTs: 0, lastXpTs: 0, lastXpZone: null, slain: null, pets: new Set() };
       const agg = {}, levels = {};
-      const A = (L, z) => { const key = L + '|' + z; return agg[key] || (agg[key] = { level: L, zone: z, hunt_ms: 0, played_ms: 0, xp_solo: 0, xp_group: 0, xp_quest: 0, deaths: 0, mobs: {}, mk: {}, first: 0, last: 0 }); };
+      const A = (L, z) => { const key = L + '|' + z; return agg[key] || (agg[key] = { level: L, zone: z, hunt_ms: 0, played_ms: 0, xp_solo: 0, xp_group: 0, xp_quest: 0, xp_pl: 0, deaths: 0, mobs: {}, mk: {}, first: 0, last: 0 }); };
       const LV = L => levels[L] || (levels[L] = { done: false, xp: 0, quest: 0, start: 0, end: 0 });
       for (const { fp } of files) {
         broadcast({ type: 'levelScanProgress', charName: name, idx: done + 1, total: byChar.size });
@@ -2073,7 +2074,8 @@ async function scanLeveling(charFilter) {
             const wasTurnin = st.prevFS; st.prevFS = /^Your faction standing/.test(msg) || /^[A-Z][a-zA-Z`' ]+ says,/.test(msg);
             let m;
             if ((m = RE_LV_ZONE.exec(msg))) { if (!/^an? (area|arena)/i.test(m[1])) st.zone = m[1]; return; }
-            if ((m = RE_LV_SLAIN.exec(msg))) { st.slain = { mob: (m[1] || m[2] || '').trim(), ts }; return; }
+            if ((m = RE_LV_SLAIN.exec(msg))) { st.slain = { mob: (m[1] || m[2] || '').trim(), by: m[1] ? 'You' : (m[3] || '').trim(), ts }; return; }
+            if (msg.indexOf(' tells you, ') > 0 && (m = RE_LV_PET.exec(msg))) { st.pets.add(m[1]); return; }
             if ((m = RE_LV_XP.exec(msg))) {
               if (st.level == null) return;
               const z = st.zone || 'Unknown', a = A(st.level, z);
@@ -2083,7 +2085,7 @@ async function scanLeveling(charFilter) {
               // range prints no "slain" line.
               const slain = st.slain && ts - st.slain.ts <= 3000 ? st.slain : null;
               if (!m[1] && !slain && wasTurnin) { a.xp_quest++; LV(st.level).quest++; if (!a.first) a.first = ts; a.last = ts; return; }
-              if (m[1]) a.xp_group++; else a.xp_solo++;
+              if (m[1]) a.xp_group++; else { a.xp_solo++; if (slain && slain.by !== 'You' && /^[A-Z][a-z]+$/.test(slain.by) && slain.by !== name && !st.pets.has(slain.by)) a.xp_pl++; }   // solo XP from another player's kill: power-levelled
               a.hunt_ms += st.lastXpTs && st.lastXpZone === z && ts - st.lastXpTs <= 10 * 60e3 ? ts - st.lastXpTs : 60e3;
               st.lastXpTs = ts; st.lastXpZone = z;
               if (slain && slain.mob && !/^you$/i.test(slain.mob)) {
@@ -2109,7 +2111,7 @@ async function scanLeveling(charFilter) {
       }
       done++;
       const rows = Object.values(agg).filter(a => a.xp_solo + a.xp_group + a.xp_quest > 0 || a.played_ms >= 5 * 60e3).map(a => ({
-        level: a.level, zone: a.zone, hunt_ms: Math.round(a.hunt_ms), played_ms: Math.round(a.played_ms), xp_solo: a.xp_solo, xp_group: a.xp_group, xp_quest: a.xp_quest,
+        level: a.level, zone: a.zone, hunt_ms: Math.round(a.hunt_ms), played_ms: Math.round(a.played_ms), xp_solo: a.xp_solo, xp_group: a.xp_group, xp_quest: a.xp_quest, xp_pl: a.xp_pl, pl: a.xp_pl >= 0.3 * Math.max(1, a.xp_solo + a.xp_group),
         deaths: a.deaths, mobs: Object.fromEntries(Object.entries(a.mobs).sort((x, y) => y[1] - x[1]).slice(0, 8)), mk: a.mk,
         first_at: a.first || null, last_at: a.last || null }));
       results[name] = { rows, levels, current: st.level };
@@ -2450,6 +2452,10 @@ const RE_PL_SLAIN = /^\[[^\]]+\] (.+?) has been slain by (.+?)!$/;
 const RE_PL_XP    = /^\[[^\]]+\] You gain (?:party )?experience/;
 const RE_PL_HIT   = /^\[[^\]]+\] You (?:hit|slash|pierce|crush|kick|bash|punch|backstab|slice|claw|bite|strike|sting|maul|gore|smash|rend|burn|frenzy on) (.+?) for \d+ points? of damage\.$/;
 const RE_PL_SEEN  = /^\[[^\]]+\] (.+?) (?:was pierced by thorns|was burned|was tormented|was hit by non-melee|hits|pierces|bashes|punches|kicks|slashes|crushes|bites|claws|mauls|stings|tries to \w+) /;
+const RE_PL_MISS = /^\[[^\]]+\] You try to \w+ (.+?), but miss!$/;
+const RE_PL_FAR  = /Your target is too far away, get closer!$/;
+const _plHist = {};
+const _plStats = {};  // charName → name → {died, missed} this session (finished pulls) — your own miss rate per mob type   // charName → the last pulls' recaps [{start, end, killed, xp, missed}]
 const _pl = {};   // charName → {start, last, kills:[{t,mob,by,xp}], names:{name:{last,hits,killed,atk:[ts],tagged,peak}}, timer}
 const RE_PL_SNARE_AE = /^\[[^\]]+\] (.+?) is dragged down by dark vines\.$/;   // Bonds of Tunare: every mob in range, one line each
 const RE_PL_SNARE_1  = /^\[[^\]]+\] (.+?)(?: has been ensnared|'s feet become entwined| is snared| has been snared)\.$/;   // single-target snares
@@ -2470,17 +2476,20 @@ function _plAlive(n, now) {   // how many of this name are fighting: the busiest
 }
 function _plState(c) { const p = _pl[c]; if (!p) return null;
   const k = p.kills, killed = k.length, xp = k.filter(x => x.xp === true).length, missed = k.filter(x => x.xp === false).length;
-  return { char: c, start: p.start, killed, xp, missed, kills: k.slice(-40), quiet: Date.now() - p.last > 45e3,
+  return { char: c, start: p.start, killed, xp, missed, kills: k.slice(-40).map(x => ({ t: x.t, mob: x.mob, by: x.by, xp: x.xp, unseen: !!x.unseen })), quiet: Date.now() - p.last > 45e3, tags: p.tags || 0, same: p.same || 0, swing: p.swing || null, hist: (_plHist[c] || []).slice(-6),
     snared: p.snare ? Object.keys(p.names).reduce((a, nm) => a + Math.max(0, _plSnared(p, nm)), 0) : null,
-    names: Object.entries(p.names).map(([name, v]) => { const sn = p.snare ? _plSnared(p, name) : null; const wasSnared = !!(p.snare && (p.snare.ae[name] != null || p.snare.one.some(x => x.n === name))); const alive = wasSnared ? Math.max(0, sn) : _plAlive(v, Date.now()) || (Date.now() - v.last <= 15e3 ? 1 : 0); /* from how often they attack; extra hits do not add mobs */ return { name, last: v.last, hits: v.hits, since: v.since || 0, killed: v.killed, lastKill: v.lastKill || 0, allDead: v.killed > 0 && !v.alive, alive, tagged: Math.min(v.tagged || 0, alive), snared: wasSnared }; }).sort((a, b) => b.last - a.last).slice(0, 20),
+    names: Object.entries(p.names).map(([name, v]) => { const sn = p.snare ? _plSnared(p, name) : null; const wasSnared = !!(p.snare && (p.snare.ae[name] != null || p.snare.one.some(x => x.n === name))); const est0 = _plAlive(v, Date.now()) || (Date.now() - v.last <= 15e3 ? 1 : 0); v.estMax = Math.max(v.estMax || 0, est0 + (v.killed || 0)); const est = Date.now() - v.last <= 30e3 ? Math.max(est0, v.estMax - (v.killed || 0)) : est0, alive = wasSnared ? Math.max(Math.max(0, sn), est) : est; /* the pull's peak minus deaths since: idle mobs don't drop out (10-21: ≈3 burrowers for 5) */ const ss = (_plStats[c] || {})[name]; /* snare lines show only 3-4 mobs per Bonds cast (10-21: 8 vs 23 died) — the attack rate counts them */ /* from how often they attack; extra hits do not add mobs */ return { name, last: v.last, hits: v.hits, since: v.since || 0, killed: v.killed, lastKill: v.lastKill || 0, allDead: v.killed > 0 && !v.alive, bursts: v.bursts || 0, sess: ss ? { died: ss.died, missed: ss.missed } : null, alive, tagged: Math.min(v.tagged || 0, alive), snared: wasSnared }; }).sort((a, b) => b.last - a.last).slice(0, 20),
     pl: k.filter(x => x.by !== c && x.xp === true).length };
 }
 setInterval(() => { for (const c of Object.keys(_pl)) if (Date.now() - _pl[c].last < 60e3) _plSend(c); }, 2000);
 function _plSend(c) { const p = _pl[c]; if (!p || p.timer) return; p.timer = setTimeout(() => { p.timer = null; const st = _plState(c); if (st) broadcast({ type: 'plState', state: st }); }, 250); }
 function _plLine(line, c) {
+  if (line.indexOf('] Pain and suffering ') > 0) return;   // the client's stand-in name for a creature it already dropped (P99 wiki) — one of the real mobs, not a target
   const now = Date.now(); let m, p = _pl[c];
   const touch = () => { if (!p || now - p.last > 45e3) { if (p) for (const [nm, v] of Object.entries(p.names)) if (v.killed && v.peak) _plRate[nm] = Math.max(2, Math.min(8, _plRate[nm] ? (_plRate[nm] * 2 + v.peak / v.killed) / 3 : v.peak / v.killed));   // learn attacks per mob
-      p = _pl[c] = { start: now, last: now, kills: [], names: {}, timer: null }; } p.last = now; };
+      if (p && p.kills.length) { const S = _plStats[c] || (_plStats[c] = {}); for (const k of p.kills) { if (k.unseen) continue; const x = S[k.mob] || (S[k.mob] = { died: 0, missed: 0 }); x.died++; if (k.xp === false) x.missed++; }
+        const h = _plHist[c] || (_plHist[c] = []); h.push({ start: p.start, end: p.last, killed: p.kills.length, xp: p.kills.filter(x => x.xp === true).length, missed: p.kills.filter(x => x.xp === false).length }); if (h.length > 8) h.shift(); }
+      p = _pl[c] = { start: now, last: now, kills: [], names: {}, timer: null, tags: 0, swing: null }; } p.last = now; };
   const N = mob => { const n = p.names[mob] || (p.names[mob] = { key: mob, last: now, hits: 0, killed: 0, alive: true, atk: [], tagged: 0, peak: 0 }); if (!n.key) n.key = mob; if (!n.atk) n.atk = []; return n; };
   if ((m = RE_PL_SLAIN.exec(line))) { const mob = m[1].toLowerCase(); if (/^[A-Z][a-z]+$/.test(m[1])) return;   // a player died, not a mob
     touch(); const k = { t: now, mob, by: m[2] === 'You' ? c : m[2], xp: null }; p.kills.push(k);
@@ -2493,8 +2502,15 @@ function _plLine(line, c) {
       if (cand) { cand.killed++; cand.lastKill = now; k.n = cand; } }
     if (k) { k.xp = true; if (k.n && k.n.tagged > 0) k.n.tagged--; _plSend(c); } return; }   // a tagged one died
   if ((m = RE_PL_HIT.exec(line))) { touch(); const mob = m[1].toLowerCase(); const n = N(mob); n.hits++; n.since = (n.since || 0) + 1; n.last = now; n.alive = true;
-    if (now - (n.lastTag || 0) > 1200) { n.tagged = (n.tagged || 0) + 1; n.lastTag = now; }   // you tab after every hit: each landed hit tags the next one
+    const b = p.burst, same = b && b.name === mob && now - b.t < 2600 && b.hit && (_plAlive(n, now) || 1) <= 5; /* a few of a kind: a 2nd hit in a burst is the same mob; in a big pack you tab between same-named ones (10-21: 14 of 15 excavators tagged) */   // a burst: swings on one name < 2.6 s apart, nothing else between
+    if (same) { b.t = now; b.hits++; p.same = (p.same || 0) + 1; p.swing = { name: mob, t: now, res: 'same', n: b.hits }; }   // auto-attack still on the one you just tagged
+    else { if (now - (n.lastTag || 0) > 1200) { n.tagged = (n.tagged || 0) + 1; n.lastTag = now; p.tags = (p.tags || 0) + 1; }
+      n.bursts = (n.bursts || 0) + 1; p.burst = { name: mob, t: now, hit: true, hits: 1 }; p.swing = { name: mob, t: now, res: 'hit', fresh: true }; }
     _plSend(c); return; }
+  if ((m = RE_PL_MISS.exec(line))) { touch(); const mob = m[1].toLowerCase(), n = N(mob); n.last = now; n.alive = true; n.miss = (n.miss || 0) + 1;
+    if (p.burst && p.burst.name === mob && now - p.burst.t < 2600) p.burst.t = now; else p.burst = { name: mob, t: now, hit: false, hits: 0 };
+    const pv = p.swing; p.swing = { name: mob, t: now, res: 'miss', n: pv && pv.name === mob && pv.res !== 'hit' ? (pv.n || 1) + 1 : 1 }; _plSend(c); return; }
+  if (RE_PL_FAR.test(line)) { if (!p || now - p.last > 45e3) return; const pv = p.swing; p.swing = { name: pv ? pv.name : null, t: now, res: 'far', n: pv && pv.res === 'far' && now - pv.t < 10e3 ? (pv.n || 1) + 1 : 1 }; _plSend(c); return; }
   if ((m = RE_PL_SNARE_AE.exec(line)) || (m = RE_PL_SNARE_1.exec(line))) {
     touch(); const mob = m[1].toLowerCase(), ae = RE_PL_SNARE_AE.test(line); N(mob).last = now; N(mob).alive = true;
     const S = p.snare || (p.snare = { ae: {}, aeAt: 0, aeLast: 0, one: [], batches: [] });

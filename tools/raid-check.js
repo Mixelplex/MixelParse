@@ -1,4 +1,6 @@
-// Pre-install raid check. Exit code 1 = a raid looks active (don't restart MixelParse), 0 = clear.
+// Pre-install raid check. Exit code 1 = a raid looks active OR someone is playing right now (don't restart MixelParse), 0 = clear.
+// 10/22: a character with a log line in the last 5 minutes blocks too — the restart opens MixelParse in front of EQ
+// (it took the screen mid quad-kite in Plane of Mischief while this said "quiet / clear").
 // Reads the newest lines of EVERY log (file mtimes are unreliable while EQ holds a log open) and
 // looks at the timestamps INSIDE them: a fight in progress has no RAIDTICK yet, so enrage/rampage,
 // raid-channel chat, raid ticks and being in a raid zone all count.
@@ -11,9 +13,9 @@ try { const c = JSON.parse(fs.readFileSync(path.join(process.env.APPDATA, 'Mixel
 const MON = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
 const ts = l => { const m = /^\[\w{3} (\w{3}) +(\d+) (\d\d):(\d\d):(\d\d) (\d{4})\]/.exec(l); return m ? new Date(+m[6], MON[m[1]], +m[2], +m[3], +m[4], +m[5]).getTime() : 0; };
 const RAID_ZONES = /Temple of Veeshan|Western Wastes|Veeshan's Peak|Sleeper's Tomb|Plane of (Fear|Hate|Air|Growth)|Kael Drakkel|Wakening Land|Dragon Necropolis|Icewell Keep|Thurgadin|Skyshrine|Cobalt Scar|Old Sebilis|Karnor's Castle|Emerald Jungle|Dreadlands|Skyfire|Timorous Deep|Great Divide|Velketor/i;
-const now = Date.now(), ACTIVE = 15 * 60e3;
+const now = Date.now(), ACTIVE = 15 * 60e3, PLAYING = 5 * 60e3;
 const out = [];
-let raid = false;
+let raid = false, playing = false;
 for (const f of fs.readdirSync(logDir).filter(f => /^eqlog_.+_P1999Green\.txt$/i.test(f))) {
   const fp = path.join(logDir, f);
   let st; try { st = fs.statSync(fp); } catch { continue; }
@@ -35,9 +37,10 @@ for (const f of fs.readdirSync(logDir).filter(f => /^eqlog_.+_P1999Green\.txt$/i
   };
   const inRaidZone = zone && RAID_ZONES.test(zone);
   const hot = sig.fight > 0 || sig.raidChat > 0 || sig.tick > 0 || sig.chain > 0 || sig.dkp > 0 || sig.casters >= 12 || inRaidZone;
-  if (hot) raid = true;
-  out.push(`${hot ? 'RAID ' : 'quiet'} ${f.replace(/^eqlog_|_P1999Green\.txt$/g, '').padEnd(14)} last line ${new Date(last).toLocaleTimeString()}  zone=${zone || '?'}  ticks/60m=${sig.tick} raidChat/15m=${sig.raidChat} enrage+rampage/10m=${sig.fight} chChain/10m=${sig.chain} dkpAuc/30m=${sig.dkp} casters/5m=${sig.casters}`);
+  const play = now - last <= PLAYING;
+  if (hot) raid = true; if (play) playing = true;
+  out.push(`${hot ? 'RAID ' : play ? 'PLAY ' : 'quiet'} ${f.replace(/^eqlog_|_P1999Green\.txt$/g, '').padEnd(14)} last line ${new Date(last).toLocaleTimeString()}  zone=${zone || '?'}  ticks/60m=${sig.tick} raidChat/15m=${sig.raidChat} enrage+rampage/10m=${sig.fight} chChain/10m=${sig.chain} dkpAuc/30m=${sig.dkp} casters/5m=${sig.casters}`);
 }
 console.log(out.length ? out.join('\n') : 'no character played in the last 15 minutes');
-console.log(raid ? '=> RAID ACTIVE - do not restart MixelParse' : '=> clear');
-process.exit(raid ? 1 : 0);
+console.log(raid ? '=> RAID ACTIVE - do not restart MixelParse' : playing ? '=> PLAYING - a character logged a line in the last 5 min; ask before restarting MixelParse (it opens over EQ)' : '=> clear');
+process.exit(raid || playing ? 1 : 0);

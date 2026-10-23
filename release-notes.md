@@ -1,8 +1,18 @@
-## 1.8.3
+## 1.8.4
+
+- **📈 Leveling path** — Leveling tab: a path from your level to 60 for the selected character, with a Solo / Group toggle: the fastest measured zone for each stretch of levels (kept while it's within 15% of the best), P99 wiki spots where nobody has measured yet, hunting time plus a realistic logged-in time, and "other zone…" to pin a zone for a stage.
+- **🎯 PL helper: confirm your tags** — shows N NOT TAGGED / ~N may be untagged / likely all tagged, counting the mobs in the pile from their swing rate; cues for TAGGED — TAB NOW, same mob again, missed, too far away; a tag sound (Settings → PL helper); big stacked piles get a tab-after-every-hit tip with this session's miss rate. "Pain and suffering" (the client's placeholder name) is ignored.
+- **⏱ Hourly ticks in Auto-Detect** — in ToV / Sky / VP a tick with no boss seen is marked "⏱ hourly?" and the Hourly button is suggested whatever the gap; a tick ODKP lists as an hourly that you recorded as a kill gets a one-click "→ hourly".
+- **🔇 Mute one boss's parking alert** — right-click a parking alert → Mute <boss> until I turn it back on; muted bosses are listed in Settings → Raids → Parking alerts with unmute.
+- **Fixes**
+  - Projected DKP: a session left open over several nights matches ODKP ticks from every night it covers; your own minus entries drop out once ODKP charges them (Now on ODKP); plus and minus shown apart; hover an entry for where it came from.
+  - Credit Check: an hourly ODKP files under a boss's name isn't that boss's kill credit; "hourly2" labels count as hourlies.
+  - Leveling data: power-levelled levels are left out of zone speeds and not shared (rescan once).
+  - The PL helper, CH chain and spell timer windows stay minimized when you minimize them.
+
+Everything from 1.8.3 and earlier is included:
 
 - **⚔ Projected DKP: add, modify, remove** — in the Projected DKP window, right-click for ➕ Add (your own entry: what, DKP (negative for spent), date; it drops out after 10 days like the rest), ✎ Modify and 🗑 Remove. Right-click empty space to add. Your entries are listed under Your entries.
-
-Everything from 1.8.2 and earlier is included:
 
 - **⚔ Projected DKP breakdown** — click Projected under Your DKP for the list behind it: kills and hourlies not on ODKP yet, auction wins not charged yet, and unidentified ticks. Right-click an entry to change its value or remove it from the projection (and restore it later) — Raid History, Credit Check and ODKP aren't touched.
 - **Fix:** the PL helper counts kills that gave you XP but whose "has been slain" line never showed in your log (they died out of range), marked "kill not shown in your log".
