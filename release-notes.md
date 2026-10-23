@@ -1,4 +1,10 @@
-## 1.8.4
+## 1.8.5
+
+- **Fixes**
+  - Leveling path: time per level accounts for con colour — P99 gives 50% XP for light-blue mobs, 25% for high green, none below. A zone measured at lower levels (Cobalt Scar wyverns, 38–42) slows down at 55–59 instead of looking as fast as at 52, and the stage says "mobs con lower here". A pinned zone with little data near your level uses every level it was hunted.
+  - PL helper Auto: group XP no longer counts as being power-levelled, so the window doesn't open in a group (On still opens it on every fight).
+
+Everything from 1.8.4 and earlier is included:
 
 - **📈 Leveling path** — Leveling tab: a path from your level to 60 for the selected character, with a Solo / Group toggle: the fastest measured zone for each stretch of levels (kept while it's within 15% of the best), P99 wiki spots where nobody has measured yet, hunting time plus a realistic logged-in time, and "other zone…" to pin a zone for a stage.
 - **🎯 PL helper: confirm your tags** — shows N NOT TAGGED / ~N may be untagged / likely all tagged, counting the mobs in the pile from their swing rate; cues for TAGGED — TAB NOW, same mob again, missed, too far away; a tag sound (Settings → PL helper); big stacked piles get a tab-after-every-hit tip with this session's miss rate. "Pain and suffering" (the client's placeholder name) is ignored.
@@ -9,8 +15,6 @@
   - Credit Check: an hourly ODKP files under a boss's name isn't that boss's kill credit; "hourly2" labels count as hourlies.
   - Leveling data: power-levelled levels are left out of zone speeds and not shared (rescan once).
   - The PL helper, CH chain and spell timer windows stay minimized when you minimize them.
-
-Everything from 1.8.3 and earlier is included:
 
 - **⚔ Projected DKP: add, modify, remove** — in the Projected DKP window, right-click for ➕ Add (your own entry: what, DKP (negative for spent), date; it drops out after 10 days like the rest), ✎ Modify and 🗑 Remove. Right-click empty space to add. Your entries are listed under Your entries.
 

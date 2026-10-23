@@ -5681,19 +5681,12 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.8.4',
+  version:'1.8.5',
   date:'October 2026',
-  features:[
-    ['&#128200; Leveling path','Leveling tab: a <b>Leveling path</b> from your level to 60 for the selected character, with a <b>Solo / Group</b> toggle &mdash; the fastest measured zone for each stretch of levels (it stays in a zone while it&rsquo;s within 15% of the best), wiki spots where nobody has measured yet, hunting time plus a realistic logged-in time, and an <b>other zone&hellip;</b> pick to pin a zone for a stage.'],
-    ['&#127919; PL helper: confirm your tags','The PL helper now tells you whether the pile is tagged: <b>N NOT TAGGED</b> / <b>~N may be untagged</b> / <b>likely all tagged</b>, counting the mobs in the pile from how often they swing. Cues as you go: <b>TAGGED &mdash; TAB NOW</b>, <b>same mob again &mdash; TAB</b>, missed, too far away, and a tag sound (Settings &rarr; PL helper). Big stacked piles get a tab-after-every-hit tip with your miss rate this session.'],
-    ['&#9201; Hourly ticks in Auto-Detect','In ToV, Sky and VP a tick with no boss seen is marked <b>&#9201; hourly?</b> and the Hourly button is suggested whatever the time since the last tick. If ODKP lists a tick as an hourly but you recorded a kill for it, the row says so with a one-click <b>&rarr; hourly</b>.'],
-    ['&#128263; Mute one boss&rsquo;s parking alert','Right-click a parking alert &rarr; <b>Mute &lt;boss&gt; until I turn it back on</b>. Muted bosses are listed in Settings &rarr; Raids &rarr; Parking alerts with <b>unmute</b>.'],
-  ],
+  features:[],
   fixes:[
-    ['Projected DKP','A Raid History session left open over several nights now matches ODKP ticks from every night it covers (kills were shown as &ldquo;not on ODKP yet&rdquo; while already credited). Your own minus entries drop out once ODKP charges them (shown under <b>Now on ODKP</b>). The header shows plus and minus apart, and hovering an entry says where it came from.'],
-    ['Credit Check','An hourly tick ODKP files under a boss&rsquo;s name (&ldquo;Feshlak 1 (Hourly - pain and suffering)&rdquo;) no longer counts as that boss&rsquo;s kill credit; &ldquo;hourly2&rdquo; labels count as hourlies.'],
-    ['Leveling data','Power-levelled levels (most XP from another player&rsquo;s kills) are left out of the zone speeds and not shared &mdash; rescan once.'],
-    ['Overlay windows','The PL helper, CH chain and spell timer windows stay minimized when you minimize them.'],
+    ['Leveling path: con colour','Time per level now accounts for mobs that con lower as you level: P99 gives 50% XP for light-blue mobs, 25% for high green and none below. A zone measured at lower levels (Cobalt Scar wyverns, level 38&ndash;42) now slows down at 55&ndash;59 instead of looking as fast as at 52, and the stage says so (&ldquo;mobs con lower here&rdquo;). A pinned zone with little data near your level uses every level it was hunted.'],
+    ['PL helper Auto','Group XP no longer counts as being power-levelled, so in Auto the window doesn&rsquo;t open while you&rsquo;re in a group. (On still opens it on every fight.)'],
   ],
 };
 function showWhatsNew(){
@@ -11117,6 +11110,21 @@ function lvldCalibration(){
   _lvldCal=out; return out;
 }
 // power-levelled: the kills' average mob level (P99 wiki levels, mob-levels.js) is far above the character's level
+// P99 con XP (wiki Consider / Experience): from level 14, below Level×.75 (rounded, .51 up) is light blue = 50%, the level
+// under Level×.66 "high green" = 25%, lower 0; before 14 only 3 (4 at 13) levels down give XP. Averaged over the row's mobs ±2.
+function lvldConMod(L,m){ const rd=x=>x-Math.floor(x)<0.51?Math.floor(x):Math.ceil(x);
+  if(L<14) return m>=L-(L>=13?4:3)?1:0;
+  const blue=rd(L*0.75), lb=rd(L*0.66); return m>=blue?1:m>=lb?0.5:m===lb-1?0.25:0; }
+function lvldConAvg(L,m){ let t=0; for(let d=-2;d<=2;d++) t+=lvldConMod(L,Math.round(m)+d); return t/5; }
+// the row's typical mob level: its mobs' levels, else back out of its XP estimate (xp_est = K × level² per kill)
+function lvldRowMobLevel(r){ const a=lvldMobAvg(r); if(a!=null) return a; const k=(r.xp_solo||0)+LVLD_XP_GROUP*(r.xp_group||0); return r.xp_est>0&&k>0?Math.sqrt(r.xp_est/(LVLD_XP_K*k)):null; }
+// a measured row's XP carried to level Lt: level² for share-measured rows (level-appropriate mobs); for mob-measured rows the
+// same mobs at their own level, with the con change (Cobalt Scar wyverns: blue at 52, light blue / high green at 57–59)
+function lvldXpAt(sm,Lt){
+  if(!sm.mob) return sm.xp*Math.pow(Lt/sm.r.level,2);
+  const m=lvldRowMobLevel(sm.r); if(m==null) return sm.xp;
+  const here=lvldConAvg(sm.r.level,m); return here>0?sm.xp*lvldConAvg(Lt,m)/here:sm.xp;
+}
 function lvldMobAvg(r){ let sum=0,c=0; for(const [mb,n] of Object.entries(r.mobs||{})){ const ml=lvldMobLevel(mb,r.zone); if(ml==null) continue; sum+=ml*n; c+=n; } return c?sum/c:null; }
 function lvldPowerLevelled(r){ if(r.pl) return true; const a=lvldMobAvg(r); return a!=null&&a>r.level+Math.max(6,0.35*r.level); }   // r.pl: 30%+ of its XP from another player's kills (scan v4)
 function lvldSamples(rows,myCls,opt){
@@ -11147,11 +11155,11 @@ function lvldZones(samples,L,multT){
   const z={};
   for(const sm of samples){ if(Math.abs(sm.r.level-L)>3) continue;
     const k=sm.r.zone, a=z[k]||(z[k]={zone:k,xp:0,h:0,xs:0,xg:0,d:0,pl:0,n:0,chars:new Set(),cls:new Set(),mobs:{}});
-    a.xp+=sm.xp*(sm.mob?1:Math.pow(L/sm.r.level,2)); a.h+=sm.h; a.xs+=sm.r.xp_solo||0; a.xg+=sm.r.xp_group||0; a.d+=sm.r.deaths||0; a.pl+=(sm.r.played_ms||0)/3.6e6; a.n++;
+    const xa=lvldXpAt(sm,L); a.xp+=xa; a.x0=(a.x0||0)+(sm.mob?sm.xp:xa); a.h+=sm.h; a.xs+=sm.r.xp_solo||0; a.xg+=sm.r.xp_group||0; a.d+=sm.r.deaths||0; a.pl+=(sm.r.played_ms||0)/3.6e6; a.n++;
     a.chars.add((sm.r.user_id||'')+'|'+sm.r.char_name); if(sm.r.class) a.cls.add(sm.r.class);
     for(const [mb,c] of Object.entries(sm.r.mobs||{})) a.mobs[mb]=(a.mobs[mb]||0)+c;
   }
-  return Object.values(z).map(a=>Object.assign(a,{min:lvldNeed(L)*multT/(a.xp/a.h)*60,sure:a.h>=0.75||a.n>=2}))
+  return Object.values(z).map(a=>Object.assign(a,{min:a.xp>0?lvldNeed(L)*multT/(a.xp/a.h)*60:Infinity,con:a.x0>0?a.xp/a.x0:1,sure:a.h>=0.75||a.n>=2}))
     .sort((x,y)=>(y.sure-x.sure)||(x.min-y.min));
 }
 function lvldZem(zone){ const k=lvldZoneKey(zone), sp=LEVELING_SPOTS.find(p=>lvldZoneKey(p.z)===k&&p.zem); return sp?sp.zem+'%':''; }
@@ -11204,10 +11212,10 @@ function lvldZoneKey(name){
 }
 // measured pace at one zone for levels lo..hi, estimated for this character at level Lt
 function lvldMeasure(samples,key,lo,hi,Lt,mult){
-  let xp=0,h=0,n=0; const chars=new Set(),cls=new Set();
+  let xp=0,x0=0,h=0,n=0; const chars=new Set(),cls=new Set();
   for(const sm of samples){ if(sm.r.level<lo||sm.r.level>hi||lvldZoneKey(sm.r.zone)!==key) continue;
-    xp+=sm.xp*(sm.mob?1:Math.pow(Lt/sm.r.level,2)); h+=sm.h; n++; chars.add((sm.r.user_id||'')+'|'+sm.r.char_name); if(sm.r.class) cls.add(sm.r.class); }
-  return h?{min:lvldNeed(Lt)*mult/(xp/h)*60,n,h,chars:chars.size,cls:[...cls]}:null;
+    const xa=lvldXpAt(sm,Lt); xp+=xa; x0+=sm.mob?sm.xp:xa; h+=sm.h; n++; chars.add((sm.r.user_id||'')+'|'+sm.r.char_name); if(sm.r.class) cls.add(sm.r.class); }
+  return h?{min:xp>0?lvldNeed(Lt)*mult/(xp/h)*60:Infinity,con:x0>0?xp/x0:1,n,h,chars:chars.size,cls:[...cls]}:null;
 }
 // every level — only loaded when the class guide is opened
 let lvldAll={rows:[],at:0,err:null,loading:false};
@@ -11289,12 +11297,14 @@ function lvldPath(name,cls,race,L,mode){
     .sort((a,b)=>(b.t.some(x=>x!=='ALL'&&tags.has(x))-a.t.some(x=>x!=='ALL'&&tags.has(x)))||(_lvlSpotRange(b,mode)[1]-_lvlSpotRange(a,mode)[1]));   // this class's own spots, then the longest run
   const lv=[]; let prev=null;
   for(let l=L;l<=59;l++){
-    const zs=lvldZones(sm,l,mult).filter(a=>a.sure), pin=pins.find(p=>l>=p.lo&&l<=p.hi);
+    const zs=lvldZones(sm,l,mult).filter(a=>a.sure&&isFinite(a.min)), pin=pins.find(p=>l>=p.lo&&l<=p.hi);
     let pick=null;
-    if(pin){ const k=lvldZoneKey(pin.z), z=zs.find(a=>lvldZoneKey(a.zone)===k), m=z?null:lvldMeasure(sm,k,l-5,l+5,l,mult);
-      pick=z?{zone:z.zone,min:z.min,src:'meas',chars:z.chars.size,pin:true}:m&&(m.h>=0.75||m.n>=2)?{zone:pin.z,min:m.min,src:'near',chars:m.chars,pin:true}:{zone:pin.z,min:null,src:'wiki',pin:true}; }
+    if(pin){ const k=lvldZoneKey(pin.z), z=zs.find(a=>lvldZoneKey(a.zone)===k), m5=z?null:lvldMeasure(sm,k,l-5,l+5,l,mult), m=z||(m5&&(m5.h>=0.75||m5.n>=2))?m5:lvldMeasure(sm,k,1,59,l,mult);   // thin near this level: every level it was hunted
+      const zAll=z||lvldZones(sm,l,mult).find(a=>lvldZoneKey(a.zone)===k&&a.sure);   // a pinned zone whose mobs give no XP any more
+      pick=z?{zone:z.zone,min:z.min,src:'meas',chars:z.chars.size,pin:true,con:z.con}:zAll&&!isFinite(zAll.min)?{zone:pin.z,min:null,src:'meas',dead:true,chars:zAll.chars.size,pin:true,con:0}
+        :m&&(m.h>=0.75||m.n>=2)?{zone:pin.z,min:isFinite(m.min)?m.min:null,dead:!isFinite(m.min),src:'near',chars:m.chars,pin:true,con:m.con}:{zone:pin.z,min:null,src:'wiki',pin:true}; }
     else if(zs.length){ const best=zs[0], keep=prev&&zs.find(a=>lvldZoneKey(a.zone)===lvldZoneKey(prev)&&a.min<=best.min*1.15), z=keep||best;
-      pick={zone:z.zone,min:z.min,src:'meas',chars:z.chars.size}; }
+      pick={zone:z.zone,min:z.min,src:'meas',chars:z.chars.size,con:z.con}; }
     else { let w=wikiAt(l), any=false; if(!w.length){ w=wikiAt(l,true); any=true; }   // nothing listed for this class: the spots other classes use
       const keep=prev&&w.find(sp=>lvldZoneKey(sp.z)===lvldZoneKey(prev)), sp=keep||w[0];
       pick=sp?{zone:sp.z,min:null,src:'wiki',where:sp.w,for:any?sp.t.filter(x=>x!=='ALL'):null}:{zone:null,min:null,src:'none'}; }
@@ -11305,7 +11315,7 @@ function lvldPath(name,cls,race,L,mode){
     const z=x.alts.find(q=>lvldZoneKey(q.zone)===lvldZoneKey(a.zone)); if(z&&x.min!=null&&z.min<=x.min*1.3) Object.assign(x,{zone:z.zone,min:z.min,chars:z.chars.size}); }
   // levels with no measured time: XP / minute from the nearest measured levels, scaled by level² (as the TO LEVEL 60 tile)
   const meas=lv.map((x,i)=>x.min!=null?i:-1).filter(i=>i>=0), rate=i=>lvldNeed(lv[i].l)*mult/lv[i].min;
-  for(let i=0;i<lv.length;i++){ if(lv[i].min!=null||!meas.length) continue;
+  for(let i=0;i<lv.length;i++){ if(lv[i].min!=null||lv[i].dead||!meas.length) continue;
     const lo=meas.filter(j=>j<i).pop(), hi=meas.find(j=>j>i), l=lv[i].l, at=j=>rate(j)*Math.pow(l/lv[j].l,2);
     const r=lo!=null&&hi!=null?Math.exp(Math.log(at(lo))+(Math.log(at(hi))-Math.log(at(lo)))*(i-lo)/(hi-lo)):at(lo!=null?lo:hi);
     lv[i].min=lvldNeed(l)*mult/r; lv[i].guess=true; }
@@ -11328,6 +11338,9 @@ function lvldPathCard(name,cls,race,L){
   for(const x of P.st){
     const lvls=x.lo===x.hi?x.lo+' → '+(x.lo+1):x.lo+'–'+x.hi+' → '+(x.hi+1), per=x.lv.length>1&&!x.gap?'<div style="font-size:.74rem;color:var(--text-muted)">~'+lvldFmt(x.min/x.lv.length)+' / level</div>':'';
     const srcs=new Set(x.lv.map(v=>v.src)), guess=x.lv.some(v=>v.guess), chars=Math.max(0,...x.lv.map(v=>v.chars||0));
+    const cons=x.lv.filter(v=>v.con!=null).map(v=>v.con), cLo=cons.length?Math.min(...cons):1, cHi=cons.length?Math.max(...cons):1, dead=x.lv.some(v=>v.dead);
+    const conNote=dead?'<div style="font-size:.74rem;color:#a03030" title="'+keysAttr('P99: mobs below the light-blue range give no XP')+'">mobs con green here \u2014 no XP</div>'
+      :cLo<0.92?'<div style="font-size:.74rem;color:#a06020" title="'+keysAttr('P99 wiki: light-blue mobs give 50% XP, high-green 25%, lower none. The measured pace is from levels where these mobs gave more; the time here is scaled down to match.')+'">mobs con lower here: '+(Math.abs(cHi-cLo)<0.05?'~'+Math.round(cLo*100)+'%':Math.round(cHi*100)+'\u2192'+Math.round(cLo*100)+'%')+' of the measured XP</div>':'';
     const based=srcs.has('none')?'<span style="color:var(--text-muted)">no data or wiki spot</span>'
       :srcs.has('wiki')&&!srcs.has('meas')&&!srcs.has('near')?(function(){ const o=x.lv.find(v=>v.for); return '<span style="color:#a06020" title="'+keysAttr('The P99 wiki leveling guide lists this zone for these levels'+(o?' — for '+(o.for.join(', ')||'other classes')+', none listed for '+(cls||'this class'):'')+'; nobody in the guild has measured it yet.'+(guess?' The time comes from the measured levels around it.':''))+'">wiki'+(o&&o.for.length?' (for '+esc(o.for.join(', '))+')':'')+' — not measured</span>'; })()
       :'measured'+(chars?' · '+chars+' char'+(chars===1?'':'s'):'')+(srcs.has('near')?' <span style="font-size:.74rem;color:var(--text-muted)">(nearby levels)</span>':'')+(srcs.has('wiki')||guess?' <span style="font-size:.74rem;color:#a06020">+ wiki</span>':'');
@@ -11340,9 +11353,9 @@ function lvldPathCard(name,cls,race,L){
       (x.pin?' <button title="Unpin — back to the fastest zone" style="font-size:.74rem;padding:0 .35rem;cursor:pointer;background:transparent;border:1px solid var(--border);border-radius:3px;color:var(--text)" onclick="lvldPin(decodeURIComponent(\''+nm+'\'),'+x.lo+','+x.hi+',\'\')">✕</button>':'');
     t+='<tr style="border-bottom:1px solid rgba(74,58,26,.2);vertical-align:top'+(x.lo===L?';background:rgba(184,137,43,.08)':'')+'"><td style="padding:.4rem .5rem;white-space:nowrap">'+lvls+'</td>'+
       '<td style="padding:.4rem .5rem">'+(x.pin?'📌 ':'')+(x.zone?'<b>'+esc(x.zone)+'</b>':'<span style="color:var(--text-muted)">—</span>')+(where?'<div style="font-size:.74rem;color:var(--text-muted)">'+esc(where.where)+'</div>':'')+'</td>'+
-      '<td style="padding:.4rem .5rem;white-space:nowrap;font-weight:600">'+(x.min?(x.gap?'≥ ':'')+lvldFmt(x.min):'—')+per+'</td>'+
+      '<td style="padding:.4rem .5rem;white-space:nowrap;font-weight:600">'+(dead&&!x.min?'<span style="color:#a03030">no XP</span>':x.min?(x.gap||dead?'≥ ':'')+lvldFmt(x.min):'—')+per+'</td>'+
       '<td style="padding:.4rem .5rem;white-space:nowrap;color:var(--text-muted)">'+clock(x.min)+'</td>'+
-      '<td style="padding:.4rem .5rem;font-size:.8rem">'+based+'</td><td style="padding:.4rem .5rem;white-space:nowrap">'+sel+'</td></tr>';
+      '<td style="padding:.4rem .5rem;font-size:.8rem">'+based+conNote+'</td><td style="padding:.4rem .5rem;white-space:nowrap">'+sel+'</td></tr>';
   }
   t+='<tr style="border-top:1px solid var(--border)"><td style="padding:.45rem .5rem;font-weight:700" colspan="2">To level 60</td><td style="padding:.45rem .5rem;font-weight:700;white-space:nowrap">'+(P.total?(P.gap?'≥ ':'≈ ')+lvldFmt(P.total):'—')+'</td><td style="padding:.45rem .5rem;font-weight:700;white-space:nowrap">'+clock(P.total)+'</td><td colspan="2" style="padding:.45rem .5rem;font-size:.78rem;color:var(--text-muted)">'+P.nMeas+' of '+P.n+' levels measured</td></tr></tbody></table>';
   const style=mode==='solo'&&LVLD_STYLE[cls]?' Solo spots only count characters that solo like a '+esc(cls)+' ('+LVLD_STYLE_NAME[LVLD_STYLE[cls]]+').':'';
@@ -11389,7 +11402,7 @@ function lvldSection(meta,myLvl){
   const tile=(lbl,val,sub)=>'<div style="flex:1;min-width:150px;border:1px solid var(--border);border-radius:5px;padding:.5rem .7rem;background:var(--surface)"><div style="font-size:.72rem;color:var(--text-muted);letter-spacing:.04em">'+lbl+'</div><div style="font-size:1.25rem;font-weight:600;margin-top:.1rem">'+val+'</div>'+(sub?'<div style="font-size:.74rem;color:var(--text-muted)">'+sub+'</div>':'')+'</div>';
   let next='', to60=null, to60Gap=false, to60Meas=0, to60N=0;
   if(L&&L<60){
-    const est=[]; for(let l=L;l<=59;l++){ const z=lvldZones(samples,l,mult).filter(a=>a.sure)[0]; est.push(z?z.min:null); }
+    const est=[]; for(let l=L;l<=59;l++){ const z=lvldZones(samples,l,mult).filter(a=>a.sure&&isFinite(a.min))[0]; est.push(z?z.min:null); }
     // levels with no measured spot: XP / minute from the nearest measured levels, scaled by level² (mob XP grows ~ level²)
     const rate=i=>lvldNeed(L+i)*mult/est[i];   // XP per hunting minute at a measured level
     const meas=est.map((v,i)=>v!=null?i:-1).filter(i=>i>=0); to60Meas=meas.length; to60N=est.length;
@@ -11437,7 +11450,7 @@ function lvldSection(meta,myLvl){
       '<div style="overflow-x:auto">'+t+'</div>');
     // next levels
     let nl='<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr style="border-bottom:1px solid var(--border)"><th '+th+'>LEVEL</th><th '+th+'>XP NEEDED</th><th '+th+'>BEST MEASURED SPOT</th><th '+th+'>EST. TIME</th></tr></thead><tbody>';
-    for(let l=L;l<=Math.min(59,L+5);l++){ const z=lvldZones(samples,l,mult).filter(a=>a.sure)[0], hell=lvldHell(l)-lvldHell(l-1);
+    for(let l=L;l<=Math.min(59,L+5);l++){ const z=lvldZones(samples,l,mult).filter(a=>a.sure&&isFinite(a.min))[0], hell=lvldHell(l)-lvldHell(l-1);
       nl+='<tr style="border-bottom:1px solid rgba(74,58,26,.2)"><td style="padding:.4rem .5rem;white-space:nowrap">'+l+' → '+(l+1)+'</td>'+
         '<td style="padding:.4rem .5rem;white-space:nowrap">×'+(lvldNeed(l)/lvldNeed(L)).toFixed(2)+(hell>=0.095?' <span style="font-size:.74rem;color:#a03030">'+(hell>=0.25?'triple hell':hell>=0.15?'double hell':'hell level')+'</span>':'')+'</td>'+
         '<td style="padding:.4rem .5rem">'+(z?'<b>'+esc(z.zone)+'</b> <span style="font-size:.76rem;color:var(--text-muted)">'+(z.xs>=z.xg?'solo':'group')+'</span>':'<span style="color:var(--text-muted)">no data yet</span>')+'</td>'+

@@ -2479,7 +2479,7 @@ function _plState(c) { const p = _pl[c]; if (!p) return null;
   return { char: c, start: p.start, killed, xp, missed, kills: k.slice(-40).map(x => ({ t: x.t, mob: x.mob, by: x.by, xp: x.xp, unseen: !!x.unseen })), quiet: Date.now() - p.last > 45e3, tags: p.tags || 0, same: p.same || 0, swing: p.swing || null, hist: (_plHist[c] || []).slice(-6),
     snared: p.snare ? Object.keys(p.names).reduce((a, nm) => a + Math.max(0, _plSnared(p, nm)), 0) : null,
     names: Object.entries(p.names).map(([name, v]) => { const sn = p.snare ? _plSnared(p, name) : null; const wasSnared = !!(p.snare && (p.snare.ae[name] != null || p.snare.one.some(x => x.n === name))); const est0 = _plAlive(v, Date.now()) || (Date.now() - v.last <= 15e3 ? 1 : 0); v.estMax = Math.max(v.estMax || 0, est0 + (v.killed || 0)); const est = Date.now() - v.last <= 30e3 ? Math.max(est0, v.estMax - (v.killed || 0)) : est0, alive = wasSnared ? Math.max(Math.max(0, sn), est) : est; /* the pull's peak minus deaths since: idle mobs don't drop out (10-21: ≈3 burrowers for 5) */ const ss = (_plStats[c] || {})[name]; /* snare lines show only 3-4 mobs per Bonds cast (10-21: 8 vs 23 died) — the attack rate counts them */ /* from how often they attack; extra hits do not add mobs */ return { name, last: v.last, hits: v.hits, since: v.since || 0, killed: v.killed, lastKill: v.lastKill || 0, allDead: v.killed > 0 && !v.alive, bursts: v.bursts || 0, sess: ss ? { died: ss.died, missed: ss.missed } : null, alive, tagged: Math.min(v.tagged || 0, alive), snared: wasSnared }; }).sort((a, b) => b.last - a.last).slice(0, 20),
-    pl: k.filter(x => x.by !== c && x.xp === true).length };
+    pl: k.filter(x => x.by !== c && x.xp === true && !x.party).length };   // solo XP from someone else's kill — party XP is a group, not a power-level
 }
 setInterval(() => { for (const c of Object.keys(_pl)) if (Date.now() - _pl[c].last < 60e3) _plSend(c); }, 2000);
 function _plSend(c) { const p = _pl[c]; if (!p || p.timer) return; p.timer = setTimeout(() => { p.timer = null; const st = _plState(c); if (st) broadcast({ type: 'plState', state: st }); }, 250); }
@@ -2500,7 +2500,7 @@ function _plLine(line, c) {
       const cand = Object.values(p.names).filter(n => now - (n.last || 0) <= 20e3).sort((a, b) => ((b.tagged > 0) - (a.tagged > 0)) || (b.last - a.last))[0];
       k = { t: now, mob: cand ? cand.key : 'a mob', by: null, xp: null, unseen: true }; p.kills.push(k); p.last = now;
       if (cand) { cand.killed++; cand.lastKill = now; k.n = cand; } }
-    if (k) { k.xp = true; if (k.n && k.n.tagged > 0) k.n.tagged--; _plSend(c); } return; }   // a tagged one died
+    if (k) { k.xp = true; k.party = line.indexOf('party experience') > 0; if (k.n && k.n.tagged > 0) k.n.tagged--; _plSend(c); } return; }   // a tagged one died
   if ((m = RE_PL_HIT.exec(line))) { touch(); const mob = m[1].toLowerCase(); const n = N(mob); n.hits++; n.since = (n.since || 0) + 1; n.last = now; n.alive = true;
     const b = p.burst, same = b && b.name === mob && now - b.t < 2600 && b.hit && (_plAlive(n, now) || 1) <= 5; /* a few of a kind: a 2nd hit in a burst is the same mob; in a big pack you tab between same-named ones (10-21: 14 of 15 excavators tagged) */   // a burst: swings on one name < 2.6 s apart, nothing else between
     if (same) { b.t = now; b.hits++; p.same = (p.same || 0) + 1; p.swing = { name: mob, t: now, res: 'same', n: b.hits }; }   // auto-attack still on the one you just tagged
