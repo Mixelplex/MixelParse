@@ -5681,15 +5681,12 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.8.2',
+  version:'1.8.3',
   date:'October 2026',
   features:[
-    ['&#9876; Projected DKP breakdown','Click <b>Projected</b> under Your DKP for the list behind it: kills and hourlies not on ODKP yet, auction wins not charged yet, and unidentified ticks. Right-click an entry to change its value or remove it from the projection (and restore it later) &mdash; Raid History, Credit Check and ODKP aren&rsquo;t touched.'],
+    ['&#9876; Projected DKP: add, modify, remove','In the Projected DKP window, right-click for <b>&#10133; Add</b> (your own entry &mdash; what, DKP (negative for spent), date; it drops out after 10 days like the rest), <b>&#9998; Modify</b> and <b>&#128465; Remove</b>. Right-click empty space to add. Your entries are listed under <b>Your entries</b>.'],
   ],
-  fixes:[
-    ['PL helper','Kills that gave you XP but whose &ldquo;has been slain&rdquo; line never showed in your log (they died out of range) are counted now &mdash; marked &ldquo;kill not shown in your log&rdquo;.'],
-    ['Spell timers','Off by default &mdash; switch them on in Settings &rarr; Spell timers.'],
-  ],
+  fixes:[],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -9406,7 +9403,8 @@ function odkpMyBalance(){
 // Projected DKP: balance + recent kills ODKP hasn't credited yet − auction wins it hasn't charged yet
 let _projDkp=null;
 let projAdj=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_proj_adj')||'{}')||{}; }catch(e){ return {}; } })(), _projAdjVer=0;   // entry key → {v} (your value) | {del:true}
-function projAdjSave(){ _projAdjVer++; _projDkp=null; try{ localStorage.setItem('mp_proj_adj',JSON.stringify(projAdj)); }catch(e){} }
+let projManual=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_proj_manual')||'[]')||[]; }catch(e){ return []; } })();   // [{key, t, d:'YYYY-MM-DD', v}] your own entries
+function projAdjSave(){ _projAdjVer++; _projDkp=null; try{ localStorage.setItem('mp_proj_adj',JSON.stringify(projAdj)); localStorage.setItem('mp_proj_manual',JSON.stringify(projManual)); }catch(e){} }
 function odkpProjected(me){
   const key=[me.bal,me.asOf,(raidSessions||[]).length,(odkpTicks||[]).length,(typeof aucPending!=='undefined'?aucPending.length:0),ccAcks.size,typeof _rkdVer!=='undefined'?_rkdVer:0,_projAdjVer].join('|');
   if(_projDkp&&_projDkp.key===key&&Date.now()-_projDkp.at<60e3) return _projDkp.v;
@@ -9427,6 +9425,7 @@ function odkpProjected(me){
     // your changes: a new value, or removed (kept aside so it can be restored)
     const removed=[], adj=x=>{ const a=projAdj[x.key]; if(!a) return x; if(a.del){ removed.push(x); return null; } return Object.assign({},x,{orig:x.v,v:+a.v,mod:true}); };
     const addA=add.map(adj).filter(Boolean);
+    for(const x of projManual) if(Date.parse(x.d+'T23:59:59')>=cut) addA.push({key:x.key,kind:'manual',t:x.t,d:x.d,v:+x.v||0});   // your own entries, 10 days like the rest
     const wins=wins0.map(p=>{ const x=adj({key:'win|'+p.item+'|'+p.ts,kind:'win',t:p.item,who:p.who,d:localYmd(new Date(p.ts)),v:p.n}); return x&&Object.assign({},p,{n:x.v,key:x.key,mod:x.mod,orig:x.orig}); }).filter(Boolean);
     const plus=addA.reduce((t,x)=>t+x.v,0), minus=wins.reduce((t,p)=>t+p.n,0);
     v={proj:Math.round((me.bal+plus-minus)*10)/10,plus:Math.round(plus*10)/10,minus:Math.round(minus*10)/10,add:addA,wins,unk,removed,bal:me.bal,asOf:me.asOf};
@@ -9439,17 +9438,18 @@ window.odkpProjModal=function(){
   let ov=document.getElementById('projOverlay');
   if(!ov){ ov=document.createElement('div'); ov.id='projOverlay'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10040;display:flex;align-items:center;justify-content:center';
     ov.addEventListener('mousedown',e=>{ if(e.target===ov) ov.remove(); }); document.body.appendChild(ov); }
-  const fmt=v=>(Math.round(v*10)/10).toLocaleString(), row=(x,sign,extra)=>'<tr data-pk="'+esc(x.key)+'" oncontextmenu="return projMenu(event,this.dataset.pk)" title="Right-click to change or remove" style="cursor:context-menu">'
+  const fmt=v=>(Math.round(v*10)/10).toLocaleString(), row=(x,sign,extra)=>'<tr data-pk="'+esc(x.key)+'" oncontextmenu="return projMenu(event,this.dataset.pk)" title="Right-click to add, modify or remove" style="cursor:context-menu">'
       +'<td>'+esc(String(x.d||'').slice(5).replace('-','/'))+'</td><td>'+esc(x.t)+(extra||'')+(x.mod?' <span style="color:#b08020;font-size:.75em" title="Your value \u2014 was '+fmt(x.orig)+'">✎ edited</span>':'')+'</td>'
-      +'<td style="text-align:right;font-weight:600;color:'+(sign>0?'#3a7a3a':'#c07050')+'">'+(sign>0?'+':'\u2212')+fmt(x.v)+'</td></tr>';
-  const kills=P.add, wins=P.wins.map(p=>({key:p.key,t:p.item,who:p.who,d:localYmd(new Date(p.ts)),v:p.n,mod:p.mod,orig:p.orig}));
+      +'<td style="text-align:right;font-weight:600;color:'+(sign*(x.v<0?-1:1)>0?'#3a7a3a':'#c07050')+'">'+(sign*(x.v<0?-1:1)>0?'+':'\u2212')+fmt(Math.abs(x.v))+'</td></tr>';
+  const kills=P.add.filter(x=>x.kind!=='manual'), mine=P.add.filter(x=>x.kind==='manual'), wins=P.wins.map(p=>({key:p.key,t:p.item,who:p.who,d:localYmd(new Date(p.ts)),v:p.n,mod:p.mod,orig:p.orig}));
   const sect=(title,note,rows)=>'<tr><td colspan="3" style="padding-top:.7rem;font-family:\'Cinzel\',serif;font-size:.72rem;color:var(--gold-light);letter-spacing:.06em">'+title+(note?' <span style="font-family:inherit;color:var(--text-muted);font-size:.9em;letter-spacing:0;text-transform:none">'+note+'</span>':'')+'</td></tr>'+rows;
-  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.5);width:min(620px,94vw);max-height:86vh;overflow:auto;padding:1rem 1.2rem;font-size:.85rem">'
+  ov.innerHTML='<div oncontextmenu="return projMenu(event,null)" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.5);width:min(620px,94vw);max-height:86vh;overflow:auto;padding:1rem 1.2rem;font-size:.85rem">'
     +'<div style="display:flex;align-items:flex-start;gap:.6rem"><div style="flex:1"><div style="font-family:\'Cinzel\',serif;color:var(--gold-light);font-size:1rem">Projected DKP \u2014 '+fmt(P.proj)+'</div>'
-    +'<div style="color:var(--text-muted);font-size:.75rem">'+fmt(P.bal)+' on ODKP (as of '+new Date(P.asOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+')'+(P.plus?' <span style="color:#3a7a3a">+'+fmt(P.plus)+'</span>':'')+(P.minus?' <span style="color:#c07050">\u2212'+fmt(P.minus)+'</span>':'')+' \u00b7 right-click an entry to change or remove it</div></div>'
+    +'<div style="color:var(--text-muted);font-size:.75rem" oncontextmenu="return projMenu(event,null)">'+fmt(P.bal)+' on ODKP (as of '+new Date(P.asOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+')'+(P.plus?' <span style="color:#3a7a3a">+'+fmt(P.plus)+'</span>':'')+(P.minus?' <span style="color:#c07050">\u2212'+fmt(P.minus)+'</span>':'')+' \u00b7 right-click to add, modify or remove</div></div>'
     +'<button class="dkp-upload-btn" onclick="document.getElementById(\'projOverlay\').remove()">Close</button></div>'
     +'<table class="dkp-history-table" style="width:100%;margin-top:.4rem"><tbody>'
     +sect('NOT ON ODKP YET','Raid History kills / failticks / hourlies of the last 10 days with no ODKP credit',kills.length?kills.map(x=>row(x,1)).join(''):'<tr><td colspan="3" style="color:var(--text-muted)">none</td></tr>')
+    +(mine.length?sect('YOUR ENTRIES','added by you \u2014 they drop out after 10 days',mine.map(x=>row(x,1)).join('')):'')
     +sect('AUCTION WINS NOT CHARGED YET','your grats ODKP doesn\u2019t have yet',wins.length?wins.map(x=>row(x,-1,x.who?' <span style="color:var(--text-muted);font-size:.85em">('+esc(x.who)+')</span>':'')).join(''):'<tr><td colspan="3" style="color:var(--text-muted)">none</td></tr>')
     +(P.unk?sect('UNIDENTIFIED TICKS','not added',(()=>'<tr><td colspan="3" style="color:var(--text-muted)">'+P.unk+' tick'+(P.unk>1?'s':'')+' you were at that aren\u2019t a recorded kill and ODKP hasn\u2019t entered yet \u2014 likely hourlies (~2 each). Record them on Auto-Detect (right-click → Record as hourly).</td></tr>')()):'')
     +(P.removed.length?sect('REMOVED','right-click to restore',P.removed.map(x=>'<tr data-pk="'+esc(x.key)+'" oncontextmenu="return projMenu(event,this.dataset.pk)" style="opacity:.55;cursor:context-menu"><td>'+esc(String(x.d||'').slice(5).replace('-','/'))+'</td><td style="text-decoration:line-through">'+esc(x.t)+'</td><td style="text-align:right">'+(x.kind==='win'?'\u2212':'+')+fmt(x.v)+'</td></tr>').join('')):'')
@@ -9458,21 +9458,35 @@ window.odkpProjModal=function(){
 window.projMenu=function(ev,key){
   ev.preventDefault(); ev.stopPropagation(); let m=document.getElementById('projMenu'); if(m) m.remove();
   const me=odkpMyBalance(), P=me&&odkpProjected(me); if(!P) return false;
-  const all=P.add.concat(P.wins.map(p=>({key:p.key,t:p.item,v:p.n,mod:p.mod,orig:p.orig,kind:'win'}))), x=all.find(e=>e.key===key), rm=P.removed.find(e=>e.key===key);
+  const all=P.add.concat(P.wins.map(p=>({key:p.key,t:p.item,v:p.n,mod:p.mod,orig:p.orig,kind:'win'}))), x=key?all.find(e=>e.key===key):null, rm=key?P.removed.find(e=>e.key===key):null, man=x&&x.kind==='manual';
   m=document.createElement('div'); m.id='projMenu';
-  m.style.cssText='position:fixed;z-index:10050;left:'+Math.min(ev.clientX,innerWidth-260)+'px;top:'+Math.min(ev.clientY,innerHeight-150)+'px;background:var(--surface);border:1px solid var(--border-glow);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.3);font-size:.85rem;min-width:230px;padding:.2rem 0';
+  m.style.cssText='position:fixed;z-index:10050;left:'+Math.min(ev.clientX,innerWidth-300)+'px;top:'+Math.min(ev.clientY,innerHeight-230)+'px;background:var(--surface);border:1px solid var(--border-glow);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.3);font-size:.85rem;min-width:270px;padding:.2rem 0';
   const it=(html,act)=>'<div data-act="'+act+'" style="padding:.4rem .7rem;cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'+html+'</div>';
-  m.innerHTML='<div style="padding:.3rem .7rem;font-size:.72rem;color:var(--text-muted);border-bottom:1px solid var(--border)">'+esc((x||rm||{t:key}).t)+'</div>'
-    +(rm?it('↶ Restore to the projection','restore')
-      :'<div style="padding:.4rem .7rem;display:flex;gap:.3rem;align-items:center">✎ Value <input id="projVal" type="number" step="0.1" value="'+(x?x.v:'')+'" style="width:5rem"><button class="kt-undo-btn" data-act="save">Save</button></div>'
-       +(x&&x.mod?it('↶ Back to '+(Math.round(x.orig*10)/10),'reset'):'')
-       +it('🗑 Remove from the projection','del'));
+  const form=(what,t,v,d)=>'<div data-form="'+what+'" style="padding:.4rem .7rem;display:flex;flex-direction:column;gap:.3rem">'
+    +(what==='add'||man?'<input data-f="t" placeholder="What (e.g. Vulak kill, hourly, Bot loot)" value="'+esc(t||'')+'">':'')
+    +'<div style="display:flex;gap:.3rem;align-items:center"><input data-f="v" type="number" step="0.1" placeholder="DKP" value="'+(v!=null?v:'')+'" style="width:5.5rem" title="Negative for DKP spent">'
+    +(what==='add'?'<input data-f="d" type="date" value="'+(d||localYmd(new Date()))+'" style="width:9rem">':'')
+    +'<button class="kt-undo-btn" data-act="'+(what==='add'?'addsave':'modsave')+'">Save</button></div>'
+    +(what==='add'?'<div style="font-size:.7rem;color:var(--text-muted)">Negative for DKP spent \u00b7 drops out after 10 days</div>':'')+'</div>';
+  m.innerHTML='<div style="padding:.3rem .7rem;font-size:.72rem;color:var(--text-muted);border-bottom:1px solid var(--border)">'+esc(x?x.t:rm?rm.t:'Projected DKP')+'</div>'
+    +it('➕ Add\u2026','add')
+    +(x?it('✎ Modify\u2026','mod')+(x.mod?it('↶ Back to '+(Math.round(x.orig*10)/10),'reset'):'')+it('🗑 Remove','del'):'')
+    +(rm?it('↶ Restore','restore'):'')
+    +'<div data-slot></div>';
+  const slot=m.querySelector('[data-slot]');
   const done=()=>{ m.remove(); projAdjSave(); odkpRenderAcctChip(); odkpProjModal(); };
+  const val=()=>parseFloat((m.querySelector('[data-f=v]')||{}).value);
+  const save=act=>{ const v=val(); if(!isFinite(v)) return;
+    if(act==='addsave'){ const t=(m.querySelector('[data-f=t]').value||'').trim()||'Manual entry', d=m.querySelector('[data-f=d]').value||localYmd(new Date()); projManual.push({key:'man|'+Date.now().toString(36),t,d,v}); done(); }
+    else if(man){ const e=projManual.find(y=>y.key===key); if(e){ e.v=v; const t=(m.querySelector('[data-f=t]')||{}).value; if(t&&t.trim()) e.t=t.trim(); } done(); }
+    else { projAdj[key]={v}; done(); } };
   m.addEventListener('click',e=>{ const a=e.target.closest('[data-act]'); if(!a) return; const act=a.dataset.act;
-    if(act==='save'){ const v=parseFloat(m.querySelector('#projVal').value); if(!isFinite(v)) return; projAdj[key]={v}; done(); }
+    if(act==='add'){ slot.innerHTML=form('add'); slot.querySelector('[data-f=t]').focus(); }
+    else if(act==='mod'){ slot.innerHTML=form('mod',x.t,x.v); (slot.querySelector('[data-f=v]')).focus(); }
+    else if(act==='addsave'||act==='modsave') save(act);
     else if(act==='reset'||act==='restore'){ delete projAdj[key]; done(); }
-    else if(act==='del'){ projAdj[key]={del:true}; done(); } });
-  m.querySelector('#projVal')&&m.querySelector('#projVal').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const v=parseFloat(e.target.value); if(isFinite(v)){ projAdj[key]={v}; done(); } } });
+    else if(act==='del'){ if(man) projManual=projManual.filter(y=>y.key!==key); else projAdj[key]={del:true}; done(); } });
+  m.addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.target.closest('[data-form]')) save(e.target.closest('[data-form]').dataset.form==='add'?'addsave':'modsave'); if(e.key==='Escape') m.remove(); });
   document.body.appendChild(m);
   setTimeout(()=>document.addEventListener('mousedown',function off(e){ const y=document.getElementById('projMenu'); if(y&&!y.contains(e.target)){ y.remove(); document.removeEventListener('mousedown',off); } }),0);
   return false;
@@ -9486,7 +9500,7 @@ function odkpHeaderDkp(){
     +'<div class="nw-header-note">updated '+new Date(asOf).toLocaleString([], {month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div>'
     +(()=>{ const P=odkpProjected(me); if(!P||(!P.add.length&&!P.wins.length&&!P.unk&&!(P.removed||[]).length)) return '';
       const tip='Projected '+P.proj+' DKP = '+bal+' on ODKP'
-        +(P.add.length?'\n+ '+P.plus+' from Raid History not on ODKP yet:\n'+P.add.map(x=>'   '+x.t+' '+x.d.slice(5).replace('-','/')+'  +'+x.v).join('\n'):'')
+        +(P.add.length?'\n+ '+P.plus+' from Raid History not on ODKP yet:\n'+P.add.map(x=>'   '+x.t+' '+x.d.slice(5).replace('-','/')+'  '+(x.v<0?'−'+(-x.v):'+'+x.v)).join('\n'):'')
         +(P.wins.length?'\n\u2212 '+P.minus+' auction wins ODKP hasn\u2019t charged yet:\n'+P.wins.map(p=>'   '+p.item+' ('+p.who+')  \u2212'+p.n).join('\n'):'')
         +(P.unk?'\n? '+P.unk+' tick'+(P.unk>1?'s':'')+' you were at that aren\u2019t a kill and ODKP hasn\u2019t entered yet \u2014 likely hourlies (~2 each), not added':'')
         +'\n\nRaid History kills of the last 10 days with no ODKP credit yet (Credit Check \u2717), ODKP can lag up to a week.';
