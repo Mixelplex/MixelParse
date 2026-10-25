@@ -1,10 +1,18 @@
-## 1.8.5
+## 1.8.6
+
+- **⚔ PL helper: power-leveller mode** — levelling someone else (your damage shield / heals, their melee)? The helper follows their tags: their hits and misses in your log, ✓ when the kill goes to them, ✗ when it goes to you ("You have slain") or someone else. It switches on by itself on the first kill credited to them; the window shows "levelling <name>". Needs your chat filter to show other players' hits.
+- **📊 Measured loot and coin** — Farm Targets: a coin-per-active-hour card by hunting zone, and a "measured" drop line under each item (share of opened corpses that had it, from over a year of logs).
+- **📈 Leveling path: melee miss rate** — for melee classes, each stage shows the expected miss share at its mobs (measured on 700,000 swings).
+- **📝 Submit logs: All** — the review page can send all of a character's logs (3 / 7 / 14 / 30 days / All); tells still removed.
+- **Fixes**
+  - Leveling path con XP: light blue ~80%, high green ~50%, green ~25% — fitted to 159 real levels (the wiki's 50% for light blue was too harsh).
+  - PL helper Auto no longer pops up in a group when a groupmate gets the kill.
+
+Everything from 1.8.5 and earlier is included:
 
 - **Fixes**
   - Leveling path: time per level accounts for con colour — P99 gives 50% XP for light-blue mobs, 25% for high green, none below. A zone measured at lower levels (Cobalt Scar wyverns, 38–42) slows down at 55–59 instead of looking as fast as at 52, and the stage says "mobs con lower here". A pinned zone with little data near your level uses every level it was hunted.
   - PL helper Auto: group XP no longer counts as being power-levelled, so the window doesn't open in a group (On still opens it on every fight).
-
-Everything from 1.8.4 and earlier is included:
 
 - **📈 Leveling path** — Leveling tab: a path from your level to 60 for the selected character, with a Solo / Group toggle: the fastest measured zone for each stretch of levels (kept while it's within 15% of the best), P99 wiki spots where nobody has measured yet, hunting time plus a realistic logged-in time, and "other zone…" to pin a zone for a stage.
 - **🎯 PL helper: confirm your tags** — shows N NOT TAGGED / ~N may be untagged / likely all tagged, counting the mobs in the pile from their swing rate; cues for TAGGED — TAB NOW, same mob again, missed, too far away; a tag sound (Settings → PL helper); big stacked piles get a tab-after-every-hit tip with this session's miss rate. "Pain and suffering" (the client's placeholder name) is ignored.

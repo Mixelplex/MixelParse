@@ -2454,6 +2454,15 @@ const RE_PL_HIT   = /^\[[^\]]+\] You (?:hit|slash|pierce|crush|kick|bash|punch|b
 const RE_PL_SEEN  = /^\[[^\]]+\] (.+?) (?:was pierced by thorns|was burned|was tormented|was hit by non-melee|hits|pierces|bashes|punches|kicks|slashes|crushes|bites|claws|mauls|stings|tries to \w+) /;
 const RE_PL_MISS = /^\[[^\]]+\] You try to \w+ (.+?), but miss!$/;
 const RE_PL_FAR  = /Your target is too far away, get closer!$/;
+// power-leveller side: another player's swings, your own kills, your pet's name
+const RE_PL_OHIT  = /^\[[^\]]+\] ([A-Z][a-z]+) (?:hits|slashes|pierces|crushes|kicks|bashes|punches|backstabs|slices|claws|bites|strikes|stings|mauls|gores|smashes|rends|burns|frenzies on) (.+?) for \d+ points? of damage\.$/;
+const RE_PL_OMISS = /^\[[^\]]+\] ([A-Z][a-z]+) tries to \w+ (.+?), but misses!$/;
+const RE_PL_YSLAIN = /^\[[^\]]+\] You have slain (.+?)!$/;
+const RE_PL_PET   = /^\[[^\]]+\] ([A-Z][a-z]+) tells you, 'Attacking .+ Master\.'$/;
+const _plLvl = {};   // charName → {who, at}: you're power-levelling that player (their melee, kills land as theirs, you get no XP)
+const _plOh = {};    // charName → {player: {last, hits, mobs:{mob: hits}}} — other players' hits heard in the last minute
+const _plPets = {};  // charName → Set of your pet names (their kills are yours)
+function _plLvOf(c) { const L = _plLvl[c]; return L && Date.now() - L.at < 15 * 60e3 ? L.who : null; }
 const _plHist = {};
 const _plStats = {};  // charName → name → {died, missed} this session (finished pulls) — your own miss rate per mob type   // charName → the last pulls' recaps [{start, end, killed, xp, missed}]
 const _pl = {};   // charName → {start, last, kills:[{t,mob,by,xp}], names:{name:{last,hits,killed,atk:[ts],tagged,peak}}, timer}
@@ -2476,10 +2485,10 @@ function _plAlive(n, now) {   // how many of this name are fighting: the busiest
 }
 function _plState(c) { const p = _pl[c]; if (!p) return null;
   const k = p.kills, killed = k.length, xp = k.filter(x => x.xp === true).length, missed = k.filter(x => x.xp === false).length;
-  return { char: c, start: p.start, killed, xp, missed, kills: k.slice(-40).map(x => ({ t: x.t, mob: x.mob, by: x.by, xp: x.xp, unseen: !!x.unseen })), quiet: Date.now() - p.last > 45e3, tags: p.tags || 0, same: p.same || 0, swing: p.swing || null, hist: (_plHist[c] || []).slice(-6),
+  return { char: c, start: p.start, killed, xp, missed, kills: k.slice(-40).map(x => ({ t: x.t, mob: x.mob, by: x.by, xp: x.xp, unseen: !!x.unseen, lv: !!x.lv, to: x.to || null })), lv: p.lv || null, lvKills: k.filter(x => x.lv && x.xp === true && (!x.chk || Date.now() - x.t > 2600)).length,   /* a levelling kill counts once 2.6 s pass with no XP for you (XP = a group / your pet) */ quiet: Date.now() - p.last > 45e3, tags: p.tags || 0, same: p.same || 0, swing: p.swing || null, hist: (_plHist[c] || []).slice(-6),
     snared: p.snare ? Object.keys(p.names).reduce((a, nm) => a + Math.max(0, _plSnared(p, nm)), 0) : null,
     names: Object.entries(p.names).map(([name, v]) => { const sn = p.snare ? _plSnared(p, name) : null; const wasSnared = !!(p.snare && (p.snare.ae[name] != null || p.snare.one.some(x => x.n === name))); const est0 = _plAlive(v, Date.now()) || (Date.now() - v.last <= 15e3 ? 1 : 0); v.estMax = Math.max(v.estMax || 0, est0 + (v.killed || 0)); const est = Date.now() - v.last <= 30e3 ? Math.max(est0, v.estMax - (v.killed || 0)) : est0, alive = wasSnared ? Math.max(Math.max(0, sn), est) : est; /* the pull's peak minus deaths since: idle mobs don't drop out (10-21: ≈3 burrowers for 5) */ const ss = (_plStats[c] || {})[name]; /* snare lines show only 3-4 mobs per Bonds cast (10-21: 8 vs 23 died) — the attack rate counts them */ /* from how often they attack; extra hits do not add mobs */ return { name, last: v.last, hits: v.hits, since: v.since || 0, killed: v.killed, lastKill: v.lastKill || 0, allDead: v.killed > 0 && !v.alive, bursts: v.bursts || 0, sess: ss ? { died: ss.died, missed: ss.missed } : null, alive, tagged: Math.min(v.tagged || 0, alive), snared: wasSnared }; }).sort((a, b) => b.last - a.last).slice(0, 20),
-    pl: k.filter(x => x.by !== c && x.xp === true && !x.party).length };   // solo XP from someone else's kill — party XP is a group, not a power-level
+    pl: k.filter(x => x.by !== c && x.xp === true && !x.party && !x.lv && !x.chk).length };   // solo XP from someone else's kill — party XP is a group, not a power-level
 }
 setInterval(() => { for (const c of Object.keys(_pl)) if (Date.now() - _pl[c].last < 60e3) _plSend(c); }, 2000);
 function _plSend(c) { const p = _pl[c]; if (!p || p.timer) return; p.timer = setTimeout(() => { p.timer = null; const st = _plState(c); if (st) broadcast({ type: 'plState', state: st }); }, 250); }
@@ -2489,27 +2498,52 @@ function _plLine(line, c) {
   const touch = () => { if (!p || now - p.last > 45e3) { if (p) for (const [nm, v] of Object.entries(p.names)) if (v.killed && v.peak) _plRate[nm] = Math.max(2, Math.min(8, _plRate[nm] ? (_plRate[nm] * 2 + v.peak / v.killed) / 3 : v.peak / v.killed));   // learn attacks per mob
       if (p && p.kills.length) { const S = _plStats[c] || (_plStats[c] = {}); for (const k of p.kills) { if (k.unseen) continue; const x = S[k.mob] || (S[k.mob] = { died: 0, missed: 0 }); x.died++; if (k.xp === false) x.missed++; }
         const h = _plHist[c] || (_plHist[c] = []); h.push({ start: p.start, end: p.last, killed: p.kills.length, xp: p.kills.filter(x => x.xp === true).length, missed: p.kills.filter(x => x.xp === false).length }); if (h.length > 8) h.shift(); }
-      p = _pl[c] = { start: now, last: now, kills: [], names: {}, timer: null, tags: 0, swing: null }; } p.last = now; };
+      p = _pl[c] = { start: now, last: now, kills: [], names: {}, timer: null, tags: 0, swing: null, own: 0, lv: null }; } p.last = now; };
   const N = mob => { const n = p.names[mob] || (p.names[mob] = { key: mob, last: now, hits: 0, killed: 0, alive: true, atk: [], tagged: 0, peak: 0 }); if (!n.key) n.key = mob; if (!n.atk) n.atk = []; return n; };
+  // a landed hit / a miss on a mob — yours, or (power-levelling) the player you're levelling
+  const hitOn = mob => { const n = N(mob); n.hits++; n.since = (n.since || 0) + 1; n.last = now; n.alive = true;
+    const b = p.burst, same = b && b.name === mob && now - b.t < 2600 && b.hit && (_plAlive(n, now) || 1) <= 5; /* a few of a kind: a 2nd hit in a burst is the same mob; in a big pack you tab between same-named ones (10-21: 14 of 15 excavators tagged) */   // a burst: swings on one name < 2.6 s apart, nothing else between
+    if (same) { b.t = now; b.hits++; p.same = (p.same || 0) + 1; p.swing = { name: mob, t: now, res: 'same', n: b.hits }; }   // auto-attack still on the one you just tagged
+    else { if (now - (n.lastTag || 0) > 1200) { n.tagged = (n.tagged || 0) + 1; n.lastTag = now; p.tags = (p.tags || 0) + 1; }
+      n.bursts = (n.bursts || 0) + 1; p.burst = { name: mob, t: now, hit: true, hits: 1 }; p.swing = { name: mob, t: now, res: 'hit', fresh: true }; }
+    _plSend(c); };
+  const missOn = mob => { const n = N(mob); n.last = now; n.alive = true; n.miss = (n.miss || 0) + 1;
+    if (p.burst && p.burst.name === mob && now - p.burst.t < 2600) p.burst.t = now; else p.burst = { name: mob, t: now, hit: false, hits: 0 };
+    const pv = p.swing; p.swing = { name: mob, t: now, res: 'miss', n: pv && pv.name === mob && pv.res !== 'hit' ? (pv.n || 1) + 1 : 1 }; _plSend(c); };
+  if (line.indexOf(' tells you, ') > 0 && (m = RE_PL_PET.exec(line))) { (_plPets[c] || (_plPets[c] = new Set())).add(m[1]); return; }
+  // another player's swing: counted toward their tags when you're levelling them, else remembered for a minute
+  if ((m = RE_PL_OHIT.exec(line) || RE_PL_OMISS.exec(line)) && m[1] !== c && !/^(?:[A-Z][a-z]+|YOU)$/.test(m[2]) && !(_plPets[c] && _plPets[c].has(m[1]))) {
+    const X = m[1], mob = m[2].toLowerCase(), hit = / for \d+ points? of damage\.$/.test(line);
+    if (_plLvOf(c) === X) { touch(); p.lv = X; if (hit) hitOn(mob); else missOn(mob); return; }
+    if (hit) { const O = _plOh[c] || (_plOh[c] = {}), o = O[X] && now - O[X].last < 60e3 ? O[X] : (O[X] = { last: now, hits: 0, mobs: {} }); o.last = now; o.hits++; o.mobs[mob] = (o.mobs[mob] || 0) + 1; }
+    return; }
+  // your own kill while levelling someone: it went to you, not them
+  if (_plLvOf(c) && (m = RE_PL_YSLAIN.exec(line))) { touch(); const mob = m[1].toLowerCase(), n = N(mob); n.killed++; n.alive = false; n.since = 0; n.lastKill = now;
+    p.lv = _plLvOf(c); p.kills.push({ t: now, mob, by: c, xp: false, lv: true, to: 'you', n }); _plSend(c); return; }
   if ((m = RE_PL_SLAIN.exec(line))) { const mob = m[1].toLowerCase(); if (/^[A-Z][a-z]+$/.test(m[1])) return;   // a player died, not a mob
     touch(); const k = { t: now, mob, by: m[2] === 'You' ? c : m[2], xp: null }; p.kills.push(k);
     const n = N(mob); n.killed++; n.alive = false; n.since = 0; n.lastKill = now;
-    k.n = n; setTimeout(() => { if (k.xp === null) { k.xp = false; _plSend(c); } }, 2500); _plSend(c); return; }   // no XP = an untagged one died
-  if (RE_PL_XP.test(line)) { if (!p) return; let k = p.kills.filter(x => x.xp === null && now - x.t <= 2500).pop() || p.kills.filter(x => x.xp === false && now - x.t <= 3000).pop();
+    k.n = n;
+    { const by = k.by, lv = _plLvOf(c), X = by !== c && /^[A-Z][a-z]+$/.test(by) && !(_plPets[c] && _plPets[c].has(by)) ? by : null;
+      const oh = X && _plOh[c] && _plOh[c][X] && now - _plOh[c][X].last < 60e3 ? _plOh[c][X] : null;
+      if (X && (lv === X || (oh && !(p.own > 0)))) {   // their kill, they were swinging, you weren't: you're levelling them
+        if (lv !== X) { for (const [mb, h] of Object.entries(oh.mobs)) { const q = N(mb); q.hits += h; q.tagged = Math.max(q.tagged || 0, 1); q.bursts = Math.max(q.bursts || 0, 1); } p.tags = (p.tags || 0) + Object.keys(oh.mobs).length; }
+        _plLvl[c] = { who: X, at: now }; p.lv = X; k.lv = true; k.xp = true; k.chk = true; if (n.tagged > 0) n.tagged--; _plSend(c); return; }
+      if (lv && by !== c && X) { p.lv = lv; k.lv = true; k.xp = false; k.to = X; _plSend(c); return; } }   // levelling, but the kill went to a third player
+    setTimeout(() => { if (k.xp === null) { k.xp = false; _plSend(c); } }, 2500); _plSend(c); return; }   // no XP = an untagged one died
+  if (RE_PL_XP.test(line)) { if (!p) return;
+    const kc = p.kills.filter(x => x.chk && now - x.t <= 2500).pop();
+    if (kc) { kc.lv = false; kc.chk = false; kc.party = line.indexOf('party experience') > 0; delete _plLvl[c]; p.lv = null; _plSend(c); return; }   // you got XP from it: a group / your pet, not levelling (party XP stays a group kill — 10-25: Auto popped in Mixelems' group)
+    if (_plLvOf(c) && p.lv) return;
+    let k = p.kills.filter(x => x.xp === null && now - x.t <= 2500).pop() || p.kills.filter(x => x.xp === false && now - x.t <= 3000).pop();
     if (!k && now - p.last <= 45e3) {   // XP with no "slain" line (it always comes right before its XP): a kill EverQuest didn't print — still a kill
       const cand = Object.values(p.names).filter(n => now - (n.last || 0) <= 20e3).sort((a, b) => ((b.tagged > 0) - (a.tagged > 0)) || (b.last - a.last))[0];
       k = { t: now, mob: cand ? cand.key : 'a mob', by: null, xp: null, unseen: true }; p.kills.push(k); p.last = now;
       if (cand) { cand.killed++; cand.lastKill = now; k.n = cand; } }
     if (k) { k.xp = true; k.party = line.indexOf('party experience') > 0; if (k.n && k.n.tagged > 0) k.n.tagged--; _plSend(c); } return; }   // a tagged one died
-  if ((m = RE_PL_HIT.exec(line))) { touch(); const mob = m[1].toLowerCase(); const n = N(mob); n.hits++; n.since = (n.since || 0) + 1; n.last = now; n.alive = true;
-    const b = p.burst, same = b && b.name === mob && now - b.t < 2600 && b.hit && (_plAlive(n, now) || 1) <= 5; /* a few of a kind: a 2nd hit in a burst is the same mob; in a big pack you tab between same-named ones (10-21: 14 of 15 excavators tagged) */   // a burst: swings on one name < 2.6 s apart, nothing else between
-    if (same) { b.t = now; b.hits++; p.same = (p.same || 0) + 1; p.swing = { name: mob, t: now, res: 'same', n: b.hits }; }   // auto-attack still on the one you just tagged
-    else { if (now - (n.lastTag || 0) > 1200) { n.tagged = (n.tagged || 0) + 1; n.lastTag = now; p.tags = (p.tags || 0) + 1; }
-      n.bursts = (n.bursts || 0) + 1; p.burst = { name: mob, t: now, hit: true, hits: 1 }; p.swing = { name: mob, t: now, res: 'hit', fresh: true }; }
-    _plSend(c); return; }
-  if ((m = RE_PL_MISS.exec(line))) { touch(); const mob = m[1].toLowerCase(), n = N(mob); n.last = now; n.alive = true; n.miss = (n.miss || 0) + 1;
-    if (p.burst && p.burst.name === mob && now - p.burst.t < 2600) p.burst.t = now; else p.burst = { name: mob, t: now, hit: false, hits: 0 };
-    const pv = p.swing; p.swing = { name: mob, t: now, res: 'miss', n: pv && pv.name === mob && pv.res !== 'hit' ? (pv.n || 1) + 1 : 1 }; _plSend(c); return; }
+  if ((m = RE_PL_HIT.exec(line))) { touch(); p.own = (p.own || 0) + 1; if (p.lv && _plLvOf(c)) return;   // levelling someone: your hits tag nobody
+    hitOn(m[1].toLowerCase()); return; }
+  if ((m = RE_PL_MISS.exec(line))) { touch(); if (p.lv && _plLvOf(c)) return; missOn(m[1].toLowerCase()); return; }
   if (RE_PL_FAR.test(line)) { if (!p || now - p.last > 45e3) return; const pv = p.swing; p.swing = { name: pv ? pv.name : null, t: now, res: 'far', n: pv && pv.res === 'far' && now - pv.t < 10e3 ? (pv.n || 1) + 1 : 1 }; _plSend(c); return; }
   if ((m = RE_PL_SNARE_AE.exec(line)) || (m = RE_PL_SNARE_1.exec(line))) {
     touch(); const mob = m[1].toLowerCase(), ae = RE_PL_SNARE_AE.test(line); N(mob).last = now; N(mob).alive = true;

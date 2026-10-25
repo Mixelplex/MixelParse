@@ -373,7 +373,7 @@ pre.output { font-family: var(--mono); font-size: .7rem; background: #050403; bo
         <div class="rv-chars" id="rvChars"></div>
         <div style="margin-top:.6rem;font-size:.9rem">From the last
           <select id="rvDays" style="background:var(--bg);color:var(--text);border:1px solid var(--border2);border-radius:4px;padding:.1rem .3rem">
-            <option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option><option value="30">30 days</option>
+            <option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option><option value="30">30 days</option><option value="0">All</option>
           </select>
           <span style="color:var(--text-m)">&nbsp;Your logs plus MixelParse's Auto-Detect history, raid sessions and loot for those days, and the MixelParse version. Tells are removed. Nothing else on your PC is sent.</span>
         </div>
@@ -2561,7 +2561,7 @@ async function rvListMine(){
     const list = await O.reviewMine();
     el.innerHTML = list.length ? list.map(r => '<div style="display:flex;gap:.6rem;align-items:baseline;padding:.3rem 0;border-bottom:1px solid var(--border)">'
       + '<span style="min-width:9.5rem">' + new Date(r.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + '</span>'
-      + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + String(r.description || '').replace(/"/g, '&quot;') + '">' + (r.chars || []).join(', ') + ' &middot; ' + r.days + ' days' + (r.has_screenshot ? ' &middot; screenshot' : '') + ' &middot; <span style="color:var(--text-m)">' + String(r.description || '').replace(/</g, '&lt;').slice(0, 80) + '</span></span>'
+      + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + String(r.description || '').replace(/"/g, '&quot;') + '">' + (r.chars || []).join(', ') + ' &middot; ' + (r.days ? r.days + ' days' : 'all logs') + (r.has_screenshot ? ' &middot; screenshot' : '') + ' &middot; <span style="color:var(--text-m)">' + String(r.description || '').replace(/</g, '&lt;').slice(0, 80) + '</span></span>'
       + '<span style="color:var(--text-m)">' + (r.status === 'new' ? 'waiting' : r.status === 'reviewed' ? 'reviewed' : 'received') + '</span>'
       + '<button class="btn" onclick="rvDelete(\'' + r.id + '\')" style="font-size:.8rem;padding:.15rem .6rem">&#128465; Delete</button></div>').join('')
       : 'None yet.';

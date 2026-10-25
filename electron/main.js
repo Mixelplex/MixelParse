@@ -626,7 +626,7 @@ ipcMain.handle('review:collect', async (e, opts) => {
   try {
     const zlib = require('zlib');
     const dir = config && config.logDir; if (!dir || !fs.existsSync(dir)) return { ok: false, error: 'EQ log folder not set (run Setup)' };
-    const days = Math.max(1, Math.min(30, +(opts && opts.days) || 7)), since = Date.now() - days * 864e5;
+    const d0 = opts && opts.days != null ? +opts.days : 7, days = d0 === 0 ? 0 : Math.max(1, Math.min(30, d0 || 7)), since = days ? Date.now() - days * 864e5 : 0;   // 0 = all
     const chars = ((opts && opts.chars) || []).map(String).filter(c => /^[A-Za-z]{2,20}$/.test(c));
     const out = [];
     const all = fs.readdirSync(dir).concat(fs.existsSync(path.join(dir, 'archive')) ? fs.readdirSync(path.join(dir, 'archive')).map(f => 'archive/' + f) : []);
@@ -634,6 +634,15 @@ ipcMain.handle('review:collect', async (e, opts) => {
       const files = all.filter(f => new RegExp('^(archive/)?eqlog_' + c + '_P1999Green[^/]*\\.(txt|old|log)$', 'i').test(f))   // live, rotated .old, and logs cut out by hand / other tools
         .map(f => ({ f, fp: path.join(dir, f), st: fs.statSync(path.join(dir, f)) })).filter(x => x.st.mtimeMs >= since).sort((a, b) => a.st.mtimeMs - b.st.mtimeMs);
       if (!files.length) continue;
+      if (!days) {   // All: stream every file, tells removed, 150 MB parts
+        const rl0 = require('readline'); let buf = [], bufBytes = 0, lines = 0, tells = 0, first = 0, last = 0; const parts = [];
+        const flush = () => { if (!buf.length) return; parts.push({ g: zlib.gzipSync(Buffer.from(buf.join('\n') + '\n', 'latin1'), { level: 6 }), raw: bufBytes }); buf = []; bufBytes = 0; };
+        for (const x of files) { const rl = rl0.createInterface({ input: fs.createReadStream(x.fp, { encoding: 'latin1' }), crlfDelay: Infinity });
+          for await (const l of rl) { if (!l) continue; if (RE_REVIEW_TELL.test(l)) { tells++; continue; } const t = _revTs(l); if (t) { if (!first) first = t; last = t; }
+            buf.push(l); bufBytes += l.length + 1; lines++; if (bufBytes >= 150 * 1048576) flush(); } }
+        flush();
+        parts.forEach((p, i) => out.push({ char: c, part: parts.length > 1 ? i + 1 : 0, gz: p.g, bytes: p.g.length, raw_bytes: p.raw, lines, tells_removed: tells, first, last, sources: files.map(x => x.f) }));
+        continue; }
       let lines = []; for (const x of files) lines = lines.concat(_revReadSince(x.fp, since));
       let tells = 0; const kept = lines.filter(l => { if (RE_REVIEW_TELL.test(l)) { tells++; return false; } return true; });
       if (!kept.length) continue;
