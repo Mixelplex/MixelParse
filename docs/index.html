@@ -978,18 +978,23 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
 <div id="btParkWarn"></div>
 <div id="skyCorpseWarn"></div>
 <div id="mpPingWarn"></div>
+<style>.top-nav-item.nav-grouped{display:none!important}</style>
 <div class="top-nav" id="topNav" style="display:none">
   <div class="top-nav-item active" data-view="characters">Characters</div>
-  <div class="top-nav-item" data-view="dkp">DKP History</div>
-  <div class="top-nav-item" data-view="plat">Plat Prices</div>
+  <div class="top-nav-item nav-group" data-group="raids">Raids</div>
+  <div class="top-nav-item nav-group" data-group="market">Market</div>
   <div class="top-nav-item" data-view="kills">Raid Kill Tracker</div>
-  <div class="top-nav-item" data-view="raidinfo">Raid Info</div>
-  <div class="top-nav-item" data-view="keys">Keys</div>
-  <div class="top-nav-item" data-view="flowers">Flowers</div>
-  <div class="top-nav-item" data-view="farm">Farm Targets</div>
-  <div class="top-nav-item" data-view="bankers">Bankers</div>
-  <div class="top-nav-item" data-view="tells">Tells</div>
-  <div class="top-nav-item" data-view="tasks">Tasks</div>
+  <div class="top-nav-item nav-group" data-group="inbox">Inbox</div>
+  <!-- the pages behind the groups (hidden; switchTopView and the group bar click these) -->
+  <div class="top-nav-item nav-grouped" data-view="dkp">DKP History</div>
+  <div class="top-nav-item nav-grouped" data-view="plat">Plat Prices</div>
+  <div class="top-nav-item nav-grouped" data-view="raidinfo">Raid Info</div>
+  <div class="top-nav-item nav-grouped" data-view="keys">Keys</div>
+  <div class="top-nav-item nav-grouped" data-view="flowers">Flowers</div>
+  <div class="top-nav-item nav-grouped" data-view="farm">Farm Targets</div>
+  <div class="top-nav-item nav-grouped" data-view="bankers">Bankers</div>
+  <div class="top-nav-item nav-grouped" data-view="tells">Tells</div>
+  <div class="top-nav-item nav-grouped" data-view="tasks">Tasks</div>
   <div class="top-nav-item" data-view="settings" style="display:none">Settings</div>
   <div id="syncIndicator" title="Click to save now" onclick="forceSaveNow()" style="margin-left:auto;cursor:pointer;font-size:.65rem;color:var(--text-muted);display:flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:4px;transition:background .15s">
     <span id="syncDot" style="width:7px;height:7px;border-radius:50%;background:#888;display:inline-block;transition:background .3s"></span>
@@ -1001,6 +1006,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
   <div style="color:var(--text-muted);font-size:.65rem;font-family:'Cinzel',serif;letter-spacing:.07em;padding:.55rem .9rem;cursor:pointer;white-space:nowrap" onclick="openFeedbackModal()" title="Submit feedback or suggestions">Feedback</div>
   <div id="updateNavBtn" style="display:none;font-size:.65rem;font-family:'Cinzel',serif;letter-spacing:.07em;padding:.55rem .9rem;cursor:pointer;white-space:nowrap;color:var(--text-muted);transition:color .2s" onclick="handleUpdateClick()" title="Check for updates">&#8635; Update</div>
 </div>
+<div id="navGroupTabs" style="display:none;border-bottom:1px solid var(--border);margin-bottom:.5rem;flex-wrap:wrap"></div>
 
 <div id="dkpView" style="display:none">
   <div class="rc-panel" id="dkpPanel"></div>
@@ -1202,6 +1208,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
     <div class="subtab" data-sub="factions">Factions</div>
     <div class="subtab" data-sub="skyshrine">Skyshrine</div>
     <div class="subtab" data-sub="quests">Quests</div>
+    <div class="subtab" data-sub="flowers">Flowers</div>
     <div class="subtab" data-sub="killcounts">Kills</div>
     <div class="subtab" data-sub="spells">Spells</div>
     <div class="subtab" data-sub="travel">Travel</div>
@@ -1354,6 +1361,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
     <div class="rc-panel" id="outfitterPanel"></div>
   </div>
 
+  <div id="subFlowers" style="display:none"></div>
   <div id="subLeveling" style="display:none">
     <div class="rc-panel" id="levelingPanel"></div>
   </div>
@@ -3081,13 +3089,14 @@ let activeTopView='characters';
 const RAID_INFO_SUBS=new Set(['parking','timers']);
 let raidInfoSub=(function(){try{return localStorage.getItem('mp_raidInfoSub')==='timers'?'timers':'parking';}catch(e){return 'parking';}})();
 function setRaidInfoSub(v){raidInfoSub=v==='timers'?'timers':'parking';try{localStorage.setItem('mp_raidInfoSub',raidInfoSub);}catch(e){}const it=document.querySelector('.top-nav-item[data-view="raidinfo"]');if(it)it.click();}
-function switchTopView(view){if(RAID_INFO_SUBS.has(view)){setRaidInfoSub(view);return;}const item=document.querySelector('.top-nav-item[data-view="'+view+'"]');if(item)item.click();}
-document.querySelectorAll('.top-nav-item').forEach(item=>{
+function switchTopView(view){if(view==='flowers'){const c=document.querySelector('.top-nav-item[data-view="characters"]');if(c)c.click();const st=document.querySelector('.subtab[data-sub="flowers"]');if(st)st.click();return;}if(view==='selling'){navGo('selling');return;}if(RAID_INFO_SUBS.has(view)){setRaidInfoSub(view);return;}const item=document.querySelector('.top-nav-item[data-view="'+view+'"]');if(item)item.click();}
+document.querySelectorAll('.top-nav-item:not(.nav-group)').forEach(item=>{
   item.addEventListener('click',()=>{
     activeTopView=item.dataset.view;
     if(activeTopView==='raidinfo')activeTopView=raidInfoSub;
     document.querySelectorAll('.top-nav-item').forEach(i=>i.classList.toggle('active',i.dataset.view===activeTopView||(i.dataset.view==='raidinfo'&&RAID_INFO_SUBS.has(activeTopView))));
-    const riTabs=document.getElementById('raidInfoTabs');if(riTabs)riTabs.style.display=RAID_INFO_SUBS.has(activeTopView)?'flex':'none';
+    const riTabs=document.getElementById('raidInfoTabs');if(riTabs)riTabs.style.display='none';   /* the group bar (Raids) replaces it */
+    navGroupSync();
     document.querySelectorAll('#raidInfoTabs [data-risub]').forEach(t=>t.classList.toggle('active',t.dataset.risub===activeTopView));
     const isChars=activeTopView==='characters';
     const isDkp=activeTopView==='dkp';
@@ -3127,7 +3136,7 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     document.getElementById('bankersView').style.display=isBankers?'block':'none';
     if(isDkp){renderDkpPanel();}
     else if(isPlat){renderPlatPanel();if(!platData.length)fetchPlatData();}
-    else if(isFarm){renderFarmPanel();if(!platData.length)fetchPlatData();}
+    else if(isFarm){const fp=document.getElementById('farmPanel');if(!fp||!fp.innerHTML||_tabSig.farm!==tabSig('farm'))renderFarmPanel();if(!platData.length)fetchPlatData();}
     else if(isKills){renderKillsPanel();}
     else if(isParking){renderParkingPanel();}
     else if(isKeys){renderKeysPanel();}
@@ -3142,10 +3151,44 @@ document.querySelectorAll('.top-nav-item').forEach(item=>{
     maybeShowHelp(activeTopView);
   });
 });
-document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subTravel').style.display=activeSub==='travel'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='travel')renderTravelPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();maybeShowHelp('sub_'+activeSub);});});
+document.querySelectorAll('.subtab').forEach(st=>{st.addEventListener('click',()=>{activeSub=st.dataset.sub;document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subTravel').style.display=activeSub==='travel'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';document.getElementById('subFlowers').style.display=activeSub==='flowers'?'block':'none';if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades'){const up=document.getElementById('upgradesPanel');if(!up||!up.innerHTML||_tabSig.upg!==tabSig('upg'))renderUpgradesPanel();}if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='travel')renderTravelPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();if(activeSub==='flowers')renderFlowersPanel();maybeShowHelp(activeSub==='flowers'?'flowers':'sub_'+activeSub);});});
+// ── Top-bar groups (2026-10-26): Characters · Raids · Market · Inbox; the group bar switches the pages inside a group ──
+const NAV_GROUPS={raids:[['dkp','DKP'],['parking','Parking'],['timers','Timers'],['keys','Keys']],
+  market:[['plat','Prices'],['farm','Farm Targets'],['bankers','Bankers'],['selling','Selling']],
+  inbox:[['tells','Tells'],['tasks','Tasks']]};
+function navCur(){ const v=typeof activeTopView!=='undefined'?activeTopView:'characters'; return v==='bankers'&&typeof bankersSub!=='undefined'&&bankersSub==='selling'?'selling':v; }
+function navGroupOf(v){ for(const [g,l] of Object.entries(NAV_GROUPS)) if(l.some(x=>x[0]===v)) return g; return null; }
+function navTellsOn(){ try{ return typeof tellsOn!=='function'||tellsOn(); }catch(e){ return true; } }
+function navLabel(v,l){ try{ if(v==='tells'){ const n=tellsUnread(); return l+(n?' <b style="color:#b03030">('+n+')</b>':''); } if(v==='tasks'){ const n=tasksOpen().length; return l+(n?' ('+n+')':''); } }catch(e){} return l; }
+function navGroupSync(){
+  try{
+    const cur=navCur(), g=navGroupOf(cur);
+    document.querySelectorAll('.top-nav-item.nav-group').forEach(el=>el.classList.toggle('active',el.dataset.group===g));
+    const ib=document.querySelector('.top-nav-item.nav-group[data-group="inbox"]');
+    if(ib){ let t=0,k=0; try{ t=navTellsOn()?tellsUnread():0; }catch(e){} try{ k=tasksOpen().length; }catch(e){} ib.innerHTML='Inbox'+(t?' <b style="color:#b03030">('+t+')</b>':'')+(k?' <span style="opacity:.85">· '+k+' task'+(k>1?'s':'')+'</span>':''); }
+    const bar=document.getElementById('navGroupTabs'); if(!bar) return;
+    if(!g){ bar.style.display='none'; return; }
+    bar.style.display='flex';
+    bar.innerHTML=NAV_GROUPS[g].filter(([v])=>v!=='tells'||navTellsOn()).map(([v,l])=>'<div class="kt-view-tab'+(v===cur?' active':'')+'" onclick="navGo(\''+v+'\')">'+navLabel(v,l)+'</div>').join('');
+    try{ localStorage.setItem('mp_navgrp_'+g,cur); }catch(e){}
+  }catch(e){ console.warn('[nav]',e); }
+}
+function navGo(v){
+  if(v==='selling'||v==='bankers'){ const sub=v==='selling'?'selling':'bankers';   // set the sub-tab first: opening the page draws it once (it drew twice — 10-26 "freezes when selecting bankers")
+    if(activeTopView==='bankers'){ setBankersSub(sub); return; } bankersSub=sub; try{localStorage.setItem('mp_bankersSub',sub);}catch(e){}
+    const it=document.querySelector('.top-nav-item[data-view="bankers"]'); if(it) it.click(); return; }
+  switchTopView(v);
+}
+document.querySelectorAll('.top-nav-item.nav-group').forEach(el=>el.addEventListener('click',()=>{
+  const g=el.dataset.group; let v=null; try{ v=localStorage.getItem('mp_navgrp_'+g); }catch(e){}
+  if(!v||!NAV_GROUPS[g].some(x=>x[0]===v)||(v==='tells'&&!navTellsOn())) v=NAV_GROUPS[g].find(x=>x[0]!=='tells'||navTellsOn())[0];
+  navGo(v);
+}));
+// Flowers now lives under Characters: its panel moves into the sub-tab
+(function(){ const p=document.getElementById('flowersPanel'), h=document.getElementById('subFlowers'); if(p&&h) h.appendChild(p); })();
 function refresh(){if(typeof whoPendingApply==='function')whoPendingApply();if(typeof headerBtnsSync==='function')headerBtnsSync();buildTabs();renderView();saveState();renderNetworthBar();if(typeof activeTopView!=='undefined'&&activeTopView==='parking'&&typeof renderParkingPanel==='function')renderParkingPanel();}
 function renderOnly(){buildTabs();renderView();}
-function renderView(){if(activeTopView&&activeTopView!=='characters')return;const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subTravel').style.display=activeSub==='travel'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderCityBars();renderFoodDrinkPanel();applyPanelLayout();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='travel')renderTravelPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();}
+function renderView(){if(activeTopView&&activeTopView!=='characters')return;const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subTravel').style.display=activeSub==='travel'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';document.getElementById('subFlowers').style.display=activeSub==='flowers'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderCityBars();renderFoodDrinkPanel();applyPanelLayout();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='travel')renderTravelPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();if(activeSub==='flowers')renderFlowersPanel();}
 
 // ─── Inventory Table ──────────────────────────────────────────────────────────
 function renderTable(){const query=document.getElementById('searchBox').value.toLowerCase();const locFilter=document.getElementById('locationFilter').value;const classFilter=document.getElementById('classFilter').value;const slotFilter=document.getElementById('slotFilter').value;const isAll=activeTab==='__all__';let source=isAll?Object.entries(chars).filter(([_cn])=>!isExcludedChar(_cn)).flatMap(([,_it])=>_it):(chars[activeTab]||[]);let items=source.filter(item=>{const ms=!query||item.name.toLowerCase().includes(query)||String(item.id).includes(query);const ml=!locFilter||locationType(item.location)===locFilter;let mc=true;if(classFilter||slotFilter){const db=itemDBGet(item.name);if(!db||(db._slot||'NONE')==='NONE'){mc=false;}else{if(classFilter){const cls=(db._classes||'ALL').toUpperCase();if(cls!=='ALL'&&!cls.split(/\s+/).includes(classFilter))mc=false;}if(slotFilter&&mc){const slots=db._slots||[db._slot];if(!slots.includes(slotFilter))mc=false;}}}return ms&&ml&&mc;});items.sort((a,b)=>{let av=a[sortCol],bv=b[sortCol];if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?-sortDir:av>bv?sortDir:0;});const tbody=document.getElementById('invBody');tbody.innerHTML='';if(!items.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No items found</td></tr>';}else{for(const item of items){const lt=locationType(item.location);const bc=lt==='equipped'?'badge-equipped':lt==='bank'?'badge-bank':'badge-bag';const bl=lt==='equipped'?'Equipped':lt==='bank'?'Bank':'Bag';const tr=document.createElement('tr');if(lt==='equipped')tr.classList.add('equipped-row');tr.innerHTML='<td class="td-name">'+itemLink(item.name)+(lt==='equipped'?'':lootValueTag(item.name))+'</td><td class="td-char" style="display:'+(isAll?'':'none')+'">'+esc(item.char)+'</td><td class="td-location"><span class="badge '+bc+'">'+bl+'</span> <span style="opacity:.6;font-size:.78rem">'+esc(item.location)+'</span></td><td class="td-count'+(item.count>1?' stack':'')+'">'+( item.count>1?'&times;'+item.count:'')+'</td><td class="td-id">'+item.id+'</td>';tbody.appendChild(tr);}}const total=items.reduce((s,i)=>s+i.count,0);const unique=new Set(items.map(i=>i.id)).size;const stacks=items.filter(i=>i.count>1).length;document.getElementById('statsBar').innerHTML='<span class="stat">Showing <span class="stat-val">'+items.length+'</span> of <span class="stat-val">'+source.length+'</span></span><span class="stat">Total qty <span class="stat-val">'+total+'</span></span><span class="stat">Unique IDs <span class="stat-val">'+unique+'</span></span>'+(stacks?'<span class="stat">Stacks <span class="stat-val">'+stacks+'</span></span>':'')+(isAll?'<span class="stat">Characters <span class="stat-val">'+charNames().length+'</span></span><span class="stat">Bankers <span class="stat-val">'+bankerNames().length+'</span></span>':'');}
@@ -3537,6 +3580,7 @@ return `<div class="stat-grid"><div class="stat-card"><div class="stat-card-titl
 function renderUpgradesPanel(){
   const panel=document.getElementById('upgradesPanel');
   if(!panel)return;
+  _tabSig.upg=tabSig('upg');
   const name=activeTab;
   // Drop the loaded-plan link if we've navigated to a different character's planner.
   if(window._upgLoadedPlan&&window._upgLoadedPlan.char!==name)window._upgLoadedPlan=null;
@@ -5682,17 +5726,15 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.8.6',
+  version:'1.8.7',
   date:'October 2026',
   features:[
-    ['&#9876; PL helper: power-leveller mode','Levelling someone else (your damage shield / heals, their melee)? The PL helper now follows <b>their</b> tags: their hits and misses in your log, &#10003; when the kill goes to them, &#10007; when it goes to you (&ldquo;You have slain&rdquo;) or someone else. It switches on by itself on the first kill credited to them; the window shows &ldquo;levelling &lt;name&gt;&rdquo;. Needs your chat filter to show other players&rsquo; hits.'],
-    ['&#128202; Measured loot and coin','Farm Targets: a <b>coin per active hour</b> card by hunting zone, and under each item a <b>&#128202; measured</b> line &mdash; how often it dropped from real kills (the share of opened corpses), from over a year of logs.'],
-    ['&#128200; Leveling path: melee miss rate','For melee classes each stage shows how often you&rsquo;ll miss the mobs there (&ldquo;melee misses ~29%&rdquo;), measured on 700,000 swings.'],
-    ['&#128221; Submit logs: All','Submit logs for review can now send <b>All</b> of a character&rsquo;s logs (3 / 7 / 14 / 30 days / All). Tells are still removed.'],
+    ['&#128450; A tidier top bar','Eleven tabs became five: <b>Characters</b> &middot; <b>Raids</b> (DKP, Parking, Timers, Keys) &middot; <b>Market</b> (Prices, Farm Targets, Bankers, Selling) &middot; <b>Raid Kill Tracker</b> &middot; <b>Inbox</b> (Tells, Tasks &mdash; with the counts). Click a group for its pages underneath; each group remembers the page you used last. <b>Flowers</b> moved under Characters.'],
+    ['&#9889; Faster pages','The Raid Kill Tracker&rsquo;s Auto-Detect view draws about 5&times; faster (it shows the newest 150 ticks, <b>Show all</b> for the rest) and Credit Check about 3&times;. Farm Targets shows the top 60 items first (<b>Show all</b>), and Farm Targets and the Gear Planner come back instantly when nothing they show has changed.'],
   ],
   fixes:[
-    ['Leveling path: con XP','Lower-con mobs now count light blue ~80%, high green ~50%, green ~25% &mdash; fitted to 159 real levels (the wiki&rsquo;s 50% for light blue was too harsh).'],
-    ['PL helper in a group','Auto no longer pops the window when a groupmate gets the kill and you get group XP.'],
+    ['Group kills in faction zones','Kills by your groupmates in zones where kills change faction (most of Velious) were being skipped as quest turn-ins; they count again (session kills, kill records, spawn timers).'],
+    ['CH chain','Shaman slow calls written &ldquo;&lt;Slowed&gt; Keeper of Souls&rdquo; are picked up; a CH call from an unfilled macro (&ldquo;CH -- Target&rdquo;) no longer shows a heal target named &ldquo;Target&rdquo;.'],
   ],
 };
 function showWhatsNew(){
@@ -9825,14 +9867,16 @@ function lootTickKey(l){ return String(l||'').replace(/https?:\S*/g,'').replace(
 function lootTickTime(l,ts){ const m=/^(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2})\b/.exec(String(l||'').trim()); if(!m) return null;
   const y=new Date(ts).getFullYear(); let best=null; for(const yy of [y-1,y,y+1]){ const t=new Date(yy,+m[1]-1,+m[2],+m[3],+m[4]).getTime(); if(best==null||Math.abs(t-ts)<Math.abs(best-ts)) best=t; } return best; }
 // Tick > Loot: the ODKP items sold on this kill's tick
+// the Auto-Detect table's date format, built once (toLocaleString makes a new formatter on every call)
+let _rkdDTf=null; function _rkdDT(){ return _rkdDTf||(_rkdDTf=new Intl.DateTimeFormat([], {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})); }
 function lootOdkpForKill(r,OM){
   const S=lootOdkpSales(), t=r.tod||r.ts, out=[];
   const pair=OM&&OM.byId&&OM.byId[r.id], key=pair?lootTickKey(pair.l):null;
   let lo=0,hi=S.length; while(lo<hi){ const m=(lo+hi)>>1; if(S[m].ts<t-3*864e5) lo=m+1; else hi=m; }
   for(let j=lo;j<S.length&&S[j].ts<t+10*864e5;j++){ const h=S[j]; if(!h.raid) continue;
-    if(key){ if(lootTickKey(h.raid)!==key) continue; }   // your credited tick for this kill: exactly its items
+    if(key){ if((h._k!=null?h._k:(h._k=lootTickKey(h.raid)))!==key) continue; }   // your credited tick for this kill: exactly its items (key cached on the sale)
     else { const nt=lootTickTime(h.raid,t); if(nt==null||Math.min(Math.abs(nt-r.ts),Math.abs(nt-t))>20*60e3) continue;   // else: a tick at this time…
-      let tg; try{ tg=odkpTickTargets(h.raid); }catch(e){ tg=new Set(); } if(!tg.has(r.boss)&&!lootRaidNames(h.raid,r.boss)) continue; }   // …for this boss
+      let tg=h._tg; if(!tg){ try{ tg=h._tg=odkpTickTargets(h.raid); }catch(e){ tg=h._tg=new Set(); } } if(!tg.has(r.boss)&&!lootRaidNames(h.raid,r.boss)) continue; }   // …for this boss
     out.push({item:h.name,winners:[{who:h.who,n:h.n}],src:'odkp',tick:h.raid}); }
   return out;
 }
@@ -9861,13 +9905,16 @@ function lootBossHistory(boss){
   if(!kills.size) return '';
   return boss+' — loot seen on '+kills.size+' kill'+(kills.size===1?'':'s')+':\n'+Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([i,n])=>i+' ×'+n).join('\n');
 }
-function aucMine(){ return new Set((typeof charNames==='function'?charNames():[]).map(n=>String(n).toLowerCase())); }
+let _aucMineC=null,_aucMineT=0;
+function aucMine(){ const now=Date.now(); if(_aucMineC&&now-_aucMineT<2000) return _aucMineC; _aucMineT=now; return _aucMineC=new Set((typeof charNames==='function'?charNames():[]).map(n=>String(n).toLowerCase())); }   // kept 2 s: a table asks for every loot line
 function aucTop(A){ return A.bids.length?A.bids.reduce((m,b)=>b.n>m.n||(b.n===m.n&&b.ts<m.ts)?b:m):null; }
 function aucIsMine(b,mine){ return mine.has(String(b.who).toLowerCase())||(b.toon&&mine.has(String(b.toon).toLowerCase())); }
 // Auction wins ODKP doesn't have yet (owner, 2026-10-09) → "Avail to spend" in the auction window
 let aucPending=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_auc_pending')||'[]')||[]; }catch(e){ return []; } })();
 function aucPendingSave(){ try{ localStorage.setItem('mp_auc_pending',JSON.stringify(aucPending)); }catch(e){} }
-function aucIsMyAcct(who){ const lc=String(who||'').toLowerCase(); if(aucMine().has(lc)) return true; const me=odkpMyBalance(), c=odkpC(who); return !!(me&&c&&String(c.mainId)===String(me.mainId)); }
+const _aucAcctC=new Map(); let _aucAcctT=0;
+function aucIsMyAcct(who){ const lc=String(who||'').toLowerCase(), now=Date.now(); if(now-_aucAcctT>2000){ _aucAcctC.clear(); _aucAcctT=now; } if(_aucAcctC.has(lc)) return _aucAcctC.get(lc);   // answers kept 2 s
+  let v=aucMine().has(lc); if(!v){ const me=odkpMyBalance(), c=odkpC(who); v=!!(me&&c&&String(c.mainId)===String(me.mainId)); } _aucAcctC.set(lc,v); return v; }
 function aucPendingAdd(item,who,n,ts){
   if(!(n>0)||!aucIsMyAcct(who)) return;
   if(aucPending.some(p=>dkpNorm(p.item)===dkpNorm(item)&&p.who.toLowerCase()===String(who).toLowerCase()&&p.n===n&&Math.abs(p.ts-ts)<6*3600e3)) return;
@@ -10106,7 +10153,7 @@ async function fetchPlatData(){
     console.log('[Plat] Sample record:',platData[0]); // so we can see the shape
     renderPlatPanel();
     if(activeTopView==='farm')renderFarmPanel();
-    if(activeTopView==='flowers')renderFlowersPanel();
+    if(activeTopView==='flowers'||(activeTopView==='characters'&&typeof activeSub!=='undefined'&&activeSub==='flowers'))renderFlowersPanel();
     applyPlatToItemDB();
     renderNetworthBar();
   }catch(e){
@@ -10238,6 +10285,13 @@ let farmCrawling=false;
 let _farmLoaded=false;
 let farmIgnores=[];              // per-user ignore list (original-case names) — guild_data.farm_ignores
 let farmShowIgnored=false;
+let farmShowAll=false;   // Farm Targets: the top 60 rows unless "Show all" (2026-10-26: 200 rows took ~150 ms per draw)
+// what a page shows depends on — unchanged since its last draw ⇒ a tab switch keeps the drawn page (2026-10-26)
+const _tabSig={};
+function tabSig(key){ try{
+  if(key==='farm') return [platData.length,(platData[0]||{}).n||'',farmTargetsData?Object.keys(farmTargetsData.items||{}).length+'|'+(farmTargetsData.crawledAt||''):'-',farmIgnores.length,farmRankBy,farmShowAll,_farmSub,farmZonesCollapsed,farmShowIgnored,!!window.WIKI_MOBS,typeof farmCrawling!=='undefined'&&!!farmCrawling].join('~');
+  if(key==='upg'){ const n=activeTab; return [n,JSON.stringify(charMeta[n]||{}),JSON.stringify(chars[n]||[]).length,Object.keys(itemDB).length,JSON.stringify(gearStats[n]||{}).length,platData.length,window._upgLoadedPlan?JSON.stringify(window._upgLoadedPlan).length:0].join('~'); }
+}catch(e){} return Math.random(); }
 let farmZonesCollapsed=false;
 let _farmIgnoresLoaded=false;
 
@@ -11800,6 +11854,7 @@ function renderQmFarmPanel(panel){
 function renderFarmPanel(){
   const panel=document.getElementById('farmPanel');
   if(!panel)return;
+  _tabSig.farm=tabSig('farm');
   if(_farmSub==='qm'){renderQmFarmPanel(panel);return;}
   // Preserve scroll across innerHTML rebuild (page + table body)
   const se=document.scrollingElement||document.documentElement;
@@ -12066,7 +12121,7 @@ function renderFarmTargetsPanel(panel){
     const coinZ=typeof LOG_LOOT!=='undefined'&&LOG_LOOT.zones?Object.entries(LOG_LOOT.zones).sort((a,b)=>b[1][0]-a[1][0]):[];
     const coinCard=coinZ.length?'<div style="border:1px solid var(--border);border-radius:4px;padding:.6rem .8rem;margin-bottom:.7rem"><div style="font-size:.68rem;letter-spacing:.08em;color:var(--text-muted);margin-bottom:.4rem" title="Coin looted per hour of active hunting (minutes with swings, casts, kills or hits taken), from real kills in the MixelParse author\u2019s logs since '+esc(LOG_LOOT.since||'')+'. Coin only \u2014 items sell on top.">COIN PER ACTIVE HOUR \u2014 MEASURED FROM OUR LOGS</div>'
       +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.1rem .9rem">'+coinZ.slice(0,16).map(([z,v])=>'<div style="display:flex;justify-content:space-between;font-size:.78rem;padding:.08rem 0" title="'+v[1]+' kills per active hour \u00b7 '+v[2]+' active hours measured"><span>'+esc(z)+'</span><b>'+v[0]+' pp/hr</b></div>').join('')+'</div></div>':'';
-    const rows=targets.map((t,i)=>{
+    const rows=targets.slice(0,farmShowAll?targets.length:60).map((t,i)=>{
       const it=info(t.n);
       let status,src='—';
       if(!it)status='<span style="color:var(--text-muted)">❔ not crawled</span>';
@@ -12095,7 +12150,7 @@ function renderFarmTargetsPanel(panel){
         <table class="dkp-table"><thead style="position:sticky;top:0;background:var(--surface2,#1a1510);z-index:1"><tr>
           <th>#</th><th>Item</th><th class="dkp-th-right">Fair Value</th><th class="dkp-th-right">Market Vol (30d)</th><th class="dkp-th-right">30d Tx</th><th>Status</th><th>Drops From (P99 wiki)</th><th></th>
         </tr></thead><tbody>${rows}</tbody></table>
-      </div>`;
+      </div>`+(targets.length>60?'<div style="margin-top:.4rem;text-align:center"><button class="plat-fetch-btn" style="font-size:.7rem;padding:.2rem .7rem" onclick="farmShowAll=!farmShowAll;renderFarmPanel()">'+(farmShowAll?'Show the top 60':'Show all '+targets.length)+'</button></div>':'');
     if(farmIgnores.length){
       const igSorted=farmIgnores.slice().sort((a,b)=>a.localeCompare(b));
       body+=`
@@ -14684,7 +14739,7 @@ function renderAutoDetectPanel(){
   // "No boss" ticks: try the spawn-timer board (loads it once, then re-renders if anything changed)
   if(typeof btLoaded!=='undefined'&&!btLoaded&&typeof btEnsureLoaded==='function'){btEnsureLoaded().then(()=>{if(rkdRetryNoBoss()&&typeof activeTopView!=='undefined'&&activeTopView==='kills')renderKillsPanel();});}
   else rkdRetryNoBoss();
-  const fmt=ts=>ts?new Date(ts).toLocaleString([], {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';
+  const fmt=ts=>ts?_rkdDT().format(new Date(ts)):'—';   // one formatter, not one per timestamp (it was ~40% of the draw)
   const TIER={strong:['Strong','#4caf7d'],weak:['Weak','#c9a84c'],ambiguous:['Pick','#6ab4c4'],none:['No boss','var(--text-muted)']};
   const counts={strong:0,weak:0,ambiguous:0,none:0};rkdLog.forEach(r=>counts[r.tier]=(counts[r.tier]||0)+1);
   // ODKP credit per tick
@@ -14716,7 +14771,8 @@ function renderAutoDetectPanel(){
       <td style="padding:.3rem .5rem">${esc(t.char||'')}${t.zone?`<div style="font-size:.68rem;color:var(--text-muted)">${esc(t.zone)}</div>`:''}</td>
       <td colspan="7" style="padding:.3rem .5rem;color:var(--text-muted);font-size:.78rem">⏳ Collecting evidence — the suggestion appears about 2 minutes after the tick (kill lines often come right after it).</td>
     </tr>`).join('');
-  const body=pending+rows.map(r=>{
+  const rowsAll=rows.length, rowsShown=window._rkdShowAll?rows:rows.slice(0,150);   // the newest 150 unless "Show all" (2026-10-26: 824 rows took ~1 s)
+  const body=pending+rowsShown.map(r=>{
     const [tl,tc]=TIER[r.tier]||TIER.none;
     const _o0=odkpState(r), hrO=_o0.k==='ok'?rkdOdkpHourly(_o0.t):null, hrMine=r.confirm==='hourly'&&r.hourly, _gap=!r.boss&&!r.confirm&&_rkdAttended(r)&&(r.tier==='none'||r.tier==='ambiguous')?rkdGapMin(r):null, _hrLikely=!r.boss&&!r.confirm&&_rkdAttended(r)&&(r.tier==='none'||r.tier==='ambiguous')&&rkdHourlyLikely(r.tier==='none',r.zone,_gap);
     const who=hrO?'<span title="ODKP lists this tick as '+esc(hrO)+': '+esc(_o0.t.l)+'">⏱ '+esc(hrO)+'</span>'+(r.boss||r.tier==='ambiguous'?'<div style="font-size:.68rem;font-weight:400;color:var(--text-muted)">fought: '+esc(r.boss||(r.cands||[]).join(' / '))+'</div>':'')
@@ -14783,7 +14839,7 @@ function renderAutoDetectPanel(){
     <div style="overflow:auto;max-height:72vh">${rows.length?`<table style="width:100%;border-collapse:collapse;font-size:.8rem">
       <thead><tr style="text-align:left;font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.06em;color:var(--text-muted)">
         <th style="padding:.35rem .5rem">TICK</th><th style="padding:.35rem .5rem">CHAR</th><th style="padding:.35rem .5rem">SUGGESTED</th><th style="padding:.35rem .5rem" title="Bosses of the tick's zone that were up at the tick, per the spawn timers">MOBS UP</th><th style="padding:.35rem .5rem">CONFIDENCE</th><th style="padding:.35rem .5rem">ToD</th><th style="padding:.35rem .5rem">EVIDENCE</th><th style="padding:.35rem .5rem">TRACKER</th><th style="padding:.35rem .5rem">ODKP CREDIT</th>
-      </tr></thead><tbody>${body}</tbody></table>`
+      </tr></thead><tbody>${body}</tbody></table>${rowsAll>150?'<div style="margin:.4rem 0;text-align:center"><button class="kt-undo-btn" onclick="window._rkdShowAll=!window._rkdShowAll;renderKillsPanel()">'+(window._rkdShowAll?'Show the newest 150':'Show all '+rowsAll+' ticks')+'</button></div>':''}`
       :`<div style="padding:1.2rem;color:var(--text-muted);font-style:italic">${onlyUncredited?'Every RAIDTICK you were in zone for has a credited ODKP tick.':'No raid ticks yet. Suggestions appear about 2 minutes after each RAIDTICK while MixelParse is running — or use ⛏ Scan logs to load past raid nights.'}</div>`}</div>`;
 }
 
@@ -14950,7 +15006,16 @@ const ODKP_EXACT_ONLY=new Set(['lord','master','mistress','magi','trak']);
 // Resolution order: learned alias overlay (Supabase, click-to-teach) → built-in
 // exact → built-in exact after date/index strip → built-in partial (skipping
 // ODKP_EXACT_ONLY keys). '__ignore__' overlay value = deliberately unmapped.
+// remembered per label; cleared whenever the learned-alias overlay changes (2026-10-26: 1,452 labels re-parsed per Credit Check draw)
+const _nolCache=new Map(); let _nolOv=null;
+function odkpAliasChanged(){ _nolCache.clear(); }
 function normalizeOdkpLabel(raw){
+  if(!raw)return null;
+  if(_nolOv!==odkpAliasOverlay){ _nolCache.clear(); _nolOv=odkpAliasOverlay; }
+  if(_nolCache.has(raw)) return _nolCache.get(raw);
+  const v=_normalizeOdkpLabel(raw); _nolCache.set(raw,v); return v;
+}
+function _normalizeOdkpLabel(raw){
   if(!raw)return null;
   let s=raw.trim().toLowerCase().replace(/[`’‘]/g,"'");
   // Remove common suffixes ("X kill", "X no kill", "X kill plus hour", ...)
@@ -16944,7 +17009,7 @@ function taskBadge(name){
 }
 function taskDisplay(){ try{ const v=localStorage.getItem('mp_task_display'); return v==='alert'||v==='card'||v==='off'?v:'all'; }catch(e){ return 'all'; } }
 function tasksOpen(){ return _tasks.filter(t=>!t.done); }
-function tasksNavCount(){ const n=tasksOpen().length, el=document.querySelector('.top-nav-item[data-view="tasks"]'); if(el) el.textContent='Tasks'+(n?' ('+n+')':''); }
+function tasksNavCount(){ const n=tasksOpen().length, el=document.querySelector('.top-nav-item[data-view="tasks"]'); if(el) el.textContent='Tasks'+(n?' ('+n+')':''); if(typeof navGroupSync==='function') navGroupSync(); }
 setTimeout(tasksNavCount,0);
 // your character tabs (not bankers, not hidden) — the list and the default; any other name can still be typed
 function taskChars(){
@@ -17597,7 +17662,7 @@ function tellAlert(who){
   tellChime();
 }
 function tellsUnread(){ return _tells.filter(t=>t.dir==='in'&&!t.read).length; }
-function tellsNavCount(){ const el=document.querySelector('.top-nav-item[data-view="tells"]'); if(el){ el.style.display=tellsOn()?'':'none'; if(!tellsOn()&&typeof activeTopView!=='undefined'&&activeTopView==='tells'&&typeof switchTopView==='function') setTimeout(()=>switchTopView('characters'),0); const n=tellsUnread(); el.innerHTML='Tells'+(n?' <b style="color:#b03030">('+n+')</b>':''); } }
+function tellsNavCount(){ const el=document.querySelector('.top-nav-item[data-view="tells"]'); if(el){ el.style.display=tellsOn()?'':'none'; if(!tellsOn()&&typeof activeTopView!=='undefined'&&activeTopView==='tells'&&typeof switchTopView==='function') setTimeout(()=>switchTopView('characters'),0); const n=tellsUnread(); el.innerHTML='Tells'+(n?' <b style="color:#b03030">('+n+')</b>':''); } if(typeof navGroupSync==='function') navGroupSync(); }
 setTimeout(tellsNavCount,0);
 function tellOnMsg(msg){
   if(!tellsOn()) return;   // Settings → Tells: tracking off
@@ -19250,6 +19315,7 @@ function setBankersSub(v){
   if(cp)cp.style.display=bankersSub==='consolidate'?'':'none';
   const sp=document.getElementById('sellingPanel'); if(sp)sp.style.display=bankersSub==='selling'?'':'none';
   if(bankersSub==='consolidate')renderConsolidatePanel();else if(bankersSub==='selling')renderSellingPanel();else renderBankersPanel();
+  if(typeof navGroupSync==='function') navGroupSync();
 }
 // ══ Selling (owner, 2026-10-21): check what to sell on a banker, price it, save the list, copy "/auction WTS …" lines to
 // paste in game — several lines when they don't fit in one. The app never sends anything to EverQuest.
@@ -19627,6 +19693,7 @@ window.ccIgnoreAllUnmatched=function(){
   if(!remaining.length)return;
   if(!confirm('Ignore ALL '+remaining.length+' remaining unrecognized labels?\n\nThis is shared with the guild. Teach the ones that matter first — this cannot be bulk-undone.'))return;
   for(const[key] of remaining)odkpAliasOverlay[key]='__ignore__';
+  odkpAliasChanged();
   saveOdkpAliasesToSupabase();
   renderKillsPanel();
 };
@@ -19637,7 +19704,7 @@ window.ccIgnoreAllUnmatched=function(){
 window.ccTeachAlias=function(selEl,key){
   const val=selEl.value;
   if(!val)return;
-  odkpAliasOverlay[key]=val;
+  odkpAliasOverlay[key]=val; odkpAliasChanged();
   saveOdkpAliasesToSupabase();
   const det=document.getElementById('ccQueueDetails');
   const q=document.getElementById('ccQueueScroll');
