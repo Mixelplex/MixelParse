@@ -3140,7 +3140,7 @@ document.querySelectorAll('.top-nav-item:not(.nav-group)').forEach(item=>{
     if(isDkp){renderDkpPanel();}
     else if(isPlat){renderPlatPanel();if(!platData.length)fetchPlatData();}
     else if(isFarm){const fp=document.getElementById('farmPanel');if(!fp||!fp.innerHTML||_tabSig.farm!==tabSig('farm'))renderFarmPanel();if(!platData.length)fetchPlatData();}
-    else if(isKills){renderKillsPanel();}
+    else if(isKills){const kp=document.getElementById('killsPanel');if(!kp||!kp.innerHTML||_tabSig.kills!==tabSig('kills'))renderKillsPanel();}   // unchanged since the last draw: keep it (2026-10-26)
     else if(isParking){renderParkingPanel();}
     else if(isKeys){renderKeysPanel();}
     else if(isFlowers){renderFlowersPanel();}
@@ -5733,17 +5733,12 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.8.8',
+  version:'1.8.9',
   date:'October 2026',
-  features:[
-    ['&#128214; Wiki updates work again','The P99 wiki now sits behind a Cloudflare check that blocks apps. <b>Check now</b> (and Farm Targets &rarr; Crawl Wiki) opens a small wiki window when the check appears &mdash; pass it like in any browser and MixelParse reads the wiki through that window. The automatic weekly check never pops a window; it tells you when the check is needed.'],
-    ['&#128221; What changed on the wiki','Settings &rarr; Wiki updates lists every changed page since the last check &mdash; item in your database / NPC / other page, edits, who, when and the edit summary &mdash; with a <b>what changed</b> link to the wiki&rsquo;s own before / after view.'],
-  ],
+  features:[],
   fixes:[
-    ['Faster startup','A burst of inventory, faction and spellbook files right after launch redrew the whole window once per file and could freeze it for several seconds; it now redraws once.'],
-    ['Group kills with no slain line','A groupmate&rsquo;s damage-shield kill in a faction zone (faction line, then XP, no &ldquo;slain&rdquo; line) counts as a kill of the mob the group was just hitting instead of a quest turn-in.'],
-    ['Gear Planner','Breezeboot&rsquo;s Frigid Gnasher gets no main-hand damage bonus (P99 wiki, after the Sept 23 2026 patch).'],
-    ['Mob levels','Popple Dop (Plane of Mischief) added: level 36&ndash;39.'],
+    ['Parking: can-gate is not parked','A raid target only counts as parked when one of your characters is actually in the zone. Being bound there (can gate) or able to port in no longer silences the alert &mdash; it now reads &ldquo;nobody parked &middot; can gate / port in: &lt;names&gt;&rdquo;, and the Raid Parking badges say &ldquo;Not parked &middot; can gate / can port&rdquo;.'],
+    ['Raid Kill Tracker','Switching back to it keeps the page already drawn when nothing changed (no new tick, session, loot or ODKP update), so it opens faster.'],
   ],
 };
 function showWhatsNew(){
@@ -10305,6 +10300,7 @@ let farmShowAll=false;   // Farm Targets: the top 60 rows unless "Show all" (202
 const _tabSig={};
 function tabSig(key){ try{
   if(key==='farm') return [platData.length,(platData[0]||{}).n||'',farmTargetsData?Object.keys(farmTargetsData.items||{}).length+'|'+(farmTargetsData.crawledAt||''):'-',farmIgnores.length,farmRankBy,farmShowAll,_farmSub,farmZonesCollapsed,farmShowIgnored,!!window.WIKI_MOBS,typeof farmCrawling!=='undefined'&&!!farmCrawling].join('~');
+  if(key==='kills') return [sessionsView,(raidSessions||[]).length,JSON.stringify(activeSession||null).length,rkdLog.length,rkdLog.length?JSON.stringify(rkdLog[rkdLog.length-1]).length:0,typeof odkpTicks!=='undefined'?odkpTicks.length:0,lootLog.length,window._rkdShowAll?1:0,Math.floor(Date.now()/60000)].join('~');   // + the minute: "… ago" times stay fresh
   if(key==='upg'){ const n=activeTab; return [n,JSON.stringify(charMeta[n]||{}),JSON.stringify(chars[n]||[]).length,Object.keys(itemDB).length,JSON.stringify(gearStats[n]||{}).length,platData.length,window._upgLoadedPlan?JSON.stringify(window._upgLoadedPlan).length:0].join('~'); }
 }catch(e){} return Math.random(); }
 let farmZonesCollapsed=false;
@@ -13277,6 +13273,7 @@ function renderKillsPanel(){
   const panel=document.getElementById('killsPanel');
   if(!panel)return;
   if(!activeSession)activeSession=newSession();
+  _tabSig.kills=tabSig('kills');
   if(!activeSession.killState)activeSession.killState={};
   if(!activeSession.bossRoles)activeSession.bossRoles={};
   if(!activeSession.hourly)activeSession.hourly=[];
@@ -16432,8 +16429,8 @@ function parkTargetStatus(t, roster){
 
 const PARK_BADGE={
   covered:   {t:'\u2705 Covered',    c:'#3a7a3a'},
-  bindparked:{t:'\u2693 Bound here', c:'#c9a227'},
-  portparked:{t:'\ud83e\uddea Can port', c:'#c9a227'},
+  bindparked:{t:'\u2693 Not parked \u00b7 can gate', c:'#c9a227'},   // bound here, not in the zone (2026-10-26: a Fear kill was missed)
+  portparked:{t:'\ud83e\uddea Not parked \u00b7 can port', c:'#c9a227'},
   waiting:   {t:'\u23F3 Parked \u00b7 not up yet', c:'#8a6d3b'},
   coveredup: {t:'\u2705 Covered \u00b7 UP', c:'#3a7a3a'},
   coveredwin:{t:'\u2705 Covered \u00b7 in window', c:'#3a7a3a'},
@@ -16559,14 +16556,20 @@ function btLocIgnored(locId){
 // level/class, key if needed) parked or bound there. (Was: ANY toon whose last zone matched — so a
 // log-only character with no level, e.g. one last seen in Plane of Fear, silenced the Terror / Fear
 // warning while the Parking tab showed the location uncovered. 2026-09-30.)
+// who could get to a location without being parked there: bound there (gate) or able to port (names, for the alert)
+function btParkReach(locId, roster){
+  const tgts = (typeof RAID_PARK_TARGETS !== 'undefined') ? RAID_PARK_TARGETS.filter(t => t.loc === locId) : [], out = new Set();
+  for(const t of tgts){ const st = parkTargetStatus(t, roster); if(st.status === 'bindparked' || st.status === 'portparked') for(const o of st.parked || []) out.add(o.name + (st.via === 'bind' ? ' (gate)' : ' (port)')); }
+  return [...out];
+}
 function btParkedInLoc(locId, roster){
   const tgts = (typeof RAID_PARK_TARGETS !== 'undefined') ? RAID_PARK_TARGETS.filter(t => t.loc === locId) : [];
-  if(tgts.length) return tgts.some(t => { const st = parkTargetStatus(t, roster).status; return st === 'covered' || st === 'bindparked' || st === 'portparked'; });
+  if(tgts.length) return tgts.some(t => parkTargetStatus(t, roster).status === 'covered');   // only someone IN the zone (gate / port isn't parked — 10-26 missed Fear)
   const L = (typeof PARK_LOCATIONS !== 'undefined') && PARK_LOCATIONS.find(x => x.id === locId);
   if(!L) return true;   // unknown loc -> don't warn
   const zset = L.zones.map(parkNormZone);
-  // Physically parked (last zone) OR bound here (can gate in) both count as parked.
-  return Object.values(roster).some(o => (o.zone && zset.indexOf(parkNormZone(o.zone)) >= 0) || (o.bind && zset.indexOf(parkNormZone(o.bind)) >= 0));
+  // Only physically parked (last zone) counts; bound here (can gate) is listed as "can gate in" on the alert.
+  return Object.values(roster).some(o => o.zone && zset.indexOf(parkNormZone(o.zone)) >= 0);
 }
 function btParkCycleEnd(s){ const now = Date.now(); return s && s.close != null ? s.close : Math.max(s && s.open != null ? s.open : now, now) + 24*BT_HR; }   // unknown width: a day
 function btParkMuted(key, open){ const v = btParkAck[key]; return !!v && (typeof v === 'object' ? (!!v.forever || Date.now() < v.until) : v === open); }
@@ -16643,12 +16646,12 @@ function btRenderParkWarn(){
       continue;
     }
     if(btParkMuted(t, s.open)) continue;         // muted for this cycle
-    warns.push({ t, st });
+    warns.push({ t, st, reach: btParkReach(loc, roster) });
   }
   for(const loc in roll){                        // one line per rolled-up group, unless acked
     const r = roll[loc];
     if(btParkMuted('@'+loc, r.open)) continue;
-    warns.push({ rollup:true, loc, open:r.open, until:r.until, st:r.st, label:r.label });
+    warns.push({ rollup:true, loc, open:r.open, until:r.until, st:r.st, label:r.label, reach: btParkReach(loc, roster) });
   }
   if(!warns.length){ wrap.innerHTML = ''; return; }
   warns.sort((a,b) => a.st.inMs - b.st.inMs);
@@ -16662,7 +16665,7 @@ function btRenderParkWarn(){
     const mkey = w.rollup ? '@' + w.loc : w.t;
     return '<div oncontextmenu="return parkMenu(event,\'' + encodeURIComponent(ack).replace(/'/g,'%27') + '\',decodeURIComponent(\'' + encodeURIComponent(label).replace(/'/g,'%27') + '\'),decodeURIComponent(\'' + encodeURIComponent(mkey).replace(/'/g,'%27') + '\'))" title="Right-click: mute for this cycle, or mute this boss until you turn it back on" style="display:flex;align-items:center;gap:.4rem;padding:.18rem .5rem;background:rgba(160,120,40,.14);border:1px solid var(--gold);border-radius:4px;margin-bottom:.22rem;white-space:nowrap;cursor:context-menu">' +
       '<span style="font-size:.72rem;line-height:1">\u26a0\ufe0f</span>' +
-      '<span style="flex:1;min-width:0;font-size:.72rem;overflow:hidden;text-overflow:ellipsis"><b>' + esc(label) + '</b> ' + when + ' \u2014 <span style="color:#c98a3a">no toon parked</span></span>' +
+      '<span style="flex:1;min-width:0;font-size:.72rem;overflow:hidden;text-overflow:ellipsis"><b>' + esc(label) + '</b> ' + when + ' \u2014 <span style="color:#c98a3a">nobody parked</span>' + (w.reach && w.reach.length ? ' <span style="opacity:.85">\u00b7 can gate / port in: ' + esc(w.reach.slice(0, 3).join(', ')) + '</span>' : '') + '</span>' +
       '<button class="btn" style="font-size:.6rem;padding:.1rem .4rem;flex:0 0 auto" onclick="' + ack + '">Ack</button>' +
       '</div>';
   }).join('');

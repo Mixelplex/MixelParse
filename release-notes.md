@@ -1,4 +1,10 @@
-## 1.8.8
+## 1.8.9
+
+- **Fixes**
+  - Parking: a raid target only counts as parked when one of your characters is actually in the zone. Being bound there (can gate) or able to port in no longer silences the alert — it reads "nobody parked · can gate / port in: <names>", and the Raid Parking badges say "Not parked · can gate / can port".
+  - Raid Kill Tracker: switching back to it keeps the drawn page when nothing changed, so it opens faster.
+
+Everything from 1.8.8 and earlier is included:
 
 - **📖 Wiki updates work again** — the P99 wiki now sits behind a Cloudflare check that blocks apps. Check now (and Farm Targets → Crawl Wiki) opens a small wiki window when the check appears; pass it like in any browser and MixelParse reads the wiki through that window. The automatic weekly check never pops a window; it tells you when the check is needed.
 - **📝 What changed on the wiki** — Settings → Wiki updates lists every changed page since the last check (item in your database / NPC / other, edits, who, when, edit summary) with a "what changed" link to the wiki's before / after view.
@@ -7,8 +13,6 @@
   - A groupmate's damage-shield kill in a faction zone (faction line, then XP, no "slain" line) counts as a kill of the mob the group was hitting, not a quest turn-in.
   - Gear Planner: Breezeboot's Frigid Gnasher gets no main-hand damage bonus (P99 wiki, after the Sept 23 2026 patch).
   - Mob levels: Popple Dop (Plane of Mischief) added, 36–39.
-
-Everything from 1.8.7 and earlier is included:
 
 - **🗂 A tidier top bar** — eleven tabs became five: Characters · Raids (DKP, Parking, Timers, Keys) · Market (Prices, Farm Targets, Bankers, Selling) · Raid Kill Tracker · Inbox (Tells, Tasks, with the counts). Click a group for its pages underneath; each group remembers the page you used last. Flowers moved under Characters.
 - **⚡ Faster pages** — Raid Kill Tracker → Auto-Detect draws about 5× faster (newest 150 ticks, Show all for the rest) and Credit Check about 3×; Farm Targets shows the top 60 items first (Show all); Farm Targets and the Gear Planner come back instantly when nothing they show has changed.
