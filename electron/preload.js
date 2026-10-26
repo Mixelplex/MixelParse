@@ -15,7 +15,7 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   // Farm Targets wiki crawl (v1.3.5) — sandbox-safe, ipcRenderer only
   farmCrawl:      (pages) => ipcRenderer.invoke('farm:crawl', pages),
   wikiQuery:      (titles) => ipcRenderer.invoke('wiki:query', titles),   // Wiki Check (≤50 titles)
-  wikiRecent:     (since)  => ipcRenderer.invoke('wiki:recent', since),   // Settings → Wiki updates
+  wikiRecent:     (since, interactive) => ipcRenderer.invoke('wiki:recent', since, !!interactive),   // Settings → Wiki updates
   reviewCollect:  (opts)   => ipcRenderer.invoke('review:collect', opts),   // Submit logs for review (tells removed, gzipped)
   reviewPick:     ()       => ipcRenderer.invoke('review:pick'),            // "Add older log files…" (only picked files can be read)
   reviewDir:      ()       => ipcRenderer.invoke('review:dir'),

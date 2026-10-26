@@ -535,6 +535,58 @@ function autoRotateLogs() {
 setTimeout(autoRotateLogs, 30000);
 setInterval(autoRotateLogs, 6 * 3600 * 1000);
 
+// ── P99 wiki through a window you can see (2026-10-26) ─────────────────────────────────────────────────────────
+// The wiki sits behind a Cloudflare check that apps can't pass. Reads go through a small wiki window (own persistent
+// session): if Cloudflare shows its check, the window comes up and you pass it yourself; then the reads use that
+// window, one at a time. interactive=false (the automatic weekly check) never shows the window — it returns 'cloudflare'.
+const WIKI_ORIGIN = 'https://wiki.project1999.com';
+let _wikiWin = null, _wikiReady = false, _wikiIdle = null, _wikiQueue = Promise.resolve();
+function _wikiWindow() {
+  if (_wikiWin && !_wikiWin.isDestroyed()) return _wikiWin;
+  _wikiReady = false;
+  _wikiWin = new BrowserWindow({ width: 760, height: 640, show: false, autoHideMenuBar: true, title: 'P99 wiki — MixelParse',
+    webPreferences: { partition: 'persist:p99wiki', contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  _wikiWin.on('page-title-updated', ev => ev.preventDefault());
+  _wikiWin.on('close', ev => { if (!app.isQuitting && _wikiWin && !_wikiWin.isDestroyed() && _wikiWin.isVisible() && _wikiReady) { ev.preventDefault(); _wikiWin.hide(); } });
+  _wikiWin.on('closed', () => { _wikiWin = null; _wikiReady = false; });
+  return _wikiWin;
+}
+// executeJavaScript can hang when the page navigates under it (Cloudflare's redirect) — always race it against a timer
+function _wikiJs(w, code, ms) { return Promise.race([w.webContents.executeJavaScript(code).catch(() => null), new Promise(r => setTimeout(() => r(null), ms))]); }
+async function _wikiPageInfo(w) { if (w.isDestroyed() || w.webContents.isLoading()) return ''; return (await _wikiJs(w, 'document.contentType+" | "+(document.body?document.body.innerText.slice(0,300):"")', 3000)) || ''; }
+async function _wikiEnsure(interactive) {
+  const w = _wikiWindow();
+  if (_wikiReady) return 'ok';
+  try { await w.loadURL(WIKI_ORIGIN + '/api.php?action=query&meta=siteinfo&format=json'); } catch {}
+  const t0 = Date.now(), deadline = t0 + 180e3; let shown = false;
+  while (!w.isDestroyed() && Date.now() < deadline) {
+    const t = await _wikiPageInfo(w);
+    if (/^application\/json/.test(t) || /"query"\s*:/.test(t)) { _wikiReady = true; if (shown && !w.isDestroyed()) w.hide(); return 'ok'; }
+    // not the data yet: still loading, or Cloudflare's check page. In the background, give up only on the check page (or after 15 s)
+    if (!interactive) { if (/Just a moment|Verify you are human|challenge/i.test(t) || Date.now() - t0 > 15e3) return 'cloudflare'; await new Promise(r => setTimeout(r, 500)); continue; }
+    if (!shown) { shown = true; w.setTitle('P99 wiki — pass the check here so MixelParse can read the wiki'); w.show(); w.focus(); }
+    await new Promise(r => { const tm = setTimeout(r, 1500); w.webContents.once('did-finish-load', () => { clearTimeout(tm); setTimeout(r, 300); }); });   // re-check right after a page loads
+  }
+  if (!w.isDestroyed()) w.hide();
+  return 'cloudflare';
+}
+function _wikiIdleClose() { clearTimeout(_wikiIdle); _wikiIdle = setTimeout(() => { if (_wikiWin && !_wikiWin.isDestroyed()) _wikiWin.destroy(); }, 5 * 60e3); }
+// GET a wiki URL through the wiki window → { ok, body } | { ok:false, error } ('cloudflare' = the check wasn't passed)
+function wikiFetch(url, interactive) {
+  const job = _wikiQueue.then(async () => {
+    if (await _wikiEnsure(interactive) !== 'ok') return { ok: false, error: 'cloudflare' };
+    const w = _wikiWindow();
+    const run = async () => (await _wikiJs(w, 'fetch(' + JSON.stringify(url) + ',{credentials:"include"}).then(async r=>({status:r.status,mit:r.headers.get("cf-mitigated"),body:await r.text()})).catch(e=>({status:0,body:String(e)}))', 30000)) || { status: 0, body: 'timeout' };
+    let r = await run();
+    if (r.status === 403 && (r.mit === 'challenge' || /Just a moment/.test(r.body))) { _wikiReady = false; if (await _wikiEnsure(interactive) !== 'ok') return { ok: false, error: 'cloudflare' }; r = await run(); }
+    _wikiIdleClose();
+    if (r.status !== 200) return { ok: false, error: r.status === 403 ? 'cloudflare' : 'HTTP ' + r.status };
+    return { ok: true, body: r.body };
+  });
+  _wikiQueue = job.catch(() => {});
+  return job;
+}
+
 // ── Farm Targets wiki crawler (v1.3.5) ──────────────────────────────────────
 // Fetches P99 wiki pages from the main process (no CORS). Parsing happens in
 // the renderer; this only downloads and trims. Polite: sequential, 1 req/sec.
@@ -545,7 +597,11 @@ setInterval(autoRotateLogs, 6 * 3600 * 1000);
 // AIA the same way a browser does. net.request also follows redirects natively
 // (redirect:'follow'), so the manual hop loop is gone. StringDecoder keeps
 // multibyte UTF-8 intact across chunk boundaries (parity with setEncoding).
-function ftFetchPage(pageName){
+async function ftFetchPage(pageName){   // through the wiki window (2026-10-26: Cloudflare check)
+  const r = await wikiFetch(WIKI_ORIGIN + '/' + encodeURI(pageName.replace(/ /g, '_')), true);
+  return r.ok ? { page: pageName, ok: true, html: r.body.slice(0, 800000) } : { page: pageName, ok: false, error: r.error === 'cloudflare' ? 'the wiki\'s Cloudflare check wasn\'t passed' : r.error };
+}
+function ftFetchPageDirect(pageName){   // the old direct request (kept for reference; Cloudflare blocks it)
   return new Promise((resolve) => {
     const url = 'https://wiki.project1999.com/' + encodeURI(pageName.replace(/ /g, '_'));
     let settled = false;
@@ -703,30 +759,32 @@ ipcMain.handle('review:open', () => { const d = _reviewDir(); fs.mkdirSync(d, { 
 // here because the wiki sends no CORS headers, so renderer fetch() is blocked. Host is
 // fixed; input is only a list of titles. The caller paces requests (1/sec).
 // Recent changes on the P99 wiki since an ISO date — article titles only (Settings → Wiki updates, 2026-10-08)
-ipcMain.handle('wiki:recent', async (e, since) => {
+ipcMain.handle('wiki:recent', async (e, since, interactive) => {
   const end = new Date(since || Date.now() - 7 * 864e5).toISOString();
-  const titles = new Set(); let cont = '';
+  const titles = new Set(), pages = {}; let cont = '';
   for (let k = 0; k < 20; k++) {
-    const url = 'https://wiki.project1999.com/api.php?action=query&format=json&list=recentchanges&rcnamespace=0&rclimit=500&rcprop=title|timestamp&rctype=edit|new&rcend=' + encodeURIComponent(end) + cont;
-    const j = await new Promise((resolve) => {
-      let req; try { req = net.request({ method: 'GET', url, redirect: 'follow' }); } catch (err) { return resolve(null); }
-      req.setHeader('User-Agent', 'MixelParse Wiki Updates (github.com/Mixelplex/MixelParse)');
-      const timer = setTimeout(() => { try { req.abort(); } catch {} resolve(null); }, 20000);
-      req.on('response', (res) => { const dec = new StringDecoder('utf8'); let body = ''; res.on('data', c => { body += dec.write(c); }); res.on('end', () => { clearTimeout(timer); body += dec.end(); try { resolve(JSON.parse(body)); } catch { resolve(null); } }); });
-      req.on('error', () => { clearTimeout(timer); resolve(null); }); req.end();
-    });
+    const url = WIKI_ORIGIN + '/api.php?action=query&format=json&list=recentchanges&rcnamespace=0&rclimit=500&rcprop=title|timestamp|ids|user|comment&rctype=edit|new&rcend=' + encodeURIComponent(end) + cont;
+    const r = await wikiFetch(url, !!interactive);
+    if (!r.ok) return { ok: false, error: r.error === 'cloudflare' ? 'cloudflare' : 'wiki not reachable (' + r.error + ')' };
+    let j = null; try { j = JSON.parse(r.body); } catch {}
     if (!j || !j.query) return { ok: false, error: 'wiki not reachable' };
-    for (const r of j.query.recentchanges || []) titles.add(r.title);
+    for (const r of j.query.recentchanges || []) { titles.add(r.title);   // per page: revision range, edits, editors, summaries (newest first from the API)
+      const p = pages[r.title] || (pages[r.title] = { title: r.title, to: r.revid || 0, from: r.old_revid || 0, edits: 0, last: r.timestamp, first: r.timestamp, users: [], comments: [], isNew: false });
+      p.edits++; if (r.revid > p.to) { p.to = r.revid; p.last = r.timestamp; } if (r.timestamp < p.first) { p.first = r.timestamp; p.from = r.old_revid || 0; }
+      if (r.type === 'new' || !r.old_revid) p.isNew = true; if (r.user && !p.users.includes(r.user)) p.users.push(r.user); if (r.comment && p.comments.length < 3 && !p.comments.includes(r.comment)) p.comments.push(String(r.comment).slice(0, 160)); }
     const c = (j['query-continue'] && j['query-continue'].recentchanges) || j.continue;
     if (c && c.rccontinue) cont = '&rccontinue=' + encodeURIComponent(c.rccontinue); else if (c && c.rcstart) cont = '&rcstart=' + encodeURIComponent(c.rcstart); else break;
   }
-  return { ok: true, titles: [...titles] };
+  return { ok: true, titles: [...titles], pages: Object.values(pages) };
 });
 ipcMain.handle('wiki:query', async (e, titles) => {
   const list = (Array.isArray(titles) ? titles : []).filter(t => typeof t === 'string' && t.length && t.length <= 200).slice(0, 50);
   if (!list.length) return { ok: false, error: 'no titles' };
-  const url = 'https://wiki.project1999.com/api.php?action=query&format=json&redirects=1&prop=revisions&rvprop=content&titles=' + encodeURIComponent(list.join('|'));
-  return new Promise((resolve) => {
+  const url = WIKI_ORIGIN + '/api.php?action=query&format=json&redirects=1&prop=revisions&rvprop=content&titles=' + encodeURIComponent(list.join('|'));
+  { const r = await wikiFetch(url, true);   // through the wiki window (Cloudflare check)
+    if (!r.ok) return { ok: false, error: r.error === 'cloudflare' ? 'cloudflare' : r.error };
+    try { return { ok: true, data: JSON.parse(r.body) }; } catch { return { ok: false, error: 'bad JSON' }; } }
+  return new Promise((resolve) => {   // (old direct request — unreachable, kept for reference)
     let settled = false; const done = v => { if (!settled) { settled = true; resolve(v); } };
     let req; try { req = net.request({ method: 'GET', url, redirect: 'follow' }); } catch (err) { return done({ ok: false, error: String(err && err.message || err) }); }
     req.setHeader('User-Agent', 'MixelParse Wiki Check (github.com/Mixelplex/MixelParse)');

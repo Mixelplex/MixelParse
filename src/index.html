@@ -1918,6 +1918,9 @@ function backstabDps(dmg,lv){
   const max=Math.floor(dmg*(skill*0.02+2))*2*mx/100, min=lv>=51?Math.floor(1.5*lv):0;
   return BACKSTAB_WEIGHT*((Math.max(min,max)+min)/2)/100;
 }
+// weapons that get no main-hand damage bonus — P99 wiki Game Mechanics (10-25 edit): Breezeboot's Frigid Gnasher, from parses
+// after the Sept 23 2026 patch (before it, BFG used the 2-hander bonus for 50 delay)
+const WEAPON_NO_MH_BONUS=new Set(["breezeboot's frigid gnasher"]);
 function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals, opts){
   // opts (Gear Planner): {force: score for any class (Max proc build), target: proc Target}
   // TWOHANDER is the virtual card slot — treat as PRIMARY for DPS scoring
@@ -1989,7 +1992,7 @@ function weaponDpsScore(itemData, slot, charClass, charLevel, baseTotals, opts){
   //     This produces 0 at lv28, 17 at lv50/d45, 37 at lv60/d44 — matches both points.
   // OH: no bonus
   let bonus=0;
-  if(lv>=28&&slot==='PRIMARY'){
+  if(lv>=28&&slot==='PRIMARY'&&!WEAPON_NO_MH_BONUS.has(String(itemData.name||itemData.item_name||'').toLowerCase())){
     // Lucy damage bonus table — exact values for all delay/level combos
     bonus=lucyDmgBonus(delay,lv,is2h);
   }
@@ -3030,7 +3033,7 @@ function handleSpellbook(filename,content){
   if(!charMeta[cn]) charMeta[cn]={};
   charMeta[cn].spellbook={ names, updatedAt:new Date().toISOString() };
   if(!activeTab){ const saved=localStorage.getItem('mp_activeTab'); activeTab=saved||cn; }
-  refresh(); // re-render (renders Spells panel if active) + schedule cloud save
+  refreshSoon(); // re-render (renders Spells panel if active) + schedule cloud save — once after a burst of spellbooks
   if(window.showWatcherToast) window.showWatcherToast('\uD83D\uDCD6 '+cn+' spellbook: '+names.length+' spells');
 }
 
@@ -3186,6 +3189,10 @@ document.querySelectorAll('.top-nav-item.nav-group').forEach(el=>el.addEventList
 }));
 // Flowers now lives under Characters: its panel moves into the sub-tab
 (function(){ const p=document.getElementById('flowersPanel'), h=document.getElementById('subFlowers'); if(p&&h) h.appendChild(p); })();
+// one refresh after a burst of file messages (startup: spellbooks, inventories) instead of one per message — 2026-10-26
+let _rsT=0,_rsFirst=0;
+function refreshSoon(){ const now=Date.now(); if(!_rsFirst) _rsFirst=now; clearTimeout(_rsT); _rsT=setTimeout(()=>{ _rsFirst=0; refresh(); }, now-_rsFirst>600?0:120); }
+let _cbT=0; function renderCityBarsSoon(){ clearTimeout(_cbT); _cbT=setTimeout(()=>{ try{ renderCityBars(); }catch(e){} },150); }
 function refresh(){if(typeof whoPendingApply==='function')whoPendingApply();if(typeof headerBtnsSync==='function')headerBtnsSync();buildTabs();renderView();saveState();renderNetworthBar();if(typeof activeTopView!=='undefined'&&activeTopView==='parking'&&typeof renderParkingPanel==='function')renderParkingPanel();}
 function renderOnly(){buildTabs();renderView();}
 function renderView(){if(activeTopView&&activeTopView!=='characters')return;const names=charNames();document.getElementById('dropzone').style.display=names.length===0?'block':'none';document.getElementById('mainView').style.display=names.length===0?'none':'block';if(!names.length)return;const isAll=activeTab==='__all__';document.getElementById('combinedHeader').style.display=isAll?'flex':'none';document.getElementById('th-char').style.display=isAll?'':'none';document.getElementById('subInventory').style.display=activeSub==='inventory'?'block':'none';document.getElementById('subStats').style.display=activeSub==='stats'?'block':'none';document.getElementById('subUpgrades').style.display=activeSub==='upgrades'?'block':'none';document.getElementById('subConsumes').style.display=activeSub==='consumes'?'block':'none';document.getElementById('subFactions').style.display=activeSub==='factions'?'block':'none';document.getElementById('subSkyshrine').style.display=activeSub==='skyshrine'?'block':'none';document.getElementById('subQuests').style.display=activeSub==='quests'?'block':'none';document.getElementById('subKillcounts').style.display=activeSub==='killcounts'?'block':'none';document.getElementById('subSpells').style.display=activeSub==='spells'?'block':'none';document.getElementById('subTravel').style.display=activeSub==='travel'?'block':'none';document.getElementById('subOutfitter').style.display=activeSub==='outfitter'?'block':'none';document.getElementById('subLeveling').style.display=activeSub==='leveling'?'block':'none';document.getElementById('subFlowers').style.display=activeSub==='flowers'?'block':'none';document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active',s.dataset.sub===activeSub));renderTable();renderWatchlistBar();renderCityBars();renderFoodDrinkPanel();applyPanelLayout();if(activeSub==='stats')renderStatsPanel();if(activeSub==='upgrades')renderUpgradesPanel();if(activeSub==='consumes')renderConsumesPanel();if(activeSub==='factions')renderFactionsPanel();if(activeSub==='skyshrine')renderSkyshrinePanel();if(activeSub==='quests')renderQuestsPanel();if(activeSub==='killcounts')renderKillCountsPanel();if(activeSub==='spells')renderSpellsPanel();if(activeSub==='travel')renderTravelPanel();if(activeSub==='outfitter')renderOutfitterPanel();if(activeSub==='leveling')renderLevelingPanel();if(activeSub==='flowers')renderFlowersPanel();}
@@ -5726,15 +5733,17 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.8.7',
+  version:'1.8.8',
   date:'October 2026',
   features:[
-    ['&#128450; A tidier top bar','Eleven tabs became five: <b>Characters</b> &middot; <b>Raids</b> (DKP, Parking, Timers, Keys) &middot; <b>Market</b> (Prices, Farm Targets, Bankers, Selling) &middot; <b>Raid Kill Tracker</b> &middot; <b>Inbox</b> (Tells, Tasks &mdash; with the counts). Click a group for its pages underneath; each group remembers the page you used last. <b>Flowers</b> moved under Characters.'],
-    ['&#9889; Faster pages','The Raid Kill Tracker&rsquo;s Auto-Detect view draws about 5&times; faster (it shows the newest 150 ticks, <b>Show all</b> for the rest) and Credit Check about 3&times;. Farm Targets shows the top 60 items first (<b>Show all</b>), and Farm Targets and the Gear Planner come back instantly when nothing they show has changed.'],
+    ['&#128214; Wiki updates work again','The P99 wiki now sits behind a Cloudflare check that blocks apps. <b>Check now</b> (and Farm Targets &rarr; Crawl Wiki) opens a small wiki window when the check appears &mdash; pass it like in any browser and MixelParse reads the wiki through that window. The automatic weekly check never pops a window; it tells you when the check is needed.'],
+    ['&#128221; What changed on the wiki','Settings &rarr; Wiki updates lists every changed page since the last check &mdash; item in your database / NPC / other page, edits, who, when and the edit summary &mdash; with a <b>what changed</b> link to the wiki&rsquo;s own before / after view.'],
   ],
   fixes:[
-    ['Group kills in faction zones','Kills by your groupmates in zones where kills change faction (most of Velious) were being skipped as quest turn-ins; they count again (session kills, kill records, spawn timers).'],
-    ['CH chain','Shaman slow calls written &ldquo;&lt;Slowed&gt; Keeper of Souls&rdquo; are picked up; a CH call from an unfilled macro (&ldquo;CH -- Target&rdquo;) no longer shows a heal target named &ldquo;Target&rdquo;.'],
+    ['Faster startup','A burst of inventory, faction and spellbook files right after launch redrew the whole window once per file and could freeze it for several seconds; it now redraws once.'],
+    ['Group kills with no slain line','A groupmate&rsquo;s damage-shield kill in a faction zone (faction line, then XP, no &ldquo;slain&rdquo; line) counts as a kill of the mob the group was just hitting instead of a quest turn-in.'],
+    ['Gear Planner','Breezeboot&rsquo;s Frigid Gnasher gets no main-hand damage bonus (P99 wiki, after the Sept 23 2026 patch).'],
+    ['Mob levels','Popple Dop (Plane of Mischief) added: level 36&ndash;39.'],
   ],
 };
 function showWhatsNew(){
@@ -6783,10 +6792,11 @@ function applyFactionSnapshot(charName, factions){
   if(!factionValues[key]) factionValues[key]={};
   for(const [,f] of Object.entries(factions)){
     factionValues[key][f.displayName]={value:f.value, source:f.source||'log'};
-    setFaction(key, f.displayName, f.level);
+    setFaction(key, f.displayName, f.level, true);   // quiet: save + redraw once below, not per faction
   }
+  saveState();
   if(activeSub==='factions') renderFactionsPanel();
-  renderCityBars();
+  renderCityBarsSoon();
 }
 
 // factionData[charName][factionName] = level string
@@ -6796,11 +6806,12 @@ function getFaction(charName, factionName){
   return (factionData[key]||{})[factionName]||'';
 }
 
-function setFaction(charName, factionName, level){
+function setFaction(charName, factionName, level, quiet){
   const key=resolveCharKey(charName);
   if(!factionData[key])factionData[key]={};
   if(level)factionData[key][factionName]=level;
   else delete factionData[key][factionName];
+  if(quiet) return;   // the caller saves and redraws once (applyFactionSnapshot)
   saveState();
   renderCityBars();
 }
@@ -8167,10 +8178,14 @@ window.applyDBToChar    = applyDBToChar;
       const saved = localStorage.getItem('mp_activeTab');
       activeTab = (saved && (saved === '__all__' || true)) ? saved : cn;
     }
-    refresh(); // re-render and save (saveToSupabase guards against pre-load saves)
-    if(activeTopView==='bankers') setBankersSub(bankersSub);
+    _invRefreshSoon(); // re-render and save once after a burst of inventory files (saveToSupabase guards against pre-load saves)
     if(isNew) showWatcherToast(`📦 Loaded ${cn}`);
   }
+  // At startup ~40 inventory files arrive back to back; redrawing after each froze the window for seconds (2026-10-26: a
+  // 3.8 s stall, 2.3 s of it layout). Coalesce: one redraw 120 ms after the last file (at most 600 ms after the first).
+  let _invRefT=0,_invRefFirst=0;
+  function _invRefreshSoon(){ const now=Date.now(); if(!_invRefFirst) _invRefFirst=now; clearTimeout(_invRefT);
+    _invRefT=setTimeout(()=>{ _invRefFirst=0; refresh(); if(activeTopView==='bankers') setBankersSub(bankersSub); }, now-_invRefFirst>600?0:120); }
 
   function showWatcherToast(msg){
     if(typeof toastAllowed==='function'&&!toastAllowed(msg)) return;   // Settings → Pop-up notices
@@ -18076,7 +18091,7 @@ window.wikiCheckNow=async function(manual){
   _wikiChkBusy=true; if(activeTopView==='settings') renderSettingsPanel();
   const prev=wikiChkGet(), since=prev&&prev.at?prev.at:new Date(Date.now()-7*864e5).toISOString(), at=new Date().toISOString();
   try{
-    const r=await window.MixelParseApp.wikiRecent(since); if(!r||!r.ok) throw new Error((r&&r.error)||'wiki not reachable');
+    const r=await window.MixelParseApp.wikiRecent(since,!!manual); if(!r||!r.ok) throw new Error((r&&r.error)||'wiki not reachable');   // manual: a wiki window may open for the Cloudflare check
     const titles=r.titles||[], items=titles.filter(t=>itemDB[t]);
     const ML=window.MOB_LEVELS, npcs=ML?titles.filter(t=>ML.m[t.replace(/\s*\([^)]*\)\s*$/,'').toLowerCase()]).length:0;
     const changes=(prev&&!prev.applied?prev.changes||[]:[]).filter(c=>!items.includes(c.item));   // keep unapplied ones from last time
@@ -18085,7 +18100,9 @@ window.wikiCheckNow=async function(manual){
       const pages=(q.data&&q.data.query&&q.data.query.pages)||{};
       for(const p of Object.values(pages)){ const t=p.revisions?p.revisions[0]['*']:''; const w=t&&wikiParseItem(t); if(w&&itemDB[p.title]) changes.push(...wikiItemChanges(p.title,w)); }
     }
-    wikiChkSet({at,since,titles:titles.length,items:items.length,npcs,changes,applied:false});
+    const kindOf=t=>itemDB[t]?'item':(ML&&ML.m[t.replace(/\s*\([^)]*\)\s*$/,'').toLowerCase()])?'npc':'page';
+    const pages=(r.pages||titles.map(t=>({title:t}))).map(p=>Object.assign({},p,{kind:kindOf(p.title)})).sort((a,b)=>({item:0,npc:1,page:2}[a.kind]-{item:0,npc:1,page:2}[b.kind])||String(b.last||'').localeCompare(String(a.last||''))).slice(0,300);
+    wikiChkSet({at,since,titles:titles.length,items:items.length,npcs,changes,applied:false,pages});
     if(manual&&typeof showWatcherToast==='function') showWatcherToast('Wiki checked: '+titles.length+' pages changed, '+changes.length+' item update'+(changes.length===1?'':'s'));
   }catch(e){ wikiChkSet(Object.assign({},prev||{},{err:(e&&e.message)||String(e),errAt:at})); }
   _wikiChkBusy=false; if(activeTopView==='settings') renderSettingsPanel();
@@ -18190,13 +18207,27 @@ function reviewOwnerCard(card,item){
     +(c&&c.err?'<div style="color:#a06020;font-size:.85rem">⚠ '+esc(c.err)+(/log_reviews|bucket/i.test(c.err)?' — run tools/supabase/log_reviews.sql in Supabase':'')+'</div>':'')
     +(desk?'<div style="display:flex;gap:.4rem;margin-top:.45rem"><button class="btn" onclick="reviewSyncOwner(true)" style="font-size:.88rem;padding:.3rem .75rem">⟳ Check now</button><button class="btn" onclick="window.MixelParseApp.reviewOpen()" style="font-size:.88rem;padding:.3rem .75rem">📂 Open folder</button></div>':'')));
 }
+const WIKI_DIFF_BASE='https://wiki.project1999.com/index.php?';
 function wikiUpdatesCard(card,item){
   const c=wikiChkGet(), desk=!!(window.MixelParseApp&&window.MixelParseApp.wikiRecent);
   const when=c&&c.at?lvldFmt((Date.now()-Date.parse(c.at))/60e3)+' ago':'never';
   let body=item('Wiki changes','MixelParse checks the P99 wiki once a week for edits to items it knows, and lists what would update in the shared item database.',
     '<div style="margin-top:.45rem;font-size:.9rem">'+(_wikiChkBusy?'Checking the wiki…':'Last checked: <b>'+esc(when)+'</b>'+(c&&c.at?' · '+c.titles+' pages changed · '+c.items+' in your item database · '+c.npcs+' NPCs':''))+'</div>'
-    +(c&&c.err?'<div style="color:#a06020;font-size:.85rem">⚠ '+esc(c.err)+'</div>':'')
+    +(c&&c.err?'<div style="color:#a06020;font-size:.85rem">⚠ '+(c.err==='cloudflare'?'The P99 wiki is blocking automated checks right now (a Cloudflare check). Click <b>Check now</b>: a wiki window opens — pass the check there and MixelParse reads the wiki through it.':esc(c.err))+'</div>':'')
     +(desk?'<button class="btn" onclick="wikiCheckNow(true)" style="font-size:.88rem;padding:.3rem .75rem;margin-top:.45rem"'+(_wikiChkBusy?' disabled':'')+'>⟳ Check now</button>':'<div style="color:var(--text-muted);font-size:.85rem">(desktop app only)</div>'));
+  if(c&&c.pages&&c.pages.length){   // the report: every changed page, with the wiki's own diff since the last check
+    const ago=t=>t?lvldFmt((Date.now()-Date.parse(t))/60e3)+' ago':'';
+    const tag={item:'<span style="color:#2f6f2f;font-weight:600">item in your database</span>',npc:'<span style="color:#3a6a9a">NPC</span>',page:'<span style="color:var(--text-muted)">page</span>'};
+    const diff=p=>p.to?(p.isNew&&!p.from?'<a href="'+WIKI_DIFF_BASE+'oldid='+p.to+'" target="_blank" rel="noopener" style="color:var(--gold-light)">new page</a>':'<a href="'+WIKI_DIFF_BASE+'diff='+p.to+'&oldid='+p.from+'" target="_blank" rel="noopener" style="color:var(--gold-light)" title="The wiki&rsquo;s side-by-side view of everything edited since the last check">what changed</a>'):'';
+    body+=item('What changed on the wiki','Pages edited between '+esc(new Date(c.since).toLocaleDateString())+' and '+esc(new Date(c.at).toLocaleDateString())+'. <b>what changed</b> opens the wiki&rsquo;s own before / after view.',
+      '<details style="margin-top:.4rem"><summary style="cursor:pointer;font-size:.9rem">Show the '+c.pages.length+' changed page'+(c.pages.length===1?'':'s')+'</summary>'
+      +'<div style="max-height:320px;overflow:auto;margin-top:.4rem;border:1px solid var(--border);border-radius:4px"><table style="width:100%;border-collapse:collapse;font-size:.84rem"><tbody>'
+      +c.pages.map(p=>'<tr style="border-bottom:1px solid var(--border);vertical-align:top"><td style="padding:.3rem .45rem"><a href="'+wikiUrl(p.title)+'" target="_blank" rel="noopener" style="color:var(--text);font-weight:600">'+esc(p.title)+'</a><div style="font-size:.76rem">'+tag[p.kind||'page']+'</div></td>'
+        +'<td style="padding:.3rem .45rem;white-space:nowrap;font-size:.78rem;color:var(--text-muted)">'+(p.edits?p.edits+' edit'+(p.edits===1?'':'s')+'<br>':'')+esc(ago(p.last))+'</td>'
+        +'<td style="padding:.3rem .45rem;font-size:.78rem">'+(p.users&&p.users.length?'<div style="color:var(--text-muted)">by '+esc(p.users.slice(0,3).join(', '))+'</div>':'')+(p.comments&&p.comments.length?'<div>&ldquo;'+p.comments.map(esc).join('&rdquo; · &ldquo;')+'&rdquo;</div>':'')+'</td>'
+        +'<td style="padding:.3rem .45rem;white-space:nowrap;font-size:.8rem">'+diff(p)+'</td></tr>').join('')
+      +'</tbody></table></div></details>');
+  }
   if(c&&c.changes&&c.changes.length){
     const FL={str:'STR',sta:'STA',agi:'AGI',dex:'DEX',wis:'WIS',int:'INT',cha:'CHA',hpbonus:'HP',manabonus:'Mana',ac:'AC',svfire:'SV Fire',svcold:'SV Cold',svmagic:'SV Magic',svpoison:'SV Poison',svdisease:'SV Disease',haste:'Haste',dmg:'Damage',delay:'Delay',_magic:'MAGIC',_lore:'LORE',_nodrop:'NO DROP',_effect:'Effect',_effectType:'Effect type',_era:'Era',_from:'Drops from'};
     const fmt=v=>v===null||v===undefined||v===''?'—':typeof v==='boolean'?(v?'yes':'no'):String(v);

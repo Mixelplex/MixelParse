@@ -502,6 +502,14 @@ function factionHitFor(mob, factionLogKey, zone) {
   return found.every(x => x[1] === found[0][1]) ? found[0][1] : null;
 }
 const _pendingSlainMob  = {};    // { [charName]: { mob, ts } } — in-range slain-by
+// the last mob anyone in range hit (melee or a damage shield) and the last NPC speech — for kills that print no slain line
+const _lastGroupHit = {}, _lastSaysTs = {};
+const RE_GROUP_HIT = /^\[[^\]]+\] (?:[A-Z][a-z]+|You) (?:hits?|slash(?:es)?|pierces?|crush(?:es)?|kicks?|bash(?:es)?|punch(?:es)?|backstabs?|bites?|claws?|strikes?|stings?|mauls?|gores?|smash(?:es)?|rends?) (.+?) for \d+ points? of damage\.$/;
+const RE_DS_HIT = /^\[[^\]]+\] (.+?) was (?:pierced by thorns|burned|tormented by frost|stung)\.$/;
+function _groupHitMob(line) { let m;   // a mob name, never a player (a single capitalised word) or YOU
+  if (line.indexOf(' points') > 0 && (m = RE_GROUP_HIT.exec(line))) return /^(?:[A-Z][a-z]+|YOU)$/.test(m[1]) ? null : m[1];
+  if (line.indexOf(' was ') > 0 && (m = RE_DS_HIT.exec(line))) return /^[A-Z][a-z]+$/.test(m[1]) ? null : m[1];
+  return null; }
 const _killCredited     = {};    // { [charName]: timestamp } — kill already credited, skip XP
 const _lastLocByChar    = {};    // { [charName]: { x, y, z } } — most recent /loc
 const _activePetByChar  = {};    // { [charName]: { petType, loc } } — current charm pet
@@ -1407,6 +1415,8 @@ function processLogLine(line, charName) {
     log(`[SESSION] ${charName} login detected`);
   }
 
+  { const _gm = _groupHitMob(line); if (_gm) _lastGroupHit[charName] = { mob: _gm, ts: Date.now() };
+    if (line.indexOf(' says, ') > 0 && /^\[.+?\] [A-Z][a-zA-Z`' ]+ says,/.test(line)) _lastSaysTs[charName] = Date.now(); }
   // Prev-line turn-in classification (v1.4.18)
   const _wasTurnin = _prevFactionSaysByChar[charName] === true;
   _prevFactionSaysByChar[charName] = (/^\[.+?\] Your faction standing/.test(line) || /^\[.+?\] [A-Z][a-zA-Z`' ]+ says,/.test(line));
@@ -1465,8 +1475,9 @@ function processLogLine(line, charName) {
       // Kill happened but wasn't credited yet (out-of-range charm, or in-range
       // slain-by with unknown slayer).  XP = kill, so credit it now.
       const pending = _pendingSlainMob[charName];
+      const _gh = _lastGroupHit[charName], _ghKill = !!(_gh && Date.now() - _gh.ts < 20e3 && Date.now() - (_lastSaysTs[charName] || 0) > 5000);   // fighting, no NPC speech: a kill with no slain line (10-26)
       let mobName;
-      if (_wasTurnin && !(pending && (Date.now() - pending.ts) < TURNIN_KILL_MS)) {
+      if (_wasTurnin && !(pending && (Date.now() - pending.ts) < TURNIN_KILL_MS) && !_ghKill) {
         // FIX #1 (v1.4.18): prev line was faction/says → turn-in, NOT a kill. Suppress — unless a slain-by came just
         // before: faction zones print slain → faction → XP for every group kill (10-25: 49 of 78 ToFS kills were lost).
         // BEFORE pendingSlain so a stale kill can't absorb the turn-in tick.
@@ -1475,7 +1486,7 @@ function processLogLine(line, charName) {
       } else if (pending && (Date.now() - pending.ts) < CHARM_CONFIRM_MS) {
         mobName = pending.mob;                       // in-range slain-by → real kill
       } else {
-        mobName = _petLastTarget[charName] || 'unknown';
+        mobName = _petLastTarget[charName] || (_gh && Date.now() - _gh.ts < 20e3 ? _gh.mob : 'unknown');   // no slain line: the mob the group was just hitting
       }
       broadcast({ type: 'sessionKill', charName, mob: normMobName(mobName), loc: _lastLocByChar[charName] || null });
       log(`[SESSION] ${charName} kill via XP: "${mobName}"`);
@@ -2236,6 +2247,9 @@ function _ssLine(charName, st, line, gapMs, out) {
   // 'says' line. Flag those so the XP handler doesn't mint a phantom 'unknown' kill.
   // Prev-line classification for turn-in detection (v1.4.18): a turn-in / faction-XP tick is
   // immediately preceded by a faction-standing or NPC-'says' line (and NOT a death line).
+  { const _gm = _groupHitMob(line); if (_gm) st.lastGroupHit = { mob: _gm, t: ts };
+    if (line.indexOf(' says, ') > 0 && /^\[.+?\] [A-Z][a-zA-Z`' ]+ says,/.test(line)) st.lastSaysT = ts; }
+  const _ghCtx = st.lastGroupHit && ts - st.lastGroupHit.t < 20e3 ? st.lastGroupHit : null, _ghKillCtx = !!(_ghCtx && ts - (st.lastSaysT || 0) > 5000);
   const _wasTurninCtx = st.prevFactionSays === true;
   st.prevFactionSays = (/^\[.+?\] Your faction standing/.test(line) || /^\[.+?\] [A-Z][a-zA-Z`' ]+ says,/.test(line));
 
@@ -2245,7 +2259,7 @@ function _ssLine(charName, st, line, gapMs, out) {
     sess.xp++;
     if (st.killCredited) {
       st.killCredited = false;
-    } else if (_wasTurninCtx && !(st.pendingSlain && (ts - st.pendingSlain.t) < TURNIN_KILL_MS)) {
+    } else if (_wasTurninCtx && !(st.pendingSlain && (ts - st.pendingSlain.t) < TURNIN_KILL_MS) && !_ghKillCtx) {
       // FIX #1: prev line was faction/says → turn-in / faction XP, NOT a kill. Suppress (unless a slain-by came just before).
       // Checked BEFORE pendingSlain so a stale kill's mob name can't absorb turn-in ticks.
       st.pendingSlain = null; st.petLastTarget = null;
@@ -2253,7 +2267,7 @@ function _ssLine(charName, st, line, gapMs, out) {
       credit(st.pendingSlain.mob);
       st.pendingSlain = null; st.petLastTarget = null;
     } else {
-      credit(st.petLastTarget || 'unknown');
+      credit(st.petLastTarget || (_ghCtx ? _ghCtx.mob : 'unknown'));   // no slain line: the mob the group was just hitting
       st.pendingSlain = null; st.petLastTarget = null;
     }
   }

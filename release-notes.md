@@ -1,12 +1,20 @@
-## 1.8.7
+## 1.8.8
+
+- **📖 Wiki updates work again** — the P99 wiki now sits behind a Cloudflare check that blocks apps. Check now (and Farm Targets → Crawl Wiki) opens a small wiki window when the check appears; pass it like in any browser and MixelParse reads the wiki through that window. The automatic weekly check never pops a window; it tells you when the check is needed.
+- **📝 What changed on the wiki** — Settings → Wiki updates lists every changed page since the last check (item in your database / NPC / other, edits, who, when, edit summary) with a "what changed" link to the wiki's before / after view.
+- **Fixes**
+  - Faster startup: the burst of inventory, faction and spellbook files after launch redrew the window once per file (freezes of several seconds); now once.
+  - A groupmate's damage-shield kill in a faction zone (faction line, then XP, no "slain" line) counts as a kill of the mob the group was hitting, not a quest turn-in.
+  - Gear Planner: Breezeboot's Frigid Gnasher gets no main-hand damage bonus (P99 wiki, after the Sept 23 2026 patch).
+  - Mob levels: Popple Dop (Plane of Mischief) added, 36–39.
+
+Everything from 1.8.7 and earlier is included:
 
 - **🗂 A tidier top bar** — eleven tabs became five: Characters · Raids (DKP, Parking, Timers, Keys) · Market (Prices, Farm Targets, Bankers, Selling) · Raid Kill Tracker · Inbox (Tells, Tasks, with the counts). Click a group for its pages underneath; each group remembers the page you used last. Flowers moved under Characters.
 - **⚡ Faster pages** — Raid Kill Tracker → Auto-Detect draws about 5× faster (newest 150 ticks, Show all for the rest) and Credit Check about 3×; Farm Targets shows the top 60 items first (Show all); Farm Targets and the Gear Planner come back instantly when nothing they show has changed.
 - **Fixes**
   - Groupmates' kills in faction zones (most of Velious) were skipped as quest turn-ins; they count again.
   - CH chain: "<Slowed> Mob" shaman calls are picked up; an unfilled "CH -- Target" macro call no longer shows a heal target named "Target".
-
-Everything from 1.8.6 and earlier is included:
 
 - **⚔ PL helper: power-leveller mode** — levelling someone else (your damage shield / heals, their melee)? The helper follows their tags: their hits and misses in your log, ✓ when the kill goes to them, ✗ when it goes to you ("You have slain") or someone else. It switches on by itself on the first kill credited to them; the window shows "levelling <name>". Needs your chat filter to show other players' hits.
 - **📊 Measured loot and coin** — Farm Targets: a coin-per-active-hour card by hunting zone, and a "measured" drop line under each item (share of opened corpses that had it, from over a year of logs).
