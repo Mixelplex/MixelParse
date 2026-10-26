@@ -24,6 +24,7 @@
 <script src="item-weights.js"></script>
 <script src="mob-levels.js"></script>
 <script src="treasure-guide.js"></script>
+<script src="log-loot.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;1,300&display=swap');
   :root{--bg:#f5f0e8;--surface:#ede6d6;--surface2:#e4dbc8;--border:#c8b890;--border-glow:#a08050;--gold:#7a5010;--gold-light:#5a3a08;--gold-dim:#a07030;--text:#1a1008;--text-dim:#4a3a1a;--text-muted:#8a7050}
@@ -5681,12 +5682,17 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.8.5',
+  version:'1.8.6',
   date:'October 2026',
-  features:[],
+  features:[
+    ['&#9876; PL helper: power-leveller mode','Levelling someone else (your damage shield / heals, their melee)? The PL helper now follows <b>their</b> tags: their hits and misses in your log, &#10003; when the kill goes to them, &#10007; when it goes to you (&ldquo;You have slain&rdquo;) or someone else. It switches on by itself on the first kill credited to them; the window shows &ldquo;levelling &lt;name&gt;&rdquo;. Needs your chat filter to show other players&rsquo; hits.'],
+    ['&#128202; Measured loot and coin','Farm Targets: a <b>coin per active hour</b> card by hunting zone, and under each item a <b>&#128202; measured</b> line &mdash; how often it dropped from real kills (the share of opened corpses), from over a year of logs.'],
+    ['&#128200; Leveling path: melee miss rate','For melee classes each stage shows how often you&rsquo;ll miss the mobs there (&ldquo;melee misses ~29%&rdquo;), measured on 700,000 swings.'],
+    ['&#128221; Submit logs: All','Submit logs for review can now send <b>All</b> of a character&rsquo;s logs (3 / 7 / 14 / 30 days / All). Tells are still removed.'],
+  ],
   fixes:[
-    ['Leveling path: con colour','Time per level now accounts for mobs that con lower as you level: P99 gives 50% XP for light-blue mobs, 25% for high green and none below. A zone measured at lower levels (Cobalt Scar wyverns, level 38&ndash;42) now slows down at 55&ndash;59 instead of looking as fast as at 52, and the stage says so (&ldquo;mobs con lower here&rdquo;). A pinned zone with little data near your level uses every level it was hunted.'],
-    ['PL helper Auto','Group XP no longer counts as being power-levelled, so in Auto the window doesn&rsquo;t open while you&rsquo;re in a group. (On still opens it on every fight.)'],
+    ['Leveling path: con XP','Lower-con mobs now count light blue ~80%, high green ~50%, green ~25% &mdash; fitted to 159 real levels (the wiki&rsquo;s 50% for light blue was too harsh).'],
+    ['PL helper in a group','Auto no longer pops the window when a groupmate gets the kill and you get group XP.'],
   ],
 };
 function showWhatsNew(){
@@ -11110,11 +11116,12 @@ function lvldCalibration(){
   _lvldCal=out; return out;
 }
 // power-levelled: the kills' average mob level (P99 wiki levels, mob-levels.js) is far above the character's level
-// P99 con XP (wiki Consider / Experience): from level 14, below Level×.75 (rounded, .51 up) is light blue = 50%, the level
-// under Level×.66 "high green" = 25%, lower 0; before 14 only 3 (4 at 13) levels down give XP. Averaged over the row's mobs ±2.
+// Con XP, P99 con bands (wiki Consider): from level 14, below Level×.75 (rounded, .51 up) is light blue, the level under
+// Level×.66 "high green", lower green; before 14 only 3 (4 at 13) levels down give XP. The shares are fitted to 159 finished
+// levels (2026-10-23): light blue ~80%, high green ~50%, green ~25% — the wiki's 50 / 25 / 0 fit the logs worse. Averaged over the row's mobs ±2.
 function lvldConMod(L,m){ const rd=x=>x-Math.floor(x)<0.51?Math.floor(x):Math.ceil(x);
   if(L<14) return m>=L-(L>=13?4:3)?1:0;
-  const blue=rd(L*0.75), lb=rd(L*0.66); return m>=blue?1:m>=lb?0.5:m===lb-1?0.25:0; }
+  const blue=rd(L*0.75), lb=rd(L*0.66); return m>=blue?1:m>=lb?0.8:m===lb-1?0.5:0.25; }
 function lvldConAvg(L,m){ let t=0; for(let d=-2;d<=2;d++) t+=lvldConMod(L,Math.round(m)+d); return t/5; }
 // the row's typical mob level: its mobs' levels, else back out of its XP estimate (xp_est = K × level² per kill)
 function lvldRowMobLevel(r){ const a=lvldMobAvg(r); if(a!=null) return a; const k=(r.xp_solo||0)+LVLD_XP_GROUP*(r.xp_group||0); return r.xp_est>0&&k>0?Math.sqrt(r.xp_est/(LVLD_XP_K*k)):null; }
@@ -11291,6 +11298,10 @@ function lvldHuntShare(name){
   return a.length>=3?{f:Math.max(0.35,Math.min(0.95,med(a))),own,n:a.length}:{f:0.74,own:false,n:0};
 }
 const LVLD_MELEE_TAG=new Set(['WAR','ROG','MNK','PAL','SHD','RNG','BRD','melee']);
+// your melee miss share by (mob level − your level), measured on 700k Monk / Rogue / Shadow Knight swings (2026-10-25 log mining)
+const LVLD_MELEE_CLS=new Set(['Warrior','Rogue','Monk','Paladin','Shadow Knight','Ranger','Bard']);
+function lvldMeleeMiss(gap){ return gap<=-16?18:gap<=-11?28:gap<=-6?29:gap<=-3?31:gap<=0?35:gap<=2?40:46; }
+function lvldZoneMobLevel(a){ let s=0,c=0; for(const [mb,n] of Object.entries((a&&a.mobs)||{})){ const ml=lvldMobLevel(mb,a.zone); if(ml==null) continue; s+=ml*n; c+=n; } return c?s/c:null; }
 function lvldPath(name,cls,race,L,mode){
   const mult=lvldMult(cls,race), sm=lvldSamples(lvldRowsAll(),cls,{mode,cls:false}), tags=lvldGuideFor(cls), pins=lvldPins(name,mode), caster=!tags.has('melee');
   const wikiAt=(l,any)=>LEVELING_SPOTS.filter(sp=>{ const rg=_lvlSpotRange(sp,mode); return rg&&rg[0]<=l&&rg[1]>=l&&(any?!(caster&&sp.t.length&&sp.t.every(x=>LVLD_MELEE_TAG.has(x))):(!sp.t.length||sp.t.some(x=>tags.has(x)))); })
@@ -11304,7 +11315,7 @@ function lvldPath(name,cls,race,L,mode){
       pick=z?{zone:z.zone,min:z.min,src:'meas',chars:z.chars.size,pin:true,con:z.con}:zAll&&!isFinite(zAll.min)?{zone:pin.z,min:null,src:'meas',dead:true,chars:zAll.chars.size,pin:true,con:0}
         :m&&(m.h>=0.75||m.n>=2)?{zone:pin.z,min:isFinite(m.min)?m.min:null,dead:!isFinite(m.min),src:'near',chars:m.chars,pin:true,con:m.con}:{zone:pin.z,min:null,src:'wiki',pin:true}; }
     else if(zs.length){ const best=zs[0], keep=prev&&zs.find(a=>lvldZoneKey(a.zone)===lvldZoneKey(prev)&&a.min<=best.min*1.15), z=keep||best;
-      pick={zone:z.zone,min:z.min,src:'meas',chars:z.chars.size,con:z.con}; }
+      pick={zone:z.zone,min:z.min,src:'meas',chars:z.chars.size,con:z.con,ml:lvldZoneMobLevel(z)}; }
     else { let w=wikiAt(l), any=false; if(!w.length){ w=wikiAt(l,true); any=true; }   // nothing listed for this class: the spots other classes use
       const keep=prev&&w.find(sp=>lvldZoneKey(sp.z)===lvldZoneKey(prev)), sp=keep||w[0];
       pick=sp?{zone:sp.z,min:null,src:'wiki',where:sp.w,for:any?sp.t.filter(x=>x!=='ALL'):null}:{zone:null,min:null,src:'none'}; }
@@ -11339,8 +11350,9 @@ function lvldPathCard(name,cls,race,L){
     const lvls=x.lo===x.hi?x.lo+' → '+(x.lo+1):x.lo+'–'+x.hi+' → '+(x.hi+1), per=x.lv.length>1&&!x.gap?'<div style="font-size:.74rem;color:var(--text-muted)">~'+lvldFmt(x.min/x.lv.length)+' / level</div>':'';
     const srcs=new Set(x.lv.map(v=>v.src)), guess=x.lv.some(v=>v.guess), chars=Math.max(0,...x.lv.map(v=>v.chars||0));
     const cons=x.lv.filter(v=>v.con!=null).map(v=>v.con), cLo=cons.length?Math.min(...cons):1, cHi=cons.length?Math.max(...cons):1, dead=x.lv.some(v=>v.dead);
-    const conNote=dead?'<div style="font-size:.74rem;color:#a03030" title="'+keysAttr('P99: mobs below the light-blue range give no XP')+'">mobs con green here \u2014 no XP</div>'
-      :cLo<0.92?'<div style="font-size:.74rem;color:#a06020" title="'+keysAttr('P99 wiki: light-blue mobs give 50% XP, high-green 25%, lower none. The measured pace is from levels where these mobs gave more; the time here is scaled down to match.')+'">mobs con lower here: '+(Math.abs(cHi-cLo)<0.05?'~'+Math.round(cLo*100)+'%':Math.round(cHi*100)+'\u2192'+Math.round(cLo*100)+'%')+' of the measured XP</div>':'';
+    const mlv=x.lv.map(v=>v.ml).find(v=>v!=null), missNote=LVLD_MELEE_CLS.has(cls)&&mlv!=null?'<div style="font-size:.74rem;color:var(--text-muted)" title="'+keysAttr('Measured on 700,000 Monk / Rogue / Shadow Knight swings: your miss share against mobs this many levels above / below you (dodges, parries and blocks add 2\u20136% more)')+'">melee misses ~'+lvldMeleeMiss(Math.round(mlv)-x.lo)+'% (mobs ~lvl '+Math.round(mlv)+')</div>':'';
+    const conNote=dead?'<div style="font-size:.74rem;color:#a03030" title="'+keysAttr('These mobs give no XP at this level')+'">mobs con green here \u2014 no XP</div>'
+      :cLo<0.92?'<div style="font-size:.74rem;color:#a06020" title="'+keysAttr('Mobs that con lower give less XP: light blue about 80%, high green about 50%, green about 25% (fitted to the guild\u2019s finished levels). The measured pace is from levels where these mobs gave more; the time here is scaled to match.')+'">mobs con lower here: '+(Math.abs(cHi-cLo)<0.05?'~'+Math.round(cLo*100)+'%':Math.round(cHi*100)+'\u2192'+Math.round(cLo*100)+'%')+' of the measured XP</div>':'';
     const based=srcs.has('none')?'<span style="color:var(--text-muted)">no data or wiki spot</span>'
       :srcs.has('wiki')&&!srcs.has('meas')&&!srcs.has('near')?(function(){ const o=x.lv.find(v=>v.for); return '<span style="color:#a06020" title="'+keysAttr('The P99 wiki leveling guide lists this zone for these levels'+(o?' — for '+(o.for.join(', ')||'other classes')+', none listed for '+(cls||'this class'):'')+'; nobody in the guild has measured it yet.'+(guess?' The time comes from the measured levels around it.':''))+'">wiki'+(o&&o.for.length?' (for '+esc(o.for.join(', '))+')':'')+' — not measured</span>'; })()
       :'measured'+(chars?' · '+chars+' char'+(chars===1?'':'s'):'')+(srcs.has('near')?' <span style="font-size:.74rem;color:var(--text-muted)">(nearby levels)</span>':'')+(srcs.has('wiki')||guess?' <span style="font-size:.74rem;color:#a06020">+ wiki</span>':'');
@@ -11355,7 +11367,7 @@ function lvldPathCard(name,cls,race,L){
       '<td style="padding:.4rem .5rem">'+(x.pin?'📌 ':'')+(x.zone?'<b>'+esc(x.zone)+'</b>':'<span style="color:var(--text-muted)">—</span>')+(where?'<div style="font-size:.74rem;color:var(--text-muted)">'+esc(where.where)+'</div>':'')+'</td>'+
       '<td style="padding:.4rem .5rem;white-space:nowrap;font-weight:600">'+(dead&&!x.min?'<span style="color:#a03030">no XP</span>':x.min?(x.gap||dead?'≥ ':'')+lvldFmt(x.min):'—')+per+'</td>'+
       '<td style="padding:.4rem .5rem;white-space:nowrap;color:var(--text-muted)">'+clock(x.min)+'</td>'+
-      '<td style="padding:.4rem .5rem;font-size:.8rem">'+based+conNote+'</td><td style="padding:.4rem .5rem;white-space:nowrap">'+sel+'</td></tr>';
+      '<td style="padding:.4rem .5rem;font-size:.8rem">'+based+conNote+missNote+'</td><td style="padding:.4rem .5rem;white-space:nowrap">'+sel+'</td></tr>';
   }
   t+='<tr style="border-top:1px solid var(--border)"><td style="padding:.45rem .5rem;font-weight:700" colspan="2">To level 60</td><td style="padding:.45rem .5rem;font-weight:700;white-space:nowrap">'+(P.total?(P.gap?'≥ ':'≈ ')+lvldFmt(P.total):'—')+'</td><td style="padding:.45rem .5rem;font-weight:700;white-space:nowrap">'+clock(P.total)+'</td><td colspan="2" style="padding:.45rem .5rem;font-size:.78rem;color:var(--text-muted)">'+P.nMeas+' of '+P.n+' levels measured</td></tr></tbody></table>';
   const style=mode==='solo'&&LVLD_STYLE[cls]?' Solo spots only count characters that solo like a '+esc(cls)+' ('+LVLD_STYLE_NAME[LVLD_STYLE[cls]]+').':'';
@@ -11855,6 +11867,11 @@ function farmIsRaidDrop(it){
   for(const z of it.zones)for(const m of (z.mobs||[])){mobs++;if(!bs.has(farmNorm(m)))return false;}
   return mobs>0;
 }
+// drop rates measured from real kills in the author's logs (src/log-loot.js): [[mob, zone, % of opened corpses, corpses]]
+function farmLogLoot(n){ return (typeof LOG_LOOT!=='undefined'&&LOG_LOOT.items&&LOG_LOOT.items[String(n).toLowerCase()])||null; }
+function farmLogLootHtml(n){ const L=farmLogLoot(n); if(!L) return '';
+  return '<div style="color:#3a7a9a;font-size:.68rem;margin-top:.1rem" title="Measured from real kills in the MixelParse author\u2019s logs since '+esc(LOG_LOOT.since||'')+': the share of opened corpses of that mob that had this item">📊 measured: '+L.map(x=>esc(cap1(x[0]))+' ('+esc(x[1])+') '+x[2]+'% of '+x[3]+' corpses').join('; ')+'</div>'; }
+function cap1(t){ t=String(t||''); return t.charAt(0).toUpperCase()+t.slice(1); }
 // the P99 wiki Treasure Hunting Guide's entries for an item (src/treasure-guide.js)
 function farmTreasure(n){ return (typeof TREASURE_GUIDE!=='undefined'&&TREASURE_GUIDE[String(n).toLowerCase()])||null; }
 function farmTreasureTip(n){ const T=farmTreasure(n); if(!T) return ''; return 'Treasure Hunting Guide (P99 wiki):\n'+T.map(e=>'• '+e.s+(e.l?' · lvl '+e.l+'+':'')+' · '+e.z+(e.a?' ('+e.a+')':'')+(e.m?' — '+e.m:'')+(e.c?' · '+e.c:'')+(e.v?' · ~'+e.v:'')+(e.n?'\n   '+e.n:'')).join('\n'); }
@@ -12046,6 +12063,9 @@ function renderFarmTargetsPanel(panel){
         <div onclick="farmToggleZones()" style="font-size:.68rem;letter-spacing:.08em;color:var(--text-muted);${farmZonesCollapsed?'':'margin-bottom:.4rem'};cursor:pointer;user-select:none;display:flex;align-items:center;gap:.35rem"><span style="font-size:1rem;line-height:1;font-weight:700">${farmZonesCollapsed?'\u25b8':'\u25be'}</span>TOP ZONES BY FARMABLE MARKET VOLUME (30d)</div>
         ${farmZonesCollapsed?'':zoneRows.map(([z,a])=>`<div style="display:flex;justify-content:space-between;font-size:.78rem;padding:.12rem 0"><span>${esc(z)} <span style="color:var(--text-muted);font-size:.68rem">(${a.items.slice(0,3).map(esc).join(', ')}${a.items.length>3?' +'+(a.items.length-3):''})</span></span><b>${farmVolFmt(a.vel)} pp/mo</b></div>`).join('')}
       </div>`:'';
+    const coinZ=typeof LOG_LOOT!=='undefined'&&LOG_LOOT.zones?Object.entries(LOG_LOOT.zones).sort((a,b)=>b[1][0]-a[1][0]):[];
+    const coinCard=coinZ.length?'<div style="border:1px solid var(--border);border-radius:4px;padding:.6rem .8rem;margin-bottom:.7rem"><div style="font-size:.68rem;letter-spacing:.08em;color:var(--text-muted);margin-bottom:.4rem" title="Coin looted per hour of active hunting (minutes with swings, casts, kills or hits taken), from real kills in the MixelParse author\u2019s logs since '+esc(LOG_LOOT.since||'')+'. Coin only \u2014 items sell on top.">COIN PER ACTIVE HOUR \u2014 MEASURED FROM OUR LOGS</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.1rem .9rem">'+coinZ.slice(0,16).map(([z,v])=>'<div style="display:flex;justify-content:space-between;font-size:.78rem;padding:.08rem 0" title="'+v[1]+' kills per active hour \u00b7 '+v[2]+' active hours measured"><span>'+esc(z)+'</span><b>'+v[0]+' pp/hr</b></div>').join('')+'</div></div>':'';
     const rows=targets.map((t,i)=>{
       const it=info(t.n);
       let status,src='—';
@@ -12066,11 +12086,11 @@ function renderFarmTargetsPanel(panel){
         <td style="padding:.28rem .5rem;text-align:right;font-size:.78rem">${farmVolFmt(t.velocity)} pp/mo</td>
         <td style="padding:.28rem .5rem;text-align:right;font-size:.74rem;color:var(--text-muted)">${t.t30.toLocaleString()}</td>
         <td style="padding:.28rem .5rem;font-size:.74rem">${status}</td>
-        <td style="padding:.28rem .5rem;font-size:.72rem">${src}${(()=>{ const T=farmTreasure(t.n); return T?'<div style="color:#b08020;font-size:.68rem;margin-top:.1rem" title="'+esc(farmTreasureTip(t.n)).replace(/"/g,'&quot;')+'">💰 guide: '+T.map(e=>esc(e.z)+(e.a?' ('+esc(e.a)+')':'')+(e.l?' · lvl '+e.l+'+':'')).join('; ')+'</div>':''; })()}</td>
+        <td style="padding:.28rem .5rem;font-size:.72rem">${src}${farmLogLootHtml(t.n)}${(()=>{ const T=farmTreasure(t.n); return T?'<div style="color:#b08020;font-size:.68rem;margin-top:.1rem" title="'+esc(farmTreasureTip(t.n)).replace(/"/g,'&quot;')+'">💰 guide: '+T.map(e=>esc(e.z)+(e.a?' ('+esc(e.a)+')':'')+(e.l?' · lvl '+e.l+'+':'')).join('; ')+'</div>':''; })()}</td>
         <td style="padding:.28rem .3rem;text-align:center"><button class="plat-fetch-btn" style="font-size:.6rem;padding:.08rem .35rem" title="Ignore — remove from Farm Targets (next item backfills)" data-n="${esc(t.n).replace(/"/g,'&quot;')}" onclick="farmIgnore(this.dataset.n)">🚫</button></td>
       </tr>`;
     }).join('');
-    body=rollup+`
+    body=rollup+coinCard+`
       <div id="farmTableScroll" style="border:1px solid var(--border);border-radius:4px;overflow:hidden;overflow-x:auto;max-height:62vh;overflow-y:auto">
         <table class="dkp-table"><thead style="position:sticky;top:0;background:var(--surface2,#1a1510);z-index:1"><tr>
           <th>#</th><th>Item</th><th class="dkp-th-right">Fair Value</th><th class="dkp-th-right">Market Vol (30d)</th><th class="dkp-th-right">30d Tx</th><th>Status</th><th>Drops From (P99 wiki)</th><th></th>
@@ -17373,7 +17393,7 @@ function plVoiceOn(){ try{ return localStorage.getItem('mp_pl_voice')!=='0'; }ca
 let _plCur=null, _plMissSeen={};
 function plOnState(st){
   if(!st||plMode()==='off') return;
-  const pl=st.pl>=2;   // a character getting XP from someone else's kills = being power-levelled
+  const pl=st.pl>=2||(!!st.lv&&st.lvKills>=2);   // a character getting XP from someone else's kills = being power-levelled; or you levelling another player
   const busy=st.killed>0||st.names.some(n=>n.hits>0);
   if(!busy) return;
   // keep showing the character being power-levelled; another character only takes over when nobody is
@@ -18032,7 +18052,7 @@ window.reviewSubmit=async function(o,progress){
   if(!o||((!o.chars||!o.chars.length)&&!(o.extra&&o.extra.length))) throw new Error('Pick at least one character or add an older log file.');
   say('Reading your logs and removing tells…'+(o.extra&&o.extra.length?' (older files can take a minute)':''));
   const r=await A.reviewCollect({chars:o.chars||[],days:o.days,extra:o.extra||[]}); if(!r||!r.ok) throw new Error((r&&r.error)||'Could not read the logs.');
-  if(!r.files.length) throw new Error('No log lines found for those characters in the last '+r.days+' days.');
+  if(!r.files.length) throw new Error(r.days?'No log lines found for those characters in the last '+r.days+' days.':'No logs found for those characters.');
   const id=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random().toString(36).slice(2)), base=currentUser.id+'/'+id+'/', B=sb.storage.from('log-reviews'), files=[];
   for(const f of r.files){
     const name=(f.legacy?'older__'+String(f.legacy).replace(/\.(txt|old|log)$/i,'').replace(/[^\w.\-]/g,'_'):f.char)+(f.part?'.part'+f.part:'')+'.txt.gz';
@@ -18040,7 +18060,7 @@ window.reviewSubmit=async function(o,progress){
     const {error}=await B.upload(base+name,new Blob([f.gz],{type:'application/gzip'}),{upsert:false,contentType:'application/gzip'}); if(error) throw new Error(error.message);
     files.push({path:base+name,char:f.char,legacy:f.legacy||null,part:f.part||0,bytes:f.bytes,raw_bytes:f.raw_bytes,lines:f.lines,tells_removed:f.tells_removed,first:f.first,last:f.last,sources:f.sources});
   }
-  const since=Date.now()-r.days*864e5, safe=f=>{ try{ return f(); }catch(e){ return null; } };
+  const since=r.days?Date.now()-r.days*864e5:0, safe=f=>{ try{ return f(); }catch(e){ return null; } };
   const manifest={v:1,older:(o.extra||[]).map(p=>String(p).split(/[\\/]/).pop()),app_version:(typeof WHATS_NEW!=='undefined'?WHATS_NEW.version:null),submitted:new Date().toISOString(),tz:safe(()=>Intl.DateTimeFormat().resolvedOptions().timeZone),tzOffsetMin:new Date().getTimezoneOffset(),
     user:currentUser.email||null,days:r.days,description:String(o.description),chars:reviewCharList().filter(c=>o.chars.includes(c.name)),allChars:reviewCharList().map(c=>c.name),
     bankers:safe(()=>bankerRegistry.slice()),hidden:safe(()=>excludedChars.slice()),files,
