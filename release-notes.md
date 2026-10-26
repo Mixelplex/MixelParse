@@ -1,4 +1,12 @@
-## 1.8.6
+## 1.8.7
+
+- **🗂 A tidier top bar** — eleven tabs became five: Characters · Raids (DKP, Parking, Timers, Keys) · Market (Prices, Farm Targets, Bankers, Selling) · Raid Kill Tracker · Inbox (Tells, Tasks, with the counts). Click a group for its pages underneath; each group remembers the page you used last. Flowers moved under Characters.
+- **⚡ Faster pages** — Raid Kill Tracker → Auto-Detect draws about 5× faster (newest 150 ticks, Show all for the rest) and Credit Check about 3×; Farm Targets shows the top 60 items first (Show all); Farm Targets and the Gear Planner come back instantly when nothing they show has changed.
+- **Fixes**
+  - Groupmates' kills in faction zones (most of Velious) were skipped as quest turn-ins; they count again.
+  - CH chain: "<Slowed> Mob" shaman calls are picked up; an unfilled "CH -- Target" macro call no longer shows a heal target named "Target".
+
+Everything from 1.8.6 and earlier is included:
 
 - **⚔ PL helper: power-leveller mode** — levelling someone else (your damage shield / heals, their melee)? The helper follows their tags: their hits and misses in your log, ✓ when the kill goes to them, ✗ when it goes to you ("You have slain") or someone else. It switches on by itself on the first kill credited to them; the window shows "levelling <name>". Needs your chat filter to show other players' hits.
 - **📊 Measured loot and coin** — Farm Targets: a coin-per-active-hour card by hunting zone, and a "measured" drop line under each item (share of opened corpses that had it, from over a year of logs).
@@ -7,8 +15,6 @@
 - **Fixes**
   - Leveling path con XP: light blue ~80%, high green ~50%, green ~25% — fitted to 159 real levels (the wiki's 50% for light blue was too harsh).
   - PL helper Auto no longer pops up in a group when a groupmate gets the kill.
-
-Everything from 1.8.5 and earlier is included:
 
 - **Fixes**
   - Leveling path: time per level accounts for con colour — P99 gives 50% XP for light-blue mobs, 25% for high green, none below. A zone measured at lower levels (Cobalt Scar wyverns, 38–42) slows down at 55–59 instead of looking as fast as at 52, and the stage says "mobs con lower here". A pinned zone with little data near your level uses every level it was hunted.

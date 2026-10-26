@@ -474,6 +474,7 @@ const RE_PET_ATTACK     = /^\[.+?\] (.+?) (?:says?|tells you),? '?Attacking (.+?
 const RE_LOC            = /Your Location is ([\d.-]+),\s*([\d.-]+),\s*([\d.-]+)/;
 const RE_CHARM_BROKE    = /Your charm spell has worn off\./;
 const CHARM_CONFIRM_MS  = 8 * 1000;
+const TURNIN_KILL_MS    = 3 * 1000;   // a slain-by this fresh before a faction line + XP is a kill, not a turn-in (2026-10-25: ToFS group kills)
 const _charmLastCast    = {};    // { [charName]: timestamp }
 const _charmedPets      = {};    // { [charName]: Set<lowerPetName> } — known pet names
 const _prevFactionSaysByChar = {};   // v1.4.18 was prev line a faction/says line? (turn-in detection)
@@ -1428,13 +1429,13 @@ function processLogLine(line, charName) {
     else if ((_m = RE_WORN_OFF.exec(line))) { const charm = _m[1] === 'charm', fear = _m[1] === 'fear', sp = charm ? (_lastCharm[charName] || 'Charm') : fear ? (_lastFear[charName] || 'Fear') : _m[1];
       broadcast({ type: 'timerEnd', charName, spell: sp, charm, ts: Date.now() }); } }
   if (line.indexOf(' CH ') > 0 || line.indexOf(' CH-') > 0) { const _c = RE_CH_CALL.exec(line);
-    if (_c) { const by = _c[1] || charName, k = Math.floor(Date.now() / 1000) + '|' + by + '|' + _c[2]; if (!_chSeen.has(k)) { _chSeen.set(k, Date.now()); if (_chSeen.size > 400) for (const [kk, t] of _chSeen) if (Date.now() - t > 30e3) _chSeen.delete(kk);
+    if (_c && _c[3] !== 'Target') { const by = _c[1] || charName, k = Math.floor(Date.now() / 1000) + '|' + by + '|' + _c[2];   /* "CA 006 CH -- Target": an unfilled macro */ if (!_chSeen.has(k)) { _chSeen.set(k, Date.now()); if (_chSeen.size > 400) for (const [kk, t] of _chSeen) if (Date.now() - t > 30e3) _chSeen.delete(kk);
       broadcast({ type: 'chCall', charName, by, slot: +_c[2], target: _c[3], ts: Date.now() }); } } }
   if (line.indexOf(", '") > 0 && (line.indexOf(' say') > 0 || line.indexOf(' tell') > 0)) { const _mn = RE_CH_MANA_LINE.exec(line);
     if (_mn) { const pct = _chManaParse(_mn[2]); if (pct != null) { const by = _mn[1] || charName, k = Math.floor(Date.now() / 1000) + '|m|' + by;
       if (!_chSeen.has(k)) { _chSeen.set(k, Date.now()); broadcast({ type: 'chMana', charName, by, pct, ts: Date.now() }); } } } }
-  if ((line.indexOf('SLOW') > 0 || /[Ss]haman slowed/.test(line)) && line.indexOf(", '") > 0) { const _sc = RE_CH_SLOWCALL.exec(line);
-    if (_sc && (/\bSLOW(?:ED)?\b/.test(_sc[2]) || /shaman slowed/i.test(_sc[2]))) { const k = Math.floor(Date.now() / 1000) + '|sc|' + _sc[2]; if (!_chSeen.has(k)) { _chSeen.set(k, Date.now()); broadcast({ type: 'chSlowCall', charName, by: _sc[1] || charName, text: _sc[2], ts: Date.now() }); } } }
+  if ((line.indexOf('SLOW') > 0 || /[Ss]haman slowed|<slow(?:ed)?>/i.test(line)) && line.indexOf(", '") > 0) { const _sc = RE_CH_SLOWCALL.exec(line);
+    if (_sc && (/\bSLOW(?:ED)?\b/.test(_sc[2]) || /shaman slowed|<slow(?:ed)?>/i.test(_sc[2]))) {   /* also "<Slowed> Keeper of Souls" (10-25) */ const k = Math.floor(Date.now() / 1000) + '|sc|' + _sc[2]; if (!_chSeen.has(k)) { _chSeen.set(k, Date.now()); broadcast({ type: 'chSlowCall', charName, by: _sc[1] || charName, text: _sc[2], ts: Date.now() }); } } }
   if (line.endsWith('defensive fighting style.')) { const _d = RE_CH_DISC.exec(line); if (_d) { const k = Math.floor(Date.now() / 1000) + '|d|' + _d[1]; if (!_chSeen.has(k)) { _chSeen.set(k, Date.now()); broadcast({ type: 'chDisc', charName, who: _d[1], ts: Date.now() }); } } }
   else if (line.charCodeAt(27) >= 65 && line.charCodeAt(27) <= 90 && (line.indexOf(' points of damage') > 0 || line.indexOf(' tries to ') > 0)) { const _s = RE_CH_SWING.exec(line);   // a named mob (capitalised, no "a"/"an") on a player
     if (_s && !/^(You|Your)/.test(_s[1])) { const k = _s[1] + '|' + _s[2], t = _chSwSeen.get(k) || 0, now = Date.now(); if (now - t > 5000) { _chSwSeen.set(k, now); if (_chSwSeen.size > 300) for (const [kk, tt] of _chSwSeen) if (now - tt > 60e3) _chSwSeen.delete(kk); broadcast({ type: 'chSwing', charName, mob: _s[1], target: _s[2], ts: now }); } } }
@@ -1465,8 +1466,9 @@ function processLogLine(line, charName) {
       // slain-by with unknown slayer).  XP = kill, so credit it now.
       const pending = _pendingSlainMob[charName];
       let mobName;
-      if (_wasTurnin) {
-        // FIX #1 (v1.4.18): prev line was faction/says → turn-in, NOT a kill. Suppress.
+      if (_wasTurnin && !(pending && (Date.now() - pending.ts) < TURNIN_KILL_MS)) {
+        // FIX #1 (v1.4.18): prev line was faction/says → turn-in, NOT a kill. Suppress — unless a slain-by came just
+        // before: faction zones print slain → faction → XP for every group kill (10-25: 49 of 78 ToFS kills were lost).
         // BEFORE pendingSlain so a stale kill can't absorb the turn-in tick.
         delete _pendingSlainMob[charName]; delete _petLastTarget[charName];
         return;
@@ -2243,8 +2245,8 @@ function _ssLine(charName, st, line, gapMs, out) {
     sess.xp++;
     if (st.killCredited) {
       st.killCredited = false;
-    } else if (_wasTurninCtx) {
-      // FIX #1: prev line was faction/says → turn-in / faction XP, NOT a kill. Suppress.
+    } else if (_wasTurninCtx && !(st.pendingSlain && (ts - st.pendingSlain.t) < TURNIN_KILL_MS)) {
+      // FIX #1: prev line was faction/says → turn-in / faction XP, NOT a kill. Suppress (unless a slain-by came just before).
       // Checked BEFORE pendingSlain so a stale kill's mob name can't absorb turn-in ticks.
       st.pendingSlain = null; st.petLastTarget = null;
     } else if (st.pendingSlain && (ts - st.pendingSlain.t) < CHARM_CONFIRM_MS) {
