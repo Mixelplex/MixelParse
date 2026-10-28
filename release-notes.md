@@ -1,10 +1,19 @@
-## 1.8.9
+## 1.8.10
+
+- **New**
+  - WTS hotbuttons with item links (Selling → In-game /auction): EverQuest strips links from pasted text, so MixelParse writes your WTS lines as social macros ("WTS 1", "WTS 2"…) with real purple links, into a character you add, while it's logged out. Only an empty Socials page is used; hotbars and other macros are never touched, only its own unedited buttons are rewritten, and a backup of the file is kept. The character's socials are listed page by page.
+  - Repost reminder: says "Repost auctions" every X minutes after your last /auction; each /auction restarts it, it goes quiet after a few ignored reminders, and 🔇 silences it (until your next /auction, 30 min, 1 h).
+  - Condensed CH Chain and Auctions windows (Settings → Window layout, or the ▤ button on the window); the window shrinks to fit. Full is the default.
+  - PL helper window: Turn off button (same as Settings → PL HELPER → Off).
+- **Fixes**
+  - Epic checklist: items on your other characters or bankers show as a gold ✔ with who holds them; they don't count as the viewed character's progress, and Excluded characters are left out.
+  - Selling: copied /auction lines are plain names.
+
+Everything from 1.8.9 and earlier is included:
 
 - **Fixes**
   - Parking: a raid target only counts as parked when one of your characters is actually in the zone. Being bound there (can gate) or able to port in no longer silences the alert — it reads "nobody parked · can gate / port in: <names>", and the Raid Parking badges say "Not parked · can gate / can port".
   - Raid Kill Tracker: switching back to it keeps the drawn page when nothing changed, so it opens faster.
-
-Everything from 1.8.8 and earlier is included:
 
 - **📖 Wiki updates work again** — the P99 wiki now sits behind a Cloudflare check that blocks apps. Check now (and Farm Targets → Crawl Wiki) opens a small wiki window when the check appears; pass it like in any browser and MixelParse reads the wiki through that window. The automatic weekly check never pops a window; it tells you when the check is needed.
 - **📝 What changed on the wiki** — Settings → Wiki updates lists every changed page since the last check (item in your database / NPC / other, edits, who, when, edit summary) with a "what changed" link to the wiki's before / after view.

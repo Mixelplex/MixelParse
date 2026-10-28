@@ -930,6 +930,7 @@ ipcMain.handle('pl:toggle', () => {
 });
 ipcMain.handle('pl:pop', () => { if (plWindow && !plWindow.isDestroyed() && (plWindow.isMinimized() || (plWindow.isVisible() && !plWindow.isMinimized()))) return; createPlWindow(false); });   // minimized by you: it stays minimized (owner, 2026-10-22)
 ipcMain.handle('pl:close', () => { if (plWindow && !plWindow.isDestroyed()) plWindow.close(); });
+ipcMain.on('pl:disable', () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('pl-disable'); });   // the window's "Turn off" = Settings → Off
 ipcMain.handle('pl:minimize', () => { if (plWindow && !plWindow.isDestroyed()) plWindow.minimize(); });
 ipcMain.on('pl:push-state', (event, state) => { if (plWindow && !plWindow.isDestroyed()) plWindow.webContents.send('pl-state', state); });
 ipcMain.handle('chchain:toggle', () => {
@@ -975,6 +976,18 @@ ipcMain.on('auction:resize-width', (event, w) => {
   const width = Math.max(320, Math.min(Math.round(+w || b.width), area.width));
   const x = Math.max(area.x, Math.min(b.x, area.x + area.width - width));
   auctionWindow.setBounds({ x, y: b.y, width, height: b.height });
+});
+// condensed CH chain / auction windows fit their height to what they show; restore = back to the Full height (2026-10-26)
+ipcMain.on('win:fit-height', (event, h, restore) => {
+  const w = BrowserWindow.fromWebContents(event.sender);
+  if (!w || w.isDestroyed() || (w !== chChainWindow && w !== auctionWindow) || w.isMinimized() || w.isMaximized()) return;
+  const { screen } = require('electron');
+  const b = w.getBounds(), area = screen.getDisplayMatching(b).workArea, minW = w.getMinimumSize()[0];
+  w.setMinimumSize(minW, restore ? (w === auctionWindow ? 240 : 150) : 60);
+  const height = Math.max(60, Math.min(Math.round(+h || b.height), area.height));
+  if (Math.abs(height - b.height) < 3) return;
+  const y = Math.max(area.y, Math.min(b.y, area.y + area.height - height));
+  w.setBounds({ x: b.x, y, width: b.width, height });
 });
 ipcMain.on('auction:command', (event, cmd) => {
   if (cmd && cmd.type === 'wiki' && typeof cmd.item === 'string') { shell.openExternal('https://wiki.project1999.com/' + encodeURIComponent(cmd.item.trim().replace(/ /g, '_'))); return; }
@@ -1120,6 +1133,14 @@ ipcMain.handle('watcher:command', (e, cmd, args) => {
   if (watcherModule && watcherModule.command) {
     watcherModule.command(cmd, args);
   }
+});
+
+// WTS hotbuttons with item links: read / write a character's social macros (electron/ipc/socials.js, 2026-10-28)
+function _socialsCtx() { return { eqDir: config && config.eqDir, logDir: config && config.logDir, userData: app.getPath('userData') }; }
+ipcMain.handle('socials:status', (e, char) => { try { return require('./ipc/socials.js').status(_socialsCtx(), String(char || '')); } catch (err) { return { ok: false, error: err.message }; } });
+ipcMain.handle('socials:write', (e, char, buttons, force) => {
+  try { return require('./ipc/socials.js').write(_socialsCtx(), String(char || ''), Array.isArray(buttons) ? buttons : [], !!force); }
+  catch (err) { return { ok: false, error: /EACCES|EPERM/.test(err.code || '') ? 'Windows won\u2019t let MixelParse write to your EverQuest folder (' + err.code + ')' : err.message }; }
 });
 
 ipcMain.handle('ui:list', () => {

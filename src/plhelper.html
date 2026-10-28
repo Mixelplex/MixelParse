@@ -18,6 +18,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .tb-sp{flex:1}.nd{-webkit-app-region:no-drag}
 .tb-btn{background:none;border:1px solid transparent;color:var(--dim);font-size:.8rem;font-weight:600;cursor:pointer;padding:.1rem .4rem;border-radius:6px}
 .tb-btn:hover{background:var(--card);border-color:var(--line2);color:var(--text)}
+.tb-off{font-size:.72rem;font-weight:600;border-color:var(--line2)}.tb-off:hover{background:rgba(239,102,80,.2);border-color:rgba(239,102,80,.5);color:#fff}
 .tb-x:hover{background:rgba(239,102,80,.2);border-color:rgba(239,102,80,.5);color:#fff}
 .body{flex:1;overflow-y:auto;padding:.5rem .6rem .7rem}
 .empty{color:var(--muted);font-size:.85rem;text-align:center;padding:1.6rem .8rem;line-height:1.6}
@@ -66,6 +67,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 <div class="win">
   <div class="tb">
     <span class="tb-title" id="title">⚔ PL HELPER</span><span class="tb-sp"></span>
+    <button class="tb-btn tb-off nd" title="Turn the PL helper off — no more pop-ups until you turn it back on in Settings → PL HELPER" onclick="window.MixelParseApp&&window.MixelParseApp.disablePl&&window.MixelParseApp.disablePl()">Turn off</button>
     <button class="tb-btn nd" title="Smaller text" onclick="zoom(-1)">A−</button>
     <button class="tb-btn nd" title="Bigger text" onclick="zoom(1)">A+</button>
     <button class="tb-btn nd" title="Minimize" onclick="window.MixelParseApp&&window.MixelParseApp.minimizePl()">–</button>

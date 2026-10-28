@@ -64,6 +64,8 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   pushPlState:        (state)   => ipcRenderer.send('pl:push-state', state),
   onPlState:          (cb)      => ipcRenderer.on('pl-state', (_, d) => cb(d)),
   onPlWindowReady:    (cb)      => ipcRenderer.on('pl-window-ready', () => cb()),
+  disablePl:          ()        => ipcRenderer.send('pl:disable'),
+  onPlDisable:        (cb)      => ipcRenderer.on('pl-disable', () => cb()),
   // ── CH chain window ─────────────────────────────────────────────────────────
   toggleChChain:      ()        => ipcRenderer.invoke('chchain:toggle'),
   popChChain:         ()        => ipcRenderer.invoke('chchain:pop'),
@@ -91,6 +93,7 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   resizeAuctionWidth: (w)       => ipcRenderer.send('auction:resize-width', w),   // more columns of tiles
   onAuctionState:     (cb)      => ipcRenderer.on('auction-state',   (_, d) => cb(d)),
   sendAuctionCommand: (cmd)     => ipcRenderer.send('auction:command', cmd),
+  fitWindowHeight:    (h, restore) => ipcRenderer.send('win:fit-height', h, restore),   // condensed CH chain / auction windows
   onAuctionCommand:   (cb)      => ipcRenderer.on('auction-command', (_, d) => cb(d)),
   onAuctionWindowReady: (cb)    => ipcRenderer.on('auction-window-ready', () => cb()),
 
@@ -123,6 +126,8 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
 
   // ── UI Copy Tool ───────────────────────────────────────────────────────────
   listUIFiles:  ()                     => ipcRenderer.invoke('ui:list'),
+  socialsStatus: (char)                => ipcRenderer.invoke('socials:status', char),                  // WTS hotbuttons (2026-10-28)
+  socialsWrite:  (char, buttons, force) => ipcRenderer.invoke('socials:write', char, buttons, force),
   copyUI:       (src, dst)             => ipcRenderer.invoke('ui:copy', src, dst),
   hasBaseUI:        ()                 => ipcRenderer.invoke('ui:has-base'),
   setBaseUI:        (sourceChar)       => ipcRenderer.invoke('ui:set-base', sourceChar),

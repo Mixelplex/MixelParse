@@ -117,6 +117,38 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .menu .mx:hover{color:var(--danger)}
 .foot a{color:var(--gold);cursor:pointer;text-decoration:none}
 .foot a:hover{text-decoration:underline}
+/* condensed layout (Settings): one compact row per auction */
+body.cond .tb{height:2.1rem;gap:.3rem}
+body.cond .body{flex:none;overflow:hidden}
+body.cond .empty{padding:.5rem .7rem !important;font-size:.8rem;line-height:1.4}
+body.cond .empty .big{display:none}
+body.cond .empty br{display:none}
+.tb-btn.on{color:var(--gold2);border-color:var(--golddk);background:rgba(224,181,82,.12)}
+body.cond .tb-title{font-size:.8rem;white-space:nowrap}
+body.cond .tb-count{font-size:.62rem;white-space:nowrap}
+body.cond .tb-dkp{font-size:.66rem;padding:.1rem .45rem}
+body.cond .tb-pop .pl{display:none}
+body.cond .tb-btn{font-size:.74rem;padding:.1rem .3rem}
+body.cond .body{padding:.35rem .4rem .5rem}
+.cr{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--live);border-radius:8px;padding:.28rem .5rem .3rem;margin-bottom:.3rem}
+.cr.late{border-left-color:var(--warn)}
+.cr.out{border-left-color:var(--danger);background:rgba(239,102,80,.1)}
+.cr.lead{border-left-color:var(--live);background:rgba(85,196,127,.08)}
+.cr.sold{border-left-color:var(--gold)}
+.cr.won{border-left-color:var(--gold);background:rgba(224,181,82,.12)}
+.cr.ign{opacity:.45}
+.cr1,.cr2{display:flex;align-items:baseline;gap:.45rem;min-width:0;white-space:nowrap}
+.cr1 .c-item{font-size:.95rem}
+.cr1 .chip{font-size:.7rem;padding:.05rem .4rem}
+.cr2{font-size:.8rem;color:var(--dim);margin-top:.08rem}
+.cr2 .n{font-weight:800;color:var(--gold2);font-size:.95rem;font-variant-numeric:tabular-nums}
+.cr2 .w{color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.cr2 .bal{font-size:.74rem}
+.cr2 .sp{flex:1}
+.cr2 .u{font-size:.72rem;color:var(--muted)}.cr2 .u b{color:var(--gold2);font-weight:600}
+.cr2 .s{font-size:.72rem;font-weight:800;padding:0 .35rem;border-radius:4px}
+.cr2 .s.out{background:rgba(239,102,80,.25);color:#ff8f7d}.cr2 .s.lead{background:rgba(85,196,127,.2);color:#7fe0a3}
+.cr2 .nb{font-style:italic;color:var(--muted)}
 .foot{font-size:.72rem;color:var(--muted);padding:.4rem .8rem;background:var(--bg2);border-top:1px solid var(--line);flex-shrink:0;display:flex;justify-content:space-between;gap:.5rem}
 </style>
 </head>
@@ -126,7 +158,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     <span class="tb-title">⚖ Auctions <span class="tb-count none" id="count">none open</span></span>
     <span class="tb-sp"></span>
     <span class="tb-dkp nd" id="avail" onclick="availMenu(event)" style="display:none"></span>
-    <label class="tb-pop nd" title="Open this window by itself when an officer starts an auction in /auction"><input type="checkbox" id="pop" onchange="cmd({type:'autoPop',on:this.checked})"> pop up</label>
+    <label class="tb-pop nd" title="Open this window by itself when an officer starts an auction in /auction"><input type="checkbox" id="pop" onchange="cmd({type:'autoPop',on:this.checked})"> <span class="pl">pop up</span></label>
+    <button class="tb-btn nd" id="condBtn" onclick="cmd({type:'cond',on:!cond})" title="Condensed layout (also in Settings → AUCTIONS)">▤</button>
     <button class="tb-btn nd" onclick="zoom(-1)" title="Smaller text">A−</button>
     <button class="tb-btn nd" onclick="zoom(1)" title="Bigger text">A+</button>
     <button class="tb-btn nd" onclick="window.MixelParseApp&&window.MixelParseApp.minimizeAuction&&window.MixelParseApp.minimizeAuction()" title="Minimize">&#8211;</button>
@@ -147,6 +180,21 @@ let fs = Math.min(28, Math.max(13, +lsGet('auc_fs2', 18) || 18));
 let showClosed = lsGet('auc_closed', '0') === '1';
 document.documentElement.style.setProperty('--fs', fs);
 function zoom(d){ fs = Math.min(28, Math.max(13, fs + d)); document.documentElement.style.setProperty('--fs', fs); lsSet('auc_fs2', fs); }
+let cond = false;   // Settings → AUCTIONS → Window layout, sent with each state
+function applyCond(){ document.body.classList.toggle('cond', cond); const b = document.getElementById('condBtn'); if (b) { b.classList.toggle('on', cond); b.title = cond ? 'Full layout (also in Settings → AUCTIONS)' : 'Condensed layout (also in Settings → AUCTIONS)'; } }
+function condFit(){
+  const A=window.MixelParseApp; if(!cond||!A||!A.fitWindowHeight) return;
+  const b=document.getElementById('body'), r=b.getBoundingClientRect(), last=b.lastElementChild;
+  const content=last?last.getBoundingClientRect().bottom-r.top+b.scrollTop+parseFloat(getComputedStyle(b).paddingBottom):40;
+  const foot=(document.querySelector('.foot')||{}).offsetHeight||0;
+  const want=Math.ceil(r.top+content+foot+2);
+  if(Math.abs(want-innerHeight)>3) A.fitWindowHeight(want,false);
+}
+function condChanged(on){
+  const A=window.MixelParseApp;
+  try{ if(on&&localStorage.getItem('mp_auc_cond_fitted')!=='1'){ localStorage.setItem('mp_auc_cond_fullh',String(innerHeight)); localStorage.setItem('mp_auc_cond_fitted','1'); }
+    if(!on&&localStorage.getItem('mp_auc_cond_fitted')==='1'){ localStorage.setItem('mp_auc_cond_fitted','0'); const h=+localStorage.getItem('mp_auc_cond_fullh')||0; if(h&&A&&A.fitWindowHeight) A.fitWindowHeight(h,true); } }catch(e){}
+}
 function toggleClosed(){ showClosed = !showClosed; lsSet('auc_closed', showClosed ? '1' : '0'); render(); }
 function toggle(id){ expanded.has(id) ? expanded.delete(id) : expanded.add(id); render(); }
 // right-click → Ignore: hidden here, and the main window stops outbid / grats notices for it (kept on this PC)
@@ -276,6 +324,24 @@ function card(a, now){
         + (hidden > 0 || (expanded.has(a.id) && rest.length > SHOW) ? '<div class="more" onclick="toggle(\'' + a.id + '\')">' + (expanded.has(a.id) ? 'show fewer' : '+ ' + hidden + ' more bidder' + (hidden === 1 ? '' : 's')) + '</div>' : '') + '</div>' : '')
     + '</div>';
 }
+// condensed: line 1 item + timer, line 2 top bid · bidder · their DKP · usual price · your state (your own bid if outbid)
+function cardCond(a, now){
+  const sold = !!(a.winners && a.winners.length), late = now >= a.closeAt, top = a.top, iWon = sold && a.winners.some(w => w.mine);
+  const cls = sold ? (iWon ? ' won' : ' sold') : a.outbid ? ' out' : a.leading ? ' lead' : late ? ' late' : '';
+  const ctx = ' oncontextmenu="return cardMenu(event,\'' + a.id + '\')"' + (ignored.has(a.id) ? ' title="Ignored — right-click to un-ignore"' : '');
+  const item = '<span class="c-item" onclick="' + wiki(a.item) + '" title="Open on the P99 wiki' + (a.by ? ' · opened by ' + esc(a.by) : '') + '">' + esc(a.item) + '</span>';
+  if (sold) return '<div class="cr' + cls + (ignored.has(a.id) ? ' ign' : '') + '"' + ctx + '><div class="cr1">' + item + '<span class="chip sold">sold</span></div>'
+    + '<div class="cr2">' + (iWon ? '🎉 you won · ' : '✓ ') + winText(a.winners, true) + '</div></div>';
+  const p = a.stats, mine = bidRows(a).find(b => b.mine);
+  const n = bidRows(a).length;
+  return '<div class="cr' + cls + (ignored.has(a.id) ? ' ign' : '') + '"' + ctx + '>'
+    + '<div class="cr1">' + item + '<span class="chip ' + (late ? 'late' : 'open') + '" title="How long it\'s been open — it closes when the officer grats it">⏱ <span class="tm" data-o="' + a.open + '"></span></span></div>'
+    + '<div class="cr2">' + (top ? '<span class="n">' + top.n + '</span><span class="w" title="' + n + ' bidder' + (n === 1 ? '' : 's') + '">' + esc(top.toon || top.who) + '</span>' + bal(top) : '<span class="nb">no bids</span>')
+    + '<span class="sp"></span>'
+    + (p && p.r60 != null ? '<span class="u" title="Average of the last 60 days (' + p.r60n + ' sold) · high ' + p.high + ' · avg ' + p.avg + '">usually <b>' + p.r60 + '</b></span>' : '<span class="u">' + (p ? 'no recent sales' : 'never sold') + '</span>')
+    + (a.outbid ? '<span class="s out" title="Your bid: ' + (mine ? mine.n : '?') + '">OUTBID' + (mine ? ' (' + mine.n + ')' : '') + '</span>' : a.leading ? '<span class="s lead">HIGH</span>' : '')
+    + '</div></div>';
+}
 function closedRow(a){
   const t = a.top, ws = a.winners || [];
   return '<div class="cl" oncontextmenu="return cardMenu(event,\'' + a.id + '\')" title="Right-click: I won this"><span class="cl-item" onclick="' + wiki(a.item) + '" title="Open on the P99 wiki">' + esc(a.item) + '</span>'
@@ -300,16 +366,18 @@ function render(){
   // auctions you're in first (outbid, then leading), then newest opened — order doesn't jump as bids arrive
   const order = open.slice().sort((x, y) => (y.outbid ? 2 : y.leading ? 1 : 0) - (x.outbid ? 2 : x.leading ? 1 : 0) || (y.open || 0) - (x.open || 0));
   const html = !list.length ? '<div class="empty"><span class="big">⚖</span>No auctions right now.<br>This window opens when an officer starts one in <b>/auction</b>.</div>'
-    : (order.length ? '<div class="tiles">' + order.map(a => card(a, now)).join('') + '</div>' : '<div class="empty" style="padding:1.6rem 1rem">Nothing open right now.</div>')
+    : (order.length ? (cond ? order.map(a => cardCond(a, now)).join('') : '<div class="tiles">' + order.map(a => card(a, now)).join('') + '</div>') : '<div class="empty" style="padding:1.6rem 1rem">Nothing open right now.</div>')
     + (done.length ? '<div class="closed-h" onclick="toggleClosed()"><span>' + (showClosed ? '▾' : '▸') + ' CLOSED · ' + done.length + '</span><span class="ln"></span></div>'
       + (showClosed ? done.slice().sort((x, y) => (y.last || 0) - (x.last || 0)).map(closedRow).join('') : '') : '');
   // rebuild only when something changed — a rebuild every second ate clicks (item → wiki, "+ more", Closed)
-  fitColumns(order.length);
+  fitColumns(cond ? 1 : order.length);
   if (html !== lastHtml) { body.innerHTML = html; lastHtml = html; body.scrollTop = y; }
+  condFit();
   for (const el of body.querySelectorAll('.tm')) el.textContent = mmss(now - +el.dataset.o);
 }
 let lastHtml = '';
-if (window.MixelParseApp && window.MixelParseApp.onAuctionState) window.MixelParseApp.onAuctionState(st => { S = st || S; render(); });
+applyCond();
+if (window.MixelParseApp && window.MixelParseApp.onAuctionState) window.MixelParseApp.onAuctionState(st => { S = st || S; if (cond !== !!S.cond) { condChanged(!!S.cond); cond = !!S.cond; applyCond(); lastHtml = ''; } render(); });
 setInterval(render, 1000);
 render();
 </script>

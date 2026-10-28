@@ -1088,6 +1088,7 @@ function auctionSignal(line, charName) {
   let m = RE_AUC_LINE.exec(line);
   if (!m) { const r = RE_AUC_RELAY.exec(line); if (!r || !RE_AUC_GRATS.test(r[2])) return; m = r; }
   const ts = _rtLineTs(line), open = RE_AUC_OPEN.test(m[2]);
+  if (m[1] === 'You' && !open) broadcast({ type: 'myAuction', charName, ts });   // your own /auction — restarts the Selling repost reminder
   if (open) _aucLastOpen = Math.max(_aucLastOpen, ts);
   else if (!RE_AUC_GRATS.test(m[2]) && Math.abs(ts - _aucLastOpen) > 45 * 60e3) return;   // auctions stay open until grats (owner, 2026-10-05)
   broadcast({ type: 'auctionLine', charName, who: m[1] === 'You' ? charName : m[1], text: m[2], ts, open });

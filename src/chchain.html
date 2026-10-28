@@ -55,12 +55,41 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .spd b{color:var(--text)}.spd .on{color:var(--live);font-weight:600}.spd .off{color:var(--warn);font-weight:600}.spd .plan{margin-left:auto;color:var(--gold2);font-weight:800;font-size:.95rem}.spd .slow{color:var(--warn)}
 .oth{margin-top:.55rem;font-size:.78rem;color:var(--dim);line-height:1.5;border-top:1px solid var(--line);padding-top:.4rem}.oth b{color:var(--text)}.oth .n{color:var(--gold);font-weight:700;font-variant-numeric:tabular-nums}
 .low{color:var(--warn);font-size:.85rem;font-weight:600;margin:.1rem .1rem .45rem}
+/* condensed layout (Settings): two lines per chain + a strip of numbers */
+body.cond .cfg{display:none}
+body.cond .body{padding:.3rem .4rem .4rem}
+body.cond .tb{height:1.9rem}
+body.cond .body{flex:none;overflow:hidden}
+body.cond .empty{padding:.45rem .6rem;font-size:.78rem;line-height:1.4;text-align:left}
+.tb-btn.on{color:var(--gold2);border-color:var(--golddk);background:rgba(224,181,82,.12)}
+.cg{padding:.25rem .35rem .3rem;border:1px solid var(--line2);border-radius:8px;background:var(--card);margin-bottom:.3rem}
+.cg.go{border:2px solid var(--live);background:rgba(85,196,127,.18);animation:pulse .7s ease-in-out infinite alternate}
+.cr{display:flex;align-items:baseline;gap:.45rem;white-space:nowrap;min-width:0}
+.cr .ch{font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.cr .who{font-weight:700;font-size:1.05rem;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.cr .slot{font-weight:800;font-size:1.05rem;color:var(--gold2);font-variant-numeric:tabular-nums}
+.cr .ago{font-size:.74rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.cr .sp{flex:1}
+.cr .tw{font-weight:700;font-size:.85rem;color:#ffd28a;font-variant-numeric:tabular-nums}
+.cr .tg{font-weight:800;font-size:1.05rem;color:#eafff1}
+.cs{font-size:.74rem;color:var(--dim);margin-top:.1rem;flex-wrap:wrap;white-space:normal;gap:.1rem .6rem}
+.cs b{color:var(--text);font-variant-numeric:tabular-nums}.cs .fr{color:var(--live)}.cs .off{color:var(--warn)}
+.cw{font-size:.74rem;font-weight:600;margin-top:.1rem}.cw.dup{color:var(--danger)}.cw.low{color:var(--warn)}.cw.st{color:var(--warn);font-weight:500}
+.cstrip{display:grid;grid-template-columns:repeat(auto-fill,minmax(4.4rem,1fr));gap:.15rem;margin-top:.25rem}
+.ct{display:flex;gap:.25rem;align-items:baseline;font-size:.7rem;padding:0 .25rem;border:1px solid var(--line);border-radius:4px;min-width:0;line-height:1.45}
+.ct .n{font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums}.ct .h{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;color:var(--dim)}
+.ct.now{border-color:var(--gold);background:var(--card2)}.ct.now .h{color:var(--text)}
+.ct.next{border-color:var(--live)}
+.ct.open{border-style:dashed;border-color:var(--live)}.ct.open .n,.ct.open .h{color:var(--live)}
+.ct.dup{border-color:var(--danger);background:rgba(239,102,80,.14)}.ct.dup .n,.ct.dup .h{color:var(--danger)}
+.ct.oom .h{color:var(--danger)}.ct.lo .h{color:var(--warn)}
 </style>
 </head>
 <body>
 <div class="win">
   <div class="tb">
     <span class="tb-title" id="title">⚕ CH CHAIN</span><span class="tb-sp"></span>
+    <button class="tb-btn nd" id="condBtn" title="Condensed layout (also in Settings → CH CHAIN)" onclick="condToggle()">▤</button>
     <button class="tb-btn nd" title="Smaller text" onclick="zoom(-1)">A−</button>
     <button class="tb-btn nd" title="Bigger text" onclick="zoom(1)">A+</button>
     <button class="tb-btn nd" title="Minimize" onclick="window.MixelParseApp&&window.MixelParseApp.minimizeChChain()">–</button>
@@ -74,6 +103,22 @@ let st=null;
 let fs=15; try{ fs=+localStorage.getItem('mp_ch_fs')||15; }catch(e){}
 function zoom(d){ fs=Math.max(11,Math.min(24,fs+d)); document.documentElement.style.setProperty('--fs',fs); try{ localStorage.setItem('mp_ch_fs',fs); }catch(e){} }
 document.documentElement.style.setProperty('--fs',fs);
+let cond=false;   // Settings → CH CHAIN → Window layout, sent with each state
+function applyCond(){ document.body.classList.toggle('cond',cond); const b=document.getElementById('condBtn'); if(b){ b.classList.toggle('on',cond); b.title=cond?'Full layout (also in Settings → CH CHAIN)':'Condensed layout (also in Settings → CH CHAIN)'; } }
+function condToggle(){ if(window.MixelParseApp&&window.MixelParseApp.setChChainCfg) window.MixelParseApp.setChChainCfg({cond:!cond}); }
+function condFit(){
+  const A=window.MixelParseApp; if(!cond||!A||!A.fitWindowHeight) return;
+  const b=document.getElementById('body'), r=b.getBoundingClientRect(), last=b.lastElementChild;
+  const content=last?last.getBoundingClientRect().bottom-r.top+b.scrollTop+parseFloat(getComputedStyle(b).paddingBottom):40;
+  const foot=0;
+  const want=Math.ceil(r.top+content+foot+2);
+  if(Math.abs(want-innerHeight)>3) A.fitWindowHeight(want,false);
+}
+function condChanged(on){
+  const A=window.MixelParseApp;
+  try{ if(on&&localStorage.getItem('mp_ch_cond_fitted')!=='1'){ localStorage.setItem('mp_ch_cond_fullh',String(innerHeight)); localStorage.setItem('mp_ch_cond_fitted','1'); }
+    if(!on&&localStorage.getItem('mp_ch_cond_fitted')==='1'){ localStorage.setItem('mp_ch_cond_fitted','0'); const h=+localStorage.getItem('mp_ch_cond_fullh')||0; if(h&&A&&A.fitWindowHeight) A.fitWindowHeight(h,true); } }catch(e){}
+}
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const pad=n=>String(n).padStart(3,'0');
 // a healer's last mana call: blue, amber at 30 or under, red at 10 / OOM; faded once it's over 2 minutes old
@@ -127,14 +172,36 @@ function speedHtml(g){
   return '<div class="spd"><span>🐉 <b>'+esc(S.boss)+'</b></span>'+slow+disc+(S.ramp?'<span>'+esc(S.ramp)+'</span>':'')+(S.enrage?'<span>enrages</span>':'')
     +'<span class="plan" title="CA chart for '+esc(S.boss)+' at this slow / Defensive'+(useChart?' \u2014 the Heal alert uses it':'')+'">Target CH timing = '+(S.planTxt||'—')+(g.every?' <span style="color:var(--muted);font-weight:600;font-size:.78rem">(actual '+g.every.toFixed(1)+' s)</span>':'')+'</span></div>';
 }
+// condensed: who called what + your turn on one line; next / pace / free / slow+defensive on the next; then the numbers
+function groupHtmlCond(g){
+  const now=Date.now();
+  if(g.empty) return '<div class="cg"><div class="cr"><span class="ch">Chain '+g.n+'</span><span class="ago">'+(g.auto?'waiting for calls on another target':'no calls yet')+'</span></div></div>';
+  G=g; const ago=Math.max(0,Math.round((now-g.last.ts)/1000)), stale=ago>Math.max(20,(g.every||3)*6);
+  const T=g.turn, left=T?(T.due-now)/1000:0, go=!!T&&!(!T.fired&&left>0);
+  const turn=!T?'':go?'<span class="tg">⚕ HEAL NOW '+pad(T.slot)+'</span>':'<span class="tw">⏳ you '+pad(T.slot)+' in '+left.toFixed(1)+' s</span>';
+  const S=g.speed, sp=!S?'':(!S.slowable?'':S.slowed?'<span>🐌 slowed</span>':'<span class="off">🐌 not slowed</span>')+(S.disc?'<span>🛡 def</span>':'<span class="off">🛡 no def</span>');
+  const low=Object.entries(g.mana||{}).filter(([,m])=>m.pct<=20&&m.ago<=120).sort((a,b)=>a[1].pct-b[1].pct);
+  const tiles=g.slots.map(x=>{ const m=!x.open&&G.mana&&G.mana[String(x.by).split(' / ')[0]], mc=m&&m.ago<=120?(m.pct<=10?' oom':m.pct<=30?' lo':''):'';
+    const cls=(x.dup?'dup':x.open?'open':x.slot===g.last.slot?'now':x.slot===g.next?'next':'')+mc;
+    return '<span class="ct '+cls+'" title="'+(x.open?'Nobody has called '+pad(x.slot)+' lately — free':esc(x.by)+(m?' · '+(m.pct===0?'OOM':m.pct+'% mana'):''))+'"><span class="n">'+pad(x.slot)+'</span><span class="h">'+(x.open?'free':esc(x.by))+'</span></span>'; }).join('');
+  return '<div class="cg'+(go?' go':'')+'">'
+    +'<div class="cr">'+(st.groups.length>1?'<span class="ch">'+g.n+(g.target?' '+esc(g.target):'')+'</span>':'')+'<span class="who">'+esc(g.last.by)+'</span><span style="color:var(--muted)">›</span><span class="slot">'+pad(g.last.slot)+'</span><span class="ago">'+ago+' s</span><span class="sp"></span>'+turn+'</div>'
+    +'<div class="cr cs"><span>next <b>'+(g.next?pad(g.next)+' '+esc(g.nextBy||''):'—')+'</b></span><span>every <b>'+(g.every?g.every.toFixed(1):'—')+' s</b>'+(S&&S.planTxt?' <span style="color:var(--gold2)">(target '+esc(S.planTxt)+')</span>':'')+'</span><span>free '+(g.free.length?g.free.map(n=>'<b class="fr">'+pad(n)+'</b>').join(' '):'<b>none</b>'+(g.take?' — take '+pad(g.take):''))+'</span>'+sp+'</div>'
+    +((g.dups||[]).length?'<div class="cw dup">⚠ Doubled: '+g.dups.map(d=>pad(d.slot)+' ('+d.names.map(esc).join(', ')+')').join(' · ')+'</div>':'')
+    +(low.length?'<div class="cw low">🔵 Low mana: '+low.map(([nm,m])=>esc(nm)+' '+(m.pct===0?'OOM':m.pct+'%')).join(' · ')+'</div>':'')
+    +(stale?'<div class="cw st">No calls for '+ago+' s — the chain may have stopped.</div>':'')
+    +'<div class="cstrip">'+tiles+'</div></div>';
+}
 function render(){
   const b=document.getElementById('body'), t=document.getElementById('title');
   cfgBar();
-  if(!st||!st.any){ t.textContent='⚕ CH CHAIN'; b.innerHTML='<div class="empty">Waiting for a chain call like<br><b>CA 007 CH -- Tankname</b></div>'; return; }
+  if(!st||!st.any){ t.textContent='⚕ CH CHAIN'; b.innerHTML=cond?'<div class="empty">Waiting for a chain call (<b>CA 007 CH -- Tank</b>)</div>':'<div class="empty">Waiting for a chain call like<br><b>CA 007 CH -- Tankname</b></div>'; condFit(); return; }
   const g0=st.groups[0]; t.textContent='⚕ CH CHAIN'+(g0&&g0.target?' — '+g0.target:'');
-  b.innerHTML=st.groups.map((g,i)=>groupHtml(g,i===0)).join('');
+  b.innerHTML=st.groups.map((g,i)=>cond?groupHtmlCond(g):groupHtml(g,i===0)).join('');
+  condFit();
 }
-if(window.MixelParseApp&&window.MixelParseApp.onChChainState) window.MixelParseApp.onChChainState(s=>{ st=s; render(); });
+applyCond();
+if(window.MixelParseApp&&window.MixelParseApp.onChChainState) window.MixelParseApp.onChChainState(s=>{ st=s; const c=!!(s&&s.cond); if(c!==cond){ condChanged(c); cond=c; applyCond(); } render(); });
 setInterval(render,1000); setInterval(()=>{ if(st&&st.groups&&st.groups.some(g=>g.turn)) render(); },150);   // the countdown runs smooth
 </script>
 </body>
