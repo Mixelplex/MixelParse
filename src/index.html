@@ -5733,17 +5733,17 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.8.10',
+  version:'1.8.11',
   date:'October 2026',
   features:[
-    ['WTS hotbuttons with item links','Selling &rarr; In-game /auction: EverQuest strips item links from pasted text, so MixelParse can now write your WTS lines as social macros (&ldquo;WTS 1&rdquo;, &ldquo;WTS 2&rdquo;&hellip;) with real purple links. Add the characters you sell from (type a name), pick one and click Write while it&rsquo;s logged out; then click the buttons on that Socials page in game. It only uses an empty Socials page, never touches your hotbars or other macros, only rewrites its own buttons you haven&rsquo;t edited, and keeps a backup of the file. Expand the character&rsquo;s socials to see what&rsquo;s on each page.'],
-    ['Repost reminder','Selling &rarr; In-game /auction: says &ldquo;Repost auctions&rdquo; every X minutes after your last /auction. Each /auction restarts it; it goes quiet after a few ignored reminders (and wakes on your next /auction), and 🔇 silences it until your next /auction, for 30 minutes or for an hour.'],
-    ['Condensed CH Chain and Auctions','Settings &rarr; CH CHAIN / AUCTIONS &rarr; Window layout, or the ▤ button on the window: two lines per chain or auction, and the window shrinks to fit. Full is the default.'],
-    ['PL helper: Turn off','A Turn off button on the PL helper window &mdash; the same as Settings &rarr; PL HELPER &rarr; Off, so it stops popping up until you turn it back on.'],
+    ['&ldquo;Not magic weapon&rdquo; alert','When your swings come back &ldquo;INVULNERABLE!&rdquo;, the mob can only be hurt by a magic weapon and yours isn&rsquo;t one: MixelParse says &ldquo;Not magic weapon&rdquo; and shows which character and mob (at most every 20 seconds). A mob you&rsquo;ve already hit with a weapon is skipped &mdash; that&rsquo;s a Divine Aura, not your weapon.'],
+    ['Broken item link warning','If your own /auction, /say, /shout, guild or raid line shows an item link as a string of numbers, the link didn&rsquo;t render (EverQuest strips links from pasted text). A toast points you to the WTS hotbuttons.'],
+    ['Zordakalicus Ragefire','In the Kill Tracker and Auto-Detect at 1 DKP (Tier Seven), the same as ODKP. It&rsquo;s spawned by the cleric epic turn-in, so there&rsquo;s no spawn timer or parking. Raid names &ldquo;Ragefire&rdquo;, &ldquo;Zordak&rdquo; and &ldquo;Zordakalicus&rdquo; are recognised.'],
   ],
   fixes:[
-    ['Epic checklist','Items held by your other characters or bankers show as a gold &check; with who has them (and an &ldquo;On other characters&rdquo; line). They don&rsquo;t count as this character&rsquo;s progress (most epic pieces are NO DROP), and Excluded characters are left out.'],
-    ['Selling copy','Copied /auction lines are plain names (links can only go out through the hotbuttons).'],
+    ['Parking alerts','&ldquo;Can gate / port in&rdquo; names only characters who can actually do the target (level and key), not every character bound there or holding a port item.'],
+    ['PL helper','Power-levelling with a damage shield (your kills, never &ldquo;slain by them&rdquo;) is now tracked from the leveller&rsquo;s side: each kill shows whether they had tagged it. A non-magic weapon shows as &ldquo;NOT A MAGIC WEAPON&rdquo; instead of a miss, and a character who is swinging is never mistaken for the leveller.'],
+    ['Repost reminder','Counts only from a real /auction, never speaks just because you turned it on or started the app, and a snooze skips the reminders that fall inside it.'],
   ],
 };
 function showWhatsNew(){
@@ -7991,6 +7991,7 @@ window.applyDBToChar    = applyDBToChar;
     { target:'Vindi',           full:'Derakor the Vindicator',      aliases:['vindi','derakor'] },
     { target:'Wuoshi',          full:'Wuoshi',                      aliases:['wuoshi','wuo','wush'] },
     { target:'Yael',            full:'Yael',                        aliases:['yael'] },
+    { target:'Ragefire',        full:'Zordakalicus Ragefire',       aliases:['ragefire','zordak','zordakalicus'] },
     { target:'UDB',             full:'Undead Bard (Trakanon)',       aliases:['udb','undead bard'] },
     { target:'Lord Bob',        full:'Lord Doljonijiarnimorinar',    aliases:['lord bob','bob'] },
     { target:'Vilefang',        full:'Vilefang',                    aliases:['vilefang','vile'] },
@@ -8194,7 +8195,7 @@ window.applyDBToChar    = applyDBToChar;
   function _invRefreshSoon(){ const now=Date.now(); if(!_invRefFirst) _invRefFirst=now; clearTimeout(_invRefT);
     _invRefT=setTimeout(()=>{ _invRefFirst=0; refresh(); if(activeTopView==='bankers') setBankersSub(bankersSub); }, now-_invRefFirst>600?0:120); }
 
-  function showWatcherToast(msg){
+  function showWatcherToast(msg, ms){
     if(typeof toastAllowed==='function'&&!toastAllowed(msg)) return;   // Settings → Pop-up notices
     let toast = document.getElementById('watcher-toast');
     if(!toast){
@@ -8206,7 +8207,7 @@ window.applyDBToChar    = applyDBToChar;
     toast.textContent = msg;
     toast.style.opacity = '1';
     clearTimeout(toast._hideTimer);
-    toast._hideTimer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+    toast._hideTimer = setTimeout(() => { toast.style.opacity = '0'; }, ms || 3000);
   }
   window.showWatcherToast = showWatcherToast; // also called from todAddToSession/todStartNewSession/todTickHandle outside this IIFE
 
@@ -8395,6 +8396,8 @@ window.applyDBToChar    = applyDBToChar;
         if(msg.type==='raidEvidence') rkdOnEvidence(msg);
         if(msg.type==='auctionLine') aucOnLine(msg);
         if(msg.type==='myAuction') sellOnMyAuction(msg);
+        if(msg.type==='rawLink') sellOnRawLink(msg);
+        if(msg.type==='notMagic') onNotMagic(msg);
         if(msg.type==='chatLine') try{ lootOnChat(msg); rkdRwChatNote(msg); }catch(e){}
         if(msg.type==='raidLogin') rkdOnLogin(msg);
         if(msg.type==='raidScanProgress'||msg.type==='raidScanResult') rkdHandleScanMsg(msg);
@@ -12363,6 +12366,7 @@ const BOSS_ROSTER=[
   {target:'Vindi',         full:'Derakor the Vindicator',      tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:1.5, campFTE:1},
   {target:'Wuoshi',        full:'Wuoshi',                      tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:1.5, campFTE:1},
   {target:'Yael',          full:'Yael',                        tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:1.5, campFTE:1},
+  {target:'Ragefire',      full:'Zordakalicus Ragefire',       tier:'Tier Seven', dkp:0.5, baseDkp:0.5, raceFTE:null,campFTE:null},   // cleric epic pearl turn-in (Nagafen's Lair): ODKP pays 1, no spawn timer
   // Tier Eight
   {target:'Lord Bob',      full:'Lord Doljonijiarnimorinar',   tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
   {target:'Vilefang',      full:'Vilefang',                    tier:'Tier Eight', dkp:0.3, baseDkp:0.2, raceFTE:null,campFTE:null},
@@ -13232,7 +13236,7 @@ function buildNoteRefHtml(){
     'Terror':'terr','Velketor the Sorcerer':'velk','Garzicor':'garz',
     'Innoruuk':'inny','Keldor Dek\'Torek':'kdt, keldor',
     'Derakor the Vindicator':'vindi, derakor','Wuoshi':'wuo, wush',
-    'Yael':'yael','Lord Doljonijiarnimorinar':'lord bob, bob','Vilefang':'vile',
+    'Yael':'yael','Zordakalicus Ragefire':'ragefire, zordak','Lord Doljonijiarnimorinar':'lord bob, bob','Vilefang':'vile',
     'Undead Bard (Trakanon)':'udb, undead bard',
     'Casalen':'cas','Grozzmel':'grozz','Krigara':'krig',
     'Midayor':'mid','Tavekalem':'tave, tav','Ymmeln':'ymm',
@@ -13987,7 +13991,7 @@ let _rkdLastTickTs=null;  // previous tick — evidence before it is already spe
 // Game names carry a leading "The" the tracker omits ("The Avatar of War") and use ` for '.
 function _rkdNorm(s){return String(s||'').toLowerCase().replace(/[`’']/g,"'").replace(/\s+/g,' ').trim().replace(/^(the|a|an) /,'');}
 // In-game NPC names that differ from the tracker's (checked against P99 wiki NPC pages).
-const RKD_GAME_NAMES={'master yael':'Yael',"kelorek'dar":'Kelorek Dar','guardian kozzalym':'Kozzalym','spirit of garzicor':'Garzicor',"garzicor's wraith":'Garzicor','undead bard':'UDB'};
+const RKD_GAME_NAMES={'master yael':'Yael',"kelorek'dar":'Kelorek Dar','guardian kozzalym':'Kozzalym','spirit of garzicor':'Garzicor',"garzicor's wraith":'Garzicor','undead bard':'UDB','zordak ragefire':'Ragefire'};   // the pre-form's death starts the Ragefire event (Zordakalicus spawns from it)
 function _rkdBossByMob(mob){const n=_rkdNorm(mob),alias=RKD_GAME_NAMES[n];return BOSS_ROSTER.find(b=>(alias&&b.target===alias)||_rkdNorm(b.full)===n||_rkdNorm(b.target)===n)||null;}
 function _rkdWordRx(n){return new RegExp("(^|[^a-z'])"+n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+"($|[^a-z'])");}
 // Whole-word only ("Fright" must not match "a frightfinger"); short tracker names
@@ -15016,6 +15020,8 @@ const ODKP_ALIAS={
   'kozz':'Kozzalym','kozzalym':'Kozzalym',
   // Lord of Ire
   'lord of ire':'Lord of Ire',
+  // Ragefire (Zordakalicus Ragefire, cleric epic)
+  'ragefire':'Ragefire','zordak':'Ragefire','zordakalicus':'Ragefire','zordakalicus ragefire':'Ragefire',
   // ── Added v1.3.5 — gaps found auditing real raids export (13.6k raids) ──
   'trak':'Trakanon',
   'magi':"Magi P'Tasa","magi p'tasa":"Magi P'Tasa",'magi ptasa':"Magi P'Tasa",
@@ -16412,7 +16418,7 @@ function parkTargetStatus(t, roster){
   const bindParked=all.filter(o=>o.bind && zset.indexOf(parkNormZone(o.bind))>=0 && parkGateHow(o));
   // Eligibility (level + key) evaluated over a candidate set.
   const evalSet=(list)=>{
-    let covered=false, nokey=false, unknown=false, ineligible=false;
+    let covered=false, nokey=false, unknown=false, ineligible=false; const ok=[];
     list.forEach(o=>{
       const known=(o.lvl!=null && o.cls!=null);
       const req=o.cls!=null ? parkEffReq(t,o.cls) : t.lvl;
@@ -16420,21 +16426,21 @@ function parkTargetStatus(t, roster){
       if(!levelOk){ if(known) ineligible=true; else unknown=true; return; }
       if(t.key){
         const hk=parkHasKey(o.name, t.key);       // true / false / null(unverifiable)
-        if(hk===true) covered=true;
+        if(hk===true){ covered=true; ok.push(o); }
         else if(hk===null) unknown=true;
         else nokey=true;
-      }else covered=true;
+      }else{ covered=true; ok.push(o); }
     });
-    return {covered, nokey, unknown, ineligible};
+    return {covered, nokey, unknown, ineligible, ok};   // ok = the characters that actually cover it
   };
   // Physically parked (last zone) wins -> green 'covered'. Otherwise a bound-here
   // toon counts as parked too -> yellow 'bindparked'. Then fall through to sub-states.
   const Z=evalSet(zoneParked);
-  if(Z.covered) return {status:'covered', parked:zoneParked, via:'zone'};
+  if(Z.covered) return {status:'covered', parked:Z.ok, via:'zone'};
   const B=evalSet(bindParked);
-  if(B.covered) return {status:'bindparked', parked:bindParked, via:'bind'};
-  const portParked=parkPortHolders(t, roster);
-  if(evalSet(portParked).covered) return {status:'portparked', parked:portParked, via:'port'};
+  if(B.covered) return {status:'bindparked', parked:B.ok, via:'bind'};
+  const P=evalSet(parkPortHolders(t, roster));   // was: every holder once one qualified (a 24 wizard / 42 monk named for Fear, 2026-10-29)
+  if(P.covered) return {status:'portparked', parked:P.ok, via:'port'};
   const fallbackParked = zoneParked.length ? zoneParked : bindParked;
   if(Z.nokey||B.nokey)          return {status:'nokey',      parked:fallbackParked};
   if(Z.unknown||B.unknown)      return {status:'unknown',    parked:fallbackParked};
@@ -16495,7 +16501,7 @@ const BT_DISPLAY = { 'Lord Bob':'Doljonijiarnimorinar', LTK:'Lendiniara the Keep
   Feshlak:'Lord Feshlak', Dagarn:'Dagarn the Destroyer', Dozekar:'Dozekar the Cursed', Eashen:'Eashen of the Sky',
   Ikatiar:'Ikatiar the Venom', Yelinak:'Lord Yelinak', Tormax:'King Tormax', Dain:'Dain Frostreaver IV',
   VS:'Venril Sathir', Velketor:'Velketor the Sorcerer', Yael:'Master Yael', Statue:'Statue of Rallos Zek',
-  'Kelorek Dar':'Kelorek`Dar', Prog:'The Progenitor', MOTG:'Master of the Guard', TFA:'The Final Arbiter' };
+  'Kelorek Dar':'Kelorek`Dar', Ragefire:'Zordakalicus Ragefire', Prog:'The Progenitor', MOTG:'Master of the Guard', TFA:'The Final Arbiter' };
 function btLabel(t){ return BT_DISPLAY[t] || t; }
 function btTimer(t){ const b = BOSS_ROSTER.find(x => x.target === t); return (b && b.respawnHours != null) ? {rh:b.respawnHours, v:b.varianceHours||0} : null; }
 // Resolve a tracker paste name to a kill-tracker (BOSS_ROSTER) target, or null if untracked.
@@ -19494,23 +19500,39 @@ function sellHBHtml(picked){
   return h+'</div>';
 }
 // ── repost reminder: says "Repost auctions" every X minutes after your last /auction (2026-10-28) ──
-let _sellLastAuc=0, _sellRemindOn=Date.now(), _sellLastSaid=0, _sellIgnored=0, _sellQuietUntil=0;   // quiet: 0 = no, Infinity = until your next /auction
-function sellOnMyAuction(msg){ _sellLastAuc=Math.max(_sellLastAuc,+msg.ts||Date.now()); _sellLastSaid=0; _sellIgnored=0; _sellQuietUntil=0; if(activeTopView==='selling') renderSellingPanel(); }
-function sellRemindQuiet(){ return Date.now()<_sellQuietUntil||_sellIgnored>=Math.max(1,+sellCfg.remindMax||3); }
-window.sellRemindSnooze=function(min){ _sellIgnored=0; _sellQuietUntil=min?Date.now()+min*60e3:Infinity; if(min) _sellLastSaid=Date.now()+min*60e3-Math.max(1,+sellCfg.remindMin||10)*60e3; renderSellingPanel(); };   // a timed snooze speaks again when it ends
-function sellRemindDue(){ const m=Math.max(1,+sellCfg.remindMin||10); return Math.max(_sellLastAuc,_sellRemindOn,_sellLastSaid)+m*60e3; }
-window.sellRemindSet=function(on){ _sellRemindOn=Date.now(); _sellLastSaid=0; _sellIgnored=0; _sellQuietUntil=0; sellSet('remind',!!on); };
-setInterval(()=>{ if(!sellCfg.remind||sellRemindQuiet()||Date.now()<sellRemindDue()) return; _sellLastSaid=Date.now(); _sellIgnored++;
+let _sellLastAuc=0, _sellWakeAt=0, _sellSaidK=0, _sellQuietUntil=0;   // quiet: 0 = no, Infinity = until your next /auction
+const sellRemindMs=()=>Math.max(1,+sellCfg.remindMin||10)*60e3, sellRemindMax=()=>Math.max(1,+sellCfg.remindMax||3);
+function sellRemindBase(){ return Math.max(_sellLastAuc,_sellWakeAt); }   // counts only from a real /auction (or "wake it now")
+function sellRemindK(){ const b=sellRemindBase(); return b?Math.floor((Date.now()-b)/sellRemindMs()):0; }   // reminders due so far
+function sellOnMyAuction(msg){ const ts=+msg.ts||Date.now(); if(ts<=_sellLastAuc) return; _sellLastAuc=ts; _sellWakeAt=0; _sellQuietUntil=0;
+  _sellSaidK=Math.floor(Math.max(0,Date.now()-ts)/sellRemindMs());   // learned late (startup catch-up): the ones already past count as said
+  if(activeTopView==='selling') renderSellingPanel(); }
+// your own chat line showed a link as 45 hex digits: EverQuest drops the link character from pasted text, and an edited
+// social loses it too (live lines only — the watcher skips its startup backfill)
+let _sellRawLinkAt=0;
+// "You try to … but X is INVULNERABLE!" — the equipped weapon isn't magic (watcher sends notMagic, at most every 20 s)
+function onNotMagic(msg){ const ts=+msg.ts||Date.now(); if(Date.now()-ts>30e3) return;
+  if(window.speechSynthesis&&typeof SpeechSynthesisUtterance!=='undefined') try{ const u=new SpeechSynthesisUtterance('Not magic weapon'); u.volume=spellTimerVolume(); window.speechSynthesis.speak(u); }catch(e){}
+  showWatcherToast('\u26a0\ufe0f Not magic weapon'+(msg.charName?' ('+msg.charName+')':'')+' \u2014 '+(msg.mob||'this mob')+' can only be hurt by a magic weapon',6000); }
+function sellOnRawLink(msg){ const ts=+msg.ts||Date.now(); if(Date.now()-ts>120e3||ts<=_sellRawLinkAt) return; _sellRawLinkAt=ts;
+  showWatcherToast('\u26a0\ufe0f Item link didn\u2019t render'+(msg.charName?' on '+msg.charName:'')+' \u2014 pasted links show as numbers. Use the WTS buttons (Selling \u2192 In-game /auction \u2192 Write)',9000); }
+function sellRemindQuiet(){ return !sellRemindBase()||Date.now()<_sellQuietUntil||_sellSaidK>=sellRemindMax(); }
+function sellRemindDue(){ return sellRemindBase()+(_sellSaidK+1)*sellRemindMs(); }
+window.sellRemindSnooze=function(min){ _sellQuietUntil=min?Date.now()+min*60e3:Infinity; renderSellingPanel(); };   // reminders that fall inside a snooze are skipped
+window.sellRemindWake=function(){ _sellWakeAt=Date.now(); _sellSaidK=0; _sellQuietUntil=0; renderSellingPanel(); };
+window.sellRemindSet=function(on){ _sellQuietUntil=0; _sellSaidK=sellRemindK(); sellSet('remind',!!on); };   // turning it on never speaks by itself
+setInterval(()=>{ if(!sellCfg.remind||!sellRemindBase()) return; const k=sellRemindK(); if(k<=_sellSaidK) return;
+  const quiet=Date.now()<_sellQuietUntil; _sellSaidK=k; if(quiet||k>sellRemindMax()) return;
   if(window.speechSynthesis&&typeof SpeechSynthesisUtterance!=='undefined') try{ const u=new SpeechSynthesisUtterance('Repost auctions'); u.volume=spellTimerVolume(); window.speechSynthesis.speak(u); }catch(e){}
-  if(typeof showWatcherToast==='function') showWatcherToast('\u23f0 Repost auctions'); },15000);
+  showWatcherToast('\u23f0 Repost auctions'); },15000);
 function sellRemindHtml(){
-  const left=Math.max(0,sellRemindDue()-Date.now()), mm=Math.floor(left/60e3), ss=Math.floor(left%60e3/1000);
+  const left=Math.max(0,sellRemindDue()-Date.now()), mm=Math.floor(left/60e3), ss=Math.floor(left%60e3/1000), noAuc=!sellRemindBase();
   return '<div style="display:flex;flex-wrap:wrap;gap:.4rem .8rem;align-items:center;font-size:.8rem;margin-top:.5rem;padding-top:.45rem;border-top:1px dashed var(--border)">'
     +'<label title="Says it out loud. Each /auction you send restarts the count."><input type="checkbox" '+(sellCfg.remind?'checked':'')+' onchange="sellRemindSet(this.checked)"> \u23f0 Say <b>\u201cRepost auctions\u201d</b></label>'
     +'<label>every <input type="number" min="1" max="120" value="'+(+sellCfg.remindMin||10)+'" onchange="sellSet(\'remindMin\',Math.max(1,Math.min(120,+this.value||10)))" style="width:3.5rem"> min after my last /auction</label>'
     +'<label title="Goes quiet after this many reminders in a row with no /auction from you; your next /auction turns it back on">quiet after <input type="number" min="1" max="20" value="'+(+sellCfg.remindMax||3)+'" onchange="sellSet(\'remindMax\',Math.max(1,Math.min(20,+this.value||3)))" style="width:3rem"> ignored</label>'
     +(!sellCfg.remind?'':sellRemindQuiet()
-      ?'<span style="color:var(--text-muted)">\ud83d\udd07 quiet '+(Date.now()<_sellQuietUntil&&isFinite(_sellQuietUntil)?'until '+new Date(_sellQuietUntil).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'until your next /auction')+' \u00b7 <a href="#" onclick="sellRemindSet(true);return false">wake it now</a></span>'
+      ?'<span style="color:var(--text-muted)">'+(noAuc?'waits for your first /auction':'\ud83d\udd07 quiet '+(Date.now()<_sellQuietUntil&&isFinite(_sellQuietUntil)?'until '+new Date(_sellQuietUntil).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'until your next /auction')+' \u00b7 <a href="#" onclick="sellRemindWake();return false" title="Start counting again from now">wake it now</a>')+'</span>'
       :'<span style="color:var(--text-muted)">next in '+mm+':'+String(ss).padStart(2,'0')+(_sellLastAuc?' \u00b7 last /auction '+new Date(_sellLastAuc).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'')+'</span>'
         +'<span>\ud83d\udd07 <a href="#" onclick="sellRemindSnooze(0);return false" title="Quiet until you /auction again">until my next /auction</a> \u00b7 <a href="#" onclick="sellRemindSnooze(30);return false">30 min</a> \u00b7 <a href="#" onclick="sellRemindSnooze(60);return false">1 h</a></span>')
     +'</div>';

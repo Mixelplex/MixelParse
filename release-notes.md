@@ -1,4 +1,15 @@
-## 1.8.10
+## 1.8.11
+
+- **New**
+  - "Not magic weapon" alert: INVULNERABLE! on your swings means the mob needs a magic weapon; the app says "Not magic weapon" and names the character and mob (at most every 20 s). Mobs you've already hit with a weapon are skipped (Divine Aura).
+  - Broken item link warning: your own chat line showing a link as numbers means it didn't render; a toast points to the WTS hotbuttons.
+  - Zordakalicus Ragefire (cleric epic): 1 DKP, Tier Seven, matching ODKP; no spawn timer or parking; "Ragefire" / "Zordak" / "Zordakalicus" recognised.
+- **Fixes**
+  - Parking alerts: "can gate / port in" lists only characters with the level (and key) for the target.
+  - PL helper: damage-shield power-levelling is tracked from the leveller's side (each kill ✓ if the levelled player tagged it); non-magic weapon shown as "NOT A MAGIC WEAPON"; a swinging character is never taken for the leveller.
+  - Repost reminder: counts only from a real /auction, doesn't speak on turning it on or on startup, and snoozes skip reminders.
+
+Everything from 1.8.10 and earlier is included:
 
 - **New**
   - WTS hotbuttons with item links (Selling → In-game /auction): EverQuest strips links from pasted text, so MixelParse writes your WTS lines as social macros ("WTS 1", "WTS 2"…) with real purple links, into a character you add, while it's logged out. Only an empty Socials page is used; hotbars and other macros are never touched, only its own unedited buttons are rewritten, and a backup of the file is kept. The character's socials are listed page by page.
@@ -8,8 +19,6 @@
 - **Fixes**
   - Epic checklist: items on your other characters or bankers show as a gold ✔ with who holds them; they don't count as the viewed character's progress, and Excluded characters are left out.
   - Selling: copied /auction lines are plain names.
-
-Everything from 1.8.9 and earlier is included:
 
 - **Fixes**
   - Parking: a raid target only counts as parked when one of your characters is actually in the zone. Being bound there (can gate) or able to port in no longer silences the alert — it reads "nobody parked · can gate / port in: <names>", and the Raid Parking badges say "Not parked · can gate / can port".

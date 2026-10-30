@@ -1100,8 +1100,18 @@ function chatSignal(line, charName) {
   const m = RE_CHAT_LOOT.exec(line); if (!m || /out of character|shout/.test(m[2] || m[3] || '')) return;
   broadcast({ type: 'chatLine', charName, who: m[1] || charName, channel: m[2] || m[3], text: m[4], ts: _rtLineTs(line), zone: _rtZoneOf(charName) });
 }
+// your own chat line carrying a raw item-link body (45 hex digits, then the name) = the link didn't render: the DC2
+// around it was stripped (pasted text, an edited social). A working link logs as just the name. Live lines only.
+const RE_MY_CHAT = /^\[.+?\] You (auction|say|say out of character|shout|say to your guild|tell your raid), '(.*)'$/;
+const RE_RAW_LINK = /(?:^|\s)[0-9A-Fa-f]{45} \S/;
+function rawLinkSignal(line, charName) {
+  if (_rtBackfilling || line.indexOf('] You ') < 0) return;
+  const m = RE_MY_CHAT.exec(line); if (!m || !RE_RAW_LINK.test(m[2])) return;
+  broadcast({ type: 'rawLink', charName, channel: m[1], ts: _rtLineTs(line) });
+}
 function raidEvidence(line, charName) {
   _rtNoteZone(line, charName);
+  rawLinkSignal(line, charName);
   auctionSignal(line, charName);
   chatSignal(line, charName);
   // a login (/q to another character, relog after a crash): the renderer marks a tick just before it "logged out before the kill"
@@ -1277,7 +1287,25 @@ async function bindBackfill() {
   log(`[BIND] look-back: ${n} bind(s) read from ${files.length} log(s)`);
 }
 
+// "You try to pierce X, but X is INVULNERABLE!" = the weapon isn't magic and X needs one → the app says "Not magic weapon".
+// A mob name you've already landed a weapon hit on is hittable, so INVULNERABLE there is a Divine Aura instead — skipped.
+const RE_MY_INVULN = /^\[.+?\] You try to \w+ (.+?), but .+? is INVULNERABLE!$/;
+const RE_MY_WPN_HIT = /^\[.+?\] You (?:hit|slash|pierce|crush|backstab) (.+?) for \d+ points? of damage\.$/;
+const _invHit = {}, _invSaid = {};   // char → {mob: last weapon hit ms} · char → last alert ms
+function notMagicSignal(line, charName) {
+  if (line.indexOf('] You ') < 0) return;
+  const ts = _rtLineTs(line), mob = (s) => s.toLowerCase();
+  let m = RE_MY_WPN_HIT.exec(line);
+  if (m) { (_invHit[charName] = _invHit[charName] || {})[mob(m[1])] = ts; return; }
+  if (line.indexOf('INVULNERABLE') < 0 || !(m = RE_MY_INVULN.exec(line))) return;
+  const h = (_invHit[charName] || {})[mob(m[1])];
+  if (h && ts - h < 10 * 60e3) return;                         // you've hurt that mob with a weapon: Divine Aura, not the weapon
+  if (ts - (_invSaid[charName] || 0) < 20e3) return;          // once per 20 s while it keeps happening
+  _invSaid[charName] = ts;
+  broadcast({ type: 'notMagic', charName, mob: m[1], ts });
+}
 function processLogLine(line, charName) {
+  try { notMagicSignal(line, charName); } catch (e) { err('[INVULN]', e.message); }
   raidEvidence(line, charName);
   try { resistWatch.line(line, charName, _rtLineTs(line), zoneState[charName] && zoneState[charName].zone); } catch (e) { err('[RESIST]', e.message); }
   try { if (skyCorpse.line(line, charName, _rtLineTs(line))) skyCorpse.emit(); } catch (e) { err('[SKY]', e.message); }
@@ -1450,7 +1478,7 @@ function processLogLine(line, charName) {
   if (line.endsWith('defensive fighting style.')) { const _d = RE_CH_DISC.exec(line); if (_d) { const k = Math.floor(Date.now() / 1000) + '|d|' + _d[1]; if (!_chSeen.has(k)) { _chSeen.set(k, Date.now()); broadcast({ type: 'chDisc', charName, who: _d[1], ts: Date.now() }); } } }
   else if (line.charCodeAt(27) >= 65 && line.charCodeAt(27) <= 90 && (line.indexOf(' points of damage') > 0 || line.indexOf(' tries to ') > 0)) { const _s = RE_CH_SWING.exec(line);   // a named mob (capitalised, no "a"/"an") on a player
     if (_s && !/^(You|Your)/.test(_s[1])) { const k = _s[1] + '|' + _s[2], t = _chSwSeen.get(k) || 0, now = Date.now(); if (now - t > 5000) { _chSwSeen.set(k, now); if (_chSwSeen.size > 300) for (const [kk, tt] of _chSwSeen) if (now - tt > 60e3) _chSwSeen.delete(kk); broadcast({ type: 'chSwing', charName, mob: _s[1], target: _s[2], ts: now }); } } }
-  if (line.indexOf('You try to ') > 0 || line.indexOf('too far away') > 0 || line.indexOf('dark vines') > 0 || line.indexOf('snared') > 0 || line.indexOf('entwined') > 0 || line.indexOf('slain by') > 0 || line.indexOf('experience') > 0 || line.indexOf(' points of damage') > 0 || line.indexOf(' point of damage') > 0 || line.indexOf(' was ') > 0 || line.indexOf(' tries to ') > 0) _plLine(line, charName);
+  if (line.indexOf('You try to ') > 0 || line.indexOf('too far away') > 0 || line.indexOf('dark vines') > 0 || line.indexOf('snared') > 0 || line.indexOf('entwined') > 0 || line.indexOf('slain by') > 0 || line.indexOf('experience') > 0 || line.indexOf(' points of damage') > 0 || line.indexOf(' point of damage') > 0 || line.indexOf(' was ') > 0 || line.indexOf(' tries to ') > 0 || line.indexOf('] You have slain ') > 0 || line.endsWith(" Master.'")) _plLine(line, charName);
   { const _lw = _landWait[charName];
     if (_lw && _lw.length) { const txt = line.slice(line.indexOf('] ') + 2), now = Date.now();
       for (let i = 0; i < _lw.length; i++) { const w = _lw[i]; if (w.until < now) continue;
@@ -2471,6 +2499,8 @@ const RE_PL_HIT   = /^\[[^\]]+\] You (?:hit|slash|pierce|crush|kick|bash|punch|b
 const RE_PL_SEEN  = /^\[[^\]]+\] (.+?) (?:was pierced by thorns|was burned|was tormented|was hit by non-melee|hits|pierces|bashes|punches|kicks|slashes|crushes|bites|claws|mauls|stings|tries to \w+) /;
 const RE_PL_MISS = /^\[[^\]]+\] You try to \w+ (.+?), but miss!$/;
 const RE_PL_FAR  = /Your target is too far away, get closer!$/;
+const RE_PL_IMMUNE  = /^\[[^\]]+\] You try to \w+ (.+?), but .+? is INVULNERABLE!$/;              // the weapon isn't magic (or a Divine Aura)
+const RE_PL_OIMMUNE = /^\[[^\]]+\] ([A-Z][a-z]+) tries to \w+ (.+?), but .+? is INVULNERABLE!$/;
 // power-leveller side: another player's swings, your own kills, your pet's name
 const RE_PL_OHIT  = /^\[[^\]]+\] ([A-Z][a-z]+) (?:hits|slashes|pierces|crushes|kicks|bashes|punches|backstabs|slices|claws|bites|strikes|stings|mauls|gores|smashes|rends|burns|frenzies on) (.+?) for \d+ points? of damage\.$/;
 const RE_PL_OMISS = /^\[[^\]]+\] ([A-Z][a-z]+) tries to \w+ (.+?), but misses!$/;
@@ -2502,7 +2532,7 @@ function _plAlive(n, now) {   // how many of this name are fighting: the busiest
 }
 function _plState(c) { const p = _pl[c]; if (!p) return null;
   const k = p.kills, killed = k.length, xp = k.filter(x => x.xp === true).length, missed = k.filter(x => x.xp === false).length;
-  return { char: c, start: p.start, killed, xp, missed, kills: k.slice(-40).map(x => ({ t: x.t, mob: x.mob, by: x.by, xp: x.xp, unseen: !!x.unseen, lv: !!x.lv, to: x.to || null })), lv: p.lv || null, lvKills: k.filter(x => x.lv && x.xp === true && (!x.chk || Date.now() - x.t > 2600)).length,   /* a levelling kill counts once 2.6 s pass with no XP for you (XP = a group / your pet) */ quiet: Date.now() - p.last > 45e3, tags: p.tags || 0, same: p.same || 0, swing: p.swing || null, hist: (_plHist[c] || []).slice(-6),
+  return { char: c, start: p.start, killed, xp, missed, kills: k.slice(-40).map(x => ({ t: x.t, mob: x.mob, by: x.by, xp: x.xp, unseen: !!x.unseen, lv: !!x.lv, to: x.to || null })), lv: p.lv || null, lvKills: k.filter(x => x.lv && x.xp === true && (!(x.chk || x.ychk) || Date.now() - x.t > 2600)).length,   /* a levelling kill counts once 2.6 s pass with no XP for you (XP = a group / your pet) */ quiet: Date.now() - p.last > 45e3, tags: p.tags || 0, same: p.same || 0, swing: p.swing || null, hist: (_plHist[c] || []).slice(-6),
     snared: p.snare ? Object.keys(p.names).reduce((a, nm) => a + Math.max(0, _plSnared(p, nm)), 0) : null,
     names: Object.entries(p.names).map(([name, v]) => { const sn = p.snare ? _plSnared(p, name) : null; const wasSnared = !!(p.snare && (p.snare.ae[name] != null || p.snare.one.some(x => x.n === name))); const est0 = _plAlive(v, Date.now()) || (Date.now() - v.last <= 15e3 ? 1 : 0); v.estMax = Math.max(v.estMax || 0, est0 + (v.killed || 0)); const est = Date.now() - v.last <= 30e3 ? Math.max(est0, v.estMax - (v.killed || 0)) : est0, alive = wasSnared ? Math.max(Math.max(0, sn), est) : est; /* the pull's peak minus deaths since: idle mobs don't drop out (10-21: ≈3 burrowers for 5) */ const ss = (_plStats[c] || {})[name]; /* snare lines show only 3-4 mobs per Bonds cast (10-21: 8 vs 23 died) — the attack rate counts them */ /* from how often they attack; extra hits do not add mobs */ return { name, last: v.last, hits: v.hits, since: v.since || 0, killed: v.killed, lastKill: v.lastKill || 0, allDead: v.killed > 0 && !v.alive, bursts: v.bursts || 0, sess: ss ? { died: ss.died, missed: ss.missed } : null, alive, tagged: Math.min(v.tagged || 0, alive), snared: wasSnared }; }).sort((a, b) => b.last - a.last).slice(0, 20),
     pl: k.filter(x => x.by !== c && x.xp === true && !x.party && !x.lv && !x.chk).length };   // solo XP from someone else's kill — party XP is a group, not a power-level
@@ -2528,15 +2558,29 @@ function _plLine(line, c) {
     if (p.burst && p.burst.name === mob && now - p.burst.t < 2600) p.burst.t = now; else p.burst = { name: mob, t: now, hit: false, hits: 0 };
     const pv = p.swing; p.swing = { name: mob, t: now, res: 'miss', n: pv && pv.name === mob && pv.res !== 'hit' ? (pv.n || 1) + 1 : 1 }; _plSend(c); };
   if (line.indexOf(' tells you, ') > 0 && (m = RE_PL_PET.exec(line))) { (_plPets[c] || (_plPets[c] = new Set())).add(m[1]); return; }
+  if (line.indexOf('INVULNERABLE') > 0 && (m = RE_PL_OIMMUNE.exec(line)) && m[1] !== c) {
+    if (_plLvOf(c) === m[1]) { touch(); p.lv = m[1]; const mob = m[2].toLowerCase(), n = N(mob); n.last = now; n.alive = true; const pv = p.swing;
+      p.swing = { name: mob, t: now, res: 'immune', n: pv && pv.name === mob && pv.res === 'immune' ? (pv.n || 1) + 1 : 1 }; _plSend(c); }
+    return; }
   // another player's swing: counted toward their tags when you're levelling them, else remembered for a minute
   if ((m = RE_PL_OHIT.exec(line) || RE_PL_OMISS.exec(line)) && m[1] !== c && !/^(?:[A-Z][a-z]+|YOU)$/.test(m[2]) && !(_plPets[c] && _plPets[c].has(m[1]))) {
     const X = m[1], mob = m[2].toLowerCase(), hit = / for \d+ points? of damage\.$/.test(line);
     if (_plLvOf(c) === X) { touch(); p.lv = X; if (hit) hitOn(mob); else missOn(mob); return; }
     if (hit) { const O = _plOh[c] || (_plOh[c] = {}), o = O[X] && now - O[X].last < 60e3 ? O[X] : (O[X] = { last: now, hits: 0, mobs: {} }); o.last = now; o.hits++; o.mobs[mob] = (o.mobs[mob] || 0) + 1; }
     return; }
-  // your own kill while levelling someone: it went to you, not them
+  // your own kill of a mob exactly one other player was hitting, while you weren't swinging: you're levelling them (a druid's
+  // damage shield lands every killing blow, so "slain by <them>" never shows — 10-28 Figure / Halfwayhauser)
+  let lvStart = false;
+  if (!_plLvOf(c) && line.indexOf('] You have slain ') > 0 && (m = RE_PL_YSLAIN.exec(line))) {
+    const mob = m[1].toLowerCase(), O = _plOh[c] || {}, who = Object.keys(O).filter(X => now - O[X].last < 60e3 && O[X].mobs[mob]);
+    if (who.length === 1 && !(p && now - p.last <= 45e3 && p.own > 0)) { const X = who[0], oh = O[X]; touch();
+      for (const [mb, h] of Object.entries(oh.mobs)) { const q = N(mb); q.hits += h; q.tagged = Math.max(q.tagged || 0, 1); q.bursts = Math.max(q.bursts || 0, 1); } p.tags = (p.tags || 0) + Object.keys(oh.mobs).length;
+      _plLvl[c] = { who: X, at: now }; p.lv = X; lvStart = true; } }
+  // your own kill while levelling someone: the XP is theirs if they tagged it (DS damage counts for nothing on P99); XP for you
+  // within 2.5 s = it went to you
   if (_plLvOf(c) && (m = RE_PL_YSLAIN.exec(line))) { touch(); const mob = m[1].toLowerCase(), n = N(mob); n.killed++; n.alive = false; n.since = 0; n.lastKill = now;
-    p.lv = _plLvOf(c); p.kills.push({ t: now, mob, by: c, xp: false, lv: true, to: 'you', n }); _plSend(c); return; }
+    p.lv = _plLvOf(c); _plLvl[c].at = now; const tagged = n.tagged > 0; if (tagged) n.tagged--;
+    p.kills.push({ t: now, mob, by: c, xp: tagged, lv: true, to: tagged ? null : 'untagged', n, ychk: true, start: lvStart }); _plSend(c); return; }
   if ((m = RE_PL_SLAIN.exec(line))) { const mob = m[1].toLowerCase(); if (/^[A-Z][a-z]+$/.test(m[1])) return;   // a player died, not a mob
     touch(); const k = { t: now, mob, by: m[2] === 'You' ? c : m[2], xp: null }; p.kills.push(k);
     const n = N(mob); n.killed++; n.alive = false; n.since = 0; n.lastKill = now;
@@ -2549,6 +2593,8 @@ function _plLine(line, c) {
       if (lv && by !== c && X) { p.lv = lv; k.lv = true; k.xp = false; k.to = X; _plSend(c); return; } }   // levelling, but the kill went to a third player
     setTimeout(() => { if (k.xp === null) { k.xp = false; _plSend(c); } }, 2500); _plSend(c); return; }   // no XP = an untagged one died
   if (RE_PL_XP.test(line)) { if (!p) return;
+    const ky = p.kills.filter(x => x.ychk && now - x.t <= 2500).pop();
+    if (ky) { ky.ychk = false; if (ky.start) { ky.lv = false; ky.xp = true; ky.to = null; delete _plLvl[c]; p.lv = null; } else { ky.xp = false; ky.to = 'you'; } _plSend(c); return; }   // XP for you: your kill, not theirs (on the first one: a group, not levelling)
     const kc = p.kills.filter(x => x.chk && now - x.t <= 2500).pop();
     if (kc) { kc.lv = false; kc.chk = false; kc.party = line.indexOf('party experience') > 0; delete _plLvl[c]; p.lv = null; _plSend(c); return; }   // you got XP from it: a group / your pet, not levelling (party XP stays a group kill — 10-25: Auto popped in Mixelems' group)
     if (_plLvOf(c) && p.lv) return;
@@ -2560,8 +2606,11 @@ function _plLine(line, c) {
     if (k) { k.xp = true; k.party = line.indexOf('party experience') > 0; if (k.n && k.n.tagged > 0) k.n.tagged--; _plSend(c); } return; }   // a tagged one died
   if ((m = RE_PL_HIT.exec(line))) { touch(); p.own = (p.own || 0) + 1; if (p.lv && _plLvOf(c)) return;   // levelling someone: your hits tag nobody
     hitOn(m[1].toLowerCase()); return; }
-  if ((m = RE_PL_MISS.exec(line))) { touch(); if (p.lv && _plLvOf(c)) return; missOn(m[1].toLowerCase()); return; }
-  if (RE_PL_FAR.test(line)) { if (!p || now - p.last > 45e3) return; const pv = p.swing; p.swing = { name: pv ? pv.name : null, t: now, res: 'far', n: pv && pv.res === 'far' && now - pv.t < 10e3 ? (pv.n || 1) + 1 : 1 }; _plSend(c); return; }
+  if ((m = RE_PL_MISS.exec(line))) { touch(); p.own = (p.own || 0) + 1; if (p.lv && _plLvOf(c)) return; missOn(m[1].toLowerCase()); return; }
+  if ((m = RE_PL_IMMUNE.exec(line))) { touch(); p.own = (p.own || 0) + 1; if (p.lv && _plLvOf(c)) return;   // not a miss: this weapon can't hurt it at all
+    const mob = m[1].toLowerCase(), n = N(mob); n.last = now; n.alive = true; const pv = p.swing;
+    p.swing = { name: mob, t: now, res: 'immune', n: pv && pv.name === mob && pv.res === 'immune' ? (pv.n || 1) + 1 : 1 }; _plSend(c); return; }
+  if (RE_PL_FAR.test(line)) { if (!p || now - p.last > 45e3) return; p.own = (p.own || 0) + 1; const pv = p.swing; p.swing = { name: pv ? pv.name : null, t: now, res: 'far', n: pv && pv.res === 'far' && now - pv.t < 10e3 ? (pv.n || 1) + 1 : 1 }; _plSend(c); return; }
   if ((m = RE_PL_SNARE_AE.exec(line)) || (m = RE_PL_SNARE_1.exec(line))) {
     touch(); const mob = m[1].toLowerCase(), ae = RE_PL_SNARE_AE.test(line); N(mob).last = now; N(mob).alive = true;
     const S = p.snare || (p.snare = { ae: {}, aeAt: 0, aeLast: 0, one: [], batches: [] });
