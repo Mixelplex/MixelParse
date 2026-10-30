@@ -5733,12 +5733,17 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.8.9',
+  version:'1.8.10',
   date:'October 2026',
-  features:[],
+  features:[
+    ['WTS hotbuttons with item links','Selling &rarr; In-game /auction: EverQuest strips item links from pasted text, so MixelParse can now write your WTS lines as social macros (&ldquo;WTS 1&rdquo;, &ldquo;WTS 2&rdquo;&hellip;) with real purple links. Add the characters you sell from (type a name), pick one and click Write while it&rsquo;s logged out; then click the buttons on that Socials page in game. It only uses an empty Socials page, never touches your hotbars or other macros, only rewrites its own buttons you haven&rsquo;t edited, and keeps a backup of the file. Expand the character&rsquo;s socials to see what&rsquo;s on each page.'],
+    ['Repost reminder','Selling &rarr; In-game /auction: says &ldquo;Repost auctions&rdquo; every X minutes after your last /auction. Each /auction restarts it; it goes quiet after a few ignored reminders (and wakes on your next /auction), and 🔇 silences it until your next /auction, for 30 minutes or for an hour.'],
+    ['Condensed CH Chain and Auctions','Settings &rarr; CH CHAIN / AUCTIONS &rarr; Window layout, or the ▤ button on the window: two lines per chain or auction, and the window shrinks to fit. Full is the default.'],
+    ['PL helper: Turn off','A Turn off button on the PL helper window &mdash; the same as Settings &rarr; PL HELPER &rarr; Off, so it stops popping up until you turn it back on.'],
+  ],
   fixes:[
-    ['Parking: can-gate is not parked','A raid target only counts as parked when one of your characters is actually in the zone. Being bound there (can gate) or able to port in no longer silences the alert &mdash; it now reads &ldquo;nobody parked &middot; can gate / port in: &lt;names&gt;&rdquo;, and the Raid Parking badges say &ldquo;Not parked &middot; can gate / can port&rdquo;.'],
-    ['Raid Kill Tracker','Switching back to it keeps the page already drawn when nothing changed (no new tick, session, loot or ODKP update), so it opens faster.'],
+    ['Epic checklist','Items held by your other characters or bankers show as a gold &check; with who has them (and an &ldquo;On other characters&rdquo; line). They don&rsquo;t count as this character&rsquo;s progress (most epic pieces are NO DROP), and Excluded characters are left out.'],
+    ['Selling copy','Copied /auction lines are plain names (links can only go out through the hotbuttons).'],
   ],
 };
 function showWhatsNew(){
@@ -7589,17 +7594,24 @@ function wikiEpicHtml(cls,name){
   if(!cls) return '';
   if(!E) return '<div class="quest-section-label">⚔ '+esc(cls)+' Epic</div><div style="padding:.5rem .75rem;color:var(--text-muted)">Loading…</div>';
   const e=E[cls]; if(!e||!e.s||!e.s.length) return '';
-  const has=it=>charHasItem(name,it), epicItem=e.r[e.r.length-1]||'', done=!!epicItem&&has(epicItem);
+  const mine=it=>charHasItem(name,it), epicItem=e.r[e.r.length-1]||'', done=!!epicItem&&mine(epicItem);
+  // another of your characters (bankers included) holding it — shown in gold, but progress counts only this character's
+  // own items (epic pieces are mostly NO DROP; a finished epic on another Cleric isn't this one's progress) (2026-10-26)
+  const others=Object.keys(chars).filter(c=>c!==name&&!isExcludedChar(c)), whoElse=it=>others.filter(c=>charHasItem(c,it));
+  const has=mine;
   let far=-1; e.s.forEach((st,i)=>{ if(st.i.some(has)) far=i; });
+  const elsewhere=[...new Set(e.s.flatMap(st=>st.i).filter(it=>!e.r.includes(it)&&!mine(it)&&whoElse(it).length))];
+  const elseLine=elsewhere.length?'<div style="font-size:.8rem;color:#a07020;margin-top:.15rem">On other characters: '+elsewhere.map(it=>esc(it)+' ('+whoElse(it).map(esc).join(', ')+')').join(' · ')+'</div>':'';
   const heldRewards=e.r.filter(has);
   const status=done?'<span style="color:#3a7a3a;font-weight:700">✔ Complete — '+esc(name)+' has '+esc(epicItem)+'</span>'
-    :far<0?'<span style="color:var(--text-muted)">Not started — no epic items in '+esc(name)+'&rsquo;s inventory or bank</span>'
-    :'<b>Around step '+(far+1)+' of '+e.s.length+'</b> <span style="color:var(--text-muted)">(furthest step with an item '+esc(name)+' holds)</span>';
+    :far<0?'<span><span style="color:var(--text-muted)">Not started — no epic items in '+esc(name)+'&rsquo;s inventory or bank</span>'+elseLine+'</span>'
+    :'<span><b>Around step '+(far+1)+' of '+e.s.length+'</b> <span style="color:var(--text-muted)">(furthest step with an item '+esc(name)+' holds)</span>'+elseLine+'</span>';
   const pct=done?100:far<0?0:Math.round(100*(far+1)/e.s.length);
-  const link=(n,held)=>'<a href="'+wikiUrl(n)+'" target="_blank" rel="noopener" style="color:'+(held?'#3a7a3a':'var(--text)')+';text-decoration:none;border-bottom:1px dotted var(--gold);white-space:nowrap">'+(held?'✔ ':'')+esc(n)+'</a>';
-  const rows=e.s.map((st,i)=>{ const held=st.i.some(has), past=done||i<=far, next=!done&&i===far+1;
+  const link=(n,held)=>{ const me=mine(n), w=me?[]:whoElse(n);   // green ✔ = this character; gold ✔ on <name> = another of yours
+    return '<a href="'+wikiUrl(n)+'" target="_blank" rel="noopener" title="'+(me?esc(name)+' holds it':w.length?'Held by '+esc(w.join(', ')):'')+'" style="color:'+(me?'#3a7a3a':w.length?'#a07020':'var(--text)')+';text-decoration:none;border-bottom:1px dotted var(--gold);white-space:nowrap">'+(me?'✔ ':w.length?'✔ ':'')+esc(n)+(w.length?' <span style="font-size:.9em">(on '+esc(w[0])+(w.length>1?' +'+(w.length-1):'')+')</span>':'')+'</a>'; };
+  const rows=e.s.map((st,i)=>{ const held=st.i.some(has), alt=!held&&st.i.some(it=>whoElse(it).length), past=done||i<=far, next=!done&&i===far+1;
     return '<tr style="'+(next?'background:rgba(184,137,43,.12);':'')+(past&&!held?'opacity:.55;':'')+'">'
-      +'<td style="padding:.3rem .5rem;vertical-align:top;white-space:nowrap;color:'+(held?'#3a7a3a':'var(--text-muted)')+'">'+(held?'✔':next?'▶':'')+' '+(i+1)+'</td>'
+      +'<td style="padding:.3rem .5rem;vertical-align:top;white-space:nowrap;color:'+(held?'#3a7a3a':alt?'#a07020':'var(--text-muted)')+'">'+(held||alt?'✔':next?'▶':'')+' '+(i+1)+'</td>'
       +'<td style="padding:.3rem .5rem;font-size:.85rem">'+esc(st.x)+(st.i.length?'<div style="font-size:.75rem;margin-top:.15rem;line-height:1.6">'+st.i.map(n=>link(n,has(n))).join(' · ')+'</div>':'')+'</td></tr>'; }).join('');
   return '<div class="quest-section-label">⚔ '+esc(cls)+' Epic — '+esc(epicItem)+'</div>'
     +'<div style="border:1px solid var(--border);border-radius:4px;padding:.55rem .75rem;margin-bottom:1rem" data-task="epic:'+esc(cls)+'" data-char="'+esc(name)+'" oncontextmenu="return taskQuestMenu(event,this.dataset.task,this.dataset.char)" title="Right-click to make a task">'
@@ -7608,7 +7620,7 @@ function wikiEpicHtml(cls,name){
     +(e.r.length>1?'<div style="font-size:.8rem;margin-bottom:.35rem">Rewards: '+e.r.map(r=>link(r,has(r))).join(' · ')+'</div>':'')
     +'<details'+(done?'':' open')+'><summary style="cursor:pointer;font-size:.82rem;color:var(--text-muted)">Checklist — '+e.s.length+' steps'+(heldRewards.length?' · '+heldRewards.length+' of '+e.r.length+' rewards held':'')+'</summary>'
     +'<div style="max-height:460px;overflow:auto;margin-top:.35rem"><table class="ss-table" style="width:100%"><tbody>'+rows+'</tbody></table></div>'
-    +'<div style="font-size:.72rem;color:var(--text-muted);margin-top:.3rem">From the P99 wiki&rsquo;s checklist. ✔ = '+esc(name)+' holds that item (inventory or bank). Steps with no item to hold can&rsquo;t be checked, so they show faded once a later step is reached.</div></details></div>';
+    +'<div style="font-size:.72rem;color:var(--text-muted);margin-top:.3rem">From the P99 wiki&rsquo;s checklist. <span style="color:#3a7a3a">✔</span> = '+esc(name)+' holds that item (inventory or bank); <span style="color:#a07020">✔ (on X)</span> = another of your characters or bankers holds it (shown, but not counted as '+esc(name)+'&rsquo;s progress &mdash; most epic pieces are NO DROP). Steps with no item to hold can&rsquo;t be checked, so they show faded once a later step is reached.</div></details></div>';
 }
 // The class's other quests on the P99 wiki (not already in the guide): epic first, then by level
 function wikiMoreQuests(cls,name){
@@ -8382,6 +8394,7 @@ window.applyDBToChar    = applyDBToChar;
         if(msg.type==='skyCorpses'){ skyCorpseState=msg; skyRenderWarn(); if(activeTopView==='keys') renderKeysPanel(); }
         if(msg.type==='raidEvidence') rkdOnEvidence(msg);
         if(msg.type==='auctionLine') aucOnLine(msg);
+        if(msg.type==='myAuction') sellOnMyAuction(msg);
         if(msg.type==='chatLine') try{ lootOnChat(msg); rkdRwChatNote(msg); }catch(e){}
         if(msg.type==='raidLogin') rkdOnLogin(msg);
         if(msg.type==='raidScanProgress'||msg.type==='raidScanResult') rkdHandleScanMsg(msg);
@@ -9952,9 +9965,10 @@ function aucBidView(b,mine){
   const name=b.toon||b.who, c=typeof odkpC==='function'?odkpC(name)||odkpC(b.who):null, acct=c&&typeof odkpAcctOf==='function'?odkpAcctOf(c.n):null;
   return {ts:b.ts,who:b.who,toon:b.toon,n:b.n,mine:aucIsMine(b,mine),bal:c?c.dkp:null,ra:c?odkpPct(c.a[0],c.a[1]):null,over:!!(c&&b.n>c.dkp),acct:acct?acct.main:null};
 }
+function aucCondOn(){ try{ return localStorage.getItem('mp_auc_cond')==='1'; }catch(e){ return false; } }   // Settings → AUCTIONS → Window layout
 function aucState(){
   const mine=aucMine(), now=Date.now();
-  return {autoPop:aucAutoPop,dkpAsOf:odkpGuild?(Date.parse(odkpGuild.asOf||'')||odkpGuild.at):null,avail:aucAvail(),
+  return {autoPop:aucAutoPop,cond:aucCondOn(),dkpAsOf:odkpGuild?(Date.parse(odkpGuild.asOf||'')||odkpGuild.at):null,avail:aucAvail(),
     auctions:aucList.slice().sort((x,y)=>{const ox=aucIsOpen(x,now),oy=aucIsOpen(y,now);return ox!==oy?(ox?-1:1):y.open-x.open;}).map(A=>{
       const d=typeof getDkp==='function'?getDkp(A.item):null, top=aucTop(A);
       const iBid=A.bids.some(b=>aucIsMine(b,mine)), topV=top?aucBidView(top,mine):null;
@@ -9971,6 +9985,7 @@ window.aucToggleWindow=function(){ if(!aucEnabled) return; if(window.MixelParseA
 if(window.MixelParseApp){
   if(window.MixelParseApp.onAuctionWindowReady) window.MixelParseApp.onAuctionWindowReady(()=>aucPush());
   if(window.MixelParseApp.onAuctionCommand) window.MixelParseApp.onAuctionCommand(c=>{
+    if(c&&c.type==='cond'){ try{localStorage.setItem('mp_auc_cond',c.on?'1':'0');}catch(e){} aucPush(); stgRefreshIfOpen(); return; }   // the window's ▤ button = Settings → Window layout
     if(c&&c.type==='autoPop'){ aucAutoPop=!!c.on; try{localStorage.setItem('mp_auc_autopop',aucAutoPop?'1':'0');}catch(e){} aucPush(); }
     if(c&&c.type==='ignore'&&c.id){ c.on?aucIgnored.add(c.id):aucIgnored.delete(c.id); }
     if(c&&c.type==='pendingAdd'&&c.item&&+c.n>0){ aucPending.push({item:String(c.item).trim(),who:c.who||(odkpMyBalance()||{}).main||'you',n:Math.round(+c.n),ts:c.ts||Date.now(),manual:true}); aucPendingSave(); aucPush(); }
@@ -17493,6 +17508,7 @@ function plOnState(st){
   if(_plSameSeen[tk]!=null&&(st.same||0)>_plSameSeen[tk]&&mode!=='off'){ if(mode==='voice'&&window.speechSynthesis&&typeof SpeechSynthesisUtterance!=='undefined'){ try{ const u=new SpeechSynthesisUtterance('Tab'); u.rate=1.3; u.volume=spellTimerVolume(); window.speechSynthesis.speak(u); }catch(e){} } else plSameBeep(); }   // the same one again — tab
   _plSameSeen[tk]=st.same||0;
 }
+if(window.MixelParseApp&&window.MixelParseApp.onPlDisable) window.MixelParseApp.onPlDisable(()=>{ stgDo('plmode','off'); if(typeof showWatcherToast==='function') showWatcherToast('⚔ PL helper turned off \u2014 Settings \u2192 PL HELPER to turn it back on'); });   // the window's "Turn off"
 if(window.MixelParseApp&&window.MixelParseApp.onPlWindowReady) window.MixelParseApp.onPlWindowReady(()=>{ if(_plCur) try{ window.MixelParseApp.pushPlState(_plCur); }catch(e){} });
 window.plToggle=function(){ if(plMode()==='off'){ try{ localStorage.setItem('mp_pl_mode','on'); }catch(e){} showWatcherToast('⚔ PL helper turned on \u2014 Settings \u2192 PL helper to change'); }
   if(window.MixelParseApp&&window.MixelParseApp.togglePl){ window.MixelParseApp.togglePl(); setTimeout(()=>{ if(_plCur) try{ window.MixelParseApp.pushPlState(_plCur); }catch(e){} },350); } else alert('The PL helper is in the desktop app.'); };
@@ -17548,6 +17564,7 @@ function chChainOnCall(msg){
 }
 // the window's top bar: Single / Double / Triple, Auto or Set numbers (+ the ranges)
 window.chChainSetCfg=function(cfg){
+  if(cfg&&'cond' in cfg){ stgSet('mp_ch_cond',cfg.cond?'1':'0'); chChainPush(); stgRefreshIfOpen(); return; }   // the window's ▤ button = Settings → Window layout
   const m=[1,2,3].includes(+cfg.mode)?+cfg.mode:1, rs=CH_RANGES_DEF.map((d,i)=>{ const r=(cfg.ranges||[])[i]||d, a=Math.max(1,Math.min(99,parseInt(r[0],10)||d[0])), b=Math.max(a,Math.min(99,parseInt(r[1],10)||d[1])); return [a,b]; });
   try{ localStorage.setItem('mp_ch_cfg',JSON.stringify({mode:m,auto:cfg.auto!==false,ranges:rs,timing:cfg.timing==='chart'?'chart':'actual'})); }catch(e){}
   chTurnClear(); chChainPush();
@@ -17650,8 +17667,9 @@ function chChainState(){
   for(let i=groups.length;i<(cfg.mode===1?0:cfg.mode);i++) groups.push({key:'e'+i,n:i+1,range:cfg.auto?null:cfg.ranges[i],empty:true,auto:cfg.auto});   // a chain not heard yet
   const hasMine=g=>!g.empty&&g.slots.some(x=>x.by&&x.by.split(' / ').some(nm=>mine.has(nm.toLowerCase())));
   const order=groups.slice().sort((a,b)=>(hasMine(b)-hasMine(a))||((b.last?b.last.ts:0)-(a.last?a.last.ts:0)));
-  return {cfg,groups:order,any:groups.some(g=>!g.empty)};
+  return {cfg,groups:order,any:groups.some(g=>!g.empty),cond:chCondOn()};
 }
+function chCondOn(){ try{ return localStorage.getItem('mp_ch_cond')==='1'; }catch(e){ return false; } }   // Settings → CH CHAIN → Window layout
 function chChainPush(){ if(window.MixelParseApp&&window.MixelParseApp.pushChChainState) try{ window.MixelParseApp.pushChChainState(chChainState()); }catch(e){} }
 setInterval(()=>{ if(Object.keys(_chChains).length) chChainPush(); },3000);
 if(window.MixelParseApp&&window.MixelParseApp.onChChainWindowReady) window.MixelParseApp.onChChainWindowReady(()=>chChainPush());
@@ -18021,6 +18039,8 @@ window.stgDo=function(what,v){
   else if(what==='plmode'){ setTimeout(headerBtnsSync,0); stgSet('mp_pl_mode',v); if(v==='off'&&window.MixelParseApp&&window.MixelParseApp.closePl) window.MixelParseApp.closePl(); }
   else if(what==='plvoice'){ stgSet('mp_pl_voice',v==='on'?'1':'0'); }
   else if(what==='pltagsnd'){ stgSet('mp_pl_tagsnd',v); if(v==='click') plTagBeep(); }
+  else if(what==='chcond'){ stgSet('mp_ch_cond',v==='cond'?'1':'0'); chChainPush(); }
+  else if(what==='auccond'){ stgSet('mp_auc_cond',v==='cond'?'1':'0'); aucPush(); }
   else if(what==='chturn'){ stgSet('mp_ch_turn',v); if(v==='off'){ chTurnClear(); chChainPush(); } }
   else if(what==='chmode'){ setTimeout(headerBtnsSync,0); stgSet('mp_ch_mode',v); if(!chChainOn()&&window.MixelParseApp&&window.MixelParseApp.closeChChain) window.MixelParseApp.closeChChain(); }
   else if(what==='tellson'){ stgSet('mp_tells_on',v==='on'?'1':'0'); tellsNavCount(); }
@@ -18242,6 +18262,7 @@ function wikiUpdatesCard(card,item){
   }
   return card('WIKI UPDATES',body);
 }
+function stgRefreshIfOpen(){ const v=document.getElementById('settingsView'); if(v&&v.style.display==='block') renderSettingsPanel(); }
 function renderSettingsPanel(){
   const panel=document.getElementById('settingsPanel'); if(!panel) return;
   const desk=stgDesktop();
@@ -18270,7 +18291,8 @@ function renderSettingsPanel(){
     item('Cleared corpses','Corpses you marked looted stay hidden.',btn('corpseunhide','Show cleared corpses again','Bring back corpses you cleared with ✓ / Corpse looted')));
   h+=card('AUCTIONS',
     item('Live auctions','Reads /auction during raids. Off = no auction window, no pop-up, no outbid or Grats toasts.',pick('auc',aucEnabled?'on':'off',[['on','Enabled'],['off','Disabled']]))+
-    (aucEnabled?item('Pop-up window','Open the auction window (without taking focus from EQ) when an officer starts an auction.',pick('aucpop',aucAutoPop?'on':'off',[['on','Pop up'],['off','Stay closed']])):''));
+    (aucEnabled?item('Pop-up window','Open the auction window (without taking focus from EQ) when an officer starts an auction.',pick('aucpop',aucAutoPop?'on':'off',[['on','Pop up'],['off','Stay closed']]))
+      +item('Window layout','<b>Full</b>: a card per auction with price history, the top bid and the runner-up. <b>Condensed</b>: one column, two lines per auction — item and timer, then top bid, bidder, their DKP, the usual price and whether you’re outbid or high.',pick('auccond',aucCondOn()?'cond':'full',[['full','Full'],['cond','Condensed']])):''));
   h+=card('WATCH LIST',
     item('When you have more than one','How the Watch List shows an item you carry several of.',
       pick('wl',wl,[['sup','✔<sup>3</sup>','Small number after the check'],['paren','✔ (3)','Number in brackets'],['none','✔ only','No number']])));
@@ -18296,7 +18318,9 @@ function renderSettingsPanel(){
     item('CH chain window','A live window (like Auctions) built from the \u201cCA 007 CH -- Tank\u201d calls: who called which number, the last call (\u201cContrax > 001\u201d), who\u2019s next, and the <b>free numbers</b> you could take. It opens on its own when a chain starts. Off by default. <b>Auto</b>: on while the character you\u2019re playing (or boxing) is a Cleric.',
       pick('chmode',chChainMode(),[['off','Off'],['auto','Auto'+(chChainMode()==='auto'?(chChainOn()?' (on \u2014 playing a Cleric)':' (off \u2014 not on a Cleric)'):'')],['on','On']]))
     +item('Your turn','When one of your characters is in the chain, the window counts down to your turn and says <b>\u201cHeal\u201d</b> when it\u2019s up: one chain interval after the healer before you calls (two intervals after the one before them, if they don\u2019t call). Your own call clears it.',
-      pick('chturn',chTurnMode(),[['voice','Voice'],['chime','Chime'],['off','Off']])));
+      pick('chturn',chTurnMode(),[['voice','Voice'],['chime','Chime'],['off','Off']]))
+    +item('Window layout','<b>Full</b>: settings bar, boss panel and a tile per number. <b>Condensed</b>: two lines per chain (last call and your turn; next, pace, free numbers, slow / defensive) and a strip of numbers — about a third of the height. Change Single / Double / Triple in the Full layout.',
+      pick('chcond',chCondOn()?'cond':'full',[['full','Full'],['cond','Condensed']])));
   h+=card('TELLS',
     item('Tell tracking','Tells to and from your characters in the Tells tab, with a 📨 pop-up when one arrives. Off: tells are ignored and the Tells tab is hidden.',
       pick('tellson',tellsOn()?'on':'off',[['on','On'],['off','Off \u2014 hide the Tells tab']]))+
@@ -19355,7 +19379,7 @@ function setBankersSub(v){
 // paste in game — several lines when they don't fit in one. The app never sends anything to EverQuest.
 const _sellLS=(k,d)=>{ try{ const v=JSON.parse(localStorage.getItem(k)||'null'); return v==null?d:v; }catch(e){ return d; } };
 const _sellSet=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
-let sellCfg=Object.assign({who:'__bankers__',prefix:'WTS',sep:' | ',limit:400,prices:true,q:'',onlyPriced:false,out:'game',dNote:''},_sellLS('mp_sell_cfg',{}));
+let sellCfg=Object.assign({who:'__bankers__',prefix:'WTS',sep:' | ',limit:400,prices:true,links:true,q:'',onlyPriced:false,out:'game',dNote:''},_sellLS('mp_sell_cfg',{}));
 if(sellCfg.dNote==='PST in game or DM me') sellCfg.dNote='';   // the owner's Discord style is just "WTS:" and the items
 if(sellCfg.limit===250) sellCfg.limit=400;   // a ~400-character /auction went through whole (2026-10-21)
 let sellPick=_sellLS('mp_sell_pick',{});      // item (lowercase) → true: checked
@@ -19393,14 +19417,20 @@ function sellItems(){
     if(!it||!it.name||!it.id||/^empty$/i.test(it.name)) continue;
     const loc=String(it.location||''); if(loc&&!/^(general|bank|sharedbank)/i.test(loc)) continue;   // worn gear stays
     const db=itemDBGet(it.name); if(db&&db._nodrop) continue;
-    const k=it.name.toLowerCase(), e=out.get(k)||{name:it.name,q:0,where:new Set(),chars:new Set()};
+    const k=it.name.toLowerCase(), e=out.get(k)||{name:it.name,id:+it.id||0,q:0,where:new Set(),chars:new Set()};
     e.q+=(it.count||1); e.where.add(/^bank|^sharedbank/i.test(loc)?'bank':'bags'); e.chars.add(cn); out.set(k,e); }
   return [...out.values()].map(e=>{ const m=sellMarket(e.name), k=e.name.toLowerCase(), ign=sellIgnore.has(k); return Object.assign(e,{k,market:m,price:sellPrices[k]!=null?sellPrices[k]:sellNice(m||0),on:!!sellPick[k]&&!ign,ign}); });
 }
+// an EverQuest item link (purple, clickable): DC2 + "0" + 5-digit hex ID padded with zeros to 45 + " " + name + DC2
+function eqItemLink(id,name){ const n=+id; if(!(n>0)) return name; return '\u0012'+('0'+n.toString(16).toUpperCase().padStart(5,'0')).padEnd(45,'0')+' '+name+'\u0012'; }
+// shows a line with its links as purple names (the code itself is invisible in game)
+const EQ_LINK_RE=/\u0012[0-9A-Fa-f]{45} ?([^\u0012]*)\u0012/g;
+function eqLinkHtml(t){ return esc(t).replace(EQ_LINK_RE,'<span style="color:#b26be0;font-weight:700" title="Item link — purple and clickable in EverQuest">$1</span>'); }
 // the /auction lines: most valuable first, as many items per line as fit
-function sellLines(items){
-  const head='/auction '+(sellCfg.prefix?sellCfg.prefix+' ':''), lim=Math.max(60,+sellCfg.limit||400), lines=[]; let cur='';
-  const ent=items.slice().sort((a,b)=>(b.price||0)*(b.q||1)-(a.price||0)*(a.q||1)).map(e=>e.name+(e.q>1?' x'+e.q:'')+(sellCfg.prices&&e.price>0?' '+sellFmt(e.price)+(e.q>1?' ea':''):''));
+function sellLines(items,o){
+  o=o||{}; const links=o.links!=null?o.links:sellCfg.links;
+  const head='/auction '+(sellCfg.prefix?sellCfg.prefix+' ':''), lim=Math.max(60,o.limit||+sellCfg.limit||400), lines=[]; let cur='';
+  const ent=items.slice().sort((a,b)=>(b.price||0)*(b.q||1)-(a.price||0)*(a.q||1)).map(e=>(links&&e.id?eqItemLink(e.id,e.name):e.name)+(e.q>1?' x'+e.q:'')+(sellCfg.prices&&e.price>0?' '+sellFmt(e.price)+(e.q>1?' ea':''):''));
   for(const t of ent){ if(cur&&(head+cur+sellCfg.sep+t).length>lim){ lines.push(head+cur); cur=t; } else cur=cur?cur+sellCfg.sep+t:t; }
   if(cur) lines.push(head+cur); return lines;
 }
@@ -19413,6 +19443,77 @@ function sellDiscord(items){
   const wrap=rs=>head+'\n'+rs.join('\n')+foot;
   for(const e of rows){ const l=line(e); if(cur.length&&wrap(cur.concat(l)).length>1900){ msgs.push(wrap(cur)); cur=[]; } cur.push(l); }
   if(cur.length) msgs.push(wrap(cur)); return msgs;
+}
+// ── WTS hotbuttons: the lines as social macros in a character's ini, so the item links survive (2026-10-28) ──
+const SELL_HB_LINE=255;   // a social line longer than this may be cut off in game
+let _sellHB={char:'',st:null,msg:'',online:false};
+function sellHBList(){ return (Array.isArray(sellCfg.hbList)?sellCfg.hbList:[]).filter(n=>chars[n]); }   // the characters you added (empty to start)
+function sellHBTarget(){ const L=sellHBList(); return L.includes(sellCfg.hbChar)?sellCfg.hbChar:(L[0]||''); }
+window.sellHBAdd=function(n){ if(!n||!chars[n]) return; const L=sellHBList().filter(x=>x!==n); L.push(n); sellCfg.hbChar=n; sellSet('hbList',L); };
+window.sellHBAddTyped=function(el){ const v=String(el.value||'').trim().toLowerCase(); if(!v) return; const n=Object.keys(chars).find(c=>c.toLowerCase()===v); if(n) sellHBAdd(n); else el.style.borderColor='var(--danger,#b3412e)'; };   // exact name only
+window.sellHBRemove=function(n){ const L=sellHBList().filter(x=>x!==n); if(sellCfg.hbChar===n) sellCfg.hbChar=L[0]||''; _sellHB.msg=''; sellSet('hbList',L); };
+function sellHBLines(picked){ return sellLines(picked,{links:true,limit:Math.min(+sellCfg.limit||400,SELL_HB_LINE)}); }
+function sellHBRefresh(force){
+  const c=sellHBTarget(), A=window.MixelParseApp; if(!c||!A||!A.socialsStatus) return;
+  if(!force&&_sellHB.char===c&&(_sellHB.st||_sellHB.busy)) return;
+  if(_sellHB.char!==c) _sellHB.msg='';
+  _sellHB.char=c; _sellHB.busy=true;
+  A.socialsStatus(c).then(st=>{ if(_sellHB.char!==c) return; _sellHB.st=st; _sellHB.busy=false; renderSellingPanel(); }).catch(()=>{ _sellHB.busy=false; });
+}
+window.sellHBWrite=async function(force){
+  const c=sellHBTarget(), A=window.MixelParseApp; if(!c||!A||!A.socialsWrite) return;
+  const lines=sellHBLines(sellItems().filter(e=>e.on)); if(!lines.length) return;
+  const r=await A.socialsWrite(c,lines.map((l,i)=>({name:'WTS '+(i+1),line:l})),!!force);
+  _sellHB.online=!!r.online;
+  _sellHB.msg=r.ok?'\u2713 Wrote '+r.buttons.length+' button'+(r.buttons.length===1?'':'s')+' to Socials page '+r.page+'. Log in '+c+', open the Actions window \u2192 Socials, page '+r.page+' (drag them to a hotbar once).':'\u26a0 '+(r.error||'Couldn\u2019t write');
+  sellHBRefresh(true); renderSellingPanel();
+};
+function sellHBHtml(picked){
+  const c=sellHBTarget(), st=_sellHB.char===c?_sellHB.st:null, lines=sellHBLines(picked);
+  const L=sellHBList(), others=Object.keys(chars).filter(n=>!isExcludedChar(n)&&!L.includes(n)).sort((a,b)=>a.localeCompare(b));
+  const addSel='<input list="sellHBNames" placeholder="\uff0b add a character (type a name)" title="Type a character name and press Enter" style="width:13rem" onchange="sellHBAddTyped(this)" onkeydown="if(event.key===\'Enter\')sellHBAddTyped(this)"><datalist id="sellHBNames">'+others.map(n=>'<option value="'+esc(n)+'">').join('')+'</datalist>';
+  if(c) sellHBRefresh(false);
+  let h='<div style="border-top:1px dashed var(--border);margin-top:.55rem;padding-top:.5rem;font-size:.8rem">'
+    +'<div style="display:flex;flex-wrap:wrap;gap:.4rem .8rem;align-items:center"><b>🔗 Hotbuttons with item links</b>'
+    +(L.length?'<label>Write to <select onchange="sellSet(\'hbChar\',this.value)">'+L.map(n=>'<option value="'+esc(n)+'"'+(n===c?' selected':'')+'>'+esc(n)+'</option>').join('')+'</select></label>'
+        +'<a href="#" onclick="sellHBRemove(decodeURIComponent(\''+encodeURIComponent(c)+'\'));return false" title="Take '+esc(c)+' off this list (nothing in the game changes)" style="color:var(--text-muted);text-decoration:none">\u2715</a>'+addSel
+      :'<span style="color:var(--text-muted)">No characters yet \u2014</span>'+addSel)
+    +(c&&lines.length?'<button class="kt-undo-btn" onclick="sellHBWrite(false)"'+(st&&st.ok&&!st.page?' disabled':'')+'>Write '+lines.length+' WTS button'+(lines.length===1?'':'s')+'</button>':'')
+    +(st&&st.ok?'<span style="color:'+(st.online?'var(--warn,#c07a1a)':'#3a7a3a')+'">'+(st.online?'\u25cf '+esc(c)+' looks logged in \u2014 camp first':'\u25cb logged out ('+esc(st.why)+')')+'</span>':'')
+    +'</div>'
+    +'<div style="font-size:.74rem;color:var(--text-muted);margin-top:.2rem">EverQuest strips links from pasted text, so the copied lines above are plain names. For purple links, MixelParse writes each line as a social macro (\u201cWTS 1\u201d, \u201cWTS 2\u201d\u2026) on an <b>empty</b> Socials page of that character, while it\u2019s logged out. Your hotbars and other macros aren\u2019t touched, and a backup of the file is kept. Lines are kept under '+SELL_HB_LINE+' characters.</div>';
+  if(_sellHB.msg&&_sellHB.char===c) h+='<div style="margin-top:.3rem;font-weight:600;color:'+(/^\u2713/.test(_sellHB.msg)?'#3a7a3a':'var(--danger,#b3412e)')+'">'+esc(_sellHB.msg)+(_sellHB.online?' <a href="#" onclick="sellHBWrite(true);return false" title="Only if you\u2019re sure '+esc(c)+' is logged out (crashed or /exit without camping)" style="font-weight:400">it\u2019s logged out \u2014 write anyway</a>':'')+'</div>';
+  if(st&&!st.ok) h+='<div style="margin-top:.3rem;color:var(--text-muted)">'+esc(st.error)+'</div>';
+  if(st&&st.ok){
+    const pages=Object.keys(st.pages).map(Number).sort((a,b)=>a-b);
+    h+='<div style="margin-top:.35rem">'+(st.page?'WTS buttons go to <b>Socials page '+st.page+'</b>'+(st.reused?' (MixelParse\u2019s page from last time)':' (empty)')+' \u00b7 '+st.free+' buttons free':'<b style="color:var(--danger,#b3412e)">No empty Socials page</b> \u2014 clear one in game first')+'</div>'
+      +'<details style="margin-top:.25rem"><summary style="cursor:pointer;color:var(--text-muted)">'+esc(c)+'\u2019s socials \u2014 '+(pages.length?'pages in use: '+pages.join(', '):'none yet')+'</summary>'
+      +(pages.length?pages.map(p=>'<div style="margin:.2rem 0 .2rem .4rem"><b>Page '+p+':</b> '+st.pages[p].map(s=>'<span title="'+esc(s.line)+'" style="'+(s.ours?'color:var(--gold-light)':'')+'">'+s.b+'\u00b7'+esc(s.name||'(no name)')+(s.hot?' \u2b50':'')+(s.ours?' (MixelParse)':'')+'</span>').join(' \u00a0 ')+'</div>').join('')+'<div style="font-size:.72rem;color:var(--text-muted);margin-left:.4rem">\u2b50 = on a hotbar. Hover a button for its first line.</div>':'')
+      +'</details>';
+  }
+  return h+'</div>';
+}
+// ── repost reminder: says "Repost auctions" every X minutes after your last /auction (2026-10-28) ──
+let _sellLastAuc=0, _sellRemindOn=Date.now(), _sellLastSaid=0, _sellIgnored=0, _sellQuietUntil=0;   // quiet: 0 = no, Infinity = until your next /auction
+function sellOnMyAuction(msg){ _sellLastAuc=Math.max(_sellLastAuc,+msg.ts||Date.now()); _sellLastSaid=0; _sellIgnored=0; _sellQuietUntil=0; if(activeTopView==='selling') renderSellingPanel(); }
+function sellRemindQuiet(){ return Date.now()<_sellQuietUntil||_sellIgnored>=Math.max(1,+sellCfg.remindMax||3); }
+window.sellRemindSnooze=function(min){ _sellIgnored=0; _sellQuietUntil=min?Date.now()+min*60e3:Infinity; if(min) _sellLastSaid=Date.now()+min*60e3-Math.max(1,+sellCfg.remindMin||10)*60e3; renderSellingPanel(); };   // a timed snooze speaks again when it ends
+function sellRemindDue(){ const m=Math.max(1,+sellCfg.remindMin||10); return Math.max(_sellLastAuc,_sellRemindOn,_sellLastSaid)+m*60e3; }
+window.sellRemindSet=function(on){ _sellRemindOn=Date.now(); _sellLastSaid=0; _sellIgnored=0; _sellQuietUntil=0; sellSet('remind',!!on); };
+setInterval(()=>{ if(!sellCfg.remind||sellRemindQuiet()||Date.now()<sellRemindDue()) return; _sellLastSaid=Date.now(); _sellIgnored++;
+  if(window.speechSynthesis&&typeof SpeechSynthesisUtterance!=='undefined') try{ const u=new SpeechSynthesisUtterance('Repost auctions'); u.volume=spellTimerVolume(); window.speechSynthesis.speak(u); }catch(e){}
+  if(typeof showWatcherToast==='function') showWatcherToast('\u23f0 Repost auctions'); },15000);
+function sellRemindHtml(){
+  const left=Math.max(0,sellRemindDue()-Date.now()), mm=Math.floor(left/60e3), ss=Math.floor(left%60e3/1000);
+  return '<div style="display:flex;flex-wrap:wrap;gap:.4rem .8rem;align-items:center;font-size:.8rem;margin-top:.5rem;padding-top:.45rem;border-top:1px dashed var(--border)">'
+    +'<label title="Says it out loud. Each /auction you send restarts the count."><input type="checkbox" '+(sellCfg.remind?'checked':'')+' onchange="sellRemindSet(this.checked)"> \u23f0 Say <b>\u201cRepost auctions\u201d</b></label>'
+    +'<label>every <input type="number" min="1" max="120" value="'+(+sellCfg.remindMin||10)+'" onchange="sellSet(\'remindMin\',Math.max(1,Math.min(120,+this.value||10)))" style="width:3.5rem"> min after my last /auction</label>'
+    +'<label title="Goes quiet after this many reminders in a row with no /auction from you; your next /auction turns it back on">quiet after <input type="number" min="1" max="20" value="'+(+sellCfg.remindMax||3)+'" onchange="sellSet(\'remindMax\',Math.max(1,Math.min(20,+this.value||3)))" style="width:3rem"> ignored</label>'
+    +(!sellCfg.remind?'':sellRemindQuiet()
+      ?'<span style="color:var(--text-muted)">\ud83d\udd07 quiet '+(Date.now()<_sellQuietUntil&&isFinite(_sellQuietUntil)?'until '+new Date(_sellQuietUntil).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'until your next /auction')+' \u00b7 <a href="#" onclick="sellRemindSet(true);return false">wake it now</a></span>'
+      :'<span style="color:var(--text-muted)">next in '+mm+':'+String(ss).padStart(2,'0')+(_sellLastAuc?' \u00b7 last /auction '+new Date(_sellLastAuc).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'')+'</span>'
+        +'<span>\ud83d\udd07 <a href="#" onclick="sellRemindSnooze(0);return false" title="Quiet until you /auction again">until my next /auction</a> \u00b7 <a href="#" onclick="sellRemindSnooze(30);return false">30 min</a> \u00b7 <a href="#" onclick="sellRemindSnooze(60);return false">1 h</a></span>')
+    +'</div>';
 }
 function renderSellingPanel(){
   const p=document.getElementById('sellingPanel'); if(!p) return;
@@ -19441,11 +19542,13 @@ function renderSellingPanel(){
         +(dc?'<label title="Optional last line, e.g. who to contact">Note <input placeholder="optional last line" value="'+esc(sellCfg.dNote||'')+'" onchange="sellSet(\'dNote\',this.value)" style="width:14rem"></label>'
           :'<label>Between items <input value="'+esc(sellCfg.sep)+'" onchange="sellSet(\'sep\',this.value)" style="width:3rem"></label>'
           +'<label title="Longest line, counting /auction — a ~400-character line went through whole; lower it if EverQuest cuts your line off">Max length <input type="number" min="60" max="600" value="'+(+sellCfg.limit||400)+'" onchange="sellSet(\'limit\',+this.value)" style="width:4rem"></label>')
-        +'<label><input type="checkbox" '+(sellCfg.prices?'checked':'')+' onchange="sellSet(\'prices\',this.checked)"> show prices</label></div>'
+        +'<label><input type="checkbox" '+(sellCfg.prices?'checked':'')+' onchange="sellSet(\'prices\',this.checked)"> show prices</label>'
+        +(dc?'':'<label title="Each item name becomes a purple EverQuest link people can click to see the item. A link adds 47 hidden characters, so fewer items fit per line."><input type="checkbox" '+(sellCfg.links?'checked':'')+' onchange="sellSet(\'links\',this.checked)"> item links</label>')+'</div>'
       +(lines.length?lines.map((l,i)=>'<div style="display:flex;gap:.5rem;align-items:flex-start;margin:.25rem 0"><button class="kt-undo-btn" onclick="sellCopy('+i+')" style="flex-shrink:0;min-width:5.2rem">'+(_sellCopied.has(l)?'✓ Copied':'📋 Copy '+(lines.length>1?(i+1)+'/'+lines.length:''))+'</button>'
-          +(dc?'<pre style="font-size:.76rem;white-space:pre-wrap;word-break:break-word;overflow-x:auto;flex:1;min-width:0;margin:0;padding:.4rem .5rem;background:var(--surface);border:1px solid var(--border);border-radius:4px">'+esc(l)+'</pre>':'<code style="font-size:.78rem;white-space:pre-wrap;word-break:break-word;flex:1;min-width:0">'+esc(l)+'</code>')
-          +'<span style="font-size:.7rem;color:var(--text-muted);flex-shrink:0" title="'+(dc?'Discord allows 2,000 characters per message':'Characters')+'">'+l.length+'</span></div>').join('')
+          +(dc?'<pre style="font-size:.76rem;white-space:pre-wrap;word-break:break-word;overflow-x:auto;flex:1;min-width:0;margin:0;padding:.4rem .5rem;background:var(--surface);border:1px solid var(--border);border-radius:4px">'+esc(l)+'</pre>':'<code style="font-size:.78rem;white-space:pre-wrap;word-break:break-word;flex:1;min-width:0">'+eqLinkHtml(l)+'</code>')
+          +'<span style="font-size:.7rem;color:var(--text-muted);flex-shrink:0" title="'+(dc?'Discord allows 2,000 characters per message':'Characters'+(/\u0012/.test(l)?', counting the hidden link codes':''))+'">'+l.length+'</span></div>').join('')
         :'<div style="font-size:.8rem;color:var(--text-muted)">Check items below to build the '+(dc?'Discord post':'lines')+'.</div>')
+      +(dc?'':sellHBHtml(picked)+sellRemindHtml())
     +'</div>'
     // saved lists
     +'<div style="display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;font-size:.8rem"><b>Saved lists:</b>'
@@ -19480,10 +19583,11 @@ window.sellToggle=function(k,on){ if(on) sellPick[k]=true; else delete sellPick[
 window.sellPrice=function(k,v){ const n=Math.max(0,Math.round(+v||0)); if(v===''||!n) sellPrices[k]=0; else sellPrices[k]=n; _sellSet('mp_sell_prices',sellPrices); _sellCopied.clear();
   clearTimeout(window._sellPT); window._sellPT=setTimeout(renderSellingPanel,250); };   // after the click that took the focus away has landed
 window.sellCopy=async function(i){
-  const pk=sellItems().filter(e=>e.on), dc=sellCfg.out==='discord', lines=dc?sellDiscord(pk):sellLines(pk), t=lines[i]; if(!t) return;
+  const pk=sellItems().filter(e=>e.on), dc=sellCfg.out==='discord', lines=dc?sellDiscord(pk):sellLines(pk), t=(lines[i]||'').replace(EQ_LINK_RE,'$1'); if(!t) return;   // pasting strips the link character \u2014 links go out through the hotbuttons
+  _sellCopied.add(lines[i]);
   let ok=false; try{ await navigator.clipboard.writeText(t); ok=true; }catch(e){}
   if(!ok){ try{ const ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); ok=document.execCommand('copy'); ta.remove(); }catch(e){} }
-  if(ok){ _sellCopied.add(t); showWatcherToast('📋 Copied '+(dc?'Discord message':'line')+' '+(i+1)+(lines.length>1?' of '+lines.length:'')+' \u2014 paste it '+(dc?'in Discord':'in EverQuest with Ctrl+V')); } else showWatcherToast('Couldn\u2019t reach the clipboard \u2014 select the line and copy it by hand');
+  if(ok){ showWatcherToast('📋 Copied '+(dc?'Discord message':'line')+' '+(i+1)+(lines.length>1?' of '+lines.length:'')+' \u2014 paste it '+(dc?'in Discord':'in EverQuest with Ctrl+V')); } else showWatcherToast('Couldn\u2019t reach the clipboard \u2014 select the line and copy it by hand');
   renderSellingPanel();
 };
 window.sellSave=function(){
