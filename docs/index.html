@@ -5733,17 +5733,11 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.8.11',
+  version:'1.8.12',
   date:'October 2026',
-  features:[
-    ['&ldquo;Not magic weapon&rdquo; alert','When your swings come back &ldquo;INVULNERABLE!&rdquo;, the mob can only be hurt by a magic weapon and yours isn&rsquo;t one: MixelParse says &ldquo;Not magic weapon&rdquo; and shows which character and mob (at most every 20 seconds). A mob you&rsquo;ve already hit with a weapon is skipped &mdash; that&rsquo;s a Divine Aura, not your weapon.'],
-    ['Broken item link warning','If your own /auction, /say, /shout, guild or raid line shows an item link as a string of numbers, the link didn&rsquo;t render (EverQuest strips links from pasted text). A toast points you to the WTS hotbuttons.'],
-    ['Zordakalicus Ragefire','In the Kill Tracker and Auto-Detect at 1 DKP (Tier Seven), the same as ODKP. It&rsquo;s spawned by the cleric epic turn-in, so there&rsquo;s no spawn timer or parking. Raid names &ldquo;Ragefire&rdquo;, &ldquo;Zordak&rdquo; and &ldquo;Zordakalicus&rdquo; are recognised.'],
-  ],
+  features:[],
   fixes:[
-    ['Parking alerts','&ldquo;Can gate / port in&rdquo; names only characters who can actually do the target (level and key), not every character bound there or holding a port item.'],
-    ['PL helper','Power-levelling with a damage shield (your kills, never &ldquo;slain by them&rdquo;) is now tracked from the leveller&rsquo;s side: each kill shows whether they had tagged it. A non-magic weapon shows as &ldquo;NOT A MAGIC WEAPON&rdquo; instead of a miss, and a character who is swinging is never mistaken for the leveller.'],
-    ['Repost reminder','Counts only from a real /auction, never speaks just because you turned it on or started the app, and a snooze skips the reminders that fall inside it.'],
+    ['Clocks going back (Nov 1)','When daylight saving ends, 1:00&ndash;2:00 AM happens twice. Kills, timers, alerts and buff tracking during the second pass were treated as an hour old; MixelParse now reads them as just happened.'],
   ],
 };
 function showWhatsNew(){
