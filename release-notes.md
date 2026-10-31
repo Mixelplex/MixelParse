@@ -1,4 +1,9 @@
-## 1.8.11
+## 1.8.12
+
+- **Fixes**
+  - Clocks going back: during the repeated 1-2 AM hour when daylight saving ends, live log lines were read as an hour old (kills, timers, alerts, buffs); they're now read as current.
+
+Everything from 1.8.11 and earlier is included:
 
 - **New**
   - "Not magic weapon" alert: INVULNERABLE! on your swings means the mob needs a magic weapon; the app says "Not magic weapon" and names the character and mob (at most every 20 s). Mobs you've already hit with a weapon are skipped (Divine Aura).
@@ -8,8 +13,6 @@
   - Parking alerts: "can gate / port in" lists only characters with the level (and key) for the target.
   - PL helper: damage-shield power-levelling is tracked from the leveller's side (each kill ✓ if the levelled player tagged it); non-magic weapon shown as "NOT A MAGIC WEAPON"; a swinging character is never taken for the leveller.
   - Repost reminder: counts only from a real /auction, doesn't speak on turning it on or on startup, and snoozes skip reminders.
-
-Everything from 1.8.10 and earlier is included:
 
 - **New**
   - WTS hotbuttons with item links (Selling → In-game /auction): EverQuest strips links from pasted text, so MixelParse writes your WTS lines as social macros ("WTS 1", "WTS 2"…) with real purple links, into a character you add, while it's logged out. Only an empty Socials page is used; hotbars and other macros are never touched, only its own unedited buttons are rewritten, and a backup of the file is kept. The character's socials are listed page by page.

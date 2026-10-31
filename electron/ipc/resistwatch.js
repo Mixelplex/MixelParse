@@ -10,9 +10,13 @@
 //           o:'land' (the spell's cast-on-you text), dmg = the "You were hit by non-melee"
 //           that follows (breaths / nukes — partial resists show as lower damage).
 //           cast = recent "X begins to cast a spell." lines, con = their last /con phrase.
+//           atk = mobs that meleed the character in the last 12 s (breaths / procs have no cast line).
 //   k:'out' the character's own detrimental spell — o:'resist' ("Your target resisted"),
-//           'land' (cast-on-other text, with the target) or 'nohold'. con = the target's
-//           (or the last considered mob's) con phrase.
+//           'land' (cast-on-other text, with the target) or 'nohold'. con = the target's con phrase.
+//           A resist never names its target: tgt is the most recent of your last landed spell's target,
+//           your last melee swing's target or the last /con (tgtGuess, tgtSrc land|melee|con, tgtAge s).
+//           ae = an area spell (lands are logged per mob, resists aren't — keep them out of rates).
+//   v:2  records from 2026-10-30 on (target guess for resists, ae, atk).
 //   rs   = the renderer's resist snapshot for the character (base / gear / parked buffs,
 //          level, class); buffs = resist-changing spells that landed on the character and
 //          haven't faded (from the logs: cast-on-you / fades text of spells_us.txt).
@@ -26,6 +30,9 @@ const RESIST_FX = { 46: 'fr', 47: 'cr', 48: 'pr', 49: 'dr', 50: 'mr' };
 const MAX_BYTES = 20 * 1024 * 1024;   // then rotate to .1 (one generation kept)
 const CAST_WINDOW = 12e3;             // "begins to cast" → outcome
 const CON_TTL = 30 * 60e3;
+const TGT_TTL = 30e3;                 // your last landed / melee target counts as "the target" this long
+const RE_MY_SWING = /^You (?:hit|slash|pierce|crush|kick|bash|punch|backstab|bite|claw|strike|frenzy on) (.+?) for \d+ points? of damage\.$|^You try to \w+ (.+?), but /;
+const RE_HITS_YOU = /^(.+?) (?:hits|slashes|pierces|crushes|bashes|kicks|bites|claws|mauls|gores|stings|punches|strikes|smashes|rends|slices|frenzies on|tries to \w+) YOU\b/;
 
 let _log = () => {}, _err = () => {};
 let _eqDir = null, _outPath = null;
@@ -56,7 +63,7 @@ function _loadSpells() {
       // Direct damage = first HP effect (SE 0 / 79) with a negative base.
       let dd = 0;
       for (let i = 0; i < 12; i++) if ((eff[i] === 0 || eff[i] === 79) && +r[20 + i] < 0) { dd = -r[20 + i]; break; }
-      const info = { rt: RT[rt] || String(rt), adj: +r[147] || 0, cast: +r[13] || 0, onOther: r[7] || '', good, dd };
+      const info = { rt: RT[rt] || String(rt), adj: +r[147] || 0, cast: +r[13] || 0, onOther: r[7] || '', good, dd, ae: +r[10] > 0 };
       // Same-name versions differ ("Lava Breath": adj 0 / -17 / -400; "Rain of Molten Lava": 1000 / 300
       // damage): keep every distinct [adj, damage] so an event can list them, and a landing's
       // damage can pick the one that hit.
@@ -103,7 +110,7 @@ function _write(ev) {
 }
 
 function _state(c) {
-  return _st[c] || (_st[c] = { casters: [], cons: new Map(), lastCon: null, buffs: new Map(), out: null, pendIn: null });
+  return _st[c] || (_st[c] = { casters: [], atk: [], cons: new Map(), lastCon: null, lastTgt: null, buffs: new Map(), out: null, pendIn: null });
 }
 function _conOf(st, name, ts) {
   const c = name && st.cons.get(name.toLowerCase());
@@ -118,7 +125,7 @@ function _buffsNow(st, ts) {
   return out.length ? out : undefined;
 }
 function _base(charName, st, ts, zone) {
-  const ev = { t: ts, c: charName };
+  const ev = { v: 2, t: ts, c: charName };
   if (zone) ev.z = zone;
   const rs = _snap[charName.toLowerCase()]; if (rs) ev.rs = rs;
   const b = _buffsNow(st, ts); if (b) ev.buffs = b;
@@ -146,6 +153,11 @@ function line(raw, charName, ts, zone) {
     if (++st.pendIn.n > 3 || ts - st.pendIn.ev.t > 2e3) _flushIn(st);
   }
   if (s.indexOf(", '") >= 0 || / says? '/.test(s)) return;   // chat / NPC speech
+  if (s.charCodeAt(0) === 89 && s.startsWith('You ') && (m = RE_MY_SWING.exec(s))) { st.lastTgt = { n: m[1] || m[2], ts, src: 'melee' }; return; }
+  if (s.indexOf(' YOU') > 0 && (m = RE_HITS_YOU.exec(s))) {
+    st.atk = st.atk.filter(a => ts - a.ts < CAST_WINDOW && a.n !== m[1]); st.atk.push({ n: m[1], ts }); if (st.atk.length > 4) st.atk.shift();
+    return;
+  }
 
   if ((m = /^(.+?) begins to cast a spell\.$/.exec(s))) {
     st.casters = st.casters.filter(c => ts - c.ts < CAST_WINDOW);
@@ -157,7 +169,7 @@ function line(raw, charName, ts, zone) {
     if (st.cons.size > 300) st.cons.delete(st.cons.keys().next().value);
     return;
   }
-  if (/^Welcome to EverQuest!|^You have been slain by |^You died\./.test(s)) { st.buffs.clear(); st.out = null; return; }
+  if (/^Welcome to EverQuest!|^You have been slain by |^You died\./.test(s)) { st.buffs.clear(); st.out = null; st.lastTgt = null; st.atk = []; return; }
 
   // ── Own spells (outgoing) ──
   if ((m = /^You begin casting (.+)\.$/.exec(s))) {
@@ -169,18 +181,23 @@ function line(raw, charName, ts, zone) {
   if ((m = /^Your target resisted the (.+) spell\.$/.exec(s))) {
     const info = sp.byName.get(m[1]) || {};
     const ev = Object.assign(_base(charName, st, ts, zone), { k: 'out', sp: m[1], o: 'resist', rt: info.rt, adj: info.adj });
-    const lc = st.lastCon; if (lc && ts - lc.ts < CON_TTL) { ev.tgt = lc.n; ev.con = _conOf(st, lc.n, ts); ev.tgtGuess = true; }
+    if (info.ae) ev.ae = true;
+    const lt = st.lastTgt && ts - st.lastTgt.ts < TGT_TTL ? st.lastTgt : null, lc = st.lastCon && ts - st.lastCon.ts < CON_TTL ? Object.assign({ src: 'con' }, st.lastCon) : null;
+    const g = lt && (!lc || lt.ts >= lc.ts) ? lt : lc;
+    if (g) { ev.tgt = g.n; const con = _conOf(st, g.n, ts); if (con) ev.con = con; ev.tgtGuess = true; ev.tgtSrc = g.src; ev.tgtAge = Math.round((ts - g.ts) / 1e3); }
     _write(ev); st.out = null; return;
   }
   if (st.out && /^Your spell did not take hold\.$/.test(s)) {
-    _write(Object.assign(_base(charName, st, ts, zone), { k: 'out', sp: st.out.sp, o: 'nohold', rt: st.out.info.rt, adj: st.out.info.adj }));
+    _write(Object.assign(_base(charName, st, ts, zone), { k: 'out', sp: st.out.sp, o: 'nohold', rt: st.out.info.rt, adj: st.out.info.adj }, st.out.info.ae ? { ae: true } : null));
     st.out = null; return;
   }
   if (st.out && /^Your spell (?:is interrupted|fizzles)/.test(s)) { st.out = null; return; }
   if (st.out && st.out.info.onOther.length > 3 && s.endsWith(st.out.info.onOther) && st.out.lands < 12) {
     const tgt = s.slice(0, s.length - st.out.info.onOther.length).trim();
     const ev = Object.assign(_base(charName, st, ts, zone), { k: 'out', sp: st.out.sp, o: 'land', rt: st.out.info.rt, adj: st.out.info.adj, tgt });
+    if (st.out.info.ae) ev.ae = true;
     const con = _conOf(st, tgt, ts); if (con) ev.con = con;
+    if (!st.out.info.ae) st.lastTgt = { n: tgt, ts, src: 'land' };
     _write(ev); st.out.lands++; return;
   }
 
@@ -192,6 +209,8 @@ function line(raw, charName, ts, zone) {
     if (info.vars && info.vars.length > 1) ev.vars = info.vars;   // [adj, damage] per version; see _pickVar
     if (names.length > 1) ev.cands = names.slice(0, 6).map(n => { const i = sp.byName.get(n) || {}; return { n, rt: i.rt, adj: i.adj }; });
     if (st.casters.length) ev.cast = st.casters.map(c => { const x = { n: c.n, a: Math.round((ts - c.ts) / 100) / 10 }; const p = _conOf(st, c.n, ts); if (p) x.con = p; return x; });
+    st.atk = st.atk.filter(a => ts - a.ts < CAST_WINDOW);
+    if (st.atk.length) ev.atk = st.atk.map(a => { const x = { n: a.n, a: Math.round((ts - a.ts) / 100) / 10 }; const p = _conOf(st, a.n, ts); if (p) x.con = p; return x; });
     return ev;
   };
   if ((m = /^You resist the (.+) spell!$/.exec(s))) { _flushIn(st); _write(incoming('resist', [m[1]])); return; }

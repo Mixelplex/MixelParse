@@ -394,9 +394,10 @@ function tailLogFile(fp, charName) {
   saveLogPositions();
 
   const lines = buf.slice(0, lastNl + 1).toString('utf8').split('\n');
-  for (const line of lines) {
+  _rtLive = true;
+  try { for (const line of lines) {
     if (line.trim()) processLogLine(line.trim(), charName);
-  }
+  } } finally { _rtLive = false; }
 }
 
 // ── Concealment state (hide / sneak / invis) ─────────────────────────────────
@@ -1016,9 +1017,15 @@ const _rtGeneric     = name => /^(a|an) /i.test(name);   // "a fiery watcher" �
 const RT_MON = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
 // The log line's own timestamp — ToD and the evidence window stay exact even when a
 // burst of lines is read late. Falls back to now if the line has no stamp.
+// Clocks going back (US: first Sunday of November) repeat 1:00–1:59, and a repeated wall time parses as its FIRST pass.
+// A line the live tail just read (_rtLive) that looks 30–90 min old in a repeated hour is the second pass: an hour later.
+let _rtLive = false;
 function _rtLineTs(line) {
   const m = /^\[\w{3} (\w{3}) +(\d+) (\d\d):(\d\d):(\d\d) (\d{4})\]/.exec(line);
-  return m ? new Date(+m[6], RT_MON[m[1]], +m[2], +m[3], +m[4], +m[5]).getTime() : Date.now();
+  if (!m) return Date.now();
+  const ts = new Date(+m[6], RT_MON[m[1]], +m[2], +m[3], +m[4], +m[5]).getTime();
+  if (_rtLive) { const age = Date.now() - ts; if (age > 30 * 60e3 && age < 90 * 60e3 && new Date(ts + 3600e3).getHours() === +m[3]) return ts + 3600e3; }
+  return ts;
 }
 // Parse one log line into a raid signal message (raidTick / raidEvidence), or null.
 function raidSignal(line, charName) {
