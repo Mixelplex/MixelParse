@@ -272,7 +272,7 @@ function mmss(ms){ ms = Math.max(0, Math.round(ms / 1000)); return Math.floor(ms
 function ago(ms){ const s = Math.max(0, Math.round(ms / 1000)); return s < 60 ? s + 's' : Math.floor(s / 60) + 'm'; }
 function num(n){ return Math.round(n).toLocaleString(); }
 // encodeURIComponent leaves ' alone, which broke the click on "Trakanon's Tooth" — escape it too
-function wiki(item){ return 'cmd({type:\'wiki\',item:decodeURIComponent(\'' + encodeURIComponent(item).replace(/'/g, '%27') + '\')})'; }
+function wiki(item){ return 'cmd({type:\'lookup\',item:decodeURIComponent(\'' + encodeURIComponent(item).replace(/'/g, '%27') + '\')})'; }
 function forToon(b){ return b.toon && b.toon.toLowerCase() !== String(b.who).toLowerCase() ? ' <span class="for">→ ' + esc(b.toon) + '</span>' : ''; }
 function bal(b){
   if (b.bal == null) return '<span class="bal none" title="Not on Castle\'s ODKP">no ODKP</span>';
@@ -308,14 +308,14 @@ function card(a, now){
   const ctx = ' oncontextmenu="return cardMenu(event,\'' + a.id + '\')"' + (ignored.has(a.id) ? ' title="Ignored — right-click to un-ignore"' : '');
   const ign = ignored.has(a.id) ? ' ign' : '';
   if (sold) return '<div class="card' + cls + ign + '"' + ctx + '>'
-    + '<div class="c-hdr"><span class="c-item" onclick="' + wiki(a.item) + '" title="Open on the P99 wiki">' + esc(a.item) + '</span>' + st + '</div>'
+    + '<div class="c-hdr"><span class="c-item" onclick="' + wiki(a.item) + '" title="Look up this item: DKP history, who has it, price">' + esc(a.item) + '</span>' + st + '</div>'
     + '<div class="grats">' + (iWon ? '🎉 Grats — you won! ' : '✓ Grats ') + winText(a.winners, true) + '</div></div>';
   const rest = top ? rows.filter(b => !(b.n === top.n && String(b.who).toLowerCase() === String(top.who).toLowerCase() && String(b.toon || '').toLowerCase() === String(top.toon || '').toLowerCase())) : rows;
   let shown = expanded.has(a.id) ? rest : rest.slice(0, SHOW);
   if (!expanded.has(a.id)) { const me = rest.find(b => b.mine); if (me && !shown.includes(me)) shown = shown.concat(me); }
   const hidden = rest.length - shown.length;
   return '<div class="card' + cls + ign + '"' + ctx + '>'
-    + '<div class="c-hdr"><span class="c-item" onclick="' + wiki(a.item) + '" title="Open on the P99 wiki' + (a.by ? ' · opened by ' + esc(a.by) : '') + '">' + esc(a.item) + '</span>' + st + '</div>'
+    + '<div class="c-hdr"><span class="c-item" onclick="' + wiki(a.item) + '" title="Look up this item: DKP history, who has it, price' + (a.by ? ' · opened by ' + esc(a.by) : '') + '">' + esc(a.item) + '</span>' + st + '</div>'
     + '<div class="c-price">' + priceChips(a.stats) + '</div>'
     + (a.outbid ? '<div class="banner">⚠ You\'ve been outbid — ' + top.n + ' by ' + esc(top.toon || top.who) + '</div>' : a.leading ? '<div class="banner lead">✓ You\'re the high bid</div>' : '')
     + (top ? '<div class="hero"><div class="hero-n">' + top.n + '<small>TOP BID</small></div><div class="hero-who"><div class="hero-name">' + esc(top.who) + forToon(top) + '</div><div class="hero-bal">' + bal(top) + '</div></div></div>'
@@ -329,7 +329,7 @@ function cardCond(a, now){
   const sold = !!(a.winners && a.winners.length), late = now >= a.closeAt, top = a.top, iWon = sold && a.winners.some(w => w.mine);
   const cls = sold ? (iWon ? ' won' : ' sold') : a.outbid ? ' out' : a.leading ? ' lead' : late ? ' late' : '';
   const ctx = ' oncontextmenu="return cardMenu(event,\'' + a.id + '\')"' + (ignored.has(a.id) ? ' title="Ignored — right-click to un-ignore"' : '');
-  const item = '<span class="c-item" onclick="' + wiki(a.item) + '" title="Open on the P99 wiki' + (a.by ? ' · opened by ' + esc(a.by) : '') + '">' + esc(a.item) + '</span>';
+  const item = '<span class="c-item" onclick="' + wiki(a.item) + '" title="Look up this item: DKP history, who has it, price' + (a.by ? ' · opened by ' + esc(a.by) : '') + '">' + esc(a.item) + '</span>';
   if (sold) return '<div class="cr' + cls + (ignored.has(a.id) ? ' ign' : '') + '"' + ctx + '><div class="cr1">' + item + '<span class="chip sold">sold</span></div>'
     + '<div class="cr2">' + (iWon ? '🎉 you won · ' : '✓ ') + winText(a.winners, true) + '</div></div>';
   const p = a.stats, mine = bidRows(a).find(b => b.mine);
@@ -344,7 +344,7 @@ function cardCond(a, now){
 }
 function closedRow(a){
   const t = a.top, ws = a.winners || [];
-  return '<div class="cl" oncontextmenu="return cardMenu(event,\'' + a.id + '\')" title="Right-click: I won this"><span class="cl-item" onclick="' + wiki(a.item) + '" title="Open on the P99 wiki">' + esc(a.item) + '</span>'
+  return '<div class="cl" oncontextmenu="return cardMenu(event,\'' + a.id + '\')" title="Right-click: I won this"><span class="cl-item" onclick="' + wiki(a.item) + '" title="Look up this item: DKP history, who has it, price">' + esc(a.item) + '</span>'
     + (ws.length ? '<span class="cl-win" title="From the officer\'s grats">✓ ' + winText(ws, true) + '</span>'
       : '<span class="cl-none" title="No grats seen for 30 minutes' + (t ? ' — top bid was ' + t.n + ' by ' + esc(t.toon || t.who) : '') + '">no grats seen</span>') + '</div>';
 }

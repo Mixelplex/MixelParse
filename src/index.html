@@ -492,6 +492,9 @@
   .dkp-high{color:#1a5a1a;font-weight:600}
   .dkp-avg{color:var(--gold-light);font-weight:700}
   .dkp-low{color:#a03030;font-weight:600}
+  .dkp-own{color:#2e8b2e;font-size:.7rem;margin-left:.35rem;vertical-align:middle}
+  .dkp-card{display:flex;flex-wrap:wrap;gap:.25rem 1.25rem;font-size:.8rem;padding:.1rem .5rem .5rem;border-bottom:1px solid rgba(74,58,26,.15);margin-bottom:.4rem}
+  .dkp-card b{font-family:\'Cinzel\',serif;font-size:.62rem;letter-spacing:.06em;color:var(--text-muted);font-weight:600;margin-right:.3rem}
   .dkp-count{color:var(--text-muted);font-size:.8rem}
   .dkp-history-row td{background:var(--surface2)!important;padding:0}
   .dkp-history-inner{padding:.5rem 1rem .75rem 1.5rem}
@@ -915,6 +918,7 @@ window.alert=function(m){_a(m);A.refocusWindow();};window.confirm=function(m){co
     <button id="tmrOpenBtn" onclick="spellTimersWindowToggle()" title="Spell timers — your roots, charms, mezzes and DoTs counting down (a pop-up window)" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#9203; Timers</button>
 <button id="plOpenBtn" onclick="plToggle()" title="Power-levelling helper — kills this pull, XP or missed tag, and the mobs you haven't hit yet" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#9876; PL helper</button>
     <button id="chOpenBtn" onclick="chChainToggle()" title="Live Complete Heal chain — who called which number, and which numbers are free" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#9877; CH chain</button>
+    <button id="lkOpenBtn" onclick="lookupToggle()" title="Item lookup — who has it, who it would upgrade, Castle DKP sales, PigParse price, where it drops (a pop-up window)" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#128269; Item lookup</button>
     <button id="twnOpenBtn" onclick="openThisWeek()" title="This Week in Norrath — weekly digest" style="font-size:.7rem;cursor:pointer;color:#666;font-family:monospace;user-select:none;margin-top:.15rem;background:none;border:none;padding:0;display:block;width:max-content;margin-left:auto;margin-right:auto;text-align:center;pointer-events:all">&#128240; This Week</button>
   </div>
   <div class="version-badge" id="versionBadge"></div>
@@ -5733,10 +5737,11 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.8.13',
+  version:'1.8.14',
   date:'November 2026',
   features:[
-    ['Group size in leveling estimates','The leveling scan now works out how many players were in your group for each party kill (who joined, who invited you, who talked in /gsay; otherwise a duo). A party kill counts for about an even share of a solo kill &mdash; half in a duo, a fifth in a full group &mdash; instead of a flat 30%, which makes level-time estimates noticeably more accurate. Your characters are rescanned once, and group sizes are shared with the guild leveling data.'],
+    ['Item lookup','A pop-up that answers everything about one item in one place: search any item and see which of your characters have it (and where), who it would upgrade (by the Outfitter&rsquo;s scoring), Castle DKP sales (60-day average, high, low, recent buyers), the PigParse price and where it drops. Open it with &#128269; Item lookup in the header, by clicking an item on an auction tile, or from Item History. It stays on top of EverQuest.'],
+    ['Item History: items you have','A green &#9679; marks items one of your characters already holds (hover to see who and where), and opening a row shows who has it, its PigParse price and where it drops.'],
   ],
   fixes:[],
 };
@@ -9982,6 +9987,7 @@ window.aucToggleWindow=function(){ if(!aucEnabled) return; if(window.MixelParseA
 if(window.MixelParseApp){
   if(window.MixelParseApp.onAuctionWindowReady) window.MixelParseApp.onAuctionWindowReady(()=>aucPush());
   if(window.MixelParseApp.onAuctionCommand) window.MixelParseApp.onAuctionCommand(c=>{
+    if(c&&c.type==='lookup'&&c.item){ lookupOpen(String(c.item)); return; }   // an item on a tile (2026-11-02)
     if(c&&c.type==='cond'){ try{localStorage.setItem('mp_auc_cond',c.on?'1':'0');}catch(e){} aucPush(); stgRefreshIfOpen(); return; }   // the window's ▤ button = Settings → Window layout
     if(c&&c.type==='autoPop'){ aucAutoPop=!!c.on; try{localStorage.setItem('mp_auc_autopop',aucAutoPop?'1':'0');}catch(e){} aucPush(); }
     if(c&&c.type==='ignore'&&c.id){ c.on?aucIgnored.add(c.id):aucIgnored.delete(c.id); }
@@ -10057,16 +10063,16 @@ function dkpChip60(itemName){
 function updateDkpBody(){
   const tbody=document.getElementById('dkpTbody');
   if(!tbody)return;
-  const rows=getDkpRows();
+  const rows=getDkpRows(), own=dkpOwnedIndex();
   const totalRows=rows.length;
   const visibleRows=rows.slice(0,(dkpPage+1)*DKP_PAGE_SIZE);
   let tableRows='';
   for(const [name,d] of visibleRows){
     const [high,low,avg,count,hist,r60avg,r60count]=d;
-    const isExp=dkpExpanded===name;
+    const isExp=dkpExpanded===name, have=own.get(dkpOwnKey(name));
     const r60cell=r60avg!=null?`<span class="dkp-avg">${r60avg}</span> <span class="dkp-count">(${r60count})</span>`:`<span class="dkp-no-data">—</span>`;
     tableRows+=`<tr class="${isExp?'dkp-expanded':''}" onclick="dkpToggle('${esc(name)}')">
-      <td><a href="${wikiUrl(name)}" target="_blank" rel="noopener" title="View on P99 wiki" onclick="event.stopPropagation()" style="color:var(--gold-light);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(name)}</a></td>
+      <td><a href="${wikiUrl(name)}" target="_blank" rel="noopener" title="View on P99 wiki" onclick="event.stopPropagation()" style="color:var(--gold-light);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(name)}</a>${have?`<span class="dkp-own" title="You have it: ${esc(dkpOwnText(have))}">●</span>`:''}</td>
       <td class="dkp-td-right">${r60cell}</td>
       <td class="dkp-td-right dkp-high">${high}</td>
       <td class="dkp-td-right dkp-avg">${avg}</td>
@@ -10075,7 +10081,7 @@ function updateDkpBody(){
     </tr>`;
     if(isExp&&hist?.length){
       const hRows=hist.map(([c,v,dt,raid,rid])=>`<tr><td>${odkpWho(c)}${odkpBal(c)}</td><td style="text-align:right;font-weight:600">${v}</td><td style="color:var(--text-muted)">${esc(odkpDate(dt))}</td><td style="color:var(--text-muted);font-size:.75rem">${rid?`<a href="#" onclick="event.stopPropagation();odkpRaidModal(${+rid});return false" title="Open this raid: ticks, items, who was credited" style="color:inherit">${esc(raid||'raid')}</a>`:esc(raid||'')}</td></tr>`).join('');
-      tableRows+=`<tr class="dkp-history-row"><td colspan="6"><div class="dkp-history-inner">
+      tableRows+=`<tr class="dkp-history-row"><td colspan="6"><div class="dkp-history-inner">${dkpItemCard(name,have)}
         <table class="dkp-history-table"><thead><tr><th>Character</th><th style="text-align:right">DKP</th><th>Date</th><th>Raid</th></tr></thead>
         <tbody>${hRows}</tbody></table></div></td></tr>`;
     }
@@ -10126,6 +10132,115 @@ window.dkpSortBy=function(col){
   updateDkpBody();
 };
 
+// your characters' holdings by item, for the green dot and the item card (player feedback, 2026-11-02). Names are
+// compared without punctuation (ODKP spells Sal`Varae's several ways); excluded characters don't count, as in itemHoldings.
+function dkpOwnKey(n){ return String(n||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+function dkpOwnedIndex(){
+  const ix=new Map();
+  for(const [cn,items] of Object.entries(chars||{})){ if(isExcludedChar(cn)) continue;
+    for(const it of items){ const k=dkpOwnKey(it.name); let a=ix.get(k); if(!a) ix.set(k,a=[]);
+      let h=a.find(x=>x.char===cn); if(!h) a.push(h={char:cn,count:0,wheres:{}});
+      const c=it.count||1, b=ssBucket(it.location); h.count+=c; h.wheres[b]=(h.wheres[b]||0)+c; } }
+  return ix;
+}
+function dkpOwnText(have){ return have.map(h=>h.char+(h.count>1?' ×'+h.count:'')+' ('+Object.keys(h.wheres).join(', ')+')').join(' · '); }
+function dkpItemCard(name,have){
+  const k=sessionGetItemPrice(name), drops=(()=>{ try{ return taskDropSources(name).slice(0,2); }catch(e){ return []; } })();
+  return '<div class="dkp-card"><span><b>YOU HAVE</b>'+(have?esc(dkpOwnText(have)):'<span style="color:var(--text-muted)">none of your characters</span>')+'</span>'
+    +(k?'<span><b>PIGPARSE</b>'+(k>=1?Math.round(k*10)/10+'k':Math.round(k*1000))+' pp</span>':'')
+    +(drops.length?'<span><b>DROPS FROM</b>'+drops.map(d=>esc(d.mob)+(d.zone?' ('+esc(d.zone)+')':'')+(d.rate!=null?' '+d.rate+'%':'')).join(' · ')+'</span>':'')
+    +'<span><a href="#" onclick="event.stopPropagation();lookupOpen(decodeURIComponent(\''+encodeURIComponent(name).replace(/'/g,'%27')+'\'));return false" title="Open in the Item lookup pop-up: who it would upgrade, every source in one place" style="color:var(--gold-light)">&#128269; Item lookup</a></span></div>';
+}
+// ── Item lookup pop-up (2026-11-02, player feedback: "it could all be in one spot") ──────────────────────────────
+// src/lookup.html sends searches and picks here; this window has the data (inventories, ODKP sales, PigParse, wiki
+// drops, the Gear Planner's scoring) and answers with suggestions or a card.
+let _lkIx=null, _lkIxKey='', _lkPending=null;
+function lookupIndex(){   // every known item name once (item DB spelling first), plus DKP names by key
+  const key=Object.keys(itemDB).length+'|'+Object.keys(dkpLookup).length+'|'+Object.values(chars||{}).reduce((a,x)=>a+x.length,0)+'|'+(platData||[]).length;
+  if(_lkIx&&key===_lkIxKey) return _lkIx;
+  const byKey=new Map(), dkp=new Map(), add=n=>{ n=String(n||'').trim(); const k=dkpOwnKey(n); if(k.length>1&&!byKey.has(k)) byKey.set(k,n); };
+  for(const n of Object.keys(itemDB)) add(n);
+  for(const items of Object.values(chars||{})) for(const it of items) add(it.name);
+  for(const n of Object.keys(dkpLookup)){ add(n); dkp.set(dkpOwnKey(n),n); }
+  for(const r of platData||[]) add(r.n);
+  _lkIxKey=key; return _lkIx={byKey,dkp};
+}
+function lookupSearch(q){
+  const ix=lookupIndex(), k=dkpOwnKey(q), words=String(q||'').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean), own=dkpOwnedIndex(), out=[];
+  if(k.length<2) return [];
+  for(const [key,name] of ix.byKey){
+    let sc;
+    if(key.startsWith(k)) sc=0;
+    else if(key.includes(k)) sc=1;
+    else{ const nl=name.toLowerCase(); if(!words.every(w=>nl.includes(w))) continue; sc=2; }
+    const d=ix.dkp.has(key)?(dkpLookup[ix.dkp.get(key)]||[])[3]||0:0;
+    out.push({name,sc,own:own.has(key),dkp:d});
+  }
+  out.sort((a,b)=>a.sc-b.sc||(b.own-a.own)||(b.dkp-a.dkp)||a.name.length-b.name.length||a.name.localeCompare(b.name));
+  return out.slice(0,12).map(x=>({name:x.name,own:x.own,dkp:x.dkp}));
+}
+function lookupClassOk(db,ab){   // the item's class line (as the Gear Planner reads it); race and deity aren't checked here
+  const c=String(db._classes||'ALL').toUpperCase();
+  if(c==='ALL') return true; if(c==='NONE') return false;
+  if(c.startsWith('ALL EXCEPT ')) return !c.slice(11).split(/\s+/).includes(ab);
+  return c.split(/\s+/).includes(ab);
+}
+function lookupInvSlot(loc){ const s=String(loc||'').toUpperCase(); return s.includes('EAR')?'EAR':s.includes('FINGER')?'FINGERS':s.includes('WRIST')?'WRIST':s; }
+const LOOKUP_SLOTS=['PRIMARY','SECONDARY','RANGE','HEAD','FACE','EAR','NECK','SHOULDERS','ARMS','BACK','WRIST','HANDS','FINGERS','CHEST','LEGS','FEET','WAIST','AMMO'];
+// your characters it would upgrade: the Outfitter's score against what they wear in that slot (the weaker of two for
+// ears / wrists / fingers); bankers and excluded characters skipped, and anyone already wearing it
+function lookupUpgrades(name,db){
+  if(!db||!(db._slots||db._slot)) return null;
+  const out=[], nk=dkpOwnKey(name);
+  for(const cn of Object.keys(chars||{})){
+    if(isExcludedChar(cn)||isBanker(cn)) continue;
+    const m=charMeta[cn]||{}, cls=m.class, lvl=+m.level||0, ab=LVL_CLASS_FULL[cls];
+    if(!cls||!lvl||!ab||!lookupClassOk(db,ab)) continue;
+    const worn=(chars[cn]||[]).filter(it=>locationType(it.location)==='equipped');
+    if(worn.some(it=>dkpOwnKey(it.name)===nk)) continue;
+    let best=null;
+    for(const slot of LOOKUP_SLOTS){
+      if(!outfitSlotMatch(db,slot,cls)||!outfitWepOk(db,slot,cls)) continue;
+      const ns=outfitScore(db,slot,cls,lvl); if(!(ns>0)) continue;
+      const here=worn.filter(it=>lookupInvSlot(it.location)===slot);
+      let cur=null, cs=0;
+      if(here.length>=(['EAR','WRIST','FINGERS'].includes(slot)?2:1)) for(const it of here){ const wd=itemDBGet(it.name), sc=wd?outfitScore(wd,slot,cls,lvl):0; if(cur==null||sc<cs){ cur=it.name; cs=sc; } }
+      if(ns<=cs*1.02) continue;
+      const g={char:cn,cls,lvl,over:cur,pct:cur&&cs>0?Math.round((ns/cs-1)*100):null,gain:ns-cs};
+      if(!best||g.gain>best.gain) best=g;
+    }
+    if(best) out.push(best);
+  }
+  return out.sort((a,b)=>b.gain-a.gain).slice(0,5);
+}
+function lookupCard(name){
+  const ix=lookupIndex(), key=dkpOwnKey(name), canon=ix.byKey.get(key)||String(name||'').trim();
+  const db=itemDBGet(canon)||null, have=dkpOwnedIndex().get(key)||null, dn=ix.dkp.get(key), d=dn?dkpLookup[dn]:null;
+  const k=sessionGetItemPrice(canon), drops=(()=>{ try{ return taskDropSources(canon).slice(0,3); }catch(e){ return []; } })();
+  if(!db&&!have&&!d&&!k&&!drops.length) return {name:canon,missing:true};
+  const card={name:canon,have:have?have.map(h=>({char:h.char,count:h.count,where:Object.keys(h.wheres).join(', ')})):[],drops};
+  if(db){ card.stats=outfitStatStr(db); card.nodrop=!!db._nodrop; card.slot=(db._slots||[db._slot]).filter(Boolean).join(' / ');
+    if(db._classes&&String(db._classes).toUpperCase()!=='ALL') card.classes=db._classes;
+    try{ card.up=lookupUpgrades(canon,db); }catch(e){ card.up=null; } }
+  if(d){ const [high,low,avg,count,hist,r60,r60n]=d;
+    card.dkp={name:dn,high,low,avg,count,r60,r60n,recent:(hist||[]).slice().sort((a,b)=>(Date.parse(b[2])||0)-(Date.parse(a[2])||0)).slice(0,6).map(([c,v,dt])=>({who:c,dkp:v,date:odkpDate(dt)}))}; }
+  if(k) card.plat=k>=1?Math.round(k*10)/10+'k pp':Math.round(k*1000)+' pp';
+  return card;
+}
+function lookupPush(s){ try{ window.MixelParseApp.pushLookupState(s); }catch(e){} }
+window.lookupToggle=function(){ if(!window.MixelParseApp||!window.MixelParseApp.toggleLookup){ alert('The item lookup pop-up is part of the MixelParse desktop app.'); return; } window.MixelParseApp.toggleLookup(); };
+window.lookupOpen=async function(name){
+  if(!name) return; if(!window.MixelParseApp||!window.MixelParseApp.openLookup){ alert('The item lookup pop-up is part of the MixelParse desktop app.'); return; }
+  _lkPending=String(name);
+  if(await window.MixelParseApp.openLookup()){ lookupPush({kind:'card',card:lookupCard(_lkPending)}); _lkPending=null; }   // already open; otherwise the ready event sends it
+};
+if(window.MixelParseApp&&window.MixelParseApp.onLookupCommand){
+  window.MixelParseApp.onLookupCommand(c=>{ if(!c) return;
+    if(c.type==='search') lookupPush({kind:'results',q:c.q,names:lookupSearch(c.q)});
+    else if(c.type==='open'&&c.name) lookupPush({kind:'card',card:lookupCard(c.name)});
+  });
+  window.MixelParseApp.onLookupWindowReady(()=>{ if(_lkPending){ lookupPush({kind:'card',card:lookupCard(_lkPending)}); _lkPending=null; } });
+}
 window.dkpToggle=function(name){
   dkpExpanded=dkpExpanded===name?null:name;
   updateDkpBody();

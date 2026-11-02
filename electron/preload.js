@@ -66,6 +66,16 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   onPlWindowReady:    (cb)      => ipcRenderer.on('pl-window-ready', () => cb()),
   disablePl:          ()        => ipcRenderer.send('pl:disable'),
   onPlDisable:        (cb)      => ipcRenderer.on('pl-disable', () => cb()),
+  // ── Item lookup window (2026-11-02) ─────────────────────────────────────────
+  toggleLookup:       ()        => ipcRenderer.invoke('lookup:toggle'),
+  openLookup:         ()        => ipcRenderer.invoke('lookup:open'),
+  closeLookup:        ()        => ipcRenderer.invoke('lookup:close'),
+  minimizeLookup:     ()        => ipcRenderer.invoke('lookup:minimize'),
+  pushLookupState:    (state)   => ipcRenderer.send('lookup:push-state', state),
+  onLookupState:      (cb)      => ipcRenderer.on('lookup-state', (_, d) => cb(d)),
+  lookupCommand:      (cmd)     => ipcRenderer.send('lookup:command', cmd),
+  onLookupCommand:    (cb)      => ipcRenderer.on('lookup-command', (_, d) => cb(d)),
+  onLookupWindowReady: (cb)     => ipcRenderer.on('lookup-window-ready', () => cb()),
   // ── CH chain window ─────────────────────────────────────────────────────────
   toggleChChain:      ()        => ipcRenderer.invoke('chchain:toggle'),
   popChChain:         ()        => ipcRenderer.invoke('chchain:pop'),

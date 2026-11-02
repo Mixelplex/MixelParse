@@ -1,9 +1,13 @@
-## 1.8.13
+## 1.8.14
+
+- **New**
+  - Item lookup pop-up: search any item; one card with your holdings, which of your characters it would upgrade (Outfitter scoring, class line only), Castle DKP sales (60-day avg, avg, high, low, recent buyers), PigParse price and drop sources. Opened from the header (🔍 Item lookup), an auction tile's item (was: the wiki — now one click away in the card) or Item History.
+  - Item History: a green ● on items your characters hold (hover: who / where); the expanded row starts with who has it, PigParse price and drops. Names are matched ignoring punctuation (ODKP's Sal`Varae spellings).
+
+Everything from 1.8.13 and earlier is included:
 
 - **New**
   - Group size in leveling estimates: each party kill is counted by group size (joins, the inviter, /gsay speakers; otherwise a duo), and weighed at about an even share (2: 0.54, 3: 0.33, 4: 0.22, 5: 0.18, 6: 0.19 of a solo kill) instead of a flat 0.3. Error per finished level fell from about ±33% to ±24% on the owner's logs. One automatic rescan; group sizes are uploaded to the shared leveling data.
-
-Everything from 1.8.12 and earlier is included:
 
 - **Fixes**
   - Clocks going back: during the repeated 1-2 AM hour when daylight saving ends, live log lines were read as an hour old (kills, timers, alerts, buffs); they're now read as current.

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Item Lookup — MixelParse</title>
+<style>
+/* Item lookup pop-up (player feedback via the owner, 2026-11-02: "if i search for an item … it could display the character
+   information, and the guild dkp information and all that in the same menu"). One search, one card: who has it, who it would
+   upgrade, Castle DKP sales, PigParse price, where it drops. The main window does the work; this window only shows it. */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#17161f;--card:#24232f;--line:#353445;--line2:#45435a;--text:#ece6da;--dim:#b9b2a5;--muted:#8a8597;--gold:#e0b552;--gold2:#f3d58a;--golddk:#8a6a24;--live:#55c47f;--danger:#ef6650;--fs:14}
+html{font-size:calc(var(--fs) * 1px)}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Inter,sans-serif;overflow:hidden}
+.win{display:flex;flex-direction:column;height:100vh;border:1px solid var(--line2);border-radius:12px;overflow:hidden}
+.tb{display:flex;align-items:center;gap:.4rem;padding:0 .4rem 0 .7rem;height:2.2rem;flex-shrink:0;-webkit-app-region:drag;background:linear-gradient(180deg,#2b2738 0%,#211f2c 100%);border-bottom:1px solid var(--golddk);user-select:none}
+.tb-title{font-weight:700;font-size:.82rem;letter-spacing:.06em;color:var(--gold2);pointer-events:none;white-space:nowrap}
+.tb-sp{flex:1}.nd{-webkit-app-region:no-drag}
+.tb-btn{background:none;border:1px solid transparent;color:var(--dim);font-size:.8rem;font-weight:600;cursor:pointer;padding:.1rem .4rem;border-radius:6px}
+.tb-btn:hover{background:var(--card);border-color:var(--line2);color:var(--text)}
+.tb-x:hover{background:rgba(239,102,80,.2);border-color:rgba(239,102,80,.5);color:#fff}
+.srch{position:relative;padding:.5rem .6rem .35rem;flex-shrink:0}
+#q{width:100%;background:var(--card);border:1px solid var(--line2);border-radius:8px;color:var(--text);font-size:1rem;padding:.4rem .6rem;outline:none}
+#q:focus{border-color:var(--gold)}
+.sugg{position:absolute;left:.6rem;right:.6rem;top:calc(100% - .2rem);background:#1e1d28;border:1px solid var(--line2);border-radius:8px;z-index:5;max-height:60vh;overflow-y:auto;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.sg{display:flex;align-items:center;gap:.4rem;padding:.3rem .6rem;cursor:pointer;font-size:.9rem}
+.sg:hover,.sg.on{background:var(--card)}
+.sg .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{font-size:.66rem;font-weight:700;border-radius:4px;padding:0 .3rem;border:1px solid var(--line2);color:var(--muted);white-space:nowrap}
+.tag.own{color:var(--live);border-color:rgba(85,196,127,.5)}.tag.dkp{color:var(--gold2);border-color:var(--golddk)}.tag.nd{color:var(--danger);border-color:rgba(239,102,80,.5)}
+.body{flex:1;overflow-y:auto;padding:.2rem .6rem .7rem}
+.empty{color:var(--muted);font-size:.85rem;text-align:center;padding:1.6rem .8rem;line-height:1.6}
+.hd{display:flex;align-items:baseline;gap:.45rem;flex-wrap:wrap;margin:.2rem 0 .15rem}
+.hd a{font-size:1.15rem;font-weight:700;color:var(--gold2);text-decoration:none;cursor:pointer}.hd a:hover{text-decoration:underline}
+.stats{font-size:.8rem;color:var(--dim);line-height:1.45;margin-bottom:.35rem}
+.sec{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.4rem .55rem;margin-top:.4rem}
+.h{font-size:.66rem;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:.2rem}
+.row{display:flex;gap:.5rem;align-items:baseline;font-size:.86rem;padding:.08rem 0}
+.row .l{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .r{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--dim)}
+.row .r b{color:var(--text)}
+.none{color:var(--muted);font-size:.84rem}
+.own{color:var(--live)}.up{color:var(--live);font-weight:700}
+.nums{display:flex;gap:.35rem;flex-wrap:wrap;margin:.1rem 0 .3rem}
+.box{flex:1;min-width:3.6rem;background:var(--bg);border:1px solid var(--line2);border-radius:6px;padding:.15rem .35rem;text-align:center}
+.box b{display:block;font-size:1.05rem;font-variant-numeric:tabular-nums}.box span{font-size:.62rem;color:var(--muted);letter-spacing:.05em}
+.box.hi b{color:var(--live)}.box.lo b{color:var(--danger)}.box.av b{color:var(--gold2)}
+.note{color:var(--muted);font-size:.7rem;margin-top:.35rem;line-height:1.4}
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="tb">
+    <span class="tb-title">&#128269; ITEM LOOKUP</span><span class="tb-sp"></span>
+    <button class="tb-btn nd" title="Smaller text" onclick="zoom(-1)">A−</button>
+    <button class="tb-btn nd" title="Bigger text" onclick="zoom(1)">A+</button>
+    <button class="tb-btn nd" title="Minimize" onclick="app('minimizeLookup')">–</button>
+    <button class="tb-btn tb-x nd" title="Close" onclick="app('closeLookup')">✕</button>
+  </div>
+  <div class="srch">
+    <input id="q" placeholder="Search any item…" autocomplete="off" spellcheck="false">
+    <div class="sugg" id="sugg" hidden></div>
+  </div>
+  <div class="body" id="body"><div class="empty">Type an item name.<br>You&rsquo;ll see who has it, who it would upgrade, what it went for in Castle DKP, its PigParse price and where it drops.</div></div>
+</div>
+<script>
+const A = window.MixelParseApp || {};
+function app(f, x){ try{ if (A[f]) A[f](x); }catch(e){} }
+let fs = 14; try{ fs = +localStorage.getItem('mp_lookup_fs') || 14; }catch(e){}
+function zoom(d){ fs = Math.max(11, Math.min(22, fs + d)); document.documentElement.style.setProperty('--fs', fs); try{ localStorage.setItem('mp_lookup_fs', fs); }catch(e){} }
+document.documentElement.style.setProperty('--fs', fs);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const q = document.getElementById('q'), sugg = document.getElementById('sugg'), body = document.getElementById('body');
+let names = [], sel = -1, timer = null, lastQ = '';
+
+q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { lastQ = q.value.trim(); if (lastQ.length < 2) { names = []; drawSugg(); return; } app('lookupCommand', { type: 'search', q: lastQ }); }, 120); });
+q.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { if (!names.length) return; sel = (sel + (e.key === 'ArrowDown' ? 1 : -1) + names.length) % names.length; drawSugg(); e.preventDefault(); }
+  else if (e.key === 'Enter') { const n = names[sel >= 0 ? sel : 0]; if (n) pick(n.name); else if (q.value.trim()) app('lookupCommand', { type: 'open', name: q.value.trim() }); }
+  else if (e.key === 'Escape') { names = []; drawSugg(); }
+});
+document.addEventListener('mousedown', e => { if (!sugg.contains(e.target) && e.target !== q) { names = []; drawSugg(); } });
+function pick(n){ q.value = n; names = []; drawSugg(); app('lookupCommand', { type: 'open', name: n }); }
+function drawSugg(){
+  sugg.hidden = !names.length;
+  sugg.innerHTML = names.map((n, i) => '<div class="sg' + (i === sel ? ' on' : '') + '" data-i="' + i + '"><span class="n">' + esc(n.name) + '</span>'
+    + (n.own ? '<span class="tag own">● have</span>' : '') + (n.dkp ? '<span class="tag dkp">DKP ×' + n.dkp + '</span>' : '') + '</div>').join('');
+}
+sugg.addEventListener('mousedown', e => { const r = e.target.closest('.sg'); if (r) { e.preventDefault(); pick(names[+r.dataset.i].name); } });
+
+function sec(h, inner){ return '<div class="sec"><div class="h">' + h + '</div>' + inner + '</div>'; }
+function render(c){
+  if (!c) return;
+  if (c.missing) { body.innerHTML = '<div class="empty">Nothing known about &ldquo;' + esc(c.name) + '&rdquo; yet &mdash; check the spelling, or it isn&rsquo;t in the item database, DKP history or anyone&rsquo;s inventory.</div>'; return; }
+  let h = '<div class="hd"><a title="Open on the P99 wiki" onclick="app(\'lookupCommand\',{type:\'wiki\',name:' + esc(JSON.stringify(c.name)) + '})">' + esc(c.name) + '</a>'
+    + (c.nodrop ? '<span class="tag nd">NO DROP</span>' : '') + (c.slot ? '<span class="tag">' + esc(c.slot) + '</span>' : '') + '</div>';
+  if (c.stats || c.classes) h += '<div class="stats">' + esc(c.stats || '') + (c.classes ? (c.stats ? '<br>' : '') + 'Class: ' + esc(c.classes) : '') + '</div>';
+  h += sec('YOU HAVE', c.have && c.have.length ? c.have.map(x => '<div class="row"><span class="l own">● ' + esc(x.char) + '</span><span class="r">' + (x.count > 1 ? '×' + x.count + ' · ' : '') + esc(x.where) + '</span></div>').join('') : '<div class="none">None of your characters.</div>');
+  if (c.up) h += sec('UPGRADE FOR', c.up.length ? c.up.map(x => '<div class="row"><span class="l">' + esc(x.char) + ' <span style="color:var(--muted);font-size:.78rem">' + esc(x.cls) + ' ' + x.lvl + '</span></span><span class="r">' + (x.over ? '<span class="up">' + (x.pct != null ? '+' + x.pct + '%' : 'better') + '</span> over ' + esc(x.over) : '<span class="up">fills an empty slot</span>') + '</span></div>').join('') : '<div class="none">None of your characters &mdash; worse than what they wear, or no class can use it.</div>');
+  if (c.dkp) {
+    const d = c.dkp;
+    h += sec('CASTLE DKP' + (d.name !== c.name ? ' &middot; ' + esc(d.name) : ''), '<div class="nums">'
+      + (d.r60 != null ? '<div class="box av"><b>' + d.r60 + '</b><span>60D AVG (' + d.r60n + ')</span></div>' : '')
+      + '<div class="box av"><b>' + d.avg + '</b><span>AVG</span></div><div class="box hi"><b>' + d.high + '</b><span>HIGH</span></div><div class="box lo"><b>' + d.low + '</b><span>LOW</span></div><div class="box"><b>' + d.count + '</b><span>SALES</span></div></div>'
+      + d.recent.map(r => '<div class="row"><span class="l">' + esc(r.who) + '</span><span class="r"><b>' + r.dkp + '</b> · ' + esc(r.date) + '</span></div>').join(''));
+  } else h += sec('CASTLE DKP', '<div class="none">Never sold for DKP.</div>');
+  if (c.plat) h += sec('PIGPARSE', '<div class="row"><span class="l">Plat price (Green)</span><span class="r"><b>' + esc(c.plat) + '</b></span></div>');
+  if (c.drops && c.drops.length) h += sec('DROPS FROM', c.drops.map(x => '<div class="row"><span class="l">' + esc(x.mob) + (x.zone ? ' <span style="color:var(--muted)">(' + esc(x.zone) + ')</span>' : '') + '</span><span class="r">' + (x.rate != null ? x.rate + '%' : '') + '</span></div>').join(''));
+  body.innerHTML = h;
+}
+if (A.onLookupState) A.onLookupState(s => {
+  if (!s) return;
+  if (s.kind === 'results') { if (s.q !== lastQ) return; names = s.names || []; sel = names.length ? 0 : -1; drawSugg(); }
+  else if (s.kind === 'card') { if (s.card && s.card.name && document.activeElement !== q) q.value = s.card.name; render(s.card); }
+  else if (s.kind === 'focus') { q.focus(); q.select(); }
+});
+q.focus();
+</script>
+</body>
+</html>

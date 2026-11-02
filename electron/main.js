@@ -41,6 +41,7 @@ let auctionWindow = null;   // live DKP auction board (2026-10-05)
 let timersWindow = null;    // spell timers pop-up (2026-10-18)
 let chChainWindow = null;   // live CH chain (2026-10-18)
 let plWindow = null;        // power-levelling helper (2026-10-18)
+let lookupWindow = null;    // item lookup pop-up (2026-11-02)
 let reportWindow  = null;
 let mapWindow     = null;
 let tray          = null;
@@ -243,6 +244,31 @@ function createPlWindow(focus) {
   plWindow.webContents.once('dom-ready', () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('pl-window-ready'); });
   plWindow.on('resize', _plSaveBounds); plWindow.on('move', _plSaveBounds);
   plWindow.on('closed', () => { plWindow = null; });
+}
+
+// ─── Item lookup window (2026-11-02) — same kind of overlay; the main window answers its searches ───
+function _lkBoundsFile() { return path.join(app.getPath('userData'), 'lookup-window.json'); }
+function _lkLoadBounds() { try { const b = JSON.parse(fs.readFileSync(_lkBoundsFile(), 'utf8')); if (!b || !(b.width > 150) || !(b.height > 80)) return null;
+  const { screen } = require('electron'); const on = screen.getAllDisplays().some(d => { const a = d.workArea; return b.x + 60 > a.x && b.x < a.x + a.width - 60 && b.y >= a.y - 10 && b.y < a.y + a.height - 40; }); return on ? b : { width: b.width, height: b.height }; } catch (e) { return null; } }
+let _lkSaveT = null;
+function _lkSaveBounds() { clearTimeout(_lkSaveT); _lkSaveT = setTimeout(() => { try { if (lookupWindow && !lookupWindow.isDestroyed() && !lookupWindow.isMinimized()) fs.writeFileSync(_lkBoundsFile(), JSON.stringify(lookupWindow.getBounds())); } catch (e) {} }, 500); }
+function createLookupWindow() {
+  if (lookupWindow && !lookupWindow.isDestroyed()) { if (lookupWindow.isMinimized()) lookupWindow.restore(); lookupWindow.show(); lookupWindow.setAlwaysOnTop(true, 'screen-saver'); return false; }
+  const _b = _lkLoadBounds() || {};
+  lookupWindow = new BrowserWindow({
+    width: _b.width || 360, height: _b.height || 520, ...(_b.x != null ? { x: _b.x, y: _b.y } : {}), minWidth: 260, minHeight: 200, resizable: true, frame: false, alwaysOnTop: true,
+    skipTaskbar: false, show: false, title: 'Item Lookup — MixelParse', icon: ICON_PATH, backgroundColor: '#17161f',
+    webPreferences: { nodeIntegration: false, contextIsolation: true, preload: path.join(__dirname, 'preload.js') },
+  });
+  lookupWindow.setAlwaysOnTop(true, 'screen-saver');
+  lookupWindow.on('restore', () => { if (lookupWindow && !lookupWindow.isDestroyed()) lookupWindow.setAlwaysOnTop(true, 'screen-saver'); });
+  lookupWindow.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:\/\//i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
+  lookupWindow.loadFile(path.join(ROOT, 'src', 'lookup.html'));
+  lookupWindow.once('ready-to-show', () => { if (lookupWindow && !lookupWindow.isDestroyed()) lookupWindow.show(); });
+  lookupWindow.webContents.once('dom-ready', () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('lookup-window-ready'); });
+  lookupWindow.on('resize', _lkSaveBounds); lookupWindow.on('move', _lkSaveBounds);
+  lookupWindow.on('closed', () => { lookupWindow = null; });
+  return true;
 }
 
 // ─── CH Chain window (2026-10-18) — same kind of overlay as the Timers window ───
@@ -933,6 +959,20 @@ ipcMain.handle('pl:close', () => { if (plWindow && !plWindow.isDestroyed()) plWi
 ipcMain.on('pl:disable', () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('pl-disable'); });   // the window's "Turn off" = Settings → Off
 ipcMain.handle('pl:minimize', () => { if (plWindow && !plWindow.isDestroyed()) plWindow.minimize(); });
 ipcMain.on('pl:push-state', (event, state) => { if (plWindow && !plWindow.isDestroyed()) plWindow.webContents.send('pl-state', state); });
+// ── Item lookup window IPC (2026-11-02) ─────────────────────────────────────────
+ipcMain.handle('lookup:toggle', () => {
+  if (lookupWindow && !lookupWindow.isDestroyed() && lookupWindow.isVisible() && !lookupWindow.isMinimized()) { lookupWindow.hide(); return false; }
+  if (!createLookupWindow() && lookupWindow) lookupWindow.webContents.send('lookup-state', { kind: 'focus' });
+  return true;
+});
+ipcMain.handle('lookup:open', () => !createLookupWindow());   // true = the window was already there (ready for a card now)
+ipcMain.handle('lookup:close', () => { if (lookupWindow && !lookupWindow.isDestroyed()) lookupWindow.close(); });
+ipcMain.handle('lookup:minimize', () => { if (lookupWindow && !lookupWindow.isDestroyed()) lookupWindow.minimize(); });
+ipcMain.on('lookup:push-state', (event, state) => { if (lookupWindow && !lookupWindow.isDestroyed()) lookupWindow.webContents.send('lookup-state', state); });
+ipcMain.on('lookup:command', (event, cmd) => {
+  if (cmd && cmd.type === 'wiki' && typeof cmd.name === 'string') { shell.openExternal('https://wiki.project1999.com/' + encodeURIComponent(cmd.name.trim().replace(/ /g, '_'))); return; }
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('lookup-command', cmd);
+});
 ipcMain.handle('chchain:toggle', () => {
   if (chChainWindow && !chChainWindow.isDestroyed() && chChainWindow.isVisible() && !chChainWindow.isMinimized()) { chChainWindow.hide(); return false; }
   createChChainWindow(true); return true;
