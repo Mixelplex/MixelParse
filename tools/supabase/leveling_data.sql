@@ -34,6 +34,9 @@ alter table public.leveling_data add column if not exists level_quest int not nu
 -- 1.7.11: XP estimated from the P99 wiki's mob levels (mob level² per kill, group kills × 0.3)
 alter table public.leveling_data add column if not exists xp_est      double precision not null default 0;
 alter table public.leveling_data add column if not exists xp_known    int not null default 0;
+-- 1.8.13: party kills by group size, {"2":n,"3":n,…,"6":n} (joins + /gsay speakers; no evidence = 2). The XP estimate
+-- weighs a party kill by size (about an even split) instead of a flat 0.3; null = an older app's row.
+alter table public.leveling_data add column if not exists xp_gs       jsonb;
 
 create index if not exists leveling_data_level_idx on public.leveling_data (level);
 

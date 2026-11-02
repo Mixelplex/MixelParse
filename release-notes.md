@@ -1,9 +1,12 @@
-## 1.8.12
+## 1.8.13
+
+- **New**
+  - Group size in leveling estimates: each party kill is counted by group size (joins, the inviter, /gsay speakers; otherwise a duo), and weighed at about an even share (2: 0.54, 3: 0.33, 4: 0.22, 5: 0.18, 6: 0.19 of a solo kill) instead of a flat 0.3. Error per finished level fell from about ±33% to ±24% on the owner's logs. One automatic rescan; group sizes are uploaded to the shared leveling data.
+
+Everything from 1.8.12 and earlier is included:
 
 - **Fixes**
   - Clocks going back: during the repeated 1-2 AM hour when daylight saving ends, live log lines were read as an hour old (kills, timers, alerts, buffs); they're now read as current.
-
-Everything from 1.8.11 and earlier is included:
 
 - **New**
   - "Not magic weapon" alert: INVULNERABLE! on your swings means the mob needs a magic weapon; the app says "Not magic weapon" and names the character and mob (at most every 20 s). Mobs you've already hit with a weapon are skipped (Divine Aura).

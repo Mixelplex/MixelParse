@@ -5733,12 +5733,12 @@ function dismissHelp(){
 // ── What's New splash — shown once per version (mp_whatsnew_seen), reopenable from
 // the nav. Keep in sync with release-notes.md (the GitHub release notes). ──────
 const WHATS_NEW={
-  version:'1.8.12',
-  date:'October 2026',
-  features:[],
-  fixes:[
-    ['Clocks going back (Nov 1)','When daylight saving ends, 1:00&ndash;2:00 AM happens twice. Kills, timers, alerts and buff tracking during the second pass were treated as an hour old; MixelParse now reads them as just happened.'],
+  version:'1.8.13',
+  date:'November 2026',
+  features:[
+    ['Group size in leveling estimates','The leveling scan now works out how many players were in your group for each party kill (who joined, who invited you, who talked in /gsay; otherwise a duo). A party kill counts for about an even share of a solo kill &mdash; half in a duo, a fifth in a full group &mdash; instead of a flat 30%, which makes level-time estimates noticeably more accurate. Your characters are rescanned once, and group sizes are shared with the guild leveling data.'],
   ],
+  fixes:[],
 };
 function showWhatsNew(){
   document.getElementById('whatsNewVersion').textContent='v'+WHATS_NEW.version;
@@ -11048,11 +11048,17 @@ const LVLD_STYLE={Warrior:'melee',Rogue:'melee',Monk:'monk',Paladin:'melee','Sha
 const LVLD_STYLE_NAME={melee:'melee',monk:'feign-death pulling',charm:'charm',pet:'pet',kite:'caster',priest:'priest'};
 // raid zones are never a leveling recommendation (owner, 2026-10-07) — Sky is 'Plane of Air' in the log
 const LVLD_RAID_ZONES=new Set(['Plane of Hate','Plane of Fear','Plane of Sky','Plane of Air','Plane of Growth']);
-const LVLD_SCAN_V=4;   // 4: power-levelled rows (solo XP from another player's kills) flagged   // 2: quest turn-ins split from kills · 3: per-mob counts for the mob-level XP estimate — older scans are redone
+const LVLD_SCAN_V=5;   // 5: party kills by group size (xp_gs, mk[mob][2..6])   // 4: power-levelled rows (solo XP from another player's kills) flagged   // 2: quest turn-ins split from kills · 3: per-mob counts for the mob-level XP estimate — older scans are redone
 // XP per kill ≈ LVLD_XP_K × (mob level)², group kills × LVLD_XP_GROUP (P99 wiki NPC levels, mob-levels.js).
 // Calibrated 2026-10-07 on 123 finished levels from the owner's logs: typical error per level ±51% (counting kills: ±79%).
 // Con colour made no difference once kept monotonic; level² beat 1.5 / 1.75 / 2.5.
 const LVLD_XP_K=90.16, LVLD_XP_GROUP=0.3;
+// a party kill's share by group size (index = size), fitted 2026-10-31 on 160 finished levels of the owner's characters:
+// 2 .54 · 4 .22 · 5 .18 · 6 .19, about an even split; 3 came out .50 on thin data, so 1/3 until more data. Error per level
+// ±33% → ±24%. Rows without sizes (older scans, other players' shared rows) keep LVLD_XP_GROUP.
+const LVLD_XP_GS=[0,0,0.54,0.33,0.22,0.18,0.19];
+function lvldGroupW(sized,g){ let k=0,n=0; for(let i=2;i<=6;i++){ const c=sized[i]||0; k+=LVLD_XP_GS[i]*c; n+=c; } return k+LVLD_XP_GROUP*Math.max(0,g-n); }
+function lvldGroupKills(r){ return r.xp_gs?lvldGroupW(r.xp_gs,r.xp_group||0):LVLD_XP_GROUP*(r.xp_group||0); }
 let _lvldMobIdx=null;
 function lvldMobLevel(mob,zone){
   const M=window.MOB_LEVELS; if(!M||!mob) return null;
@@ -11064,7 +11070,7 @@ function lvldMobLevel(mob,zone){
 // fills r.xp_est (estimated XP earned in this row) and r.xp_known (kills whose mob level is known), drops r.mk
 function lvldEstimateRow(r){
   const mk=r.mk||{}; let base=0, known=0;
-  for(const [mob,[s,g]] of Object.entries(mk)){ const ml=lvldMobLevel(mob,r.zone); if(ml==null) continue; base+=ml*ml*(s+g*LVLD_XP_GROUP); known+=s+g; }
+  for(const [mob,e] of Object.entries(mk)){ const [s,g]=e, ml=lvldMobLevel(mob,r.zone); if(ml==null) continue; base+=ml*ml*(s+(e.length>2?lvldGroupW(e,g):g*LVLD_XP_GROUP)); known+=s+g; }
   const total=(r.xp_solo||0)+(r.xp_group||0);
   r.xp_known=known; r.xp_est=known?Math.round(LVLD_XP_K*base*total/known):0;
   delete r.mk; return r;
@@ -11107,20 +11113,26 @@ async function lvldUpload(){
   const rows=[];
   for(const n of names){ const r=lvldMine.chars[n], m=charMeta[n]||{};
     for(const x of r.rows||[]){ const lv=(r.levels||{})[x.level]||{}; if(x.pl) continue;   // power-levelled: not a leveling spot for anyone
-      rows.push({char_name:n,class:m.class||null,race:m.race||null,level:x.level,zone:x.zone,hunt_ms:x.hunt_ms,played_ms:x.played_ms,xp_solo:x.xp_solo,xp_group:x.xp_group,deaths:x.deaths,xp_quest:x.xp_quest||0,xp_est:x.xp_est||0,xp_known:x.xp_known||0,
+      rows.push({char_name:n,class:m.class||null,race:m.race||null,level:x.level,zone:x.zone,hunt_ms:x.hunt_ms,played_ms:x.played_ms,xp_solo:x.xp_solo,xp_group:x.xp_group,deaths:x.deaths,xp_quest:x.xp_quest||0,xp_est:x.xp_est||0,xp_known:x.xp_known||0,xp_gs:x.xp_gs&&Object.keys(x.xp_gs).length?x.xp_gs:null,
         level_xp_total:lv.xp||0,level_quest:lv.quest||0,level_done:!!lv.done,mobs:x.mobs||{},first_at:x.first_at?new Date(x.first_at).toISOString():null,last_at:x.last_at?new Date(x.last_at).toISOString():null}); } }
   try{
     const del=await sb.from('leveling_data').delete().eq('user_id',currentUser.id).in('char_name',names); if(del.error) throw del.error;
-    // a table without the 1.7.11 columns (xp_est / xp_known) still takes the rest
-    let strip=false;
-    for(let i=0;i<rows.length;i+=500){ const part=rows.slice(i,i+500).map(r=>{ if(!strip) return r; const o=Object.assign({},r); delete o.xp_est; delete o.xp_known; return o; });
+    // a table without the newer columns (1.7.11 xp_est / xp_known, 1.8.13 xp_gs) still takes the rest
+    const strip=new Set();
+    for(let i=0;i<rows.length;i+=500){ const part=rows.slice(i,i+500).map(r=>{ if(!strip.size) return r; const o=Object.assign({},r); for(const k of strip) delete o[k]; return o; });
       let {error}=await sb.from('leveling_data').insert(part);
-      if(error&&!strip&&/xp_est|xp_known/i.test(error.message||'')){ strip=true; i-=500; continue; }
+      const miss=error?LVLD_NEW_COLS.filter(k=>!strip.has(k)&&new RegExp(k,'i').test(error.message||'')):[];
+      if(miss.length){ miss.forEach(k=>strip.add(k)); i-=500; continue; }
       if(error) throw error; }
     lvldMine.uploaded=Date.now(); lvldMine.uploadErr=null;
   }catch(e){ lvldMine.uploadErr=(e&&e.message)||String(e); console.warn('[LVL] upload failed',e); }
   lvldSaveMine(); lvldGuild.at=0; lvldRefresh();
 }
+// select with the newer columns; a table without them (its SQL not re-run yet) answers without them
+const LVLD_NEW_COLS=['xp_gs','xp_est','xp_known'];
+async function lvldSel(cols,q){ let c=cols.split(','); for(;;){ const r=await q(sb.from('leveling_data').select(c.join(',')));
+  const miss=r.error?LVLD_NEW_COLS.filter(k=>c.includes(k)&&new RegExp(k,'i').test(r.error.message||'')):[];
+  if(!miss.length) return r; c=c.filter(k=>!miss.includes(k)); } }
 async function lvldLoadGuild(L){
   const lo=Math.max(1,L-4), hi=Math.min(59,L+8), band=lo+'-'+hi;
   if(lvldGuild.loading||(lvldGuild.band===band&&Date.now()-lvldGuild.at<10*60e3)) return;
@@ -11129,8 +11141,7 @@ async function lvldLoadGuild(L){
   try{
     const out=[];
     for(let i=0;i<20000;i+=1000){
-      let {data,error}=await sb.from('leveling_data').select('user_id,char_name,class,race,level,zone,hunt_ms,played_ms,xp_solo,xp_group,xp_quest,xp_est,xp_known,deaths,level_xp_total,level_quest,level_done,mobs').gte('level',lo).lte('level',hi).order('id').range(i,i+999);
-      if(error&&/xp_est|xp_known/i.test(error.message||'')) ({data,error}=await sb.from('leveling_data').select('user_id,char_name,class,race,level,zone,hunt_ms,played_ms,xp_solo,xp_group,xp_quest,deaths,level_xp_total,level_quest,level_done,mobs').gte('level',lo).lte('level',hi).order('id').range(i,i+999));
+      const {data,error}=await lvldSel('user_id,char_name,class,race,level,zone,hunt_ms,played_ms,xp_solo,xp_group,xp_quest,xp_est,xp_known,xp_gs,deaths,level_xp_total,level_quest,level_done,mobs',q=>q.gte('level',lo).lte('level',hi).order('id').range(i,i+999));
       if(error) throw error; out.push(...(data||[])); if(!data||data.length<1000) break;
     }
     lvldGuild={rows:out,at:Date.now(),band,err:null,loading:false};
@@ -11201,7 +11212,7 @@ function lvldConMod(L,m){ const rd=x=>x-Math.floor(x)<0.51?Math.floor(x):Math.ce
   const blue=rd(L*0.75), lb=rd(L*0.66); return m>=blue?1:m>=lb?0.8:m===lb-1?0.5:0.25; }
 function lvldConAvg(L,m){ let t=0; for(let d=-2;d<=2;d++) t+=lvldConMod(L,Math.round(m)+d); return t/5; }
 // the row's typical mob level: its mobs' levels, else back out of its XP estimate (xp_est = K × level² per kill)
-function lvldRowMobLevel(r){ const a=lvldMobAvg(r); if(a!=null) return a; const k=(r.xp_solo||0)+LVLD_XP_GROUP*(r.xp_group||0); return r.xp_est>0&&k>0?Math.sqrt(r.xp_est/(LVLD_XP_K*k)):null; }
+function lvldRowMobLevel(r){ const a=lvldMobAvg(r); if(a!=null) return a; const k=(r.xp_solo||0)+lvldGroupKills(r); return r.xp_est>0&&k>0?Math.sqrt(r.xp_est/(LVLD_XP_K*k)):null; }
 // a measured row's XP carried to level Lt: level² for share-measured rows (level-appropriate mobs); for mob-measured rows the
 // same mobs at their own level, with the con change (Cobalt Scar wyverns: blue at 52, light blue / high green at 57–59)
 function lvldXpAt(sm,Lt){
@@ -11309,8 +11320,7 @@ async function lvldLoadAll(){
   lvldAll.loading=true;
   try{ const out=[];
     for(let i=0;i<100000;i+=1000){
-      let {data,error}=await sb.from('leveling_data').select('user_id,char_name,class,race,level,zone,hunt_ms,xp_solo,xp_group,xp_est,xp_known,deaths,level_xp_total,level_quest,level_done').order('id').range(i,i+999);
-      if(error&&/xp_est|xp_known/i.test(error.message||'')) ({data,error}=await sb.from('leveling_data').select('user_id,char_name,class,race,level,zone,hunt_ms,xp_solo,xp_group,deaths,level_xp_total,level_quest,level_done').order('id').range(i,i+999));
+      const {data,error}=await lvldSel('user_id,char_name,class,race,level,zone,hunt_ms,xp_solo,xp_group,xp_est,xp_known,xp_gs,deaths,level_xp_total,level_quest,level_done',q=>q.order('id').range(i,i+999));
       if(error) throw error; out.push(...(data||[])); if(!data||data.length<1000) break; }
     lvldAll={rows:out,at:Date.now(),err:null,loading:false};
   }catch(e){ lvldAll={rows:[],at:Date.now(),err:(e&&e.message)||String(e),loading:false}; }

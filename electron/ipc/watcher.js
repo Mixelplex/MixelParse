@@ -2075,7 +2075,10 @@ async function scanKillCountsAllLogs(charFilter) {
 //   played_ms — time between any two log lines ≤ 5 min apart;
 //   xp_solo / xp_group — kills: "You gain experience!!" / "You gain party experience!!" right after a slain line
 //               (P99 never logs the amount); xp_quest — the same XP lines with no kill (quest turn-ins);
-//   deaths, mobs (the "slain" line just before each XP message).
+//   deaths, mobs (the "slain" line just before each XP message);
+//   xp_gs — group kills by group size {2..6}: members seen joining (and the inviter when you join) plus /gsay speakers,
+//               minus "has left"; a party kill with no evidence counts as 2 (owner, 2026-10-31). A quiet member is
+//               missed, so it's a lower bound. mk[mob][2..6] holds the same per mob.
 // A level is "done" only when it was entered by a ding AND left by the next ding — a level re-entered after
 // "You LOST a level!" isn't a full level. Lines before the first level message are skipped (level unknown).
 const RE_LV_GAIN = /(?:You have gained a level! )?Welcome to level (\d+)!$/;
@@ -2084,6 +2087,7 @@ const RE_LV_XP = /^You gain (party )?experience!!$/;
 const RE_LV_SLAIN = /^(?:You have slain (.+?)|(.+?) has been slain by (.+?))!$/;
 const RE_LV_PET = /^([A-Z][a-z]+) tells you, 'Attacking .+ Master\.'$/;   // your pet's name — its kills are yours, not a power-level
 const RE_LV_ZONE = /^You have entered (.+)\.$/;
+const RE_LV_GRP = /^(?:([A-Z][a-z]+) (has joined the group|has left the group|tells the group, |invites you to join a group)|You have (formed|joined) the group\.$|You have been removed from the group|Your group has been disbanded|You have left the group)/;
 let _lvlScanRunning = false;
 async function scanLeveling(charFilter) {
   if (_lvlScanRunning) { broadcast({ type: 'levelScanResult', error: 'A leveling scan is already running' }); return; }
@@ -2103,9 +2107,9 @@ async function scanLeveling(charFilter) {
     const results = {}; let done = 0;
     for (const [k, files] of byChar) {
       const name = wanted.get(k); files.sort((a, b) => a.mt - b.mt);
-      const st = { level: null, byGain: false, zone: null, lastTs: 0, maxTs: 0, lastXpTs: 0, lastXpZone: null, slain: null, pets: new Set() };
+      const st = { level: null, byGain: false, zone: null, lastTs: 0, maxTs: 0, lastXpTs: 0, lastXpZone: null, slain: null, pets: new Set(), grp: null, inviter: null };
       const agg = {}, levels = {};
-      const A = (L, z) => { const key = L + '|' + z; return agg[key] || (agg[key] = { level: L, zone: z, hunt_ms: 0, played_ms: 0, xp_solo: 0, xp_group: 0, xp_quest: 0, xp_pl: 0, deaths: 0, mobs: {}, mk: {}, first: 0, last: 0 }); };
+      const A = (L, z) => { const key = L + '|' + z; return agg[key] || (agg[key] = { level: L, zone: z, hunt_ms: 0, played_ms: 0, xp_solo: 0, xp_group: 0, xp_quest: 0, xp_pl: 0, deaths: 0, mobs: {}, mk: {}, xp_gs: {}, first: 0, last: 0 }); };
       const LV = L => levels[L] || (levels[L] = { done: false, xp: 0, quest: 0, start: 0, end: 0 });
       for (const { fp } of files) {
         broadcast({ type: 'levelScanProgress', charName: name, idx: done + 1, total: byChar.size });
@@ -2125,6 +2129,16 @@ async function scanLeveling(charFilter) {
             if ((m = RE_LV_ZONE.exec(msg))) { if (!/^an? (area|arena)/i.test(m[1])) st.zone = m[1]; return; }
             if ((m = RE_LV_SLAIN.exec(msg))) { st.slain = { mob: (m[1] || m[2] || '').trim(), by: m[1] ? 'You' : (m[3] || '').trim(), ts }; return; }
             if (msg.indexOf(' tells you, ') > 0 && (m = RE_LV_PET.exec(msg))) { st.pets.add(m[1]); return; }
+            if (msg.indexOf(' group') > 0 && (m = RE_LV_GRP.exec(msg))) {   // group roster: names other than yours
+              const n = m[1], what = m[2];
+              if (what === 'invites you to join a group') st.inviter = n;
+              else if (what === 'has left the group') { if (st.grp) st.grp.delete(n); }
+              else if (what) { if (!st.grp) st.grp = new Set(); st.grp.add(n); }   // joined / talks in /gsay
+              else if (m[3]) { st.grp = new Set(m[3] === 'joined' && st.inviter ? [st.inviter] : []); st.inviter = null; }
+              else st.grp = null;                                            // removed / disbanded / left
+              return;
+            }
+            if (msg === 'Welcome to EverQuest!') st.grp = null;             // camping out leaves the group
             if ((m = RE_LV_XP.exec(msg))) {
               if (st.level == null) return;
               const z = st.zone || 'Unknown', a = A(st.level, z);
@@ -2134,12 +2148,13 @@ async function scanLeveling(charFilter) {
               // range prints no "slain" line.
               const slain = st.slain && ts - st.slain.ts <= 3000 ? st.slain : null;
               if (!m[1] && !slain && wasTurnin) { a.xp_quest++; LV(st.level).quest++; if (!a.first) a.first = ts; a.last = ts; return; }
-              if (m[1]) a.xp_group++; else { a.xp_solo++; if (slain && slain.by !== 'You' && /^[A-Z][a-z]+$/.test(slain.by) && slain.by !== name && !st.pets.has(slain.by)) a.xp_pl++; }   // solo XP from another player's kill: power-levelled
+              const gs = m[1] ? Math.min(6, Math.max(2, 1 + (st.grp ? st.grp.size : 0))) : 0;
+              if (m[1]) { a.xp_group++; a.xp_gs[gs] = (a.xp_gs[gs] || 0) + 1; } else { a.xp_solo++; if (slain && slain.by !== 'You' && /^[A-Z][a-z]+$/.test(slain.by) && slain.by !== name && !st.pets.has(slain.by)) a.xp_pl++; }   // solo XP from another player's kill: power-levelled
               a.hunt_ms += st.lastXpTs && st.lastXpZone === z && ts - st.lastXpTs <= 10 * 60e3 ? ts - st.lastXpTs : 60e3;
               st.lastXpTs = ts; st.lastXpZone = z;
               if (slain && slain.mob && !/^you$/i.test(slain.mob)) {
                 a.mobs[slain.mob] = (a.mobs[slain.mob] || 0) + 1;
-                const e = a.mk[slain.mob] || (a.mk[slain.mob] = [0, 0]); e[m[1] ? 1 : 0]++;   // [solo, group] — XP estimate from the mob's level
+                const e = a.mk[slain.mob] || (a.mk[slain.mob] = [0, 0, 0, 0, 0, 0, 0]); e[m[1] ? 1 : 0]++; if (gs) e[gs]++;   // [solo, group, by size 2..6] — XP estimate from the mob's level
               }
               st.slain = null;
               if (!a.first) a.first = ts; a.last = ts;
@@ -2160,7 +2175,7 @@ async function scanLeveling(charFilter) {
       }
       done++;
       const rows = Object.values(agg).filter(a => a.xp_solo + a.xp_group + a.xp_quest > 0 || a.played_ms >= 5 * 60e3).map(a => ({
-        level: a.level, zone: a.zone, hunt_ms: Math.round(a.hunt_ms), played_ms: Math.round(a.played_ms), xp_solo: a.xp_solo, xp_group: a.xp_group, xp_quest: a.xp_quest, xp_pl: a.xp_pl, pl: a.xp_pl >= 0.3 * Math.max(1, a.xp_solo + a.xp_group),
+        level: a.level, zone: a.zone, hunt_ms: Math.round(a.hunt_ms), played_ms: Math.round(a.played_ms), xp_solo: a.xp_solo, xp_group: a.xp_group, xp_quest: a.xp_quest, xp_pl: a.xp_pl, xp_gs: a.xp_gs, pl: a.xp_pl >= 0.3 * Math.max(1, a.xp_solo + a.xp_group),
         deaths: a.deaths, mobs: Object.fromEntries(Object.entries(a.mobs).sort((x, y) => y[1] - x[1]).slice(0, 8)), mk: a.mk,
         first_at: a.first || null, last_at: a.last || null }));
       results[name] = { rows, levels, current: st.level };
