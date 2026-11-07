@@ -138,6 +138,7 @@ contextBridge.exposeInMainWorld('MixelParseApp', {
   listUIFiles:  ()                     => ipcRenderer.invoke('ui:list'),
   socialsStatus: (char)                => ipcRenderer.invoke('socials:status', char),                  // WTS hotbuttons (2026-10-28)
   socialsWrite:  (char, buttons, force) => ipcRenderer.invoke('socials:write', char, buttons, force),
+  socialsClear:  (char, force)          => ipcRenderer.invoke('socials:clear', char, force),            // 2026-11-07
   copyUI:       (src, dst)             => ipcRenderer.invoke('ui:copy', src, dst),
   hasBaseUI:        ()                 => ipcRenderer.invoke('ui:has-base'),
   setBaseUI:        (sourceChar)       => ipcRenderer.invoke('ui:set-base', sourceChar),

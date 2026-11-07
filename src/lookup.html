@@ -96,6 +96,8 @@ function render(c){
     + (c.nodrop ? '<span class="tag nd">NO DROP</span>' : '') + (c.slot ? '<span class="tag">' + esc(c.slot) + '</span>' : '') + '</div>';
   if (c.stats || c.classes) h += '<div class="stats">' + esc(c.stats || '') + (c.classes ? (c.stats ? '<br>' : '') + 'Class: ' + esc(c.classes) : '') + '</div>';
   h += sec('YOU HAVE', c.have && c.have.length ? c.have.map(x => '<div class="row"><span class="l own">● ' + esc(x.char) + '</span><span class="r">' + (x.count > 1 ? '×' + x.count + ' · ' : '') + esc(x.where) + '</span></div>').join('') : '<div class="none">None of your characters.</div>');
+  if (c.quests && c.quests.length) h += sec('USED IN A QUEST', c.quests.slice(0, 6).map(x => '<div class="row"><span class="l">' + esc(x.q) + '</span><span class="r" style="color:var(--muted)">' + esc(x.d || '') + '</span></div>').join('')
+    + (c.quests.length > 6 ? '<div class="none">+' + (c.quests.length - 6) + ' more: ' + esc(c.quests.slice(6).map(x => x.q).join(', ')) + '</div>' : ''));
   if (c.up) h += sec('UPGRADE FOR', c.up.length ? c.up.map(x => '<div class="row"><span class="l">' + esc(x.char) + ' <span style="color:var(--muted);font-size:.78rem">' + esc(x.cls) + ' ' + x.lvl + '</span></span><span class="r">' + (x.over ? '<span class="up">' + (x.pct != null ? '+' + x.pct + '%' : 'better') + '</span> over ' + esc(x.over) : '<span class="up">fills an empty slot</span>') + '</span></div>').join('') : '<div class="none">None of your characters &mdash; worse than what they wear, or no class can use it.</div>');
   if (c.dkp) {
     const d = c.dkp;

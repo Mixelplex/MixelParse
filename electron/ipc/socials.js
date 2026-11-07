@@ -5,12 +5,16 @@
 //  - later writes only replace buttons whose text is still exactly what MixelParse wrote (an edit in game = yours);
 //  - only while the character is logged out (EQ keeps its own copy while you play and writes it back);
 //  - a backup of the ini in MixelParse's folder first; every other line of the file stays as it was.
+// 2026-11-07 (thomas): up to 4 /auction lines per button, line 5 always /outputfile inventory; "Clear WTS buttons".
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
 const PAGES = 10, BUTTONS = 12;
 const KEY = /^Page(\d+)Button(\d+)(Name|Color|Line\d)=(.*)$/;
+// a social has 5 lines: up to 4 /auction lines, and the last line always refreshes the inventory export (thomas, 2026-11-07)
+const LINES = 5, AUC_LINES = 4, INV_LINE = '/outputfile inventory';
+const WTS_NAME = /^WTS \d+$/i;
 
 function iniPath(eqDir, char) { return path.join(eqDir, char + '_P1999Green.ini'); }
 
@@ -66,13 +70,31 @@ function onlineState(logDir, char) {
   } catch (e) { return { online: true, why: 'no log for ' + char + ' — can’t tell whether it’s logged in' }; }
 }
 
-// what MixelParse wrote, per character: { page, buttons: { b: { name, line } } }
+// what MixelParse wrote, per character: { page, buttons: { b: { name, lines:[5] } } } (before 1.8.15: { name, line })
 function recFile(userData) { return path.join(userData, 'socials-written.json'); }
 function readRec(userData) { try { return JSON.parse(fs.readFileSync(recFile(userData), 'utf8')); } catch (e) { return {}; } }
 function saveRec(userData, rec) { try { fs.writeFileSync(recFile(userData), JSON.stringify(rec, null, 1)); } catch (e) {} }
 
 // is a button still exactly what MixelParse wrote there?
-const stillOurs = (s, r) => !!s && !!r && s.name === r.name && (s.lines[0] || '') === r.line && s.lines.filter(Boolean).length <= 1;
+const recLines = r => Array.isArray(r.lines) ? r.lines : [r.line || ''];
+const stillOurs = (s, r) => {
+  if (!s || !r || s.name !== r.name) return false;
+  const a = recLines(r);
+  for (let i = 0; i < Math.max(LINES, s.lines.length, a.length); i++) if ((s.lines[i] || '') !== (a[i] || '')) return false;
+  return true;
+};
+// a WTS button to clear: named "WTS n", or still exactly what MixelParse wrote
+const isWts = (s, mine) => WTS_NAME.test(s.name || '') || (!!mine && mine.page === s.page && stillOurs(s, (mine.buttons || {})[s.button]));
+
+// backup first (MixelParse's own folder; the newest 20 per character are kept)
+function backup(file, userData, char) {
+  const bdir = path.join(userData, 'ini-backups'); fs.mkdirSync(bdir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-'), key = char.toLowerCase();
+  fs.copyFileSync(file, path.join(bdir, char + '_P1999Green.' + stamp + '.ini'));
+  try { fs.readdirSync(bdir).filter(f => f.toLowerCase().startsWith(key + '_p1999green.')).sort().slice(0, -20).forEach(f => fs.unlinkSync(path.join(bdir, f))); } catch (e) {}
+  return bdir;
+}
+function save(file, out, eol) { const tmp = file + '.mptmp'; fs.writeFileSync(tmp, out.join(eol) + eol, 'latin1'); fs.renameSync(tmp, file); }
 
 // a page MixelParse may use: its own page from last time (buttons edited in game are skipped), else the highest page
 // with nothing on it and nothing of it on a hotbar
@@ -97,12 +119,33 @@ function status({ eqDir, logDir, userData }, char) {
   const { lines } = readLines(file), { socials } = parseSocials(lines), refs = hotbarSocials(lines);
   const mine = readRec(userData)[char.toLowerCase()] || null, pick = pickPage(socials, refs, mine);
   const pages = {};
-  for (const s of Object.values(socials)) (pages[s.page] = pages[s.page] || []).push({ b: s.button, name: s.name, line: (s.lines.find(Boolean) || ''), ours: !!mine && mine.page === s.page && stillOurs(s, (mine.buttons || {})[s.button]), hot: onHotbar(refs, s.page, s.button) });
+  for (const s of Object.values(socials)) (pages[s.page] = pages[s.page] || []).push({ b: s.button, name: s.name, line: (s.lines.find(Boolean) || ''), n: s.lines.filter(Boolean).length, ours: !!mine && mine.page === s.page && stillOurs(s, (mine.buttons || {})[s.button]), hot: onHotbar(refs, s.page, s.button) });
   for (const p in pages) pages[p].sort((a, b) => a.b - b.b);
-  return { ok: true, file, pages, page: pick ? pick.page : 0, reused: !!(pick && pick.reused), free: pick ? BUTTONS - pick.skip.size : 0, ...onlineState(logDir, char) };
+  const wts = Object.values(socials).filter(s => isWts(s, mine)).length;
+  return { ok: true, file, pages, wts, page: pick ? pick.page : 0, reused: !!(pick && pick.reused), free: pick ? BUTTONS - pick.skip.size : 0, ...onlineState(logDir, char) };
 }
 
-// buttons: [{ name, line }] (one /auction line each). force: write although the character looks logged in.
+// removes every WTS button (named "WTS n", or still exactly MixelParse's) from the character's socials; the page stays
+// MixelParse's, so buttons dragged to a hotbar point at the new ones after the next write. force: as for write.
+function clear({ eqDir, logDir, userData }, char, force) {
+  if (!eqDir) return { ok: false, error: 'EQ folder not set (run Setup)' };
+  const file = iniPath(eqDir, char);
+  if (!fs.existsSync(file)) return { ok: false, error: 'No ' + char + '_P1999Green.ini in the EQ folder' };
+  const on = onlineState(logDir, char);
+  if (on.online && !force) return { ok: false, online: true, error: char + ' looks logged in (' + on.why + ') — camp first' };
+  const { lines, eol } = readLines(file), sec = parseSocials(lines);
+  const rec = readRec(userData), key = char.toLowerCase(), mine = rec[key] || null;
+  const hit = Object.values(sec.socials).filter(s => isWts(s, mine));
+  if (!hit.length) return { ok: true, cleared: 0 };
+  const bdir = backup(file, userData, char), drop = new Set(hit.map(s => s.page + ',' + s.button));
+  save(file, lines.filter((l, i) => { if (sec.start < 0 || i <= sec.start || i >= sec.end) return true; const m = KEY.exec(l); return !(m && drop.has(m[1] + ',' + m[2])); }), eol);
+  const pages = [...new Set(hit.map(s => s.page))].sort((a, b) => b - a);
+  rec[key] = { page: mine && pages.includes(mine.page) ? mine.page : pages[0], buttons: {}, at: Date.now() }; saveRec(userData, rec);
+  return { ok: true, cleared: hit.length, pages, backup: bdir };
+}
+
+// buttons: [{ name, lines:[up to 4 /auction lines] }] (or the old { name, line }); line 5 is always /outputfile inventory.
+// force: write although the character looks logged in.
 function write({ eqDir, logDir, userData }, char, buttons, force) {
   if (!eqDir) return { ok: false, error: 'EQ folder not set (run Setup)' };
   const file = iniPath(eqDir, char);
@@ -114,25 +157,27 @@ function write({ eqDir, logDir, userData }, char, buttons, force) {
   const pick = pickPage(sec.socials, refs, mine);
   if (!pick) return { ok: false, error: 'No empty social page on ' + char + ' — clear one in game (Socials pages 1–10) and try again' };
   const slots = []; for (let b = 1; b <= BUTTONS; b++) if (!pick.skip.has(b)) slots.push(b);
-  if (buttons.length > slots.length) return { ok: false, error: buttons.length + ' lines but only ' + slots.length + ' free buttons on page ' + pick.page + ' — check fewer items' };
-  // backup first (MixelParse's own folder; the newest 20 per character are kept)
-  const bdir = path.join(userData, 'ini-backups'); fs.mkdirSync(bdir, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  fs.copyFileSync(file, path.join(bdir, char + '_P1999Green.' + stamp + '.ini'));
-  try { fs.readdirSync(bdir).filter(f => f.toLowerCase().startsWith(key + '_p1999green.')).sort().slice(0, -20).forEach(f => fs.unlinkSync(path.join(bdir, f))); } catch (e) {}
+  if (buttons.length > slots.length) return { ok: false, error: buttons.length + ' buttons but only ' + slots.length + ' free on page ' + pick.page + (slots.length < BUTTONS ? ' (buttons edited in game count as yours) — Clear WTS buttons, or' : ' —') + ' check fewer items' };
+  const bdir = backup(file, userData, char);
   // drop only MixelParse's own buttons on that page, then add the new ones at the end of [Socials]
   const ours = new Set(); if (pick.reused) for (let b = 1; b <= BUTTONS; b++) if (!pick.skip.has(b)) ours.add(b);
   const kept = lines.filter((l, i) => { if (sec.start < 0 || i <= sec.start || i >= sec.end) return true; const m = KEY.exec(l); return !(m && +m[1] === pick.page && ours.has(+m[2])); });
   const add = [], done = {};
-  buttons.forEach((bt, i) => { const b = slots[i], name = String(bt.name).slice(0, 32), line = String(bt.line);
-    add.push('Page' + pick.page + 'Button' + b + 'Name=' + name, 'Page' + pick.page + 'Button' + b + 'Color=0', 'Page' + pick.page + 'Button' + b + 'Line1=' + line);
-    done[b] = { name, line }; });
+  buttons.forEach((bt, i) => {
+    const b = slots[i], name = (WTS_NAME.test(bt.name || '') ? 'WTS ' + b : String(bt.name)).slice(0, 32), pre = 'Page' + pick.page + 'Button' + b;   // numbered by slot, so a kept edited "WTS 2" isn't doubled
+    const ls = (Array.isArray(bt.lines) ? bt.lines : [bt.line]).map(x => String(x || '')).filter(Boolean).slice(0, AUC_LINES), full = [];
+    for (let j = 0; j < LINES - 1; j++) full.push(ls[j] || '');
+    full.push(INV_LINE);
+    add.push(pre + 'Name=' + name, pre + 'Color=0');
+    full.forEach((x, j) => { if (x) add.push(pre + 'Line' + (j + 1) + '=' + x); });
+    done[b] = { name, lines: full };
+  });
   let out;
   if (sec.start < 0) out = kept.concat(['[Socials]'], add);
   else { const s2 = parseSocials(kept); out = kept.slice(0, s2.end).concat(add, kept.slice(s2.end)); }
-  const tmp = file + '.mptmp'; fs.writeFileSync(tmp, out.join(eol) + eol, 'latin1'); fs.renameSync(tmp, file);
+  save(file, out, eol);
   rec[key] = { page: pick.page, buttons: done, at: Date.now() }; saveRec(userData, rec);
   return { ok: true, page: pick.page, buttons: Object.keys(done).map(Number), backup: bdir };
 }
 
-module.exports = { status, write };
+module.exports = { status, write, clear };

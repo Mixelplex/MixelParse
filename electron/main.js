@@ -1182,6 +1182,10 @@ ipcMain.handle('socials:write', (e, char, buttons, force) => {
   try { return require('./ipc/socials.js').write(_socialsCtx(), String(char || ''), Array.isArray(buttons) ? buttons : [], !!force); }
   catch (err) { return { ok: false, error: /EACCES|EPERM/.test(err.code || '') ? 'Windows won\u2019t let MixelParse write to your EverQuest folder (' + err.code + ')' : err.message }; }
 });
+ipcMain.handle('socials:clear', (e, char, force) => {   // remove the WTS buttons (2026-11-07)
+  try { return require('./ipc/socials.js').clear(_socialsCtx(), String(char || ''), !!force); }
+  catch (err) { return { ok: false, error: /EACCES|EPERM/.test(err.code || '') ? 'Windows won\u2019t let MixelParse write to your EverQuest folder (' + err.code + ')' : err.message }; }
+});
 
 ipcMain.handle('ui:list', () => {
   if (!config || !config.eqDir) return [];

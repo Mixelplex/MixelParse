@@ -1,4 +1,12 @@
-## 1.8.14
+## 1.8.15
+
+- **New**
+  - Item lookup: a USED IN A QUEST section lists the quests that take the item: Quests-tab checklists (class quests too), Skyshrine armor gems and molds (slot and who), and epic parts.
+  - Selling: every row has a Qty box. Lower it to sell fewer than you hold, or raise it for stock that isn't in an inventory export yet. The row total, "if all sell" and saved lists use it. A new "show qty" box (off by default) adds "x3 … ea" to the /auction and Discord lines.
+  - WTS hotbuttons: each social now holds up to 4 /auction lines (was 1), so far fewer buttons; line 5 is always /outputfile inventory, so every post also refreshes your inventory export. Buttons are numbered by slot.
+  - Clear WTS buttons: removes every "WTS n" social on that character (edited ones too) while it's logged out, with a backup; the next write reuses the same page, so hotbar buttons keep working.
+
+Everything from 1.8.14 and earlier is included:
 
 - **New**
   - Item lookup pop-up: search any item; one card with your holdings, which of your characters it would upgrade (Outfitter scoring, class line only), Castle DKP sales (60-day avg, avg, high, low, recent buyers), PigParse price and drop sources. Opened from the header (🔍 Item lookup), an auction tile's item (was: the wiki — now one click away in the card) or Item History.
