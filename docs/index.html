@@ -10213,12 +10213,33 @@ function lookupUpgrades(name,db){
   }
   return out.sort((a,b)=>b.gain-a.gain).slice(0,5);
 }
+// quests that use an item, from the app's quest data (2026-11-03): [{q, d}] — d lists the details (Skyshrine slot / classes)
+const LOOKUP_SS_WHO={priest:'priests',caster:'casters',melee:'melee'};
+let _lkShown='';
+function lookupQuestUses(name,redraw){
+  const k=dkpOwnKey(name), m=new Map(), add=(q,d)=>{ let a=m.get(q); if(!a) m.set(q,a=[]); if(d&&!a.includes(d)) a.push(d); };
+  if(k.length<2) return [];
+  (function walk(v){ if(Array.isArray(v)) v.forEach(walk); else if(v&&typeof v==='object'){   // QUEST_DB nests class quests (classes:{Warrior:[…]})
+    if(v.name&&Array.isArray(v.steps)){ if(v.steps.some(st=>(st.items||[]).some(it=>dkpOwnKey(String(it).replace(/\s*\([^)]*\)\s*$/,''))===k))) add(v.name); return; }
+    Object.values(v).forEach(walk); } })(typeof QUEST_DB!=='undefined'?QUEST_DB:{});
+  if(typeof SS_GEMS!=='undefined'){
+    const gs={}; for(const [g,list] of Object.entries(SS_GEMS)) for(const x of list) if(dkpOwnKey(x.gem)===k) (gs[x.tattered]=gs[x.tattered]||[]).push(LOOKUP_SS_WHO[g]);
+    for(const [sl,w] of Object.entries(gs)) add('Skyshrine armor',sl+' gem: '+w.join(', '));
+    for(const t of new Set(Object.values(SS_ARMOR_TYPE))) for(const sl of SS_SLOTS) if(dkpOwnKey(tatteredName(t,sl))===k) add('Skyshrine armor',sl+' mold');
+  }
+  const E=wikiData('epics',redraw);
+  if(E) for(const [cls,e] of Object.entries(E)){ if((e.r||[]).some(x=>dkpOwnKey(x)===k)) continue;   // the epic itself isn't a part
+    if((e.s||[]).some(s=>(s.i||[]).some(x=>dkpOwnKey(x)===k))) add('Epic: '+cls); }
+  return [...m].map(([q,d])=>({q,d:d.join(' · ')}));
+}
 function lookupCard(name){
   const ix=lookupIndex(), key=dkpOwnKey(name), canon=ix.byKey.get(key)||String(name||'').trim();
   const db=itemDBGet(canon)||null, have=dkpOwnedIndex().get(key)||null, dn=ix.dkp.get(key), d=dn?dkpLookup[dn]:null;
   const k=sessionGetItemPrice(canon), drops=(()=>{ try{ return taskDropSources(canon).slice(0,3); }catch(e){ return []; } })();
-  if(!db&&!have&&!d&&!k&&!drops.length) return {name:canon,missing:true};
-  const card={name:canon,have:have?have.map(h=>({char:h.char,count:h.count,where:Object.keys(h.wheres).join(', ')})):[],drops};
+  _lkShown=canon;
+  const quests=(()=>{ try{ return lookupQuestUses(canon,()=>{ if(_lkShown===canon) lookupPush({kind:'card',card:lookupCard(canon)}); }); }catch(e){ return []; } })();   // re-sent once the epic data loads
+  if(!db&&!have&&!d&&!k&&!drops.length&&!quests.length) return {name:canon,missing:true};
+  const card={name:canon,have:have?have.map(h=>({char:h.char,count:h.count,where:Object.keys(h.wheres).join(', ')})):[],drops,quests};
   if(db){ card.stats=outfitStatStr(db); card.nodrop=!!db._nodrop; card.slot=(db._slots||[db._slot]).filter(Boolean).join(' / ');
     if(db._classes&&String(db._classes).toUpperCase()!=='ALL') card.classes=db._classes;
     try{ card.up=lookupUpgrades(canon,db); }catch(e){ card.up=null; } }
@@ -19504,11 +19525,12 @@ function setBankersSub(v){
 // paste in game — several lines when they don't fit in one. The app never sends anything to EverQuest.
 const _sellLS=(k,d)=>{ try{ const v=JSON.parse(localStorage.getItem(k)||'null'); return v==null?d:v; }catch(e){ return d; } };
 const _sellSet=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
-let sellCfg=Object.assign({who:'__bankers__',prefix:'WTS',sep:' | ',limit:400,prices:true,links:true,q:'',onlyPriced:false,out:'game',dNote:''},_sellLS('mp_sell_cfg',{}));
+let sellCfg=Object.assign({who:'__bankers__',prefix:'WTS',sep:' | ',limit:400,prices:true,showQty:false,links:true,q:'',onlyPriced:false,out:'game',dNote:''},_sellLS('mp_sell_cfg',{}));
 if(sellCfg.dNote==='PST in game or DM me') sellCfg.dNote='';   // the owner's Discord style is just "WTS:" and the items
 if(sellCfg.limit===250) sellCfg.limit=400;   // a ~400-character /auction went through whole (2026-10-21)
 let sellPick=_sellLS('mp_sell_pick',{});      // item (lowercase) → true: checked
 let sellPrices=_sellLS('mp_sell_prices',{});  // item (lowercase) → your asking price (pp each)
+let sellQty=_sellLS('mp_sell_qty',{});        // item (lowercase) → how many to sell, when fewer than you hold (2026-11-06)
 let sellLists=_sellLS('mp_sell_lists',[]);
 let sellIgnore=new Set(_sellLS('mp_sell_ignore',[]));   // item (lowercase): never offered for sale    // [{name, who, items:[{n,p}], at}]
 let _sellCopied=new Set();
@@ -19544,7 +19566,7 @@ function sellItems(){
     const db=itemDBGet(it.name); if(db&&db._nodrop) continue;
     const k=it.name.toLowerCase(), e=out.get(k)||{name:it.name,id:+it.id||0,q:0,where:new Set(),chars:new Set()};
     e.q+=(it.count||1); e.where.add(/^bank|^sharedbank/i.test(loc)?'bank':'bags'); e.chars.add(cn); out.set(k,e); }
-  return [...out.values()].map(e=>{ const m=sellMarket(e.name), k=e.name.toLowerCase(), ign=sellIgnore.has(k); return Object.assign(e,{k,market:m,price:sellPrices[k]!=null?sellPrices[k]:sellNice(m||0),on:!!sellPick[k]&&!ign,ign}); });
+  return [...out.values()].map(e=>{ const m=sellMarket(e.name), k=e.name.toLowerCase(), ign=sellIgnore.has(k); return Object.assign(e,{k,held:e.q,q:sellQty[k]>0?sellQty[k]:e.q,market:m,price:sellPrices[k]!=null?sellPrices[k]:sellNice(m||0),on:!!sellPick[k]&&!ign,ign}); });
 }
 // an EverQuest item link (purple, clickable): DC2 + "0" + 5-digit hex ID padded with zeros to 45 + " " + name + DC2
 function eqItemLink(id,name){ const n=+id; if(!(n>0)) return name; return '\u0012'+('0'+n.toString(16).toUpperCase().padStart(5,'0')).padEnd(45,'0')+' '+name+'\u0012'; }
@@ -19555,7 +19577,7 @@ function eqLinkHtml(t){ return esc(t).replace(EQ_LINK_RE,'<span style="color:#b2
 function sellLines(items,o){
   o=o||{}; const links=o.links!=null?o.links:sellCfg.links;
   const head='/auction '+(sellCfg.prefix?sellCfg.prefix+' ':''), lim=Math.max(60,o.limit||+sellCfg.limit||400), lines=[]; let cur='';
-  const ent=items.slice().sort((a,b)=>(b.price||0)*(b.q||1)-(a.price||0)*(a.q||1)).map(e=>(links&&e.id?eqItemLink(e.id,e.name):e.name)+(e.q>1?' x'+e.q:'')+(sellCfg.prices&&e.price>0?' '+sellFmt(e.price)+(e.q>1?' ea':''):''));
+  const ent=items.slice().sort((a,b)=>(b.price||0)*(b.q||1)-(a.price||0)*(a.q||1)).map(e=>{ const mq=e.q>1&&!!sellCfg.showQty; return (links&&e.id?eqItemLink(e.id,e.name):e.name)+(mq?' x'+e.q:'')+(sellCfg.prices&&e.price>0?' '+sellFmt(e.price)+(mq?' ea':''):''); });
   for(const t of ent){ if(cur&&(head+cur+sellCfg.sep+t).length>lim){ lines.push(head+cur); cur=t; } else cur=cur?cur+sellCfg.sep+t:t; }
   if(cur) lines.push(head+cur); return lines;
 }
@@ -19563,7 +19585,7 @@ function sellLines(items,o){
 function sellDiscord(items){
   const rows=items.slice().sort((a,b)=>(b.price||0)*(b.q||1)-(a.price||0)*(a.q||1));
   const pr=p=>p>=1000?(p%1000===0?p/1000:(p/1000).toFixed(1).replace(/\.0$/,''))+'k':p+'pp';
-  const line=e=>e.name+(e.q>1?' x'+e.q:'')+' (<'+wikiUrl(e.name)+'>)'+(sellCfg.prices&&e.price>0?' -- '+pr(e.price)+(e.q>1?' ea':''):' -- PST');
+  const line=e=>{ const mq=e.q>1&&!!sellCfg.showQty; return e.name+(mq?' x'+e.q:'')+' (<'+wikiUrl(e.name)+'>)'+(sellCfg.prices&&e.price>0?' -- '+pr(e.price)+(mq?' ea':''):' -- PST'); };
   const head=(sellCfg.prefix||'WTS')+':', foot=sellCfg.dNote?'\n'+sellCfg.dNote:'', msgs=[]; let cur=[];
   const wrap=rs=>head+'\n'+rs.join('\n')+foot;
   for(const e of rows){ const l=line(e); if(cur.length&&wrap(cur.concat(l)).length>1900){ msgs.push(wrap(cur)); cur=[]; } cur.push(l); }
@@ -19578,6 +19600,8 @@ window.sellHBAdd=function(n){ if(!n||!chars[n]) return; const L=sellHBList().fil
 window.sellHBAddTyped=function(el){ const v=String(el.value||'').trim().toLowerCase(); if(!v) return; const n=Object.keys(chars).find(c=>c.toLowerCase()===v); if(n) sellHBAdd(n); else el.style.borderColor='var(--danger,#b3412e)'; };   // exact name only
 window.sellHBRemove=function(n){ const L=sellHBList().filter(x=>x!==n); if(sellCfg.hbChar===n) sellCfg.hbChar=L[0]||''; _sellHB.msg=''; sellSet('hbList',L); };
 function sellHBLines(picked){ return sellLines(picked,{links:true,limit:Math.min(+sellCfg.limit||400,SELL_HB_LINE)}); }
+const SELL_HB_PER=4;   // /auction lines per social; line 5 is always /outputfile inventory (written by socials.js, 2026-11-07)
+function sellHBButtons(lines){ const out=[]; for(let i=0;i<lines.length;i+=SELL_HB_PER) out.push({name:'WTS '+(out.length+1),lines:lines.slice(i,i+SELL_HB_PER)}); return out; }
 function sellHBRefresh(force){
   const c=sellHBTarget(), A=window.MixelParseApp; if(!c||!A||!A.socialsStatus) return;
   if(!force&&_sellHB.char===c&&(_sellHB.st||_sellHB.busy)) return;
@@ -19588,13 +19612,20 @@ function sellHBRefresh(force){
 window.sellHBWrite=async function(force){
   const c=sellHBTarget(), A=window.MixelParseApp; if(!c||!A||!A.socialsWrite) return;
   const lines=sellHBLines(sellItems().filter(e=>e.on)); if(!lines.length) return;
-  const r=await A.socialsWrite(c,lines.map((l,i)=>({name:'WTS '+(i+1),line:l})),!!force);
-  _sellHB.online=!!r.online;
-  _sellHB.msg=r.ok?'\u2713 Wrote '+r.buttons.length+' button'+(r.buttons.length===1?'':'s')+' to Socials page '+r.page+'. Log in '+c+', open the Actions window \u2192 Socials, page '+r.page+' (drag them to a hotbar once).':'\u26a0 '+(r.error||'Couldn\u2019t write');
+  const r=await A.socialsWrite(c,sellHBButtons(lines),!!force);
+  _sellHB.online=!!r.online; _sellHB.act='write';
+  _sellHB.msg=r.ok?'\u2713 Wrote '+r.buttons.length+' button'+(r.buttons.length===1?'':'s')+' ('+lines.length+' /auction line'+(lines.length===1?'':'s')+') to Socials page '+r.page+'. Log in '+c+', open the Actions window \u2192 Socials, page '+r.page+' (drag them to a hotbar once).':'\u26a0 '+(r.error||'Couldn\u2019t write');
+  sellHBRefresh(true); renderSellingPanel();
+};
+window.sellHBClear=async function(force){   // removes the WTS buttons, so the next write has the page again (2026-11-07)
+  const c=sellHBTarget(), A=window.MixelParseApp; if(!c||!A||!A.socialsClear) return;
+  const r=await A.socialsClear(c,!!force);
+  _sellHB.online=!!r.online; _sellHB.act='clear';
+  _sellHB.msg=r.ok?(r.cleared?'\u2713 Cleared '+r.cleared+' WTS button'+(r.cleared===1?'':'s')+' from '+c+'\u2019s Socials page '+r.pages.join(', ')+'. Hotbar buttons for them show the new ones after the next write.':'\u2713 No WTS buttons on '+c+'.'):'\u26a0 '+(r.error||'Couldn\u2019t clear');
   sellHBRefresh(true); renderSellingPanel();
 };
 function sellHBHtml(picked){
-  const c=sellHBTarget(), st=_sellHB.char===c?_sellHB.st:null, lines=sellHBLines(picked);
+  const c=sellHBTarget(), st=_sellHB.char===c?_sellHB.st:null, lines=sellHBLines(picked), nb=sellHBButtons(lines).length;
   const L=sellHBList(), others=Object.keys(chars).filter(n=>!isExcludedChar(n)&&!L.includes(n)).sort((a,b)=>a.localeCompare(b));
   const addSel='<input list="sellHBNames" placeholder="\uff0b add a character (type a name)" title="Type a character name and press Enter" style="width:13rem" onchange="sellHBAddTyped(this)" onkeydown="if(event.key===\'Enter\')sellHBAddTyped(this)"><datalist id="sellHBNames">'+others.map(n=>'<option value="'+esc(n)+'">').join('')+'</datalist>';
   if(c) sellHBRefresh(false);
@@ -19603,11 +19634,12 @@ function sellHBHtml(picked){
     +(L.length?'<label>Write to <select onchange="sellSet(\'hbChar\',this.value)">'+L.map(n=>'<option value="'+esc(n)+'"'+(n===c?' selected':'')+'>'+esc(n)+'</option>').join('')+'</select></label>'
         +'<a href="#" onclick="sellHBRemove(decodeURIComponent(\''+encodeURIComponent(c)+'\'));return false" title="Take '+esc(c)+' off this list (nothing in the game changes)" style="color:var(--text-muted);text-decoration:none">\u2715</a>'+addSel
       :'<span style="color:var(--text-muted)">No characters yet \u2014</span>'+addSel)
-    +(c&&lines.length?'<button class="kt-undo-btn" onclick="sellHBWrite(false)"'+(st&&st.ok&&!st.page?' disabled':'')+'>Write '+lines.length+' WTS button'+(lines.length===1?'':'s')+'</button>':'')
+    +(c&&lines.length?'<button class="kt-undo-btn" onclick="sellHBWrite(false)"'+(st&&st.ok&&!st.page?' disabled':'')+' title="'+lines.length+' /auction line'+(lines.length===1?'':'s')+', up to '+SELL_HB_PER+' per button">Write '+nb+' WTS button'+(nb===1?'':'s')+'</button>':'')
+    +(c&&st&&st.ok&&st.wts?'<a href="#" onclick="sellHBClear(false);return false" title="Remove the '+st.wts+' WTS button'+(st.wts===1?'':'s')+' from '+esc(c)+'\u2019s socials (buttons named \u201cWTS 1\u201d, \u201cWTS 2\u201d\u2026 \u2014 a backup is kept). Needs '+esc(c)+' logged out." style="color:var(--text-muted)">Clear WTS buttons ('+st.wts+')</a>':'')
     +(st&&st.ok?'<span style="color:'+(st.online?'var(--warn,#c07a1a)':'#3a7a3a')+'">'+(st.online?'\u25cf '+esc(c)+' looks logged in \u2014 camp first':'\u25cb logged out ('+esc(st.why)+')')+'</span>':'')
     +'</div>'
-    +'<div style="font-size:.74rem;color:var(--text-muted);margin-top:.2rem">EverQuest strips links from pasted text, so the copied lines above are plain names. For purple links, MixelParse writes each line as a social macro (\u201cWTS 1\u201d, \u201cWTS 2\u201d\u2026) on an <b>empty</b> Socials page of that character, while it\u2019s logged out. Your hotbars and other macros aren\u2019t touched, and a backup of the file is kept. Lines are kept under '+SELL_HB_LINE+' characters.</div>';
-  if(_sellHB.msg&&_sellHB.char===c) h+='<div style="margin-top:.3rem;font-weight:600;color:'+(/^\u2713/.test(_sellHB.msg)?'#3a7a3a':'var(--danger,#b3412e)')+'">'+esc(_sellHB.msg)+(_sellHB.online?' <a href="#" onclick="sellHBWrite(true);return false" title="Only if you\u2019re sure '+esc(c)+' is logged out (crashed or /exit without camping)" style="font-weight:400">it\u2019s logged out \u2014 write anyway</a>':'')+'</div>';
+    +'<div style="font-size:.74rem;color:var(--text-muted);margin-top:.2rem">EverQuest strips links from pasted text, so the copied lines above are plain names. For purple links, MixelParse writes the lines as social macros (\u201cWTS 1\u201d, \u201cWTS 2\u201d\u2026, up to '+SELL_HB_PER+' /auction lines each) on an <b>empty</b> Socials page of that character, while it\u2019s logged out. The last line of each is <code>/outputfile inventory</code>, so every post also refreshes your inventory export. Your hotbars and other macros aren\u2019t touched, and a backup of the file is kept. Lines are kept under '+SELL_HB_LINE+' characters.</div>';
+  if(_sellHB.msg&&_sellHB.char===c) h+='<div style="margin-top:.3rem;font-weight:600;color:'+(/^\u2713/.test(_sellHB.msg)?'#3a7a3a':'var(--danger,#b3412e)')+'">'+esc(_sellHB.msg)+(_sellHB.online?' <a href="#" onclick="'+(_sellHB.act==='clear'?'sellHBClear':'sellHBWrite')+'(true);return false" title="Only if you\u2019re sure '+esc(c)+' is logged out (crashed or /exit without camping)" style="font-weight:400">it\u2019s logged out \u2014 '+(_sellHB.act==='clear'?'clear':'write')+' anyway</a>':'')+'</div>';
   if(st&&!st.ok) h+='<div style="margin-top:.3rem;color:var(--text-muted)">'+esc(st.error)+'</div>';
   if(st&&st.ok){
     const pages=Object.keys(st.pages).map(Number).sort((a,b)=>a-b);
@@ -19684,6 +19716,7 @@ function renderSellingPanel(){
           :'<label>Between items <input value="'+esc(sellCfg.sep)+'" onchange="sellSet(\'sep\',this.value)" style="width:3rem"></label>'
           +'<label title="Longest line, counting /auction — a ~400-character line went through whole; lower it if EverQuest cuts your line off">Max length <input type="number" min="60" max="600" value="'+(+sellCfg.limit||400)+'" onchange="sellSet(\'limit\',+this.value)" style="width:4rem"></label>')
         +'<label><input type="checkbox" '+(sellCfg.prices?'checked':'')+' onchange="sellSet(\'prices\',this.checked)"> show prices</label>'
+        +'<label title="Adds \u201cx2 \u2026 ea\u201d for items you sell more than one of"><input type="checkbox" '+(!!sellCfg.showQty?'checked':'')+' onchange="sellSet(\'showQty\',this.checked)"> show qty</label>'
         +(dc?'':'<label title="Each item name becomes a purple EverQuest link people can click to see the item. A link adds 47 hidden characters, so fewer items fit per line."><input type="checkbox" '+(sellCfg.links?'checked':'')+' onchange="sellSet(\'links\',this.checked)"> item links</label>')+'</div>'
       +(lines.length?lines.map((l,i)=>'<div style="display:flex;gap:.5rem;align-items:flex-start;margin:.25rem 0"><button class="kt-undo-btn" onclick="sellCopy('+i+')" style="flex-shrink:0;min-width:5.2rem">'+(_sellCopied.has(l)?'✓ Copied':'📋 Copy '+(lines.length>1?(i+1)+'/'+lines.length:''))+'</button>'
           +(dc?'<pre style="font-size:.76rem;white-space:pre-wrap;word-break:break-word;overflow-x:auto;flex:1;min-width:0;margin:0;padding:.4rem .5rem;background:var(--surface);border:1px solid var(--border);border-radius:4px">'+esc(l)+'</pre>':'<code style="font-size:.78rem;white-space:pre-wrap;word-break:break-word;flex:1;min-width:0">'+eqLinkHtml(l)+'</code>')
@@ -19697,11 +19730,11 @@ function renderSellingPanel(){
       +'<span style="margin-left:auto;display:inline-flex;gap:.3rem"><input id="sellListName" placeholder="List name" style="width:9rem"><button class="kt-undo-btn" onclick="sellSave()"'+(picked.length?'':' disabled')+'>💾 Save checked</button><button class="kt-undo-btn" onclick="sellToMarket()" title="Set every checked item back to today\u2019s rounded PigParse price"'+(picked.some(e=>e.market)?'':' disabled')+'>↻ Update checked to market</button><button class="kt-undo-btn" onclick="sellClear()"'+(picked.length?'':' disabled')+'>Clear checks</button></span></div>'
     +(missing.length?'<div style="font-size:.76rem;color:#c48a3a">Checked but no longer held here: '+missing.map(esc).join(', ')+' (sold, moved, or another character)</div>':'')
     // the items
-    +'<div style="overflow-x:auto"><table class="dkp-history-table" style="width:100%;font-size:.82rem"><thead><tr><th style="width:2rem"></th><th>Item</th><th style="text-align:right">Qty</th><th>Where</th>'+sh('market','Market','PigParse WTS average (2+ listings), or your price override')+'<th style="text-align:right">Your price (each)</th>'+sh('total','Total','Your price \u00d7 quantity')+'</tr></thead><tbody>'
+    +'<div style="overflow-x:auto"><table class="dkp-history-table" style="width:100%;font-size:.82rem"><thead><tr><th style="width:2rem"></th><th>Item</th><th style="text-align:right" title="How many to sell — lower it to sell fewer than you hold">Qty</th><th>Where</th>'+sh('market','Market','PigParse WTS average (2+ listings), or your price override')+'<th style="text-align:right">Your price (each)</th>'+sh('total','Total','Your price \u00d7 quantity')+'</tr></thead><tbody>'
       +(shown.length?shown.slice(0,400).map(e=>{ const kk=encodeURIComponent(e.k).replace(/'/g,'%27');
         return '<tr oncontextmenu="return sellMenu(event,decodeURIComponent(\''+kk+'\'))" title="Right-click: '+(e.ign?'stop ignoring':'ignore')+' this item" style="'+(e.ign?'opacity:.45':e.on?'background:rgba(201,168,76,.08)':'')+'"><td><input type="checkbox" '+(e.on?'checked':'')+(e.ign?' disabled':'')+' onchange="sellToggle(decodeURIComponent(\''+kk+'\'),this.checked)"></td>'
           +'<td><a href="'+wikiUrl(e.name)+'" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;border-bottom:1px dotted var(--gold)">'+esc(e.name)+'</a>'+(e.ign?' <span style="font-size:.7rem;color:var(--text-muted)">ignored</span>':'')+'</td>'
-          +'<td style="text-align:right">'+e.q+'</td><td style="color:var(--text-muted)">'+[...e.chars].map(esc).join(', ')+' · '+[...e.where].join('/')+'</td>'
+          +'<td style="text-align:right;white-space:nowrap">'+'<input type="number" min="1" value="'+e.q+'" title="How many to sell \u2014 you hold '+e.held+' (more is fine: stock that isn\u2019t in an inventory export yet)" onchange="sellQtySet(decodeURIComponent(\''+kk+'\'),this.value,'+e.held+')" style="width:3.2rem;text-align:right"><span style="font-size:.7rem;color:'+(e.q>e.held?'var(--warn,#c07a1a)':'var(--text-muted)')+'"> '+(e.q>e.held?'(hold '+e.held+')':'of '+e.held)+'</span>'+'</td><td style="color:var(--text-muted)">'+[...e.chars].map(esc).join(', ')+' · '+[...e.where].join('/')+'</td>'
           +(()=>{ const I=sellInfo(e.name), W=I.wts, B=I.wtb, ov=priceOverrideFor(e.name)!=null, weak=W&&(W.n<5||Date.now()-W.last>45*864e5);
               const sub=ov?'your price override':W?W.n+' listing'+(W.n===1?'':'s')+'/'+W.win+(W.last?' · seen '+_sellAgo(W.last):''):'';
               return '<td style="text-align:right;color:var(--text-muted)" title="'+(W?'PigParse WTS: '+Math.round(W.p).toLocaleString()+' pp average over '+W.win+' ('+W.n+' listings) \u2014 the lowest window with 2+ listings. These are asking prices in /auction, not finished sales.':'No WTS price on PigParse with 2+ listings')+(B?'\nWTB: '+Math.round(B.p).toLocaleString()+' pp ('+B.n+' over '+B.win+')':'')+'">'
@@ -19720,6 +19753,8 @@ function renderSellingPanel(){
     +'</div>';
 }
 window.sellSet=function(k,v,soft){ sellCfg[k]=v; _sellSet('mp_sell_cfg',sellCfg); if(soft){ clearTimeout(window._sellT); window._sellT=setTimeout(()=>{ const a=document.activeElement, pos=a&&a.selectionStart; renderSellingPanel(); const i=document.querySelector('#sellingPanel input[type=search]'); if(i){ i.focus(); try{ i.setSelectionRange(pos,pos); }catch(e){} } },200); } else renderSellingPanel(); };
+window.sellQtySet=function(k,v,held){ const n=Math.round(+v||0); if(n>0&&n!==held) sellQty[k]=n; else delete sellQty[k]; _sellSet('mp_sell_qty',sellQty); _sellCopied.clear();
+  clearTimeout(window._sellQT); window._sellQT=setTimeout(renderSellingPanel,250); };
 window.sellToggle=function(k,on){ if(on) sellPick[k]=true; else delete sellPick[k]; _sellSet('mp_sell_pick',sellPick); _sellCopied.clear(); renderSellingPanel(); };
 window.sellPrice=function(k,v){ const n=Math.max(0,Math.round(+v||0)); if(v===''||!n) sellPrices[k]=0; else sellPrices[k]=n; _sellSet('mp_sell_prices',sellPrices); _sellCopied.clear();
   clearTimeout(window._sellPT); window._sellPT=setTimeout(renderSellingPanel,250); };   // after the click that took the focus away has landed
@@ -19733,13 +19768,13 @@ window.sellCopy=async function(i){
 };
 window.sellSave=function(){
   const el=document.getElementById('sellListName'), name=(el&&el.value.trim())||('List '+new Date().toLocaleDateString());
-  const items=sellItems().filter(e=>e.on).map(e=>({n:e.name,p:e.price||0}));
+  const items=sellItems().filter(e=>e.on).map(e=>Object.assign({n:e.name,p:e.price||0},e.q!==e.held?{q:e.q}:{}));
   const i=sellLists.findIndex(L=>L.name.toLowerCase()===name.toLowerCase()), L={name,who:sellCfg.who,items,at:Date.now()};
   if(i>=0) sellLists[i]=L; else sellLists.push(L); _sellSet('mp_sell_lists',sellLists);
   showWatcherToast('💾 Saved \u201c'+name+'\u201d \u2014 '+items.length+' items'); renderSellingPanel();
 };
-window.sellLoad=function(i){ const L=sellLists[i]; if(!L) return; sellPick={}; for(const it of L.items){ const k=it.n.toLowerCase(); sellPick[k]=true; if(it.p) sellPrices[k]=it.p; }
-  if(L.who) sellCfg.who=L.who; _sellSet('mp_sell_pick',sellPick); _sellSet('mp_sell_prices',sellPrices); _sellSet('mp_sell_cfg',sellCfg); _sellCopied.clear(); renderSellingPanel(); };
+window.sellLoad=function(i){ const L=sellLists[i]; if(!L) return; sellPick={}; for(const it of L.items){ const k=it.n.toLowerCase(); sellPick[k]=true; if(it.p) sellPrices[k]=it.p; if(it.q) sellQty[k]=it.q; else delete sellQty[k]; }
+  if(L.who) sellCfg.who=L.who; _sellSet('mp_sell_pick',sellPick); _sellSet('mp_sell_qty',sellQty); _sellSet('mp_sell_prices',sellPrices); _sellSet('mp_sell_cfg',sellCfg); _sellCopied.clear(); renderSellingPanel(); };
 window.sellDel=function(i){ const L=sellLists[i]; if(!L) return; sellLists.splice(i,1); _sellSet('mp_sell_lists',sellLists); showWatcherToast('Deleted \u201c'+L.name+'\u201d'); renderSellingPanel(); };
 window.sellMenu=function(ev,k){
   ev.preventDefault(); let m=document.getElementById('sellMenu'); if(m) m.remove();
