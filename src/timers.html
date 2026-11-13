@@ -45,7 +45,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
     <button class="tb-btn nd" title="Minimize" onclick="window.MixelParseApp&&window.MixelParseApp.minimizeTimers()">–</button>
     <button class="tb-btn tb-x nd" title="Close (it opens again on your next timed cast — Settings → Checks &amp; reminders)" onclick="window.MixelParseApp&&window.MixelParseApp.closeTimers()">✕</button>
   </div>
-  <div class="body" id="body"><div class="empty">Cast a root, charm, mez or DoT and it counts down here.<br>Durations come from your own logs.</div></div>
+  <div class="body" id="body"><div class="empty">Cast a root, charm, mez or DoT and it counts down here.<br>Durations come from your own logs.<br>Your own timer: type <b>/note timer 20m</b> (or 1h30m, 45s, 20m pull) in game.</div></div>
 </div>
 <script>
 let rows=[];
@@ -53,17 +53,18 @@ let fs=15; try{ fs=+localStorage.getItem('mp_timers_fs')||15; }catch(e){}
 function zoom(d){ fs=Math.max(11,Math.min(24,fs+d)); document.documentElement.style.setProperty('--fs',fs); try{ localStorage.setItem('mp_timers_fs',fs); }catch(e){} }
 document.documentElement.style.setProperty('--fs',fs);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const mmss=x=>{ x=Math.max(0,Math.round(x)); return Math.floor(x/60)+':'+String(x%60).padStart(2,'0'); };
+const mmss=x=>{ x=Math.max(0,Math.round(x)); return x>=3600?Math.floor(x/3600)+':'+String(Math.floor(x%3600/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0'):Math.floor(x/60)+':'+String(x%60).padStart(2,'0'); };
 function render(){
   const now=Date.now(), b=document.getElementById('body');
-  const live=rows.filter(t=>!(t.ended&&now-t.ended>8000));
-  if(!live.length){ b.innerHTML='<div class="empty">Cast a root, charm, mez or DoT and it counts down here.<br>Durations come from your own logs.</div>'; return; }
+  const live=rows.filter(t=>!(t.ended&&now-t.ended>(t.mine?60000:8000)));
+  if(!live.length){ b.innerHTML='<div class="empty">Cast a root, charm, mez or DoT and it counts down here.<br>Durations come from your own logs.<br>Your own timer: type <b>/note timer 20m</b> (or 1h30m, 45s, 20m pull) in game.</div>'; return; }
   live.sort((a,b2)=>(a.ended?0:1)-(b2.ended?0:1)||(a.pending?1:0)-(b2.pending?1:0)||((a.start+a.dur*1000)-(b2.start+b2.dur*1000)));
   b.innerHTML=live.map(t=>{
     const who=(t.target?esc(t.target)+' · ':'')+esc(t.c);
     if(t.pending) return '<div class="row" style="opacity:.6"><div class="top"><span class="sp">'+esc(t.sp)+' <span class="who">— '+who+'</span></span><span class="t" style="color:var(--muted)">casting…</span></div></div>';
-    if(t.ended) return '<div class="row off"><div class="top"><span class="sp">'+esc(t.sp)+' <span class="who">— '+who+'</span></span><span class="t">'+(t.charm?'BROKE':'OFF')+'</span></div></div>';
+    if(t.ended) return '<div class="row off"><div class="top"><span class="sp">'+esc(t.sp)+' <span class="who">— '+who+'</span></span><span class="t">'+(t.mine?'DONE':t.charm?'BROKE':'OFF')+'</span></div></div>';
     const left=t.dur-(now-t.start)/1000, pct=t.dur?Math.max(0,Math.min(100,100*left/t.dur)):0;
+    if(t.mine) return '<div class="row'+(left<10?' low':'')+'" title="Your timer (/note timer) \u2014 /note timer stop'+(t.sp!=='Timer'?' '+esc(t.sp):'')+' cancels it"><div class="top"><span class="sp">'+esc(t.sp)+' <span class="who">\u2014 '+who+'</span></span><span class="t">'+mmss(left)+'</span></div><div class="bar"><i style="width:'+pct+'%"></i></div></div>';
     return '<div class="row'+(left<10?' low':'')+'" title="'+(t.wiki?'Full duration '+mmss(t.dur)+' (P99 wiki, at this character\u2019s level)':'Typical '+mmss(t.dur)+' from your logs')+' — roots, charms and mezzes can break sooner; the row turns red when it really ends"><div class="top"><span class="sp">'+esc(t.sp)+' <span class="who">— '+who+'</span></span><span class="t">'+(left>0?(t.wiki?'':'~')+mmss(left):'due')+'</span></div><div class="bar"><i style="width:'+pct+'%"></i></div></div>';
   }).join('')+'<div class="note">Full duration from the P99 wiki (~ = typical, from your logs). Red = wore off or broke.</div>';
 }

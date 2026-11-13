@@ -1,4 +1,9 @@
-## 1.8.15
+## 1.8.16
+
+- **New**
+  - Your own timers: type `/note timer 20m` in game (also 1h30m, 45s, 1:30:00, or a bare number of minutes; add a name: `/note timer 20m pull`). It counts down in the Spell timers window (even with spell timers off), and at zero shows a toast and says "pull timer done" (or beeps). `/note timer stop` cancels all, `/note timer stop pull` just that one. Timers survive an app restart. `/note timer 22:00` (one colon) still sets the zone's respawn timer.
+
+Everything from 1.8.15 and earlier is included:
 
 - **New**
   - Item lookup: a USED IN A QUEST section lists the quests that take the item: Quests-tab checklists (class quests too), Skyshrine armor gems and molds (slot and who), and epic parts.
