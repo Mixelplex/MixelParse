@@ -17625,7 +17625,7 @@ function headerBtnsSync(){
   const set=(id,on)=>{ const b=document.getElementById(id); if(b) b.style.display=on?'block':'none'; };
   try{ set('plOpenBtn',plMode()!=='off'); }catch(e){}
   try{ set('chOpenBtn',chChainOn()); }catch(e){}
-  try{ set('tmrOpenBtn',spellTimersOn()); }catch(e){}
+  try{ set('tmrOpenBtn',spellTimersOn()||[..._spellTimers.values()].some(t=>t.mine&&!t.ended)); }catch(e){ try{ set('tmrOpenBtn',spellTimersOn()); }catch(e2){} }   // also while a /note timer runs (2026-11-16)
 }
 setTimeout(headerBtnsSync,0); setTimeout(headerBtnsSync,4000); setTimeout(headerBtnsSync,15000);   // CH chain's Auto depends on your characters loading
 // ══ PL helper (2026-10-18): kills this pull, ✓ XP / ✗ missed tag, mobs not hit yet — its own window ══
@@ -17993,7 +17993,7 @@ function noteTimerSecs(s){ s=String(s).toLowerCase().replace(/\s+/g,''); let m;
   if(/^\d+$/.test(s)) return +s*60;
   let t=0; for(const x of s.matchAll(/(\d+)([hms])/g)) t+=+x[1]*({h:3600,m:60,s:1}[x[2]]); return t; }
 function noteTimerFmt(x){ x=Math.round(x); const h=Math.floor(x/3600), m=Math.floor(x%3600/60), s=x%60; return (h?h+'h ':'')+(m?m+'m':'')+(s||(!h&&!m)?(m||h?' ':'')+s+'s':''); }
-function noteTimersSave(){ try{ localStorage.setItem('mp_note_timers',JSON.stringify([..._spellTimers.values()].filter(t=>t.mine&&!t.ended).map(t=>({sp:t.sp,start:t.start,dur:t.dur})))); }catch(e){} }
+function noteTimersSave(){ try{ headerBtnsSync(); }catch(e){} try{ localStorage.setItem('mp_note_timers',JSON.stringify([..._spellTimers.values()].filter(t=>t.mine&&!t.ended).map(t=>({sp:t.sp,start:t.start,dur:t.dur})))); }catch(e){} }
 function noteTimerAdd(label,start,dur,quiet){
   const t={c:'your timer',sp:label||'Timer',start,dur,wiki:true,target:'',mine:true}, k='n'+(++_spellTimerSeq);
   _spellTimers.set(k,t); t.to=setTimeout(noteTimersDue,Math.max(0,start+dur*1000-Date.now())+50);

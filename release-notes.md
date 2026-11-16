@@ -1,4 +1,9 @@
-## 1.8.16
+## 1.8.17
+
+- **Fixes**
+  - ⏳ Timers button: it also shows under the MixelParse title while a `/note timer` is running (it used to show only with spell timers switched on), so a closed timer window can be opened again.
+
+Everything from 1.8.16 and earlier is included:
 
 - **New**
   - Your own timers: type `/note timer 20m` in game (also 1h30m, 45s, 1:30:00, or a bare number of minutes; add a name: `/note timer 20m pull`). It counts down in the Spell timers window (even with spell timers off), and at zero shows a toast and says "pull timer done" (or beeps). `/note timer stop` cancels all, `/note timer stop pull` just that one. Timers survive an app restart. `/note timer 22:00` (one colon) still sets the zone's respawn timer.
