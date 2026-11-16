@@ -8095,6 +8095,8 @@ window.applyDBToChar    = applyDBToChar;
       }
       if (matched) continue;
 
+      // ── Your own countdown: "/note timer 20m [label]", "/note timer stop" (2026-11-13) ──
+      if (typeof noteTimerCmd === 'function' && noteTimerCmd(line)) continue;
       // ── Zone timer update: "/note timer 22:00" ────────────────────────────
       const timerSetM = ll.match(/^timer\s+(\d+:\d+)$/i);
       if (timerSetM) {
@@ -17959,11 +17961,12 @@ function spellTimerOnMsg(msg){
 const _tmrWin=()=>!!(window.MixelParseApp&&window.MixelParseApp.pushTimersState);
 function spellTimersAutoOpen(){ try{ return localStorage.getItem('mp_timers_popup')!=='0'; }catch(e){ return true; } }
 window.spellTimersWindowToggle=function(){ if(_tmrWin()){ window.MixelParseApp.toggleTimers(); setTimeout(spellTimersPush,350); } else { try{ localStorage.setItem('mp_timers_collapsed',spellTimersCollapsed()?'0':'1'); }catch(e){} spellTimersRender(); } };
-function spellTimersPush(){ if(!_tmrWin()) return; try{ window.MixelParseApp.pushTimersState([..._spellTimers.values()].map(t=>({c:t.c,sp:t.sp,start:t.start,dur:t.dur,ended:t.ended||0,charm:!!t.charm,target:t.target||'',wiki:!!t.wiki,pending:!!t.pending}))); }catch(e){} }
+function spellTimersPush(){ if(!_tmrWin()) return; try{ window.MixelParseApp.pushTimersState([..._spellTimers.values()].map(t=>({c:t.c,sp:t.sp,start:t.start,dur:t.dur,ended:t.ended||0,charm:!!t.charm,target:t.target||'',wiki:!!t.wiki,pending:!!t.pending,mine:!!t.mine}))); }catch(e){} }
 if(window.MixelParseApp&&window.MixelParseApp.onTimersWindowReady) window.MixelParseApp.onTimersWindowReady(()=>spellTimersPush());
 function spellTimersRender(){
   const now=Date.now();
-  for(const [k,t] of _spellTimers) if((t.ended&&now-t.ended>7000)||(t.pending&&now-t.castAt>12e3)||(!t.ended&&!t.pending&&t.dur&&now-t.start>(t.wiki?t.dur*1000+20e3:Math.max(t.dur*3*1000,t.dur*1000+300e3)))) _spellTimers.delete(k);
+  noteTimersDue();
+  for(const [k,t] of _spellTimers) if((t.ended&&now-t.ended>(t.mine?60e3:7000))||(t.pending&&now-t.castAt>12e3)||(!t.ended&&!t.pending&&t.dur&&now-t.start>(t.wiki?t.dur*1000+20e3:Math.max(t.dur*3*1000,t.dur*1000+300e3)))) _spellTimers.delete(k);
   if(_tmrWin()){ const old=document.getElementById('spellTimersBox'); if(old) old.remove(); spellTimersPush();
     if(!_spellTimers.size){ if(_spellTimerTick){ clearInterval(_spellTimerTick); _spellTimerTick=null; } } else if(!_spellTimerTick) _spellTimerTick=setInterval(spellTimersRender,2000);   // drop finished rows / casts that never landed
     return; }
@@ -17981,6 +17984,42 @@ function spellTimersRender(){
       return '<div style="padding:.15rem 0" title="Typical duration from your logs: '+mmss(t.dur)+' \u2014 roots, charms and mezzes can break sooner; you\u2019re alerted when it really wears off"><div style="display:flex;gap:.3rem"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.sp)+' <span style="color:var(--text-muted)">\u2014 '+esc(t.c)+'</span></span><span style="font-variant-numeric:tabular-nums;color:'+(left<10?'#b03030':'var(--gold-light)')+'">'+(left>0?'~'+mmss(left):'due')+'</span></div>'
         +'<div style="height:3px;border-radius:2px;background:var(--surface2);overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(left<10?'#b03030':'var(--gold)')+'"></div></div></div>'; }).join('');
 }
+
+// ══ /note timer: your own countdowns in the Spell timers window (thomas, 2026-11-13) ══
+// /note timer 20m [label] · 1h30m · 45s · 1:30:00 · 20 (= minutes) — /note timer stop [label] cancels
+const NOTE_TIMER_RE=/^timer\s+((?:\d+\s*[hms]\s*)+|\d+:\d{2}:\d{2}|\d+)(?:\s+(.+))?$/i, NOTE_TIMER_STOP=/^timer\s+(?:stop|cancel|clear|off)(?:\s+(.+))?$/i;
+function noteTimerSecs(s){ s=String(s).toLowerCase().replace(/\s+/g,''); let m;
+  if((m=/^(\d+):(\d{2}):(\d{2})$/.exec(s))) return +m[1]*3600+ +m[2]*60+ +m[3];
+  if(/^\d+$/.test(s)) return +s*60;
+  let t=0; for(const x of s.matchAll(/(\d+)([hms])/g)) t+=+x[1]*({h:3600,m:60,s:1}[x[2]]); return t; }
+function noteTimerFmt(x){ x=Math.round(x); const h=Math.floor(x/3600), m=Math.floor(x%3600/60), s=x%60; return (h?h+'h ':'')+(m?m+'m':'')+(s||(!h&&!m)?(m||h?' ':'')+s+'s':''); }
+function noteTimersSave(){ try{ localStorage.setItem('mp_note_timers',JSON.stringify([..._spellTimers.values()].filter(t=>t.mine&&!t.ended).map(t=>({sp:t.sp,start:t.start,dur:t.dur})))); }catch(e){} }
+function noteTimerAdd(label,start,dur,quiet){
+  const t={c:'your timer',sp:label||'Timer',start,dur,wiki:true,target:'',mine:true}, k='n'+(++_spellTimerSeq);
+  _spellTimers.set(k,t); t.to=setTimeout(noteTimersDue,Math.max(0,start+dur*1000-Date.now())+50);
+  if(!quiet){ noteTimersSave(); showWatcherToast('\u23f0 '+(label?label+' \u2014 ':'Timer ')+noteTimerFmt(dur)+' started');
+    if(_tmrWin()) try{ window.MixelParseApp.popTimers(); setTimeout(spellTimersPush,350); }catch(e){} }
+  spellTimersRender();
+}
+function noteTimersDue(){   // a personal timer reached zero: DONE row, toast, voice or beep
+  const now=Date.now(); let hit=false;
+  for(const t of _spellTimers.values()) if(t.mine&&!t.ended&&now>=t.start+t.dur*1000){ t.ended=now; hit=true; clearTimeout(t.to);
+    showWatcherToast('\u23f0 '+(t.sp==='Timer'?'Timer':t.sp)+' \u2014 done ('+noteTimerFmt(t.dur)+')',10000);
+    if(spellTimerVoice()&&window.speechSynthesis&&typeof SpeechSynthesisUtterance!=='undefined'){ try{ const u=new SpeechSynthesisUtterance((t.sp==='Timer'?'Timer':t.sp+' timer')+' done'); u.volume=spellTimerVolume(); u.rate=1.05; window.speechSynthesis.speak(u); }catch(e){ spellTimerBeep('charm'); } }
+    else spellTimerBeep('charm'); }
+  if(hit){ noteTimersSave(); setTimeout(spellTimersRender,0); }
+}
+function noteTimerCmd(line){
+  const st=NOTE_TIMER_STOP.exec(line);
+  if(st){ const want=(st[1]||'').trim().toLowerCase(); let n=0;
+    for(const [k,t] of _spellTimers) if(t.mine&&!t.ended&&(!want||t.sp.toLowerCase()===want)){ clearTimeout(t.to); _spellTimers.delete(k); n++; }
+    noteTimersSave(); spellTimersRender(); showWatcherToast(n?'\u23f0 '+n+' timer'+(n===1?'':'s')+' stopped':'\u23f0 No timer'+(want?' called '+st[1].trim():'')+' running'); return true; }
+  const m=NOTE_TIMER_RE.exec(line); if(!m) return false;
+  const dur=noteTimerSecs(m[1]); if(!(dur>0)||dur>24*3600) return false;
+  noteTimerAdd((m[2]||'').trim().slice(0,40),Date.now(),dur); return true;
+}
+(function(){ try{ const L=JSON.parse(localStorage.getItem('mp_note_timers')||'[]'), now=Date.now();   // still running from before a restart
+  for(const t of Array.isArray(L)?L:[]) if(t&&t.dur>0&&t.start+t.dur*1000>now) noteTimerAdd(t.sp==='Timer'?'':t.sp,t.start,t.dur,true); }catch(e){} })();
 
 // ══ Fight parse per raid kill + CH chain report + boss hit profile (log review, 2026-10-18) ══
 let _fightParses=(()=>{ try{ return JSON.parse(localStorage.getItem('mp_parses')||'{}')||{}; }catch(e){ return {}; } })();
